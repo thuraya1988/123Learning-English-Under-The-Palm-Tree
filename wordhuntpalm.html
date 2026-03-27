@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🌴 Palm Tree Word Hunt</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --green:#2d9e62; --greenl:#e8fdf2; --greenb:#7dd4a8;
+  --blue:#2878c4;  --bluel:#e6f4ff;  --blueb:#7ac0f0;
+  --gold:#d08000;  --goldl:#fff4e0;  --goldb:#f0c060;
+  --ink:#1a2030;   --bg:#f0f7ff;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Nunito',sans-serif;min-height:100vh;padding:14px 14px 60px}
+
+/* HEADER */
+.header{background:linear-gradient(135deg,var(–green),var(–blue));border-radius:22px;padding:18px 20px;text-align:center;margin-bottom:14px;position:relative}
+.header h1{font-family:‘Fredoka One’,cursive;font-size:clamp(1.2rem,4vw,1.8rem);color:white;text-shadow:0 2px 10px rgba(0,0,0,.2)}
+.header p{font-size:0.8rem;color:rgba(255,255,255,.82);margin-top:3px}
+.back-link{position:absolute;top:12px;left:14px;color:rgba(255,255,255,.8);text-decoration:none;font-size:0.75rem;font-weight:700;background:rgba(255,255,255,.15);padding:5px 12px;border-radius:20px}
+
+/* SCOREBOARD */
+.scoreboard{background:white;border-radius:18px;padding:12px 18px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;box-shadow:0 4px 14px rgba(0,0,0,.06);margin-bottom:14px}
+.sc-item{text-align:center}
+.sc-val{font-family:‘Fredoka One’,cursive;font-size:1.5rem;line-height:1}
+.sc-lbl{font-size:0.62rem;font-weight:800;color:#90a0b8;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+.sc-div{width:1px;background:#e8eef4}
+
+/* LEVEL PILLS */
+.level-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;justify-content:center}
+.lvl-btn{padding:9px 20px;border-radius:20px;font-size:0.82rem;font-weight:800;cursor:pointer;border:2.5px solid transparent;transition:all 0.2s;font-family:‘Nunito’,sans-serif}
+.lvl-btn.l1{background:var(–greenl);color:var(–green);border-color:var(–greenb)}
+.lvl-btn.l2{background:var(–bluel);color:var(–blue);border-color:var(–blueb)}
+.lvl-btn.l3{background:var(–goldl);color:var(–gold);border-color:var(–goldb)}
+.lvl-btn.active{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.12);color:white}
+.lvl-btn.l1.active{background:var(–green)}
+.lvl-btn.l2.active{background:var(–blue)}
+.lvl-btn.l3.active{background:var(–gold)}
+
+/* WORD BADGES */
+.words-wrap{background:white;border-radius:20px;padding:14px 16px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:14px}
+.words-label{font-size:0.68rem;font-weight:800;color:#6080a0;text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px}
+.words-grid{display:flex;flex-wrap:wrap;gap:8px}
+.word-badge{
+display:flex;align-items:center;gap:6px;
+padding:6px 14px;border-radius:20px;
+font-weight:800;font-size:0.82rem;
+background:var(–bluel);color:var(–blue);
+border:2px solid var(–blueb);
+transition:all .3s;
+}
+.word-badge.found{
+background:var(–greenl);color:var(–green);
+border-color:var(–greenb);
+text-decoration:line-through;
+opacity:.7;
+}
+.word-badge-emoji{font-size:1rem}
+
+/* GRID WRAPPER — the “falaj” effect */
+.grid-wrap{
+background:white;border-radius:24px;padding:16px;
+box-shadow:0 4px 20px rgba(0,0,0,.07);margin-bottom:14px;
+overflow:hidden;position:relative;
+}
+/* Flowing water decoration behind grid */
+.grid-wrap::before{
+content:‘💧💧💧💧💧💧💧💧💧💧💧💧💧💧💧💧’;
+position:absolute;top:0;left:0;right:0;
+font-size:1.2rem;letter-spacing:2px;
+opacity:.06;line-height:1;
+overflow:hidden;height:100%;
+animation:flowWater 8s linear infinite;
+pointer-events:none;white-space:nowrap;
+word-wrap:break-word;
+}
+@keyframes flowWater{
+0%{transform:translateY(-100%)}
+100%{transform:translateY(100%)}
+}
+
+/* THE GRID TABLE */
+.ws-table{
+border-collapse:separate;
+border-spacing:4px;
+margin:0 auto;
+display:block;
+overflow-x:auto;
+}
+.ws-cell{
+width:36px;height:36px;
+background:#f4f8fc;
+border:2px solid #dce8f4;
+border-radius:8px;
+text-align:center;vertical-align:middle;
+font-weight:800;font-size:1rem;
+cursor:pointer;
+user-select:none;
+transition:all .12s;
+color:var(–ink);
+position:relative;
+}
+.ws-cell:hover{background:var(–goldl);border-color:var(–goldb)}
+.ws-cell.sel{background:var(–goldl);border-color:var(–gold);color:var(–gold);transform:scale(1.08)}
+.ws-cell.hit{
+background:var(–greenl);border-color:var(–green);
+color:var(–green);font-weight:900;
+}
+/* Colour-code each found word differently */
+.ws-cell.hit0{background:#d4f5e4;border-color:#7dd4a8;color:#1a6640}
+.ws-cell.hit1{background:#cce8ff;border-color:#7ac0f0;color:#1a4e80}
+.ws-cell.hit2{background:#fff4d8;border-color:#f0c060;color:#7a4800}
+.ws-cell.hit3{background:#f2ecff;border-color:#b090e0;color:#5030a0}
+.ws-cell.hit4{background:#ffe8d4;border-color:#f0a870;color:#7a3800}
+.ws-cell.hit5{background:#d4f5f5;border-color:#70d0c0;color:#1a6060}
+.ws-cell.hit6{background:#ffecd4;border-color:#f0b870;color:#7a4000}
+.ws-cell.hit7{background:#f0d4f5;border-color:#d070e0;color:#600060}
+
+/* FEEDBACK */
+.fb-bar{background:white;border-radius:16px;padding:12px 18px;text-align:center;font-weight:700;font-size:.9rem;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-bottom:14px;min-height:46px;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s}
+.fb-bar.ok{background:var(–greenl);color:var(–green);border:2px solid var(–greenb)}
+.fb-bar.no{background:#fff0f0;color:#c04040;border:2px solid #f09090}
+.fb-bar.idle{color:#90a0b8;border:2px solid #e0eaf4}
+
+/* HINT BUTTON */
+.hint-btn{background:var(–goldl);border:2px solid var(–goldb);color:var(–gold);font-family:‘Nunito’,sans-serif;font-weight:800;font-size:.8rem;padding:8px 18px;border-radius:20px;cursor:pointer;transition:all .2s;margin-bottom:14px}
+.hint-btn:hover{background:var(–gold);color:white}
+
+/* WIN OVERLAY */
+#winOverlay{display:none;position:fixed;inset:0;background:rgba(10,20,40,.55);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:20px}
+#winOverlay.show{display:flex}
+.win-card{background:white;border-radius:26px;padding:36px 28px;text-align:center;width:100%;max-width:380px;animation:popIn .45s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popIn{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+.win-palm{font-size:3.5rem;animation:sway 4s ease-in-out infinite;display:block;margin-bottom:8px}
+@keyframes sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+.win-title{font-family:‘Fredoka One’,cursive;font-size:1.8rem;color:var(–green);margin-bottom:6px}
+.win-score{font-family:‘Fredoka One’,cursive;font-size:2.8rem;color:var(–blue);margin:8px 0}
+.win-msg{font-size:.9rem;color:#5080a0;font-style:italic;margin-bottom:20px;line-height:1.6}
+.btn-again{background:linear-gradient(135deg,var(–green),var(–blue));color:white;border:none;font-family:‘Nunito’,sans-serif;font-weight:800;font-size:.95rem;padding:13px 32px;border-radius:20px;cursor:pointer;box-shadow:0 4px 16px rgba(40,120,196,.28);transition:all .25s;margin:4px}
+.btn-again:hover{transform:translateY(-3px)}
+
+@media(max-width:420px){.ws-cell{width:28px;height:28px;font-size:.82rem}}
+</style>
+
+</head>
+<body>
+
+<div class="header">
+  <a class="back-link" href="index.html">← Home</a>
+  <h1>🔍 Palm Tree Word Hunt</h1>
+  <p>Find the hidden words flowing through the falaj! ابحث عن الكلمات!</p>
+</div>
+
+<div class="scoreboard">
+  <div class="sc-item"><div class="sc-val" id="scFound" style="color:var(--green)">0</div><div class="sc-lbl">Found</div></div>
+  <div class="sc-div"></div>
+  <div class="sc-item"><div class="sc-val" id="scScore" style="color:var(--blue)">0</div><div class="sc-lbl">Score</div></div>
+  <div class="sc-div"></div>
+  <div class="sc-item"><div class="sc-val" id="scTime" style="color:var(--gold)">0s</div><div class="sc-lbl">Time</div></div>
+  <div class="sc-div"></div>
+  <div class="sc-item"><div class="sc-val" id="scHints" style="color:#7040c0">3</div><div class="sc-lbl">Hints</div></div>
+</div>
+
+<!-- LEVEL PILLS -->
+
+<div class="level-row">
+  <button class="lvl-btn l1 active" id="lvl1" onclick="startLevel(1)">🌱 Level 1 — Stories 1–4</button>
+  <button class="lvl-btn l2"        id="lvl2" onclick="startLevel(2)">🌴 Level 2 — Stories 5–8</button>
+  <button class="lvl-btn l3"        id="lvl3" onclick="startLevel(3)">⭐ Level 3 — Stories 9–12</button>
+</div>
+
+<!-- WORD BADGES -->
+
+<div class="words-wrap">
+  <div class="words-label">🔍 Find these words • ابحث عن هذه الكلمات</div>
+  <div class="words-grid" id="wordBadges"></div>
+</div>
+
+<!-- HINT BUTTON -->
+
+<div style="text-align:center">
+  <button class="hint-btn" onclick="useHint()">💡 Hint — تلميح (3 left)</button>
+</div>
+
+<!-- FEEDBACK -->
+
+<div class="fb-bar idle" id="fbBar">Click the first letter of a word, then drag or click the last letter! 🌴</div>
+
+<!-- GRID -->
+
+<div class="grid-wrap">
+  <table class="ws-table" id="wsTable"></table>
+</div>
+
+<!-- WIN OVERLAY -->
+
+<div id="winOverlay">
+  <div class="win-card">
+    <span class="win-palm">🌴</span>
+    <div class="win-title">All Words Found!</div>
+    <div class="win-score" id="winScore">0 pts</div>
+    <div class="win-msg" id="winMsg"></div>
+    <button class="btn-again" onclick="startLevel(currentLevel)">🔄 Play Again</button>
+    <button class="btn-again" style="background:linear-gradient(135deg,var(--gold),#e06820)" onclick="nextLevel()">Next Level →</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// WORD LISTS — one set per level
+// Each word has an emoji and the story it comes from
+// ══════════════════════════════════════════
+const WORD_SETS = {
+  1: [
+    {w:'LETTER',   emoji:'✉️',  story:'Story 1'},
+    {w:'JOURNEY',  emoji:'🚀',  story:'Story 1'},
+    {w:'FALAJ',    emoji:'💧',  story:'Story 2'},
+    {w:'SHADE',    emoji:'⛱️',  story:'Story 2'},
+    {w:'LESSON',   emoji:'📝',  story:'Story 3'},
+    {w:'TRUST',    emoji:'🤝',  story:'Story 4'},
+    {w:'PATIENT',  emoji:'⏳',  story:'Story 4'},
+    {w:'CHANGE',   emoji:'🦋',  story:'Story 4'},
+  ],
+  2: [
+    {w:'WASP',     emoji:'🐝',  story:'Story 5'},
+    {w:'BRAVE',    emoji:'🦁',  story:'Story 5'},
+    {w:'RELIEF',   emoji:'😮',  story:'Story 5'},
+    {w:'TRADITION',emoji:'📜',  story:'Story 6'},
+    {w:'BELONG',   emoji:'🏠',  story:'Story 6'},
+    {w:'SAFFRON',  emoji:'🌼',  story:'Story 7'},
+    {w:'SKILL',    emoji:'🎯',  story:'Story 8'},
+    {w:'HARVEST',  emoji:'🌾',  story:'Story 8'},
+  ],
+  3: [
+    {w:'WONDER',   emoji:'✨',  story:'Story 9'},
+    {w:'MEMORY',   emoji:'🧠',  story:'Story 9'},
+    {w:'WISDOM',   emoji:'🦉',  story:'Story 10'},
+    {w:'HUMBLE',   emoji:'🌾',  story:'Story 10'},
+    {w:'ABILITY',  emoji:'💪',  story:'Story 11'},
+    {w:'LISTEN',   emoji:'👂',  story:'Story 11'},
+    {w:'PRACTICE', emoji:'🔄',  story:'Story 12'},
+    {w:'INSPIRE',  emoji:'💫',  story:'Story 12'},
+  ],
+};
+
+const GRID_SIZE = 14;   // 14×14 grid
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+// ── STATE ──
+let currentLevel = 1;
+let grid = [];           // 2D array of letters
+let wordData = [];       // [{w, emoji, story, cells:[{r,c}]}]
+let found = [];          // indices of found words
+let selStart = null;     // {r,c} of first click
+let score = 0;
+let timerSec = 0;
+let timerID = null;
+let hintsLeft = 3;
+let isSelecting = false;
+
+// ── START / RESTART ──
+function startLevel(lvl) {
+  currentLevel = lvl;
+  [1,2,3].forEach(i => document.getElementById('lvl'+i).classList.toggle('active', i===lvl));
+
+  found = []; score = 0; hintsLeft = 3; selStart = null; isSelecting = false;
+  clearInterval(timerID);
+  timerSec = 0;
+  document.getElementById('scHints').textContent = hintsLeft;
+
+  wordData = WORD_SETS[lvl].map(item => ({...item, cells:[]}));
+  buildGrid();
+  renderBadges();
+  renderGrid();
+  updateScoreboard();
+  setFb('idle','Click the first letter of a word, then click the last letter! 🌴');
+
+  timerID = setInterval(() => {
+    timerSec++;
+    document.getElementById('scTime').textContent = timerSec + 's';
+  }, 1000);
+}
+
+// ── BUILD GRID ──
+// We place each word in the grid, then fill remaining cells with random letters.
+// Words can go: horizontal (L→R), vertical (T→B), or diagonal (↘).
+function buildGrid() {
+  // Initialise empty grid
+  grid = Array.from({length:GRID_SIZE}, () => Array(GRID_SIZE).fill(''));
+
+  const DIRS = [
+    [0,1],   // horizontal →
+    [1,0],   // vertical ↓
+    [1,1],   // diagonal ↘
+  ];
+
+  wordData.forEach(item => {
+    const word = item.w;
+    let placed = false;
+    let attempts = 0;
+
+    while (!placed && attempts < 200) {
+      attempts++;
+      const dir = DIRS[Math.floor(Math.random() * DIRS.length)];
+      const maxR = GRID_SIZE - dir[0] * (word.length - 1);
+      const maxC = GRID_SIZE - dir[1] * (word.length - 1);
+      if (maxR <= 0 || maxC <= 0) continue;
+
+      const r = Math.floor(Math.random() * maxR);
+      const c = Math.floor(Math.random() * maxC);
+
+      // Check if cells are free or match
+      let canPlace = true;
+      for (let i = 0; i < word.length; i++) {
+        const nr = r + dir[0]*i, nc = c + dir[1]*i;
+        if (grid[nr][nc] !== '' && grid[nr][nc] !== word[i]) {
+          canPlace = false; break;
+        }
+      }
+
+      if (canPlace) {
+        item.cells = [];
+        for (let i = 0; i < word.length; i++) {
+          const nr = r + dir[0]*i, nc = c + dir[1]*i;
+          grid[nr][nc] = word[i];
+          item.cells.push({r:nr, c:nc});
+        }
+        placed = true;
+      }
+    }
+  });
+
+  // Fill remaining cells
+  for (let r = 0; r < GRID_SIZE; r++)
+    for (let c = 0; c < GRID_SIZE; c++)
+      if (!grid[r][c])
+        grid[r][c] = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+}
+
+// ── RENDER GRID ──
+function renderGrid() {
+  const table = document.getElementById('wsTable');
+  table.innerHTML = '';
+  for (let r = 0; r < GRID_SIZE; r++) {
+    const tr = document.createElement('tr');
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const td = document.createElement('td');
+      td.className = 'ws-cell';
+      td.textContent = grid[r][c];
+      td.dataset.r = r; td.dataset.c = c;
+
+      // Mouse events
+      td.addEventListener('mousedown', e => { e.preventDefault(); startSel(r,c); });
+      td.addEventListener('mouseenter', () => { if (isSelecting) moveSel(r,c); });
+      td.addEventListener('mouseup', () => endSel(r,c));
+
+      // Touch events
+      td.addEventListener('touchstart', e => { e.preventDefault(); startSel(r,c); }, {passive:false});
+      td.addEventListener('touchmove', e => {
+        e.preventDefault();
+        const t = e.changedTouches[0];
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        if (el && el.classList.contains('ws-cell')) moveSel(+el.dataset.r, +el.dataset.c);
+      }, {passive:false});
+      td.addEventListener('touchend', e => {
+        e.preventDefault();
+        const t = e.changedTouches[0];
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        if (el && el.classList.contains('ws-cell')) endSel(+el.dataset.r, +el.dataset.c);
+        else endSel(selStart?.r ?? r, selStart?.c ?? c);
+      }, {passive:false});
+
+      tr.appendChild(td);
+    }
+    table.appendChild(tr);
+  }
+}
+
+// ── SELECTION LOGIC ──
+function startSel(r,c) {
+  isSelecting = true;
+  selStart = {r,c};
+  clearHighlight();
+  highlightCell(r,c,'sel');
+}
+
+function moveSel(r,c) {
+  if (!selStart || !isSelecting) return;
+  clearHighlight();
+  // Highlight line from start to current
+  const cells = getLineCells(selStart.r, selStart.c, r, c);
+  cells.forEach(cl => highlightCell(cl.r, cl.c, 'sel'));
+}
+
+function endSel(r,c) {
+  if (!selStart) return;
+  isSelecting = false;
+  const cells = getLineCells(selStart.r, selStart.c, r, c);
+  const str = cells.map(cl => grid[cl.r][cl.c]).join('');
+  const rev = str.split('').reverse().join('');
+  clearHighlight('sel');
+  checkWord(str, cells) || checkWord(rev, [...cells].reverse());
+  selStart = null;
+}
+
+// Get all cells in a straight line from (r1,c1) to (r2,c2)
+// Only valid for horizontal, vertical, or 45° diagonal
+function getLineCells(r1,c1,r2,c2) {
+  const dr = r2-r1, dc = c2-c1;
+  const steps = Math.max(Math.abs(dr), Math.abs(dc));
+  if (steps === 0) return [{r:r1,c:c1}];
+
+  // Only allow straight lines
+  const isDiag = Math.abs(dr) === Math.abs(dc);
+  const isHoriz = dr === 0;
+  const isVert  = dc === 0;
+  if (!isHoriz && !isVert && !isDiag) return [{r:r1,c:c1}];
+
+  const sr = Math.sign(dr), sc = Math.sign(dc);
+  const cells = [];
+  for (let i = 0; i <= steps; i++)
+    cells.push({r: r1+sr*i, c: c1+sc*i});
+  return cells;
+}
+
+function checkWord(str, cells) {
+  const idx = wordData.findIndex(w => w.w === str && !found.includes(wordData.indexOf(w)));
+  if (idx === -1) return false;
+
+  // Mark found
+  found.push(idx);
+  const colorClass = 'hit' + (idx % 8);
+  cells.forEach(cl => {
+    const td = getCell(cl.r, cl.c);
+    if (td) { td.className = 'ws-cell ' + colorClass; }
+  });
+
+  // Update badge
+  const badges = document.querySelectorAll('.word-badge');
+  if (badges[idx]) badges[idx].classList.add('found');
+
+  const pts = Math.max(10, 50 - timerSec);
+  score += pts;
+  updateScoreboard();
+  setFb('ok', `✅ Found: ${wordData[idx].w} ${wordData[idx].emoji}  +${pts} pts!`);
+
+  if (found.length === wordData.length) setTimeout(showWin, 800);
+  return true;
+}
+
+// ── HINT ──
+function useHint() {
+  if (hintsLeft <= 0) { setFb('no','No hints left! 🌴'); return; }
+  // Find first unfound word and highlight its first letter
+  const idx = wordData.findIndex((_,i) => !found.includes(i));
+  if (idx === -1) return;
+  const cell = wordData[idx].cells[0];
+  if (!cell) return;
+  hintsLeft--;
+  score = Math.max(0, score - 5);
+  document.getElementById('scHints').textContent = hintsLeft;
+  document.querySelector('.hint-btn').textContent = `💡 Hint — تلميح (${hintsLeft} left)`;
+  const td = getCell(cell.r, cell.c);
+  if (td) {
+    td.style.background = '#fff3e8';
+    td.style.borderColor = '#f0b070';
+    td.style.color = '#e06820';
+    td.style.transform = 'scale(1.2)';
+    setTimeout(() => {
+      td.style.background = '';
+      td.style.borderColor = '';
+      td.style.color = '';
+      td.style.transform = '';
+    }, 2000);
+  }
+  setFb('idle', `💡 Hint: "${wordData[idx].w}" starts at row ${cell.r+1}, column ${cell.c+1}.`);
+  updateScoreboard();
+}
+
+// ── HELPERS ──
+function getCell(r,c) {
+  return document.querySelector(`.ws-cell[data-r="${r}"][data-c="${c}"]`);
+}
+function highlightCell(r,c,cls) {
+  const td = getCell(r,c);
+  if (td && !td.classList.contains('hit') && !Array.from(td.classList).some(c=>c.startsWith('hit')))
+    td.classList.add(cls);
+}
+function clearHighlight(cls='sel') {
+  document.querySelectorAll('.ws-cell.'+cls).forEach(td => td.classList.remove(cls));
+}
+
+function renderBadges() {
+  const wrap = document.getElementById('wordBadges');
+  wrap.innerHTML = wordData.map((w,i) =>
+    `<div class="word-badge" id="badge-${i}">
+      <span class="word-badge-emoji">${w.emoji}</span>
+      <span>${w.w}</span>
+      <span style="font-size:.65rem;opacity:.55;font-weight:600">${w.story}</span>
+    </div>`
+  ).join('');
+}
+
+function updateScoreboard() {
+  document.getElementById('scFound').textContent = found.length + '/' + wordData.length;
+  document.getElementById('scScore').textContent = score;
+}
+
+function setFb(cls,msg) {
+  const bar = document.getElementById('fbBar');
+  bar.className = 'fb-bar ' + cls;
+  bar.textContent = msg;
+}
+
+function showWin() {
+  clearInterval(timerID);
+  const timeBonus = Math.max(0, 120 - timerSec) * 3;
+  const total = score + timeBonus;
+  document.getElementById('winScore').textContent = total + ' pts';
+  const msg = total >= 300 ? '🌟 Speed + accuracy — you are a Palm Tree Champion!'
+            : total >= 200 ? '🌴 Excellent word hunter!'
+            : total >= 100 ? '✦ Good job! Try faster next time!'
+            :                '💪 All words found! Great work!';
+  document.getElementById('winMsg').innerHTML = `${msg}<br><span style="font-size:.8rem;color:#7090a8">Time: ${timerSec}s | Time bonus: +${timeBonus}</span>`;
+  document.getElementById('winOverlay').classList.add('show');
+}
+
+function nextLevel() {
+  document.getElementById('winOverlay').classList.remove('show');
+  if (currentLevel < 3) startLevel(currentLevel + 1);
+  else startLevel(1);
+}
+
+// ── INIT ──
+window.addEventListener('load', () => startLevel(1));
+// Clear selection if mouse leaves the table
+document.addEventListener('mouseup', () => { if (isSelecting && selStart) { endSel(selStart.r, selStart.c); } });
+</script>
+
+</body>
+</html>

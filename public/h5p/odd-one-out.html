@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🌴 Odd One Out</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --green:#2d9e62; --greenl:#e8fdf2; --greenb:#7dd4a8;
+  --blue:#2878c4;  --bluel:#e6f4ff;  --blueb:#7ac0f0;
+  --gold:#d08000;  --goldl:#fff4e0;  --goldb:#f0c060;
+  --red:#c04040;   --redl:#fff0f0;   --redb:#f09090;
+  --purple:#7040c0;--purplel:#f2ecff;--purpleb:#b090e0;
+  --ink:#1a2030;   --bg:#f0f7ff;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Nunito',sans-serif;min-height:100vh;padding:14px 14px 60px}
+
+.header{background:linear-gradient(135deg,var(–green),var(–blue));border-radius:22px;padding:18px 20px;text-align:center;margin-bottom:14px;position:relative}
+.header h1{font-family:‘Fredoka One’,cursive;font-size:clamp(1.2rem,4vw,1.8rem);color:white}
+.header p{font-size:0.8rem;color:rgba(255,255,255,.82);margin-top:3px}
+.back-link{position:absolute;top:12px;left:14px;color:rgba(255,255,255,.8);text-decoration:none;font-size:0.75rem;font-weight:700;background:rgba(255,255,255,.15);padding:5px 12px;border-radius:20px}
+
+.scoreboard{background:white;border-radius:18px;padding:12px 18px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;box-shadow:0 4px 14px rgba(0,0,0,.06);margin-bottom:14px}
+.sc-item{text-align:center}
+.sc-val{font-family:‘Fredoka One’,cursive;font-size:1.5rem;line-height:1}
+.sc-lbl{font-size:0.62rem;font-weight:800;color:#90a0b8;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+.sc-div{width:1px;background:#e8eef4}
+
+.level-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;justify-content:center}
+.lvl-btn{padding:9px 20px;border-radius:20px;font-size:0.82rem;font-weight:800;cursor:pointer;border:2.5px solid transparent;transition:all 0.2s;font-family:‘Nunito’,sans-serif}
+.lvl-btn.l1{background:var(–greenl);color:var(–green);border-color:var(–greenb)}
+.lvl-btn.l2{background:var(–bluel);color:var(–blue);border-color:var(–blueb)}
+.lvl-btn.l3{background:var(–goldl);color:var(–gold);border-color:var(–goldb)}
+.lvl-btn.active{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.12);color:white}
+.lvl-btn.l1.active{background:var(–green)}
+.lvl-btn.l2.active{background:var(–blue)}
+.lvl-btn.l3.active{background:var(–gold)}
+
+/* PROGRESS */
+.progress-wrap{background:#e0eaf4;border-radius:20px;height:8px;overflow:hidden;margin-bottom:16px;max-width:640px;margin-left:auto;margin-right:auto}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(–green),var(–blue));border-radius:20px;transition:width .5s ease}
+
+/* QUESTION CARD */
+.q-card{background:white;border-radius:24px;padding:22px 20px;box-shadow:0 4px 20px rgba(0,0,0,.07);max-width:640px;margin:0 auto 14px;animation:fadeUp .5s cubic-bezier(.22,1,.36,1) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+
+.q-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.q-tag{font-family:‘Fredoka One’,cursive;font-size:.75rem;color:white;padding:4px 14px;border-radius:20px}
+.q-num{font-size:.72rem;font-weight:800;color:#90a0b8}
+.q-story{font-size:.68rem;color:#90a0b8;font-weight:700}
+
+/* TIMER */
+.timer-wrap{background:#e8eef4;border-radius:20px;height:8px;overflow:hidden;margin-bottom:16px}
+.timer-bar{height:100%;border-radius:20px;background:linear-gradient(90deg,var(–green),var(–blue));transition:width .5s linear}
+.timer-bar.warn{background:linear-gradient(90deg,#e06820,var(–red))}
+
+/* CATEGORY LABEL */
+.category{background:var(–goldl);border:2px solid var(–goldb);border-radius:14px;padding:10px 16px;text-align:center;font-size:.88rem;font-weight:700;color:var(–gold);margin-bottom:14px}
+.category span{font-family:‘Fredoka One’,cursive;font-size:.8rem;display:block;margin-bottom:2px;color:var(–ink)}
+
+/* WORD GRID — 2×2 for 4 words */
+.word-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+
+.word-btn{
+padding:18px 12px;border-radius:18px;
+border:2.5px solid #d0dce8;background:#f8fbff;
+font-weight:800;font-size:1rem;cursor:pointer;
+transition:all .2s;color:var(–ink);text-align:center;
+font-family:‘Nunito’,sans-serif;line-height:1.3;
+}
+.word-btn:hover:not(:disabled){background:var(–bluel);border-color:var(–blueb);transform:translateY(-3px);box-shadow:0 6px 18px rgba(40,120,196,.15)}
+.word-btn.correct{background:var(–greenl);border-color:var(–green);color:var(–green);animation:popIn .35s cubic-bezier(.34,1.56,.64,1)}
+.word-btn.wrong  {background:var(–redl);border-color:var(–red);color:var(–red);animation:shake .3s}
+.word-btn.reveal {background:var(–greenl);border-color:var(–greenb);color:var(–green)}
+@keyframes popIn{0%{transform:scale(.9)}50%{transform:scale(1.06)}100%{transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* EXPLANATION */
+.explanation{border-radius:14px;padding:12px 16px;font-weight:700;font-size:.87rem;display:none;margin-bottom:12px;line-height:1.6}
+.explanation.ok{background:var(–greenl);border:2px solid var(–greenb);color:var(–green);display:block}
+.explanation.no{background:var(–redl);border:2px solid var(–redb);color:var(–red);display:block}
+.exp-ar{font-size:.8rem;direction:rtl;text-align:right;margin-top:4px;opacity:.75}
+
+.btn-next{display:none;width:100%;background:linear-gradient(135deg,var(–green),var(–blue));color:white;border:none;font-family:‘Fredoka One’,cursive;font-size:.95rem;padding:13px;border-radius:16px;cursor:pointer;box-shadow:0 4px 14px rgba(40,120,196,.2);transition:all .25s}
+.btn-next:hover{transform:translateY(-2px)}
+
+/* WIN */
+#winOverlay{display:none;position:fixed;inset:0;background:rgba(10,20,40,.55);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:20px}
+#winOverlay.show{display:flex}
+.win-card{background:white;border-radius:26px;padding:36px 28px;text-align:center;width:100%;max-width:380px;animation:popIn .45s cubic-bezier(.34,1.56,.64,1)}
+.win-palm{font-size:3.5rem;animation:sway 4s ease-in-out infinite;display:block;margin-bottom:8px}
+@keyframes sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+.win-title{font-family:‘Fredoka One’,cursive;font-size:1.8rem;color:var(–green);margin-bottom:6px}
+.win-score{font-family:‘Fredoka One’,cursive;font-size:2.8rem;color:var(–blue);margin:8px 0}
+.win-msg{font-size:.9rem;color:#5080a0;font-style:italic;margin-bottom:20px;line-height:1.6}
+.btn-again{background:linear-gradient(135deg,var(–green),var(–blue));color:white;border:none;font-family:‘Nunito’,sans-serif;font-weight:800;font-size:.95rem;padding:13px 32px;border-radius:20px;cursor:pointer;margin:4px;transition:all .25s}
+.btn-again:hover{transform:translateY(-3px)}
+</style>
+
+</head>
+<body>
+
+<div class="header">
+  <a class="back-link" href="index.html">← Home</a>
+  <h1>🔍 Odd One Out</h1>
+  <p>Which word does NOT belong? • أيّ كلمة لا تنتمي للمجموعة؟</p>
+</div>
+
+<div class="scoreboard">
+  <div class="sc-item"><div class="sc-val" id="scScore"  style="color:var(--green)">0</div><div class="sc-lbl">Score</div></div>
+  <div class="sc-div"></div>
+  <div class="sc-item"><div class="sc-val" id="scStreak" style="color:var(--gold)">0🔥</div><div class="sc-lbl">Streak</div></div>
+  <div class="sc-div"></div>
+  <div class="sc-item"><div class="sc-val" id="scQ"      style="color:var(--blue)">0/0</div><div class="sc-lbl">Questions</div></div>
+  <div class="sc-div"></div>
+  <div class="sc-item"><div class="sc-val" id="scAcc"    style="color:var(--purple)">-</div><div class="sc-lbl">Accuracy</div></div>
+</div>
+
+<div class="level-row">
+  <button class="lvl-btn l1 active" id="lvl1" onclick="startLevel(1)">🌱 Level 1 — Topics</button>
+  <button class="lvl-btn l2"        id="lvl2" onclick="startLevel(2)">🌴 Level 2 — Grammar</button>
+  <button class="lvl-btn l3"        id="lvl3" onclick="startLevel(3)">⭐ Level 3 — Characters</button>
+</div>
+
+<div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+
+<div id="qArea"></div>
+
+<div id="winOverlay">
+  <div class="win-card">
+    <span class="win-palm">🌴</span>
+    <div class="win-title">Round Complete!</div>
+    <div class="win-score" id="winScore">0 pts</div>
+    <div class="win-msg" id="winMsg"></div>
+    <button class="btn-again" onclick="startLevel(currentLevel)">🔄 Play Again</button>
+    <button class="btn-again" style="background:linear-gradient(135deg,var(--gold),#e06820)" onclick="nextLevel()">Next Level →</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// ODD ONE OUT — QUESTIONS
+//
+// Each question has:
+//   category   : the connecting theme of the 3 that belong
+//   categoryAr : Arabic label for the category
+//   words      : array of 4 words
+//   odd        : the word that does NOT belong
+//   exp        : English explanation of why
+//   expAr      : Arabic explanation
+//   story      : source reference
+//   tagColor   : colour of the tag label
+// ══════════════════════════════════════════════════════
+
+const Q_SETS = {
+
+  // ── LEVEL 1: Topic-based groupings ──────────────────
+  1: [
+    { category:'Things the falaj carries', categoryAr:'أشياء يحملها الفلج',
+      words:['water','memories','laundry','saffron'], odd:'saffron',
+      exp:'Saffron is a spice used in Marhoona\'s salon — not carried by the falaj!',
+      expAr:'الزعفران توابل في صالون مرهونة — ليس شيئاً يحمله الفلج!',
+      story:'Story 2 & 7', tagColor:'#2878c4' },
+
+    { category:'What Sadoo can do', categoryAr:'ما يستطيع سادو فعله',
+      words:['climb','sew','sell','hesitate'], odd:'hesitate',
+      exp:'Hesitate means to pause nervously — that\'s Khamees, not Sadoo!',
+      expAr:'hesitate تعني التردد الخجول — هذه صفة خميس وليس سادو!',
+      story:'Story 8 & 11', tagColor:'#d08000' },
+
+    { category:'What the palm tree gives', categoryAr:'ما تعطيه نخلة الفرض',
+      words:['shade','dates','wood','saffron'], odd:'saffron',
+      exp:'Saffron comes from a flower — not from a palm tree.',
+      expAr:'الزعفران يأتي من زهرة — وليس من النخلة.',
+      story:'All Stories', tagColor:'#2d9e62' },
+
+    { category:'Characters who are quiet', categoryAr:'الشخصيات الهادئة',
+      words:['Khamees','Khalaf','Ali','Mansoor'], odd:'Mansoor',
+      exp:'Mansoor is a human storm — he is the loudest character in the village!',
+      expAr:'منصور إعصار بشري — هو أعلى شخصية في القرية صوتاً!',
+      story:'Stories 3–11', tagColor:'#7040c0' },
+
+    { category:'Feelings in the wasp story', categoryAr:'مشاعر قصة الدبّور',
+      words:['relief','freeze','tension','wisdom'], odd:'wisdom',
+      exp:'Wisdom belongs to Khalaf\'s story — the wasp story is about fear and relief.',
+      expAr:'الحكمة من قصة خلف — قصة الدبّور عن الخوف والارتياح.',
+      story:'Story 5 & 10', tagColor:'#c04040' },
+
+    { category:'Things inside the school', categoryAr:'أشياء داخل المدرسة',
+      words:['blackboard','lesson','teacher','falaj'], odd:'falaj',
+      exp:'The falaj is outside — it runs beside the school yard, not inside!',
+      expAr:'الفلج في الخارج — يجري بجانب ساحة المدرسة وليس بداخلها!',
+      story:'Stories 2 & 3', tagColor:'#2878c4' },
+
+    { category:'Words connected to water', categoryAr:'كلمات متعلقة بالماء',
+      words:['falaj','flow','saffron','carries'], odd:'saffron',
+      exp:'Saffron is a yellow spice — the other three are all about water movement.',
+      expAr:'الزعفران توابل صفراء — الكلمات الأخرى كلها تتعلق بحركة الماء.',
+      story:'Story 2 & 7', tagColor:'#2878c4' },
+
+    { category:'Omani traditional things', categoryAr:'أشياء تراثية عُمانية',
+      words:['falaj','palm tree','ancestor','camera'], odd:'camera',
+      exp:'The camera is a modern invention John brought — the others are ancient Omani traditions.',
+      expAr:'الكاميرا اختراع حديث جلبه جون — الباقي تراث عُماني أصيل.',
+      story:'Stories 2, 6 & 9', tagColor:'#d08000' },
+  ],
+
+  // ── LEVEL 2: Grammar-based groupings ─────────────────
+  2: [
+    { category:'Simple Past — regular verbs (+ed)', categoryAr:'ماضٍ منتظم (+ed)',
+      words:['walked','climbed','taught','landed'], odd:'taught',
+      exp:'"taught" is the irregular past of "teach" — the others all add -ed.',
+      expAr:'"taught" ماضٍ شاذ لـ "teach" — الأخريات كلها تأخذ ed بشكل منتظم.',
+      story:'Grammar', tagColor:'#d08000' },
+
+    { category:'Simple Past — irregular verbs', categoryAr:'ماضٍ شاذ',
+      words:['grew','sat','drove','watched'], odd:'watched',
+      exp:'"watched" is regular (watch+ed) — the others are all irregular past forms.',
+      expAr:'"watched" منتظم (watch+ed) — الأخريات كلها أفعال شاذة.',
+      story:'Grammar', tagColor:'#d08000' },
+
+    { category:'Verbs with He/She/It → add -s', categoryAr:'أفعال تأخذ s مع he/she/it',
+      words:['teaches','carries','climbs','teach'], odd:'teach',
+      exp:'"teach" is the base form — all He/She/It verbs need +s or +es.',
+      expAr:'"teach" الفعل الأساسي — جميع أفعال he/she/it تأخذ s أو es.',
+      story:'Grammar', tagColor:'#2d9e62' },
+
+    { category:'Question words (WH-)', categoryAr:'أسئلة WH',
+      words:['what','where','does','who'], odd:'does',
+      exp:'"does" is an auxiliary verb for questions — not a WH- question word.',
+      expAr:'"does" فعل مساعد للأسئلة — وليس من كلمات WH للاستفهام.',
+      story:'Grammar', tagColor:'#7040c0' },
+
+    { category:'Simple Future — correct forms', categoryAr:'المستقبل البسيط الصحيح',
+      words:['will teach','will go','will comes','will learn'], odd:'will comes',
+      exp:'"will comes" is wrong — after "will" we always use the base verb without -s.',
+      expAr:'"will comes" خطأ — بعد "will" نستخدم الفعل الأساسي دائماً بدون s.',
+      story:'Grammar', tagColor:'#7040c0' },
+
+    { category:'Negative forms', categoryAr:'صيغ النفي',
+      words:["doesn't","didn't","won't","do not goes"], odd:'do not goes',
+      exp:'"do not goes" is wrong — correct forms never add -s after "do/did/will".',
+      expAr:'"do not goes" خطأ — لا نضيف s بعد do/did/will في النفي.',
+      story:'Grammar', tagColor:'#c04040' },
+
+    { category:'Past tense of "be"', categoryAr:'ماضي فعل be',
+      words:['was','were','is','had been'], odd:'is',
+      exp:'"is" is present tense — "was/were/had been" are all past forms of "be".',
+      expAr:'"is" مضارع — "was/were/had been" كلها أشكال ماضية للفعل be.',
+      story:'Grammar', tagColor:'#2878c4' },
+
+    { category:'Adjectives', categoryAr:'الصفات (adjectives)',
+      words:['brave','quiet','patient','hesitate'], odd:'hesitate',
+      exp:'"hesitate" is a verb — the others are all adjectives describing a person.',
+      expAr:'"hesitate" فعل — الأخريات كلها صفات تصف شخصاً.',
+      story:'Grammar', tagColor:'#2d9e62' },
+  ],
+
+  // ── LEVEL 3: Character-based groupings ───────────────
+  3: [
+    { category:'Things that describe Thuraya', categoryAr:'صفات ثريا',
+      words:['confident','patient','leader','runs without reason'], odd:'runs without reason',
+      exp:'"Runs without reason" describes Mansoor — not Thuraya!',
+      expAr:'"يركض بدون سبب" صفة منصور — وليست صفة ثريا!',
+      story:'All Stories', tagColor:'#2d9e62' },
+
+    { category:'Things that describe Khamees', categoryAr:'صفات خميس',
+      words:['quiet','watches carefully','laughs too much','understands fast'], odd:'laughs too much',
+      exp:'"Laughs too much" is Khalil\'s superpower — Khamees is the quiet observer.',
+      expAr:'"يضحك كثيراً" من مواهب خليل — خميس هو المراقب الهادئ.',
+      story:'Stories 11 & 12', tagColor:'#7040c0' },
+
+    { category:'Things John is afraid of', categoryAr:'أشياء يخافها جون',
+      words:['Shayb Khalaf','the heat','Malood','dates from the palm'], odd:'dates from the palm',
+      exp:'John loves dates from the palm — his fears are Khalaf, the heat, and Malood!',
+      expAr:'جون يحب رطب النخلة — مخاوفه هي خلف والحر ومالود!',
+      story:'Stories 1–10', tagColor:'#c04040' },
+
+    { category:'What Malood does in the school', categoryAr:'ما يفعله مالود في المدرسة',
+      words:['enters class','eats papers','watches everyone','teaches English'], odd:'teaches English',
+      exp:'Teaching English is John\'s job — Malood is the unofficial school inspector!',
+      expAr:'تدريس الإنجليزية وظيفة جون — مالود هو المفتش غير الرسمي!',
+      story:'All Stories', tagColor:'#d08000' },
+
+    { category:'Sophia\'s characteristics', categoryAr:'خصائص صوفيا',
+      words:['organises chaos','became Safiya','face turned yellow','runs fastest in class'], odd:'runs fastest in class',
+      exp:'"Runs fastest" belongs to Mansoor — Sophia is calm and observant.',
+      expAr:'"الأسرع ركضاً" من صفات منصور — صوفيا هادئة وملاحِظة.',
+      story:'Stories 1–7', tagColor:'#7040c0' },
+
+    { category:'What the falaj carries in the stories', categoryAr:'ما يحمله الفلج في القصص',
+      words:['water','children swimming','laundry','John\'s British accent'], odd:'John\'s British accent',
+      exp:'The falaj cannot carry an accent! Water, children, and laundry — yes. Accents — no.',
+      expAr:'الفلج لا يحمل لهجة! الماء والأطفال والغسيل نعم — أما اللهجة فلا.',
+      story:'Story 2', tagColor:'#2878c4' },
+
+    { category:'Sadoo\'s skills', categoryAr:'مهارات سادو',
+      words:['climbing palms','sewing','selling','hesitating'], odd:'hesitating',
+      exp:'Hesitating is Khamees\'s thing before speaking — Sadoo never hesitates!',
+      expAr:'التردد من صفات خميس قبل الكلام — سادو لا يتردد أبداً!',
+      story:'Stories 8 & 11', tagColor:'#d08000' },
+
+    { category:'Things Marhoona uses in her salon', categoryAr:'ما تستخدمه مرهونة في صالونها',
+      words:['sandalwood','saffron','rose water','falaj water'], odd:'falaj water',
+      exp:'Marhoona uses traditional spices — falaj water is for farms and drinking, not beauty!',
+      expAr:'مرهونة تستخدم التوابل التقليدية — ماء الفلج للمزارع والشرب وليس للتجميل!',
+      story:'Story 7', tagColor:'#7040c0' },
+  ]
+};
+
+// ── STATE ──
+let currentLevel = 1;
+let pool = [];
+let qIdx = 0;
+let score = 0;
+let streak = 0;
+let correct = 0;
+let answered = false;
+let timerSec = 15;
+let timerID = null;
+
+function shuffle(arr) {
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+function startLevel(lvl) {
+  currentLevel = lvl;
+  [1,2,3].forEach(i => document.getElementById('lvl'+i).classList.toggle('active', i===lvl));
+  pool = shuffle([...Q_SETS[lvl]]);
+  qIdx = 0; score = 0; streak = 0; correct = 0; answered = false;
+  updateScoreboard();
+  showQ();
+}
+
+function showQ() {
+  if (qIdx >= pool.length) { showWin(); return; }
+  answered = false;
+  const q = pool[qIdx];
+  const shuffledWords = shuffle([...q.words]);
+  updateProgress();
+
+  const html = `
+    <div class="q-card">
+      <div class="q-top">
+        <div>
+          <span class="q-tag" style="background:${q.tagColor}">${q.category}</span>
+          <div class="q-story" style="margin-top:3px">${q.story} • ${q.categoryAr}</div>
+        </div>
+        <span class="q-num">Q ${qIdx+1} / ${pool.length}</span>
+      </div>
+
+      <div class="timer-wrap"><div class="timer-bar" id="timerBar" style="width:100%"></div></div>
+
+      <div class="category">
+        <span>Which word does NOT belong to this group?</span>
+        أيّ كلمة لا تنتمي لهذه المجموعة؟
+      </div>
+
+      <div class="word-grid">
+        ${shuffledWords.map(w =>
+          `<button class="word-btn" onclick="answer('${w.replace(/'/g,"\\'")}',this)">${w}</button>`
+        ).join('')}
+      </div>
+
+      <div class="explanation" id="expBox"></div>
+      <button class="btn-next" id="btnNext" onclick="nextQ()">Next Question →</button>
+    </div>`;
+
+  document.getElementById('qArea').innerHTML = html;
+
+  // Start timer
+  timerSec = 15;
+  if (timerID) clearInterval(timerID);
+  timerID = setInterval(() => {
+    timerSec--;
+    const bar = document.getElementById('timerBar');
+    if (bar) {
+      bar.style.width = (timerSec / 15 * 100) + '%';
+      if (timerSec <= 4) bar.className = 'timer-bar warn';
+    }
+    if (timerSec <= 0) {
+      clearInterval(timerID);
+      if (!answered) timeUp();
+    }
+  }, 1000);
+}
+
+function answer(word, btn) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerID);
+  const q = pool[qIdx];
+  const isOdd = word === q.odd;
+
+  // Highlight all buttons
+  document.querySelectorAll('.word-btn').forEach(b => {
+    b.disabled = true;
+    if (b.textContent === q.odd) b.classList.add('correct');
+    if (b === btn && !isOdd) b.classList.add('wrong');
+  });
+
+  const exp = document.getElementById('expBox');
+  if (isOdd) {
+    streak++;
+    correct++;
+    const pts = 15 + (streak >= 3 ? 10 : 0);
+    score += pts;
+    exp.className = 'explanation ok';
+    exp.innerHTML = `✅ Correct! "${q.odd}" is the odd one out! +${pts} pts ${streak>=3?'🔥':''}
+      <br>${q.exp}
+      <div class="exp-ar">${q.expAr}</div>`;
+  } else {
+    streak = 0;
+    exp.className = 'explanation no';
+    exp.innerHTML = `❌ The odd one is <strong>"${q.odd}"</strong>
+      <br>${q.exp}
+      <div class="exp-ar">${q.expAr}</div>`;
+  }
+
+  updateScoreboard();
+  document.getElementById('btnNext').style.display = 'block';
+}
+
+function timeUp() {
+  answered = true;
+  streak = 0;
+  const q = pool[qIdx];
+  document.querySelectorAll('.word-btn').forEach(b => {
+    b.disabled = true;
+    if (b.textContent === q.odd) b.classList.add('reveal');
+  });
+  const exp = document.getElementById('expBox');
+  exp.className = 'explanation no';
+  exp.innerHTML = `⏰ Time up! The odd one was <strong>"${q.odd}"</strong>
+    <br>${q.exp}
+    <div class="exp-ar">${q.expAr}</div>`;
+  updateScoreboard();
+  document.getElementById('btnNext').style.display = 'block';
+}
+
+function nextQ() {
+  qIdx++;
+  showQ();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function updateProgress() {
+  const pct = pool.length ? (qIdx / pool.length * 100) : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
+function updateScoreboard() {
+  document.getElementById('scScore').textContent  = score;
+  document.getElementById('scStreak').textContent = streak + (streak >= 3 ? '🔥' : '');
+  document.getElementById('scQ').textContent      = correct + '/' + qIdx;
+  document.getElementById('scAcc').textContent    = qIdx > 0 ? Math.round(correct/qIdx*100)+'%' : '-';
+}
+
+function showWin() {
+  clearInterval(timerID);
+  document.getElementById('winScore').textContent = score + ' pts';
+  const pct = pool.length ? Math.round(correct/pool.length*100) : 0;
+  const msg = pct === 100 ? '🌟 Perfect! You know every word and character deeply!'
+            : pct >= 75   ? '🌴 Excellent! Strong vocabulary and story knowledge!'
+            : pct >= 50   ? '✦ Good thinking! Review the stories and try again.'
+            :               '💪 Keep exploring the stories — you\'ll get them all!';
+  document.getElementById('winMsg').innerHTML = `${msg}<br><span style="font-size:.8rem;color:#7090a8">Accuracy: ${pct}% | Score: ${score}</span>`;
+  document.getElementById('winOverlay').classList.add('show');
+}
+
+function nextLevel() {
+  document.getElementById('winOverlay').classList.remove('show');
+  startLevel(currentLevel < 3 ? currentLevel + 1 : 1);
+}
+
+window.addEventListener('load', () => startLevel(1));
+</script>
+
+</body>
+</html>

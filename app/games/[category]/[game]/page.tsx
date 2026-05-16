@@ -4,6 +4,7 @@ import GlassCard from "../../../../components/GlassCard";
 import SectionTitle from "../../../../components/SectionTitle";
 import ThreeDCharacter from "../../../../components/ThreeDCharacter";
 import ARViewer from "../../../../components/ARViewer";
+import H5PEmbed from "../../../../components/H5PEmbed";
 import PipperConnector from "../../../../components/PipperConnector";
 import SchoromConnector from "../../../../components/SchoromConnector";
 import {
@@ -35,7 +36,7 @@ export default function GamePage({
 
   return (
     <section className="min-h-screen pt-32 pb-24 px-6 md:px-12">
-      <div className="max-w-[1200px] mx-auto w-full">
+      <div className="max-w-[1400px] mx-auto w-full">
         <SectionTitle
           eyebrow={eraLabel}
           title={<em>{game.title}</em>}
@@ -43,7 +44,7 @@ export default function GamePage({
         />
 
         <GlassCard className="p-5 mb-8">
-          <p className="font-cinzel text-[11px] tracking-[0.2em] uppercase text-[var(--gold)] mb-1">
+          <p className="font-cinzel text-[11px] tracking-[0.2em] uppercase text-[var(--burgundy)] mb-1">
             Story File Reference
           </p>
           <p className="text-[var(--brown-mid)] italic text-sm">
@@ -54,10 +55,14 @@ export default function GamePage({
           </p>
         </GlassCard>
 
+        <GlassCard className="p-6 md:p-8 mb-8">
+          <H5PEmbed slug={game.h5p} title={`${game.title} — H5P activity`} height={620} />
+        </GlassCard>
+
         <div className="grid lg:grid-cols-12 gap-8 mb-12">
           <GlassCard className="lg:col-span-7 p-8">
             <div className="flex items-center justify-between mb-5">
-              <p className="font-cinzel text-[12px] tracking-[0.18em] uppercase text-[var(--gold)]">
+              <p className="font-cinzel text-[12px] tracking-[0.18em] uppercase text-[var(--burgundy)]">
                 Level Map · 1 – 10
               </p>
               <span className="font-cinzel text-[10px] tracking-[0.2em] uppercase text-[var(--brown-mid)]">
@@ -78,11 +83,8 @@ export default function GamePage({
                     <div
                       className="w-12 h-12 rounded-2xl flex items-center justify-center font-cormorant text-2xl flex-shrink-0"
                       style={{
-                        background:
-                          "linear-gradient(135deg, var(--gold-light), var(--gold))",
-                        border: "1px solid rgba(184,150,62,0.55)",
-                        color: "#fff9f0",
-                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)",
+                        background: "var(--burgundy)",
+                        color: "var(--cream)",
                       }}
                     >
                       {lv.level}
@@ -126,7 +128,7 @@ export default function GamePage({
             />
             <div className="grid sm:grid-cols-2 gap-4">
               <GlassCard className="p-5">
-                <p className="font-cinzel text-[11px] tracking-[0.15em] uppercase text-[var(--gold)] mb-2">
+                <p className="font-cinzel text-[11px] tracking-[0.15em] uppercase text-[var(--burgundy)] mb-2">
                   Score
                 </p>
                 <p className="text-[var(--brown-mid)] italic text-sm">
@@ -134,7 +136,7 @@ export default function GamePage({
                 </p>
               </GlassCard>
               <GlassCard className="p-5">
-                <p className="font-cinzel text-[11px] tracking-[0.15em] uppercase text-[var(--gold)] mb-2">
+                <p className="font-cinzel text-[11px] tracking-[0.15em] uppercase text-[var(--burgundy)] mb-2">
                   Badge
                 </p>
                 <p className="text-[var(--brown-mid)] italic text-sm">

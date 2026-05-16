@@ -19,7 +19,7 @@ export default function AvatarSelector({ value, onChange }: Props) {
   };
   const active = value ?? internal;
   return (
-    <div className="grid grid-cols-6 gap-2">
+    <div className="grid grid-cols-6 gap-2.5">
       {AVATAR_OPTIONS.map((a) => {
         const selected = active === a;
         return (
@@ -28,17 +28,14 @@ export default function AvatarSelector({ value, onChange }: Props) {
             type="button"
             aria-label={`Avatar ${a}`}
             onClick={() => select(a)}
-            className={`w-full aspect-square rounded-full flex items-center justify-center text-xl cursor-pointer transition-all ${
-              selected
-                ? "scale-110"
-                : "hover:scale-105"
+            className={`w-full aspect-square rounded-full flex items-center justify-center text-xl cursor-pointer transition-all bg-[var(--cream-light)] ${
+              selected ? "scale-110" : "hover:scale-105"
             }`}
             style={{
-              border: `2px solid ${selected ? "var(--gold)" : "transparent"}`,
-              background: "rgba(255,248,235,0.5)",
+              border: `2px solid ${selected ? "var(--burgundy)" : "rgba(184,150,62,0.25)"}`,
               boxShadow: selected
-                ? "0 0 0 3px rgba(184,150,62,0.2), 0 4px 12px rgba(184,150,62,0.2)"
-                : "0 2px 8px rgba(61,43,31,0.1)",
+                ? "0 0 0 3px rgba(91,26,26,0.15), 0 4px 12px rgba(91,26,26,0.18)"
+                : "0 2px 8px rgba(61,43,31,0.08)",
             }}
           >
             {a}

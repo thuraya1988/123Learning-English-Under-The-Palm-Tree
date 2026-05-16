@@ -32,36 +32,31 @@ export default function RegistrationCard() {
   return (
     <form
       onSubmit={submit}
-      className="float-anim p-10 rounded-3xl"
-      style={{
-        background: "rgba(255,248,235,0.35)",
-        backdropFilter: "blur(32px)",
-        WebkitBackdropFilter: "blur(32px)",
-        border: "1px solid rgba(184,150,62,0.4)",
-        boxShadow:
-          "0 40px 80px rgba(61,43,31,0.15), 0 8px 24px rgba(61,43,31,0.08), inset 0 2px 0 rgba(255,255,255,0.8), inset 0 -2px 0 rgba(184,150,62,0.15), inset 2px 0 0 rgba(255,255,255,0.5), inset -2px 0 0 rgba(184,150,62,0.1)",
-      }}
+      className="bg-[var(--cream)] rounded-[24px] p-8 md:p-10 border border-[rgba(184,150,62,0.28)] shadow-[0_24px_60px_rgba(61,43,31,0.12)]"
     >
-      <p className="font-cinzel text-[14px] tracking-[0.2em] text-[var(--gold)] text-center mb-7 flex items-center justify-center gap-2.5 uppercase">
-        <span className="flex-1 h-px bg-gradient-to-r from-transparent to-[rgba(184,150,62,0.5)]" />
-        Create Your Profile
-        <span className="flex-1 h-px bg-gradient-to-l from-transparent to-[rgba(184,150,62,0.5)]" />
-      </p>
+      <div className="flex items-center justify-between mb-7">
+        <p className="font-cormorant text-2xl text-[var(--brown)]">
+          Registration
+        </p>
+        <span className="font-cinzel text-[10px] tracking-[0.22em] uppercase text-[var(--brown-mid)]">
+          Free
+        </span>
+      </div>
 
       <Field
-        label="USERNAME"
+        label="Username"
         value={username}
         onChange={setUsername}
-        placeholder="Enter your name…"
+        placeholder="Your name"
       />
       <Field
-        label="ABOUT YOU"
+        label="About You"
         value={description}
         onChange={setDescription}
-        placeholder="A brief description of yourself…"
+        placeholder="A brief description of yourself"
       />
       <Field
-        label="EMAIL ADDRESS"
+        label="Email Address"
         type="email"
         value={email}
         onChange={setEmail}
@@ -69,48 +64,44 @@ export default function RegistrationCard() {
       />
 
       <div className="mt-5">
-        <span className="font-cinzel text-[10px] tracking-[0.15em] text-[var(--brown-mid)] block mb-2.5 uppercase">
+        <span className="font-cinzel text-[10px] tracking-[0.18em] text-[var(--brown-mid)] block mb-3 uppercase">
           Choose Your Avatar
         </span>
         <AvatarSelector value={avatar} onChange={setAvatar} />
-        <p className="text-[11px] italic text-[var(--brown-mid)] leading-relaxed text-center opacity-80 mt-2.5">
-          Your avatar and username will appear throughout the website and on
-          your final course completion certificate.
+        <p className="text-[12px] italic text-[var(--brown-mid)] leading-relaxed mt-3">
+          The selected avatar and username will appear throughout the website
+          and on the final course completion certificate.
         </p>
       </div>
 
-      <div
-        className="mt-4 p-3.5 rounded-[10px]"
-        style={{
-          background: "rgba(184,150,62,0.06)",
-          border: "1px solid rgba(184,150,62,0.2)",
-        }}
-      >
-        <label className="flex items-start gap-2.5 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={agree}
-            onChange={(e) => setAgree(e.target.checked)}
-            className="mt-0.5"
-            style={{ accentColor: "var(--gold)" }}
-          />
-          <span className="text-[11px] leading-[1.6] text-[var(--brown-mid)] italic">
-            This platform and all educational materials, stories, games,
-            activities, systems, and concepts are intellectual property owned by{" "}
-            <strong>Thuraya Mohammed bin Ali Al Naabi</strong>, English Teacher
-            – Sumail Al Qurooshiyah. Copying, recording, redistributing,
-            screenshotting, or reproducing any content is strictly prohibited
-            and may result in legal action.
-          </span>
-        </label>
-      </div>
+      <label className="mt-5 flex items-start gap-3 cursor-pointer p-4 rounded-xl bg-[rgba(184,150,62,0.07)] border border-[rgba(184,150,62,0.18)]">
+        <input
+          type="checkbox"
+          checked={agree}
+          onChange={(e) => setAgree(e.target.checked)}
+          className="mt-1 accent-[var(--burgundy)]"
+        />
+        <span className="text-[11px] leading-[1.6] text-[var(--brown-mid)] italic">
+          This platform and all educational materials, stories, games,
+          activities, systems, and concepts are intellectual property owned by{" "}
+          <strong>Thuraya Mohammed bin Ali Al Naabi</strong>, English Teacher –
+          Sumail Al Qurooshiyah. Copying, recording, redistributing,
+          screenshotting, or reproducing any content is strictly prohibited and
+          may result in legal action.
+        </span>
+      </label>
 
       {error && (
-        <p className="text-[#7a2a17] text-xs mt-3 italic">{error}</p>
+        <p className="text-[#7a2424] text-xs mt-3 italic">{error}</p>
       )}
 
-      <button type="submit" className="btn-gold w-full mt-4">
-        Start Your Journey
+      <button type="submit" className="btn-burgundy w-full mt-5 !justify-center">
+        Start your journey
+        <span className="arrow">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M5 12h14M13 5l7 7-7 7" />
+          </svg>
+        </span>
       </button>
     </form>
   );
@@ -131,7 +122,7 @@ function Field({
 }) {
   return (
     <div className="mb-4">
-      <label className="font-cinzel text-[10px] tracking-[0.15em] text-[var(--brown-mid)] block mb-1.5 uppercase">
+      <label className="font-cinzel text-[10px] tracking-[0.18em] text-[var(--brown-mid)] block mb-1.5 uppercase">
         {label}
       </label>
       <input

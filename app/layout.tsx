@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "../styles/globals.css";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import AmbientBackdrop from "../components/AmbientBackdrop";
 
 export const metadata: Metadata = {
   title: "Learn Under The Palm Tree",
@@ -18,7 +17,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <AmbientBackdrop />
         <Header />
         <main>{children}</main>
         <Footer />

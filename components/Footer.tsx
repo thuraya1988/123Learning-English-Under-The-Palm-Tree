@@ -1,87 +1,123 @@
 import Link from "next/link";
-import PalmIcon from "./PalmIcon";
 
-const navItems = [
-  { href: "/", label: "Home" },
+const COL_1 = [
   { href: "/about", label: "About" },
-  { href: "/characters", label: "Characters" },
-  { href: "/story", label: "Story" },
-  { href: "/music", label: "Music" },
-  { href: "/skills", label: "Skills" },
+  { href: "/story", label: "Story chapters" },
+  { href: "/skills", label: "Skills practice" },
+];
+
+const COL_2 = [
   { href: "/games", label: "Games" },
+  { href: "/characters", label: "Characters and gallery" },
+  { href: "/ar", label: "AR trip" },
+];
+
+const COL_3 = [
+  { href: "/music", label: "Website songs" },
   { href: "/gallery", label: "Gallery" },
-  { href: "/ar", label: "AR" },
   { href: "/certificate", label: "Certificate" },
 ];
+
+const SOCIAL = [
+  { label: "Instagram", icon: "📸" },
+  { label: "YouTube", icon: "▶️" },
+  { label: "X", icon: "𝕏" },
+  { label: "TikTok", icon: "🎵" },
+];
+
+function PalmMonogram() {
+  return (
+    <svg viewBox="0 0 48 48" className="w-9 h-9" aria-hidden>
+      <g fill="none" stroke="#e8d5a3" strokeWidth="1.6" strokeLinecap="round">
+        <path d="M24 8 V42" />
+        <path d="M24 10 C 16 8, 8 14, 6 22" />
+        <path d="M24 10 C 32 8, 40 14, 42 22" />
+        <path d="M24 16 C 14 16, 8 22, 6 30" />
+        <path d="M24 16 C 34 16, 40 22, 42 30" />
+      </g>
+      <circle cx="24" cy="8" r="2" fill="#e8d5a3" />
+    </svg>
+  );
+}
 
 export default function Footer() {
   const year = new Date().getFullYear();
   return (
-    <footer
-      className="px-6 md:px-16 py-16 text-center"
-      style={{
-        background: "rgba(30,18,12,0.06)",
-        borderTop: "1px solid rgba(184,150,62,0.2)",
-      }}
-    >
-      <div className="flex flex-col items-center gap-3 mb-8">
-        <div
-          className="w-[60px] h-[60px] rounded-full flex items-center justify-center"
-          style={{
-            background: "rgba(255,248,235,0.4)",
-            border: "2px solid var(--gold)",
-            boxShadow:
-              "0 4px 16px rgba(184,150,62,0.3), inset 0 1px 0 rgba(255,255,255,0.8), inset 0 -1px 0 rgba(184,150,62,0.3)",
-          }}
-        >
-          <PalmIcon className="w-8 h-8" />
+    <footer className="section-forest mt-20 px-6 md:px-12 pt-14 pb-10">
+      <div className="max-w-[1400px] mx-auto grid md:grid-cols-12 gap-10">
+        <div className="md:col-span-3 flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <PalmMonogram />
+            <span className="font-cormorant text-3xl text-[var(--cream)]">
+              Palm
+            </span>
+          </div>
+          <p className="text-[var(--cream)]/80 italic text-sm leading-relaxed">
+            Where art, nature, and language come together — under one palm tree.
+          </p>
         </div>
-        <p className="font-cinzel text-[13px] tracking-[0.3em] text-[var(--brown)]">
-          LEARN UNDER THE PALM TREE
-        </p>
-        <div className="gold-line" />
+
+        <FooterCol title="Learn" items={COL_1} />
+        <FooterCol title="Explore" items={COL_2} />
+        <FooterCol title="Listen & Earn" items={COL_3} />
+
+        <div className="md:col-span-2 flex flex-col gap-3">
+          <p className="font-cinzel text-[11px] tracking-[0.22em] uppercase text-[var(--gold-pale)]">
+            Follow
+          </p>
+          <div className="flex gap-2.5">
+            {SOCIAL.map((s) => (
+              <button
+                key={s.label}
+                aria-label={s.label}
+                className="w-10 h-10 rounded-full flex items-center justify-center text-base bg-[rgba(255,255,255,0.06)] border border-[rgba(216,196,144,0.25)] hover:bg-[rgba(255,255,255,0.12)] transition"
+              >
+                {s.icon}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <nav className="flex flex-wrap gap-6 md:gap-8 justify-center mb-8">
-        {navItems.map((n) => (
+      <div className="max-w-[1400px] mx-auto mt-12 pt-6 border-t border-[rgba(216,196,144,0.18)] text-[var(--cream)]/70 text-xs italic flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+        <span>
+          © {year} Learn Under The Palm Tree. All rights reserved.
+        </span>
+        <span>
+          Created by{" "}
+          <strong className="text-[var(--gold-pale)] not-italic">
+            Thuraya Mohammed bin Ali Al Naabi
+          </strong>{" "}
+          — Sumail Al Qurooshiyah.
+        </span>
+      </div>
+    </footer>
+  );
+}
+
+function FooterCol({
+  title,
+  items,
+}: {
+  title: string;
+  items: { href: string; label: string }[];
+}) {
+  return (
+    <div className="md:col-span-2 flex flex-col gap-3">
+      <p className="font-cinzel text-[11px] tracking-[0.22em] uppercase text-[var(--gold-pale)]">
+        {title}
+      </p>
+      <nav className="flex flex-col gap-2">
+        {items.map((n) => (
           <Link
             key={n.href}
             href={n.href}
-            className="font-cinzel text-[10px] tracking-[0.2em] text-[var(--brown-mid)] hover:text-[var(--gold)] transition-colors uppercase"
+            className="text-[var(--cream)]/85 hover:text-[var(--cream)] text-sm transition"
           >
             {n.label}
           </Link>
         ))}
       </nav>
-
-      <div className="flex gap-4 justify-center mb-8">
-        {["📘", "📸", "🐦", "▶️"].map((s, i) => (
-          <button
-            key={i}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-base transition-all hover:-translate-y-0.5"
-            style={{
-              background: "rgba(255,248,235,0.3)",
-              border: "1px solid rgba(184,150,62,0.3)",
-            }}
-            aria-label={`Social ${i + 1}`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-
-      <p className="text-[12px] italic text-[rgba(107,76,56,0.7)] leading-relaxed">
-        All educational content, stories, games, characters, and systems are the
-        intellectual property of
-        <br />
-        <strong className="text-[var(--gold)]">
-          Thuraya Mohammed bin Ali Al Naabi
-        </strong>{" "}
-        — English Teacher, Sumail Al Qurooshiyah.
-        <br />
-        © {year} Learn Under The Palm Tree. All rights reserved. Unauthorised
-        reproduction is strictly prohibited.
-      </p>
-    </footer>
+    </div>
   );
 }

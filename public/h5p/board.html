@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🌴 Palm Tree Board Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --green:#2d9e62; --greenl:#e8fdf2; --greenb:#7dd4a8;
+  --blue:#2878c4;  --bluel:#e6f4ff;  --blueb:#7ac0f0;
+  --gold:#d08000;  --goldl:#fff4e0;  --goldb:#f0c060;
+  --purple:#7040c0;--purplel:#f2ecff;--purpleb:#b090e0;
+  --red:#c04040;   --redl:#fff0f0;   --redb:#f09090;
+  --orange:#e06820;--orangel:#fff3e8;--orangeb:#f0b070;
+  --ink:#1a2030;   --white:#fff;     --bg:#f0f7ff;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Nunito',sans-serif;min-height:100vh;padding:14px 14px 60px;overflow-x:hidden}
+
+/* ── HEADER ── */
+.header{background:linear-gradient(135deg,var(–green),var(–blue));border-radius:22px;padding:18px 20px;text-align:center;margin-bottom:14px;position:relative}
+.header h1{font-family:‘Fredoka One’,cursive;font-size:clamp(1.2rem,4vw,1.8rem);color:white;text-shadow:0 2px 10px rgba(0,0,0,.2)}
+.header p{font-size:0.8rem;color:rgba(255,255,255,.82);margin-top:3px}
+.back-link{position:absolute;top:12px;left:14px;color:rgba(255,255,255,.8);text-decoration:none;font-size:0.75rem;font-weight:700;background:rgba(255,255,255,.15);padding:5px 12px;border-radius:20px}
+
+/* ── SCOREBOARD ── */
+.scoreboard{background:white;border-radius:18px;padding:12px 18px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;box-shadow:0 4px 14px rgba(0,0,0,.06);margin-bottom:14px}
+.sc-item{text-align:center}
+.sc-val{font-family:‘Fredoka One’,cursive;font-size:1.5rem;line-height:1}
+.sc-lbl{font-size:0.62rem;font-weight:800;color:#90a0b8;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+.sc-div{width:1px;background:#e8eef4}
+
+/* ── LEGEND ── */
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:white;border-radius:16px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:700;color:#5070a0}
+.leg-dot{width:14px;height:14px;border-radius:5px;flex-shrink:0}
+
+/* ── BOARD WRAPPER ── */
+.board-wrap{background:white;border-radius:24px;padding:18px;box-shadow:0 6px 24px rgba(0,0,0,.08);margin-bottom:16px;position:relative;overflow:hidden}
+.board-wrap::before{content:’’;position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 50%,rgba(45,158,98,.03),transparent);pointer-events:none}
+
+/* ── BOARD SVG CONTAINER ── */
+#boardSvg{width:100%;display:block}
+
+/* ── DICE AREA ── */
+.dice-area{display:flex;align-items:center;justify-content:center;gap:20px;margin-bottom:16px;flex-wrap:wrap}
+
+.dice-face{
+width:72px;height:72px;border-radius:16px;
+background:white;
+border:3px solid var(–goldb);
+box-shadow:0 6px 20px rgba(208,128,0,.2),inset 0 1px 0 rgba(255,255,255,.8);
+display:grid;grid-template-areas:“a b c” “d e f” “g h i”;
+padding:10px;gap:4px;
+transition:transform .15s;
+position:relative;
+}
+.dice-face.rolling{animation:diceRoll .5s ease-in-out}
+@keyframes diceRoll{
+0%{transform:rotate(0) scale(1)}
+25%{transform:rotate(-20deg) scale(1.1)}
+50%{transform:rotate(15deg) scale(.95)}
+75%{transform:rotate(-10deg) scale(1.05)}
+100%{transform:rotate(0) scale(1)}
+}
+.pip{width:10px;height:10px;border-radius:50%;background:var(–ink);place-self:center}
+.pip.off{background:transparent}
+
+.dice-num{font-family:‘Fredoka One’,cursive;font-size:2.2rem;color:var(–gold);min-width:44px;text-align:center}
+
+.btn-roll{
+background:linear-gradient(135deg,var(–gold),var(–orange));
+color:white;border:none;
+font-family:‘Fredoka One’,cursive;font-size:1.1rem;
+padding:14px 32px;border-radius:20px;cursor:pointer;
+box-shadow:0 5px 18px rgba(208,128,0,.35);
+transition:all .25s;
+}
+.btn-roll:hover{transform:translateY(-3px);box-shadow:0 9px 26px rgba(208,128,0,.45)}
+.btn-roll:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+.btn-reset{background:#f0f4f8;border:none;color:#7090a8;font-family:‘Nunito’,sans-serif;font-weight:700;font-size:.85rem;padding:10px 20px;border-radius:16px;cursor:pointer;transition:all .2s}
+.btn-reset:hover{background:#e0e8f0}
+
+/* ── QUESTION MODAL ── */
+#modalOverlay{position:fixed;inset:0;background:rgba(10,20,40,.55);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;padding:18px}
+#modalOverlay.open{display:flex}
+.modal{background:white;border-radius:26px;padding:24px 22px;width:100%;max-width:480px;animation:modalPop .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes modalPop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+
+.modal-tag{display:inline-block;font-family:‘Fredoka One’,cursive;font-size:.75rem;padding:4px 14px;border-radius:20px;color:white;margin-bottom:10px}
+.modal-story{font-size:.68rem;font-weight:800;color:#90a0b8;margin-bottom:10px}
+
+/* Timer inside modal */
+.m-timer-wrap{background:#e8eef4;border-radius:20px;height:8px;overflow:hidden;margin-bottom:14px}
+.m-timer-bar{height:100%;border-radius:20px;background:linear-gradient(90deg,var(–green),var(–blue));transition:width .5s linear}
+.m-timer-bar.warn{background:linear-gradient(90deg,var(–orange),var(–red))}
+
+.m-sentence{background:var(–bluel);border:2px solid var(–blueb);border-radius:14px;padding:12px 16px;font-size:1rem;font-weight:800;color:var(–blue);margin-bottom:14px;line-height:1.6}
+.m-sentence .blank{border-bottom:3px solid var(–blue);padding:0 8px;min-width:70px;display:inline-block;text-align:center}
+
+.m-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.m-opt{padding:12px;border-radius:14px;border:2.5px solid #d0dce8;background:#f8fbff;font-weight:800;font-size:.88rem;cursor:pointer;transition:all .18s;color:var(–ink);text-align:center}
+.m-opt:hover:not(:disabled){background:var(–bluel);border-color:var(–blueb);transform:translateY(-2px)}
+.m-opt.ok{background:var(–greenl);border-color:var(–green);color:var(–green)}
+.m-opt.no{background:var(–redl);border-color:var(–red);color:var(–red)}
+.m-opt.reveal{background:var(–greenl);border-color:var(–greenb);color:var(–green)}
+
+.m-fb{border-radius:12px;padding:10px 14px;font-size:.85rem;font-weight:700;display:none;line-height:1.5;margin-bottom:10px}
+.m-fb.ok{background:var(–greenl);border:2px solid var(–greenb);color:var(–green);display:block}
+.m-fb.no{background:var(–redl);border:2px solid var(–redb);color:var(–red);display:block}
+.m-fb-ar{font-size:.78rem;direction:rtl;text-align:right;opacity:.75;margin-top:3px}
+
+.btn-continue{width:100%;background:linear-gradient(135deg,var(–green),var(–blue));color:white;border:none;font-family:‘Fredoka One’,cursive;font-size:1rem;padding:13px;border-radius:16px;cursor:pointer;display:none;margin-top:4px}
+
+/* ── SPECIAL TILE MODAL (bonus/penalty) ── */
+.modal-special{text-align:center;padding:12px 0}
+.sp-icon{font-size:3.5rem;display:block;margin-bottom:8px;animation:spPop .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes spPop{from{transform:scale(0)}to{transform:scale(1)}}
+.sp-title{font-family:‘Fredoka One’,cursive;font-size:1.4rem;margin-bottom:6px}
+.sp-msg{font-size:.9rem;color:#5080a0;margin-bottom:16px;line-height:1.5}
+
+/* ── WIN SCREEN ── */
+#winScreen{display:none;text-align:center;background:white;border-radius:24px;padding:40px 24px;box-shadow:0 6px 24px rgba(0,0,0,.08)}
+.win-palm{font-size:4rem;animation:sway 4s ease-in-out infinite;display:block;margin-bottom:10px}
+@keyframes sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+.win-title{font-family:‘Fredoka One’,cursive;font-size:2rem;color:var(–green);margin-bottom:6px}
+.win-score{font-family:‘Fredoka One’,cursive;font-size:3rem;color:var(–blue);margin:10px 0}
+.win-msg{font-size:.95rem;color:#5080a0;font-style:italic;margin-bottom:20px;line-height:1.6}
+.btn-restart{background:linear-gradient(135deg,var(–green),var(–blue));color:white;border:none;font-family:‘Nunito’,sans-serif;font-weight:800;font-size:.95rem;padding:13px 34px;border-radius:20px;cursor:pointer;box-shadow:0 4px 18px rgba(40,120,196,.28);transition:all .25s}
+.btn-restart:hover{transform:translateY(-3px)}
+
+@media(max-width:420px){.m-opts{grid-template-columns:1fr}}
+</style>
+
+</head>
+<body>
+
+<!-- HEADER -->
+
+<div class="header">
+  <a class="back-link" href="index.html">← Home</a>
+  <h1>🌴 Palm Tree Adventure</h1>
+  <p>Roll the dice • answer grammar • reach the festival! 🎉</p>
+</div>
+
+<!-- SCOREBOARD -->
+
+<div class="scoreboard">
+  <div class="sc-item"><div class="sc-val" id="scScore" style="color:var(--green)">0</div><div class="sc-lbl">Score</div></div>
+  <div class="sc-div"></div>
+  <div class="sc-item"><div class="sc-val" id="scPos" style="color:var(--blue)">0/24</div><div class="sc-lbl">Position</div></div>
+  <div class="sc-div"></div>
+  <div class="sc-item"><div class="sc-val" id="scStreak" style="color:var(--gold)">0🔥</div><div class="sc-lbl">Streak</div></div>
+  <div class="sc-div"></div>
+  <div class="sc-item"><div class="sc-val" id="scRight" style="color:var(--purple)">0</div><div class="sc-lbl">Correct</div></div>
+</div>
+
+<!-- LEGEND -->
+
+<div class="legend">
+  <div class="leg-item"><div class="leg-dot" style="background:#d4f5e4;border:2px solid #7dd4a8"></div>Present</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#fff4d8;border:2px solid #f0c060"></div>Past</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#f2ecff;border:2px solid #b090e0"></div>Future</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#fff0f0;border:2px solid #f09090"></div>Questions</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#fff3e8;border:2px solid #f0b070"></div>+2 Forward 🌴</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#f0f4f8;border:2px solid #c0d0e0"></div>−2 Back 🌀</div>
+</div>
+
+<!-- BOARD -->
+
+<div class="board-wrap">
+  <svg id="boardSvg" viewBox="0 0 700 520" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+
+<!-- DICE + BUTTONS -->
+
+<div class="dice-area">
+  <div class="dice-face" id="diceFace">
+    <div class="pip off"></div><div class="pip off"></div><div class="pip off"></div>
+    <div class="pip off"></div><div class="pip" style="grid-area:e"></div><div class="pip off"></div>
+    <div class="pip off"></div><div class="pip off"></div><div class="pip off"></div>
+  </div>
+  <div class="dice-num" id="diceNum">?</div>
+  <button class="btn-roll" id="rollBtn" onclick="rollDice()">🎲 Roll!</button>
+  <button class="btn-reset" onclick="resetGame()">↺ Reset</button>
+</div>
+
+<!-- QUESTION MODAL -->
+
+<div id="modalOverlay">
+  <div class="modal" id="modalBox">
+    <div id="modalInner"></div>
+  </div>
+</div>
+
+<!-- WIN SCREEN -->
+
+<div id="winScreen">
+  <span class="win-palm">🌴</span>
+  <div class="win-title">You reached the Festival! 🎉</div>
+  <div class="win-score" id="winScore">0 pts</div>
+  <div class="win-msg" id="winMsg"></div>
+  <button class="btn-restart" onclick="resetGame()">🎲 Play Again</button>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// BOARD LAYOUT — 24 squares in a winding path
+// Each square has: type, label, color, stroke
+// Types: start | end | sp | past | fut | q | palm(+2) | fan(-2) | blank
+// ══════════════════════════════════════════
+const SQUARES = [
+  // Row 1 — left to right (squares 0..5)
+  {type:'start',  label:"START\nJohn's\nHouse",   bg:'#d4f5e4', stroke:'#7dd4a8', icon:'🏠'},
+  {type:'sp',     label:'Simple\nPresent',         bg:'#d4f5e4', stroke:'#7dd4a8', icon:'🟢'},
+  {type:'blank',  label:'2',                       bg:'#f8fbff', stroke:'#c8dff0', icon:''},
+  {type:'past',   label:'Simple\nPast',            bg:'#fff4d8', stroke:'#f0c060', icon:'🟡'},
+  {type:'blank',  label:'4',                       bg:'#f8fbff', stroke:'#c8dff0', icon:''},
+  {type:'palm',   label:'+2\nForward!',            bg:'#fff3e8', stroke:'#f0b070', icon:'🌴'},
+
+  // Row 2 — right (square 6, going down)
+  {type:'sp',     label:'Simple\nPresent',         bg:'#d4f5e4', stroke:'#7dd4a8', icon:'🟢'},
+
+  // Row 3 — right to left (squares 7..12)
+  {type:'blank',  label:'7',                       bg:'#f8fbff', stroke:'#c8dff0', icon:''},
+  {type:'q',      label:'Question\nTime!',         bg:'#fff0f0', stroke:'#f09090', icon:'🔴'},
+  {type:'blank',  label:'9',                       bg:'#f8fbff', stroke:'#c8dff0', icon:''},
+  {type:'past',   label:'Simple\nPast',            bg:'#fff4d8', stroke:'#f0c060', icon:'🟡'},
+  {type:'fan',    label:'−2\nBack!',               bg:'#f0f4f8', stroke:'#c0d0e0', icon:'🌀'},
+  {type:'sp',     label:'Simple\nPresent',         bg:'#d4f5e4', stroke:'#7dd4a8', icon:'🟢'},
+
+  // Row 4 — left (square 13, going down)
+  {type:'fut',    label:'Future\nTense',           bg:'#f2ecff', stroke:'#b090e0', icon:'🟣'},
+
+  // Row 5 — left to right (squares 14..19)
+  {type:'blank',  label:'14',                      bg:'#f8fbff', stroke:'#c8dff0', icon:''},
+  {type:'past',   label:'Simple\nPast',            bg:'#fff4d8', stroke:'#f0c060', icon:'🟡'},
+  {type:'palm',   label:'+2\nForward!',            bg:'#fff3e8', stroke:'#f0b070', icon:'🌴'},
+  {type:'q',      label:'Question\nTime!',         bg:'#fff0f0', stroke:'#f09090', icon:'🔴'},
+  {type:'sp',     label:'Simple\nPresent',         bg:'#d4f5e4', stroke:'#7dd4a8', icon:'🟢'},
+  {type:'blank',  label:'19',                      bg:'#f8fbff', stroke:'#c8dff0', icon:''},
+
+  // Row 6 — right (square 20, going down)
+  {type:'fut',    label:'Future\nTense',           bg:'#f2ecff', stroke:'#b090e0', icon:'🟣'},
+
+  // Row 7 — right to left (squares 21..23 + end)
+  {type:'fan',    label:'−2\nBack!',               bg:'#f0f4f8', stroke:'#c0d0e0', icon:'🌀'},
+  {type:'past',   label:'Simple\nPast',            bg:'#fff4d8', stroke:'#f0c060', icon:'🟡'},
+  {type:'q',      label:'Question\nTime!',         bg:'#fff0f0', stroke:'#f09090', icon:'🔴'},
+  {type:'end',    label:'FINISH\nFestival\n🎉',    bg:'#d4f5e4', stroke:'#2d9e62', icon:'🏁'},
+];
+
+// Square pixel positions on a 700×520 grid
+// Layout: 3 rows of 6 squares + connectors
+const SZ = 90;  // square size
+const GAP = 16; // gap between squares
+
+// Compute positions — winding snake path
+function makePositions() {
+  const pos = [];
+  const cols = 6;
+  const rows = 5; // 5 rows: 0,2,4 go L→R; 1,3 go R→L
+  const startX = 20, startY = 20;
+  const step = SZ + GAP;
+
+  // Row 0: squares 0-5, left to right
+  for (let c = 0; c < 6; c++)
+    pos.push({ x: startX + c * step, y: startY });
+  // Down connector: square 6
+  pos.push({ x: startX + 5 * step, y: startY + step });
+  // Row 1 (reversed): squares 7-12, right to left
+  for (let c = 4; c >= 0; c--)
+    pos.push({ x: startX + c * step, y: startY + step });
+  // Down connector: square 13
+  pos.push({ x: startX, y: startY + 2 * step });
+  // Row 2: squares 14-19, left to right
+  for (let c = 0; c < 6; c++)
+    pos.push({ x: startX + c * step, y: startY + 2 * step });
+  // Down connector: square 20
+  pos.push({ x: startX + 5 * step, y: startY + 3 * step });
+  // Row 3 (reversed): squares 21-24, right to left
+  for (let c = 4; c >= 0; c--)
+    pos.push({ x: startX + c * step, y: startY + 3 * step });
+
+  return pos;
+}
+
+const positions = makePositions();
+
+// ── DRAW BOARD ──
+function drawBoard(playerPos) {
+  const svg = document.getElementById('boardSvg');
+  svg.innerHTML = '';
+
+  // Draw path arrows first (behind squares)
+  for (let i = 0; i < positions.length - 1; i++) {
+    const from = positions[i], to = positions[i + 1];
+    const cx1 = from.x + SZ / 2, cy1 = from.y + SZ / 2;
+    const cx2 = to.x + SZ / 2,   cy2 = to.y + SZ / 2;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', cx1); line.setAttribute('y1', cy1);
+    line.setAttribute('x2', cx2); line.setAttribute('y2', cy2);
+    line.setAttribute('stroke', '#c8dff0');
+    line.setAttribute('stroke-width', '3');
+    line.setAttribute('stroke-dasharray', '6,5');
+    svg.appendChild(line);
+  }
+
+  // Draw squares
+  SQUARES.forEach((sq, i) => {
+    const p = positions[i];
+    if (!p) return;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+    // Shadow rect
+    const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    shadow.setAttribute('x', p.x + 3); shadow.setAttribute('y', p.y + 4);
+    shadow.setAttribute('width', SZ); shadow.setAttribute('height', SZ);
+    shadow.setAttribute('rx', 14);
+    shadow.setAttribute('fill', 'rgba(0,0,0,.06)');
+    g.appendChild(shadow);
+
+    // Main rect
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', p.x); rect.setAttribute('y', p.y);
+    rect.setAttribute('width', SZ); rect.setAttribute('height', SZ);
+    rect.setAttribute('rx', 14);
+    rect.setAttribute('fill', sq.bg);
+    rect.setAttribute('stroke', playerPos === i ? '#1a2030' : sq.stroke);
+    rect.setAttribute('stroke-width', playerPos === i ? 4 : 2.5);
+    g.appendChild(rect);
+
+    // Square number (small, top-left)
+    if (i > 0 && i < SQUARES.length - 1) {
+      const num = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      num.setAttribute('x', p.x + 8); num.setAttribute('y', p.y + 16);
+      num.setAttribute('font-family', 'Nunito, sans-serif');
+      num.setAttribute('font-size', '11');
+      num.setAttribute('font-weight', '700');
+      num.setAttribute('fill', 'rgba(26,32,48,.35)');
+      num.textContent = i;
+      g.appendChild(num);
+    }
+
+    // Icon (top-right corner)
+    if (sq.icon && sq.icon.length <= 2) {
+      const ico = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      ico.setAttribute('x', p.x + SZ - 8); ico.setAttribute('y', p.y + 18);
+      ico.setAttribute('font-size', '15');
+      ico.setAttribute('text-anchor', 'end');
+      ico.textContent = sq.icon;
+      g.appendChild(ico);
+    }
+
+    // Label lines
+    const lines = sq.label.split('\n');
+    const lineH = 14;
+    const totalH = lines.length * lineH;
+    const startLY = p.y + SZ / 2 - totalH / 2 + lineH / 2;
+    lines.forEach((line, li) => {
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', p.x + SZ / 2);
+      t.setAttribute('y', startLY + li * lineH);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-family', 'Fredoka One, Nunito, sans-serif');
+      t.setAttribute('font-size', li === 0 && sq.type !== 'blank' ? '13' : '11');
+      t.setAttribute('font-weight', '700');
+      t.setAttribute('fill', sq.type === 'blank' ? 'rgba(26,32,48,.25)' : '#1a2030');
+      t.textContent = line;
+      g.appendChild(t);
+    });
+
+    svg.appendChild(g);
+  });
+
+  // Draw player token
+  if (positions[playerPos]) {
+    const p = positions[playerPos];
+    const tokenG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+    // Glow ring
+    const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    glow.setAttribute('cx', p.x + SZ / 2); glow.setAttribute('cy', p.y + SZ / 2);
+    glow.setAttribute('r', 18);
+    glow.setAttribute('fill', 'rgba(208,128,0,.2)');
+    tokenG.appendChild(glow);
+
+    // Token circle
+    const tok = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    tok.setAttribute('cx', p.x + SZ / 2); tok.setAttribute('cy', p.y + SZ / 2);
+    tok.setAttribute('r', 14);
+    tok.setAttribute('fill', 'url(#tokGrad)');
+    tok.setAttribute('stroke', '#8a5a00');
+    tok.setAttribute('stroke-width', '2.5');
+    tokenG.appendChild(tok);
+
+    // Token face
+    const face = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    face.setAttribute('x', p.x + SZ / 2); face.setAttribute('y', p.y + SZ / 2 + 6);
+    face.setAttribute('text-anchor', 'middle');
+    face.setAttribute('font-size', '16');
+    face.textContent = '🧑';
+    tokenG.appendChild(face);
+
+    // Gradient definition
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const grad = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+    grad.setAttribute('id', 'tokGrad');
+    const s1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    s1.setAttribute('offset', '0%'); s1.setAttribute('stop-color', '#ffd44d');
+    const s2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    s2.setAttribute('offset', '100%'); s2.setAttribute('stop-color', '#e8a020');
+    grad.appendChild(s1); grad.appendChild(s2);
+    defs.appendChild(grad);
+    svg.insertBefore(defs, svg.firstChild);
+
+    svg.appendChild(tokenG);
+  }
+}
+
+// ══════════════════════════════════════════
+// QUESTIONS (same pool as grammar_game.html)
+// ══════════════════════════════════════════
+const QS = {
+  sp: [
+    {sentence:'John ___ English in Al-Qurawashiyah.',opts:['teach','teaches','taught','is teach'],answer:'teaches',exp:'He/She/It → verb+s.',expAr:'نضيف s مع he في المضارع البسيط.',story:'Story 1'},
+    {sentence:'The falaj ___ water every day.',opts:['carry','carries','carried','is carry'],answer:'carries',exp:'carry → carries (y→ies).',expAr:'carry تصبح carries مع it.',story:'Story 2'},
+    {sentence:'Khamees ___ carefully before speaking.',opts:['watch','watches','watched','watching'],answer:'watches',exp:'watch → watches with He.',expAr:'watch تأخذ es مع he.',story:'Story 4'},
+    {sentence:'Sadoo ___ a small shop.',opts:['have','has','had','having'],answer:'has',exp:'have → has with He/She/It.',expAr:'have تصبح has مع المفرد الغائب.',story:'Story 8'},
+    {sentence:'Palm trees ___ shade and dates.',opts:['give','gives','gave','giving'],answer:'give',exp:'Plural subject → base verb.',expAr:'الجمع يستخدم الفعل الأساسي.',story:'Story 2'},
+    {sentence:'___ Thuraya go to school every day?',opts:['Do','Does','Did','Is'],answer:'Does',exp:'Does for questions with She.',expAr:'Does للأسئلة مع المفرد الغائب.',story:'Story 3'},
+  ],
+  past: [
+    {sentence:'John ___ a letter from Oman.',opts:['get','gets','got','getted'],answer:'got',exp:'get → got (irregular).',expAr:'get فعل شاذ ماضيه got.',story:'Story 1'},
+    {sentence:"Sophia's face ___ bright yellow.",opts:['turn','turns','turned','turnt'],answer:'turned',exp:'turn → turned (regular, +ed).',expAr:'turn فعل منتظم نضيف له ed.',story:'Story 7'},
+    {sentence:'Uncle Nasser ___ them in his truck.',opts:['drive','drives','drove','drived'],answer:'drove',exp:'drive → drove (irregular).',expAr:'drive فعل شاذ ماضيه drove.',story:'Story 6'},
+    {sentence:'The wasp ___ on John\'s shoulder.',opts:['land','lands','landed','landt'],answer:'landed',exp:'land → landed (regular, +ed).',expAr:'land فعل منتظم نضيف له ed.',story:'Story 5'},
+    {sentence:'Trust slowly ___ in the classroom.',opts:['grow','grows','grew','growed'],answer:'grew',exp:'grow → grew (irregular).',expAr:'grow فعل شاذ ماضيه grew.',story:'Story 4'},
+    {sentence:'John ___ the letters in the dirt.',opts:['draw','draws','drew','drawed'],answer:'drew',exp:'draw → drew (irregular).',expAr:'draw فعل شاذ ماضيه drew.',story:'Story 3'},
+  ],
+  fut: [
+    {sentence:'Khamees ___ read perfectly one day.',opts:['will','is','was','does'],answer:'will',exp:'will + base verb = Simple Future.',expAr:'will + الفعل الأساسي = المستقبل البسيط.',story:'Story 12'},
+    {sentence:"Sophia ___ visit Marhoona's salon again.",opts:["won't","doesn't","didn't","isn't"],answer:"won't",exp:"Won't = will not (future negative).",expAr:"won't تعني will not للنفي في المستقبل.",story:'Story 7'},
+    {sentence:'___ Khalaf share his secrets one day?',opts:['Will','Does','Did','Is'],answer:'Will',exp:'Will starts future questions.',expAr:'Will يبدأ أسئلة المستقبل البسيط.',story:'Story 10'},
+    {sentence:'The village ___ remember this story forever.',opts:['will','does','did','is'],answer:'will',exp:'will + remember = future.',expAr:'will + الفعل الأساسي للمستقبل.',story:'All'},
+  ],
+  q: [
+    {sentence:'___ did John receive from Oman?',opts:['What','Who','When','Where'],answer:'What',exp:'What asks about things.',expAr:'What للسؤال عن الأشياء.',story:'Story 1'},
+    {sentence:'___ Mansoor help John with the wasp?',opts:['Do','Does','Did','Will'],answer:'Did',exp:'Did for past questions.',expAr:'Did لأسئلة الماضي البسيط.',story:'Story 5'},
+    {sentence:'___ Sadoo climb palm trees every week?',opts:['Do','Does','Did','Will'],answer:'Does',exp:'Does for present He/She/It questions.',expAr:'Does لأسئلة المضارع مع المفرد الغائب.',story:'Story 8'},
+    {sentence:'___ does the falaj carry?',opts:['What','Who','Where','How'],answer:'What',exp:'What for asking about things.',expAr:'What للسؤال عن الأشياء.',story:'Story 2'},
+  ],
+};
+
+function shuffle(arr) {
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function pickQ(type) {
+  const pool = QS[type] || [];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ── DICE PIPS config ──
+const PIPS = {
+  1: [4],
+  2: [0,8],
+  3: [0,4,8],
+  4: [0,2,6,8],
+  5: [0,2,4,6,8],
+  6: [0,2,3,5,6,8],
+};
+function showDiceFace(n) {
+  const pips = document.querySelectorAll('#diceFace .pip');
+  const active = PIPS[n] || [];
+  pips.forEach((p, i) => {
+    p.classList.toggle('off', !active.includes(i));
+  });
+}
+
+// ── GAME STATE ──
+let playerPos = 0;
+let score = 0;
+let streak = 0;
+let correctCount = 0;
+let busy = false;
+let timerID = null;
+
+function updateScoreboard() {
+  document.getElementById('scScore').textContent  = score;
+  document.getElementById('scPos').textContent    = playerPos + '/24';
+  document.getElementById('scStreak').textContent = streak + (streak >= 3 ? '🔥' : '');
+  document.getElementById('scRight').textContent  = correctCount;
+}
+
+// ── ROLL DICE ──
+async function rollDice() {
+  if (busy) return;
+  busy = true;
+  document.getElementById('rollBtn').disabled = true;
+
+  const n = Math.floor(Math.random() * 6) + 1;
+
+  // Animate dice
+  const face = document.getElementById('diceFace');
+  face.classList.add('rolling');
+  // Flash random faces during roll
+  let flashCount = 0;
+  const flashID = setInterval(() => {
+    const r = Math.floor(Math.random()*6)+1;
+    showDiceFace(r);
+    flashCount++;
+    if (flashCount > 8) { clearInterval(flashID); showDiceFace(n); }
+  }, 80);
+
+  await wait(700);
+  face.classList.remove('rolling');
+  document.getElementById('diceNum').textContent = n;
+
+  // Move step by step
+  for (let i = 0; i < n; i++) {
+    await wait(350);
+    playerPos = Math.min(playerPos + 1, SQUARES.length - 1);
+    drawBoard(playerPos);
+    updateScoreboard();
+    if (playerPos === SQUARES.length - 1) break;
+  }
+
+  // Handle landing
+  const sq = SQUARES[playerPos];
+  await wait(400);
+  await handleLanding(sq);
+
+  busy = false;
+  document.getElementById('rollBtn').disabled = false;
+}
+
+async function handleLanding(sq) {
+  if (sq.type === 'end') { showWin(); return; }
+
+  if (sq.type === 'palm') {
+    await showSpecial('🌴', '+2 Forward!', 'نخلة الفرض تساعدك! تقدّم خطوتين!', 'The palm tree helps you! Move 2 steps forward!', '#fff3e8');
+    playerPos = Math.min(playerPos + 2, SQUARES.length - 1);
+    drawBoard(playerPos);
+    updateScoreboard();
+    if (SQUARES[playerPos].type === 'end') { showWin(); return; }
+    return;
+  }
+
+  if (sq.type === 'fan') {
+    await showSpecial('🌀', '−2 Back!', 'المروحة تبرّدك! ارجع خطوتين!', 'The fan blows you back! Move 2 steps back!', '#f0f4f8');
+    playerPos = Math.max(playerPos - 2, 0);
+    drawBoard(playerPos);
+    updateScoreboard();
+    return;
+  }
+
+  if (['sp','past','fut','q'].includes(sq.type)) {
+    await showQuestion(sq.type);
+  }
+}
+
+// ── SHOW QUESTION ──
+function showQuestion(type) {
+  return new Promise(resolve => {
+    const q = pickQ(type);
+    if (!q) { resolve(); return; }
+
+    const tagColors = { sp:'#2d9e62', past:'#d08000', fut:'#7040c0', q:'#c04040' };
+    const tagLabels = { sp:'Simple Present 🟢', past:'Simple Past 🟡', fut:'Future 🟣', q:'Question 🔴' };
+    const color = tagColors[type] || '#2d9e62';
+
+    let timeLeft = 12;
+
+    const html = `
+      <div class="modal-tag" style="background:${color}">${tagLabels[type]}</div>
+      <div class="modal-story">${q.story}</div>
+      <div class="m-timer-wrap"><div class="m-timer-bar" id="mTimerBar" style="width:100%"></div></div>
+      <div class="m-sentence">${q.sentence.replace('___','<span class="blank">___</span>')}</div>
+      <div class="m-opts" id="mOpts">
+        ${shuffle([...q.opts]).map(o=>`<button class="m-opt" onclick="answerQ('${o.replace(/'/g,"\\'")}','${q.answer.replace(/'/g,"\\'")}')">${o}</button>`).join('')}
+      </div>
+      <div class="m-fb" id="mFb"></div>
+      <button class="btn-continue" id="mContinue" onclick="closeModal()">Continue →</button>
+    `;
+
+    document.getElementById('modalInner').innerHTML = html;
+    document.getElementById('modalOverlay').classList.add('open');
+
+    // Store resolve so answerQ / timeout can call it
+    window._modalResolve = resolve;
+    window._modalQ = q;
+
+    // Start timer
+    timerID = setInterval(() => {
+      timeLeft--;
+      const bar = document.getElementById('mTimerBar');
+      if (bar) {
+        bar.style.width = (timeLeft / 12 * 100) + '%';
+        if (timeLeft <= 4) bar.className = 'm-timer-bar warn';
+      }
+      if (timeLeft <= 0) {
+        clearInterval(timerID);
+        timeOutQ();
+      }
+    }, 1000);
+  });
+}
+
+function answerQ(chosen, correct) {
+  clearInterval(timerID);
+  const q = window._modalQ;
+  const isOk = chosen === correct;
+
+  document.querySelectorAll('.m-opt').forEach(b => {
+    b.disabled = true;
+    if (b.textContent === correct) b.classList.add('ok');
+    if (b.textContent === chosen && !isOk) b.classList.add('no');
+  });
+
+  const fb = document.getElementById('mFb');
+  if (isOk) {
+    streak++;
+    correctCount++;
+    const pts = streak >= 3 ? 15 : 10;
+    score += pts;
+    fb.className = 'm-fb ok';
+    fb.innerHTML = `✅ Correct! +${pts} pts ${streak>=3?'🔥 Streak!':''}<br><span style="font-weight:600">${q.exp}</span><div class="m-fb-ar">${q.expAr}</div>`;
+  } else {
+    streak = 0;
+    fb.className = 'm-fb no';
+    fb.innerHTML = `❌ Answer: <strong>${correct}</strong><br><span style="font-weight:600">${q.exp}</span><div class="m-fb-ar">${q.expAr}</div>`;
+  }
+  document.getElementById('mContinue').style.display = 'block';
+  updateScoreboard();
+}
+
+function timeOutQ() {
+  const q = window._modalQ;
+  streak = 0;
+  document.querySelectorAll('.m-opt').forEach(b => {
+    b.disabled = true;
+    if (b.textContent === q.answer) b.classList.add('reveal');
+  });
+  const fb = document.getElementById('mFb');
+  fb.className = 'm-fb no';
+  fb.innerHTML = `⏰ Time up! Answer: <strong>${q.answer}</strong><br><span style="font-weight:600">${q.exp}</span><div class="m-fb-ar">${q.expAr}</div>`;
+  document.getElementById('mContinue').style.display = 'block';
+  updateScoreboard();
+}
+
+function closeModal() {
+  clearInterval(timerID);
+  document.getElementById('modalOverlay').classList.remove('open');
+  if (window._modalResolve) { window._modalResolve(); window._modalResolve = null; }
+}
+
+// ── SPECIAL TILE MODAL ──
+function showSpecial(icon, title, msgAr, msgEn, bg) {
+  return new Promise(resolve => {
+    document.getElementById('modalInner').innerHTML = `
+      <div class="modal-special" style="background:${bg};border-radius:18px;padding:16px">
+        <span class="sp-icon">${icon}</span>
+        <div class="sp-title">${title}</div>
+        <div class="sp-msg">${msgEn}<br><span style="direction:rtl;display:block;font-size:.85em;opacity:.75">${msgAr}</span></div>
+        <button class="btn-continue" style="display:block" onclick="closeSpecial()">OK →</button>
+      </div>`;
+    document.getElementById('modalOverlay').classList.add('open');
+    window._modalResolve = resolve;
+  });
+}
+function closeSpecial() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  if (window._modalResolve) { window._modalResolve(); window._modalResolve = null; }
+}
+
+// ── WIN ──
+function showWin() {
+  document.getElementById('winScreen').style.display = 'block';
+  document.getElementById('winScore').textContent = score + ' pts';
+  const pct = Math.round(correctCount / Math.max(1, correctCount + (playerPos - correctCount)) * 100);
+  const msg = score >= 150 ? '🌟 Outstanding! Palm Tree Grammar Master! يا سلام عليك!'
+            : score >= 100 ? '🌴 Excellent! Great grammar adventure!'
+            : score >= 60  ? '✦ Good job! Keep practising!'
+            :                '💪 Well played! Try again for a higher score!';
+  document.getElementById('winMsg').innerHTML = `${msg}<br><span style="font-size:.85rem;color:#7090a8">Correct answers: ${correctCount} | Total score: ${score}</span>`;
+  drawBoard(playerPos);
+}
+
+// ── RESET ──
+function resetGame() {
+  playerPos = 0; score = 0; streak = 0; correctCount = 0; busy = false;
+  document.getElementById('winScreen').style.display = 'none';
+  document.getElementById('diceNum').textContent = '?';
+  showDiceFace(1);
+  updateScoreboard();
+  drawBoard(0);
+}
+
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── INIT ──
+window.addEventListener('load', () => {
+  showDiceFace(1);
+  drawBoard(0);
+  updateScoreboard();
+});
+window.addEventListener('resize', () => drawBoard(playerPos));
+</script>
+
+</body>
+</html>

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 
-type Variant = "gold" | "dark" | "ghost" | "outline";
+type Variant = "burgundy" | "dark" | "outline" | "gold" | "ghost";
 
 type Props = {
   children: ReactNode;
@@ -17,7 +17,7 @@ export default function GlassButton({
   children,
   href,
   onClick,
-  variant = "gold",
+  variant = "burgundy",
   className = "",
   type = "button",
 }: Props) {
@@ -26,7 +26,9 @@ export default function GlassButton({
       ? "btn-dark"
       : variant === "outline" || variant === "ghost"
       ? "btn-outline"
-      : "btn-gold";
+      : variant === "gold"
+      ? "btn-gold"
+      : "btn-burgundy";
 
   if (href) {
     return (

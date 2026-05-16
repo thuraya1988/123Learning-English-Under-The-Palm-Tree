@@ -3,6 +3,8 @@ export type Skill = {
   title: string;
   description: string;
   prerequisite: string;
+  /** Optional H5P activity file under /public/h5p/<h5p> */
+  h5p?: string;
 };
 
 export const SKILLS: Skill[] = [
@@ -12,6 +14,7 @@ export const SKILLS: Skill[] = [
     description:
       "Practice sentence structures grounded in the chapters of the story file.",
     prerequisite: "Read the linked chapters before practicing.",
+    h5p: "grammar.html",
   },
   {
     slug: "listening",
@@ -19,18 +22,21 @@ export const SKILLS: Skill[] = [
     description:
       "Listen to chapter narrations and character dialogue from the story file.",
     prerequisite: "Read the linked chapters before practicing.",
+    h5p: "listening.html",
   },
   {
     slug: "reading",
     title: "Reading",
     description: "Read chapter passages and comprehension excerpts.",
     prerequisite: "Open the related chapter first.",
+    h5p: "palm-activities.html",
   },
   {
     slug: "writing",
     title: "Writing",
     description: "Compose short responses inspired by the story file.",
     prerequisite: "Complete reading of the related chapter.",
+    h5p: "writing.html",
   },
   {
     slug: "speaking",
@@ -43,12 +49,14 @@ export const SKILLS: Skill[] = [
     title: "Vocabulary",
     description: "Build word knowledge anchored to the chapters.",
     prerequisite: "Read the linked chapters before practicing.",
+    h5p: "word-hunt.html",
   },
   {
     slug: "spelling",
     title: "Spelling",
     description: "Practice spelling drawn from the story file vocabulary.",
     prerequisite: "Complete the related vocabulary set.",
+    h5p: "spelling.html",
   },
   {
     slug: "pronunciation",

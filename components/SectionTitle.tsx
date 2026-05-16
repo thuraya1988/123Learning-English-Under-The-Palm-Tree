@@ -7,8 +7,12 @@ type Props = {
 export default function SectionTitle({ eyebrow, title, subtitle }: Props) {
   return (
     <div className="text-center mb-12">
-      {eyebrow && <p className="eyebrow mb-3">{eyebrow}</p>}
-      <h2 className="title-cormorant text-[clamp(36px,5vw,64px)] mb-4">
+      {eyebrow && (
+        <p className="font-cinzel text-[11px] tracking-[0.4em] uppercase text-[var(--gold)] mb-3">
+          {eyebrow}
+        </p>
+      )}
+      <h2 className="title-cormorant text-[clamp(34px,4.5vw,56px)] mb-3">
         {title}
       </h2>
       <div className="section-divider">
@@ -17,7 +21,7 @@ export default function SectionTitle({ eyebrow, title, subtitle }: Props) {
         <span></span>
       </div>
       {subtitle && (
-        <p className="max-w-2xl mx-auto text-base md:text-lg italic text-[var(--brown-mid)] leading-relaxed -mt-6 mb-6">
+        <p className="max-w-2xl mx-auto text-base md:text-lg italic text-[var(--brown-mid)] leading-[1.8] -mt-6 mb-6">
           {subtitle}
         </p>
       )}

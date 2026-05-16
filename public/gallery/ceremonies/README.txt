@@ -1,0 +1,1 @@
+Drop ceremony photos here.

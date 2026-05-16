@@ -43,7 +43,7 @@ export default function MusicPage() {
               Palm Tree <em>Music</em>
             </>
           }
-          subtitle="Songs, soundtrack, and educational music linked to the chapters of the story file."
+          subtitle="22 tracks composed by Thuraya Mohammed bin Ali Al Naabi — songs, soundtrack, and educational music linked to the chapters."
         />
 
         {/* Curved category cards */}

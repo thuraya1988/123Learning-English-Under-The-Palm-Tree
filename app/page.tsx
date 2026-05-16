@@ -243,7 +243,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            {TRACKS.map((t, i) => (
+            {TRACKS.slice(0, 6).map((t, i) => (
               <Link key={t.id} href="/music" className="music-card glass-deep">
                 <div className="music-icon">{MUSIC_ICONS[i % MUSIC_ICONS.length]}</div>
                 <div>
@@ -256,6 +256,11 @@ export default function HomePage() {
                 </div>
               </Link>
             ))}
+          </div>
+          <div className="text-center mt-10">
+            <Link href="/music" className="btn-outline">
+              View All 22 Tracks
+            </Link>
           </div>
         </div>
       </section>
@@ -363,8 +368,58 @@ export default function HomePage() {
 
       <hr className="section-hr" />
 
-      {/* ─── AR + CERTIFICATE strip ─── */}
+      {/* ─── GALLERY preview ─── */}
       <section className="section-lighter py-24 px-6 md:px-12">
+        <div className="max-w-[1200px] mx-auto w-full">
+          <p className="eyebrow text-center mb-3">Visual Archive</p>
+          <h2 className="title-cormorant text-center text-[clamp(36px,5vw,64px)] mb-4">
+            The <em>Gallery</em>
+          </h2>
+          <div className="section-divider">
+            <span></span>
+            <div className="divider-diamond"></div>
+            <span></span>
+          </div>
+          <p className="text-center max-w-[680px] mx-auto mb-12 text-base italic leading-[1.8] text-[var(--brown-mid)]">
+            A growing archive of the village, the classroom, the students, the
+            ceremonies, the heritage, and the museums.
+          </p>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-10">
+            {[
+              { label: "Village", emoji: "🏡" },
+              { label: "Classroom", emoji: "📚" },
+              { label: "Students", emoji: "🧒" },
+              { label: "Ceremonies", emoji: "🏆" },
+              { label: "Heritage", emoji: "🌾" },
+              { label: "Museums", emoji: "🏛️" },
+              { label: "Behind The Scenes", emoji: "🎬" },
+            ].map((g) => (
+              <Link
+                key={g.label}
+                href={`/gallery#${g.label.toLowerCase().replace(/ /g, "-")}`}
+                className="glass-deep rounded-2xl aspect-[4/5] flex flex-col items-center justify-center gap-2 p-4 hover:-translate-y-1 transition-transform"
+              >
+                <span className="text-3xl">{g.emoji}</span>
+                <p className="font-cinzel text-[9px] tracking-[0.18em] uppercase text-[var(--brown)] text-center">
+                  {g.label}
+                </p>
+              </Link>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <Link href="/gallery" className="btn-outline">
+              Open The Gallery
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <hr className="section-hr" />
+
+      {/* ─── AR + CERTIFICATE strip ─── */}
+      <section className="section-beige py-24 px-6 md:px-12">
         <div className="max-w-[1200px] mx-auto w-full grid md:grid-cols-2 gap-8">
           <Link
             href="/ar"

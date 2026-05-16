@@ -17,13 +17,20 @@ export const MUSIC_CATEGORIES: { key: MusicCategory; title: string; blurb: strin
   { key: "educational", title: "Educational Music", blurb: "Vocabulary and rhythm-based listening pieces." },
 ];
 
-export const TRACKS: Track[] = Array.from({ length: 10 }, (_, i) => {
+/**
+ * 22 tracks composed by Thuraya Mohammed bin Ali Al Naabi.
+ * Real titles, lyrics, audio files, and chapter mappings will be supplied
+ * by the author. Until then every slot uses clean placeholders — no
+ * invented song titles or lyrics.
+ */
+export const TRACKS: Track[] = Array.from({ length: 22 }, (_, i) => {
   const id = i + 1;
+  // first 12 are songs, 13-18 are soundtrack, 19-22 are educational
   const category: MusicCategory =
-    id <= 6 ? "songs" : id <= 8 ? "soundtrack" : "educational";
+    id <= 12 ? "songs" : id <= 18 ? "soundtrack" : "educational";
   return {
     id,
-    title: `Custom Song ${id}`,
+    title: `[Song ${String(id).padStart(2, "0")} Title Placeholder]`,
     category,
     audioPlaceholder: "[Audio Placeholder]",
     lyricsPlaceholder: "[Story File Lyrics Placeholder]",

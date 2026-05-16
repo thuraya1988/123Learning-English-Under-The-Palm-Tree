@@ -4,7 +4,6 @@ import { OrbitControls, Float, ContactShadows } from "@react-three/drei";
 import { useRef, useState } from "react";
 import * as THREE from "three";
 import GlassButton from "./GlassButton";
-import { MicIcon, PlayIcon, SparkleIcon } from "./Icons";
 
 function PlaceholderFigure({ speaking }: { speaking: boolean }) {
   const head = useRef<THREE.Mesh>(null);
@@ -20,12 +19,10 @@ function PlaceholderFigure({ speaking }: { speaking: boolean }) {
   });
   return (
     <group>
-      {/* body */}
       <mesh position={[0, 0.1, 0]} castShadow>
         <capsuleGeometry args={[0.42, 0.9, 6, 16]} />
         <meshStandardMaterial color="#8a6529" roughness={0.55} metalness={0.2} />
       </mesh>
-      {/* head */}
       <mesh ref={head} position={[0, 1.05, 0]} castShadow>
         <sphereGeometry args={[0.34, 32, 32]} />
         <meshStandardMaterial
@@ -36,7 +33,6 @@ function PlaceholderFigure({ speaking }: { speaking: boolean }) {
           emissiveIntensity={0.15}
         />
       </mesh>
-      {/* base */}
       <mesh position={[0, -0.62, 0]} receiveShadow>
         <cylinderGeometry args={[0.6, 0.6, 0.05, 32]} />
         <meshStandardMaterial color="#3a2a17" />
@@ -56,27 +52,29 @@ export default function ThreeDCharacter({
 }: Props) {
   const [speaking, setSpeaking] = useState(false);
   return (
-    <div className="glass p-5 md:p-7 flex flex-col gap-5">
-      <div className="flex items-center justify-between gap-4">
+    <div className="glass-deep p-6 md:p-7 rounded-[20px] flex flex-col gap-5">
+      <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-display gold-text text-xl tracking-wide">
-            {name}
-          </h3>
-          <p className="text-cocoa/70 text-xs tracking-[0.2em] uppercase">
+          <p className="font-cinzel text-[12px] tracking-[0.18em] text-[var(--gold)] uppercase mb-1">
             3D Interactive · {context}
           </p>
+          <h3 className="font-cormorant text-2xl text-[var(--brown)]">{name}</h3>
         </div>
-        <span className="icon-btn" aria-hidden>
-          <SparkleIcon />
+        <span className="text-2xl" aria-hidden>
+          ✨
         </span>
       </div>
 
-      <div className="relative h-[320px] rounded-3xl overflow-hidden glass-inset">
-        <Canvas
-          shadows
-          camera={{ position: [1.5, 1.4, 2.6], fov: 38 }}
-          dpr={[1, 2]}
-        >
+      <div
+        className="relative h-[320px] rounded-3xl overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(240,232,220,0.6), rgba(232,221,208,0.8))",
+          border: "1px solid rgba(184,150,62,0.3)",
+          boxShadow: "inset 0 8px 24px rgba(61,43,31,0.18)",
+        }}
+      >
+        <Canvas shadows camera={{ position: [1.5, 1.4, 2.6], fov: 38 }} dpr={[1, 2]}>
           <color attach="background" args={["#efdfb6"]} />
           <ambientLight intensity={0.55} />
           <directionalLight
@@ -98,35 +96,39 @@ export default function ThreeDCharacter({
           />
           <OrbitControls enablePan={false} enableZoom={false} />
         </Canvas>
-        <span className="absolute top-3 left-3 text-[0.65rem] tracking-[0.22em] uppercase text-cocoa/70 glass px-3 py-1 rounded-full">
+        <span
+          className="absolute top-3 left-3 font-cinzel text-[10px] tracking-[0.2em] uppercase text-[var(--brown-mid)] px-3 py-1 rounded-full"
+          style={{
+            background: "rgba(255,248,235,0.7)",
+            border: "1px solid rgba(184,150,62,0.3)",
+          }}
+        >
           [3D Model Placeholder]
         </span>
-        <span className="absolute bottom-3 right-3 text-[0.65rem] tracking-[0.22em] uppercase text-cocoa/70 glass px-3 py-1 rounded-full">
-          {speaking ? "Speaking animation" : "Idle animation"} placeholder
+        <span
+          className="absolute bottom-3 right-3 font-cinzel text-[10px] tracking-[0.2em] uppercase text-[var(--brown-mid)] px-3 py-1 rounded-full"
+          style={{
+            background: "rgba(255,248,235,0.7)",
+            border: "1px solid rgba(184,150,62,0.3)",
+          }}
+        >
+          {speaking ? "Speaking" : "Idle"} animation
         </span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <GlassButton
-          variant="ghost"
-          onClick={() => setSpeaking((s) => !s)}
-          className="!text-cocoa"
-        >
-          <PlayIcon className="w-4 h-4 mr-2" />
-          Voice
+        <GlassButton variant="outline" onClick={() => setSpeaking((s) => !s)}>
+          ▶ Voice
         </GlassButton>
-        <GlassButton variant="ghost" className="!text-cocoa">
-          <MicIcon className="w-4 h-4 mr-2" />
-          Ask
-        </GlassButton>
+        <GlassButton variant="outline">🎤 Ask</GlassButton>
         <GlassButton variant="dark">Practice</GlassButton>
         <GlassButton variant="gold">Dialogue</GlassButton>
       </div>
 
-      <p className="text-cocoa/65 text-xs italic">
+      <p className="text-[var(--brown-mid)] text-xs italic">
         Emotion state · idle · neutral · curious · [Emotion State Placeholder]
       </p>
-      <p className="text-cocoa/65 text-xs">
+      <p className="text-[var(--brown-mid)] text-xs italic">
         Dialogue: [Story File Dialogue Placeholder]
       </p>
     </div>

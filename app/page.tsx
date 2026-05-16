@@ -1,171 +1,401 @@
 import Link from "next/link";
-import GlassButton from "../components/GlassButton";
-import GlassCard from "../components/GlassCard";
-import SectionTitle from "../components/SectionTitle";
-import PalmIcon from "../components/PalmIcon";
 import RegistrationCard from "./_components/RegistrationCard";
-import { ARCubeIcon, MicIcon, MusicIcon, SparkleIcon } from "../components/Icons";
+import { CHARACTER_GROUPS } from "../data/characters";
+import { CHAPTERS } from "../data/chapters";
+import { SKILLS } from "../data/skills";
+import { TRACKS } from "../data/music";
+
+const ABOUT_CARDS = [
+  {
+    title: "Our Vision",
+    body: "To create a living, breathing English learning experience rooted in the cultural richness of Oman — where every lesson feels like a story worth remembering.",
+  },
+  {
+    title: "What Makes This Special",
+    body: "A seamless fusion of cinematic storytelling, traditional Omani heritage, and modern language pedagogy — designed to inspire students of all ages.",
+  },
+  {
+    title: "The OLEC System",
+    body: "Our proprietary learning framework — Observe, Listen, Engage, Create — guides each student through a structured yet imaginative path to English fluency.",
+  },
+  {
+    title: "Dedication & Author Statement",
+    body: "Dedicated to every student who dared to learn. Created by Thuraya Mohammed bin Ali Al Naabi, with love, patience, and a deep belief in the power of language.",
+  },
+];
+
+const GROUP_IMAGES: Record<string, string> = {
+  teachers: "/images/scenes/teachers.png",
+  students: "/images/scenes/students.png",
+  villagers: "/images/scenes/villagers.png",
+};
+
+const MUSIC_ICONS = ["🎵", "🎶", "🎼", "🎹", "🥁", "🎷", "🎺", "🎻", "🎤", "🎧"];
+
+const SKILL_EMOJI: Record<string, string> = {
+  grammar: "📖",
+  listening: "👂",
+  reading: "📚",
+  writing: "✍️",
+  speaking: "🎤",
+  vocabulary: "💡",
+  spelling: "🔤",
+  pronunciation: "🗣️",
+  "progress-tracker": "📊",
+  "improvement-plan": "🗺️",
+};
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col gap-28">
-      {/* HERO */}
-      <section className="relative min-h-[640px] grid lg:grid-cols-12 gap-8 items-center">
-        <div className="absolute inset-0 -z-10 rounded-[40px] overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_30%,rgba(255,244,220,0.55),transparent_60%),radial-gradient(circle_at_75%_70%,rgba(201,161,74,0.45),transparent_60%)]" />
-          <div className="absolute inset-0 bg-gradient-to-br from-[#f4e6c4]/40 via-transparent to-[#8a6529]/20" />
-        </div>
+    <>
+      {/* ─── HERO / REGISTRATION ─── */}
+      <section
+        id="hero"
+        className="relative min-h-screen flex items-center justify-center overflow-hidden pt-32 pb-20 px-6 md:px-12"
+      >
+        <div className="pulse-ring w-[600px] h-[600px]" />
+        <div className="pulse-ring pulse-ring-2 w-[800px] h-[800px]" />
 
-        <div className="lg:col-span-7 flex flex-col gap-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bevel border border-[rgba(138,101,41,0.55)] bg-gradient-to-br from-[#f5dfa3] to-[#8a6529] flex items-center justify-center">
-              <PalmIcon className="w-6 h-6" />
-            </div>
-            <span className="text-[0.7rem] tracking-[0.3em] uppercase text-cocoa/70">
-              A Cinematic English Journey
-            </span>
+        <div className="relative z-[2] grid lg:grid-cols-12 gap-12 items-center max-w-[1200px] w-full">
+          <div className="lg:col-span-7">
+            <p className="eyebrow flex items-center gap-3 mb-5">
+              <span className="inline-block w-10 h-px bg-gradient-to-r from-transparent to-[var(--gold-light)]" />
+              Begin Your Journey
+              <span className="inline-block w-10 h-px bg-gradient-to-l from-transparent to-[var(--gold-light)]" />
+            </p>
+            <h1 className="title-cormorant text-[clamp(48px,6vw,80px)] mb-4">
+              Learn Under
+              <br />
+              <em>The Palm Tree</em>
+            </h1>
+            <p className="font-eb italic text-lg text-[var(--brown-mid)] leading-relaxed mb-8 max-w-[420px]">
+              Where language blooms beneath golden fronds,
+              <br />
+              and every story opens a new world.
+            </p>
+            <div className="gold-line !mx-0 mb-7" />
+            <p className="text-[15px] italic text-[var(--brown-mid)] leading-relaxed max-w-[380px]">
+              An immersive English learning experience woven through story,
+              music, and the timeless wisdom of the palm.
+            </p>
           </div>
 
-          <h1 className="font-display text-5xl md:text-7xl leading-[1.05] tracking-tight gold-text">
-            Learn Under <br /> The Palm Tree
-          </h1>
+          <div className="lg:col-span-5 max-w-[480px] w-full mx-auto">
+            <RegistrationCard />
+          </div>
+        </div>
+      </section>
 
-          <p className="max-w-xl text-cocoa/75 text-lg md:text-xl leading-relaxed font-serif">
-            A cinematic English-learning journey inspired by stories, skills,
-            music, games, and imagination.
+      <hr className="section-hr" />
+
+      {/* ─── CINEMATIC QUOTE ─── */}
+      <div className="cinematic-band">
+        <p className="cinematic-quote">
+          &quot;There was once a village that taught children how to{" "}
+          <em>dream in two languages</em> — beneath the shade of a single,
+          ancient palm.&quot;
+        </p>
+      </div>
+
+      {/* ─── ABOUT ─── */}
+      <section className="section-lighter min-h-screen flex flex-col justify-center py-24 px-6 md:px-12">
+        <div className="max-w-[1200px] mx-auto w-full">
+          <p className="eyebrow text-center mb-3">Discover</p>
+          <h2 className="title-cormorant text-center text-[clamp(36px,5vw,64px)] mb-4">
+            About This <em>Project</em>
+          </h2>
+          <div className="section-divider">
+            <span></span>
+            <div className="divider-diamond"></div>
+            <span></span>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-10">
+            {ABOUT_CARDS.map((c) => (
+              <div
+                key={c.title}
+                className="glass-deep p-9 rounded-[20px] hover:-translate-y-1 transition-transform"
+              >
+                <p className="label-cinzel text-[13px] tracking-[0.18em] text-[var(--gold)] mb-3 flex items-center gap-2.5">
+                  <span className="inline-block w-6 h-px bg-[var(--gold-light)]" />
+                  {c.title}
+                </p>
+                <p className="text-base leading-[1.8] text-[var(--brown-mid)]">
+                  {c.body}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-center mt-12">
+            <Link href="/about" className="btn-outline">
+              Open About Section
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <hr className="section-hr" />
+
+      {/* ─── CHARACTERS ─── */}
+      <section className="section-beige min-h-screen flex flex-col justify-center py-24 px-6 md:px-12">
+        <div className="max-w-[1200px] mx-auto w-full">
+          <p className="eyebrow text-center mb-3">The People of the Village</p>
+          <h2 className="title-cormorant text-center text-[clamp(36px,5vw,64px)] mb-4">
+            Meet the <em>Palmers</em>
+          </h2>
+          <div className="section-divider">
+            <span></span>
+            <div className="divider-diamond"></div>
+            <span></span>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {CHARACTER_GROUPS.map((g) => (
+              <Link
+                key={g.key}
+                href={`/characters#${g.key}`}
+                className="arch-card glass-deep"
+              >
+                <div
+                  className="arch-img"
+                  style={{
+                    backgroundImage: `url(${GROUP_IMAGES[g.key]})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                />
+                <div className="p-6 text-center">
+                  <h3 className="font-cinzel text-[14px] tracking-[0.15em] text-[var(--brown)] mb-2 uppercase">
+                    The {g.title}
+                  </h3>
+                  <p className="text-sm italic text-[var(--brown-mid)] mb-4 leading-relaxed">
+                    {g.blurb}
+                  </p>
+                  <span className="btn-outline">Meet The Palmers</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <hr className="section-hr" />
+
+      {/* ─── STORY ─── */}
+      <section className="section-lighter min-h-screen flex flex-col justify-center py-24 px-6 md:px-12">
+        <div className="max-w-[1200px] mx-auto w-full">
+          <p className="eyebrow text-center mb-3">The Novel</p>
+          <h2 className="title-cormorant text-center text-[clamp(36px,5vw,64px)] mb-4">
+            <em>123</em> Let&apos;s Learn English
+            <br />
+            Under the Palm Tree
+          </h2>
+          <div className="section-divider">
+            <span></span>
+            <div className="divider-diamond"></div>
+            <span></span>
+          </div>
+
+          <p className="text-center max-w-[680px] mx-auto mb-12 text-xl italic leading-[1.8] text-[var(--brown-mid)]">
+            &quot;There was once a village that taught children how to dream in
+            two languages. Beneath the shade of an ancient palm, every word
+            became a key — and every story, a door.&quot;
           </p>
 
-          <div className="flex flex-wrap gap-3 mt-2">
-            <GlassButton variant="gold" href="#register">
-              Start Journey
-            </GlassButton>
-            <GlassButton variant="dark" href="/story">
+          <div className="text-center mb-12">
+            <Link href="/story" className="btn-gold">
               Enter The Story
-            </GlassButton>
-            <GlassButton variant="ghost" href="/ar">
-              <ARCubeIcon className="w-4 h-4 mr-2" /> Open AR
-            </GlassButton>
+            </Link>
           </div>
 
-          <div className="flex items-center gap-4 mt-6 text-cocoa/65 text-xs tracking-[0.18em] uppercase">
-            <SparkleIcon className="w-4 h-4" />
-            36 Chapters · 10 Skills · 20 Games · AR · 3D
-          </div>
-        </div>
-
-        <div id="register" className="lg:col-span-5">
-          <RegistrationCard />
-        </div>
-      </section>
-
-      {/* ABOUT preview */}
-      <section>
-        <SectionTitle
-          eyebrow="Section 1"
-          title="About"
-          subtitle="Discover the vision, the OLEC system, and the author behind a learning journey rooted in the village of Sumail Al Qurooshiyah."
-        />
-        <div className="grid md:grid-cols-3 gap-6">
-          {[
-            { title: "Our Vision", body: "A cinematic, story-grounded path for learning English." },
-            { title: "What Makes This Project Special", body: "Story-anchored skills, games, AR, and 3D characters." },
-            { title: "The OLEC System", body: "A pedagogical system designed for the palm tree journey." },
-          ].map((c) => (
-            <GlassCard key={c.title} className="p-7">
-              <h3 className="font-display gold-text text-xl tracking-wide mb-2">
-                {c.title}
-              </h3>
-              <p className="text-cocoa/75 text-sm leading-relaxed">{c.body}</p>
-            </GlassCard>
-          ))}
-        </div>
-        <div className="mt-6">
-          <GlassButton variant="gold" href="/about">
-            Open About
-          </GlassButton>
-        </div>
-      </section>
-
-      {/* CHARACTERS preview */}
-      <section>
-        <SectionTitle
-          eyebrow="Section 2"
-          title="Characters"
-          subtitle="Teachers, students, and villagers — all grounded in the story file."
-        />
-        <div className="grid md:grid-cols-3 gap-8">
-          {[
-            { title: "Teachers", body: "Guiding voices of the palm tree classroom." },
-            { title: "Students", body: "Young learners of Sumail Al Qurooshiyah." },
-            { title: "Villagers", body: "The community surrounding the palm tree." },
-          ].map((c) => (
-            <div key={c.title} className="glass arch-card p-0 overflow-hidden">
-              <div className="relative h-72 bg-[radial-gradient(circle_at_50%_40%,rgba(255,244,220,0.6),transparent_70%)]">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <PalmIcon className="w-24 h-24 opacity-80" />
-                </div>
-                <span className="absolute top-3 left-3 glass px-3 py-1 rounded-full text-[0.65rem] tracking-[0.22em] uppercase text-cocoa/70">
-                  [Cinematic Image Placeholder]
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+            {CHAPTERS.map((c) => (
+              <Link key={c.id} href={`/story/chapter/${c.id}`} className="chapter-card">
+                <span className="font-cormorant text-[11px] tracking-[0.2em] text-[var(--gold-light)] opacity-70 mb-1 relative z-[1] uppercase">
+                  Chapter
                 </span>
-              </div>
-              <div className="p-7">
-                <h3 className="font-display gold-text text-2xl tracking-wide">
-                  {c.title}
-                </h3>
-                <p className="mt-2 text-cocoa/75 text-sm">{c.body}</p>
-                <div className="mt-5">
-                  <GlassButton variant="gold" href="/characters">
-                    Meet The Palmers
-                  </GlassButton>
+                <span
+                  className="font-cinzel text-[22px] text-[var(--gold)] relative z-[1]"
+                  style={{ textShadow: "0 0 20px rgba(184,150,62,0.5)" }}
+                >
+                  {c.id}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <hr className="section-hr" />
+
+      {/* ─── MUSIC ─── */}
+      <section className="section-beige min-h-screen flex flex-col justify-center py-24 px-6 md:px-12">
+        <div className="max-w-[1200px] mx-auto w-full">
+          <p className="eyebrow text-center mb-3">Sounds of the Palm</p>
+          <h2 className="title-cormorant text-center text-[clamp(36px,5vw,64px)] mb-4">
+            Palm Tree <em>Music</em>
+          </h2>
+          <div className="section-divider">
+            <span></span>
+            <div className="divider-diamond"></div>
+            <span></span>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {TRACKS.map((t, i) => (
+              <Link key={t.id} href="/music" className="music-card glass-deep">
+                <div className="music-icon">{MUSIC_ICONS[i % MUSIC_ICONS.length]}</div>
+                <div>
+                  <h4 className="font-cinzel text-[13px] tracking-[0.12em] text-[var(--brown)] mb-1.5 uppercase">
+                    {t.title}
+                  </h4>
+                  <p className="text-sm italic text-[var(--brown-mid)] leading-relaxed">
+                    Related chapter: {t.relatedChapter}
+                  </p>
                 </div>
-              </div>
-            </div>
-          ))}
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* STORY preview */}
-      <section>
-        <SectionTitle
-          eyebrow="Section 3"
-          title="123 Let's Learn English Under the Palm Tree"
-          subtitle={'"There was once a village that taught children how to dream in two languages…"'}
-        />
-        <div className="flex flex-wrap gap-3">
-          <GlassButton variant="gold" href="/story">
-            Enter
-          </GlassButton>
-          <GlassButton variant="ghost" href="/story">
-            Browse 36 Chapters
-          </GlassButton>
+      <hr className="section-hr" />
+
+      {/* ─── SKILLS ─── */}
+      <section className="section-lighter min-h-screen flex flex-col justify-center py-24 px-6 md:px-12">
+        <div className="max-w-[1200px] mx-auto w-full">
+          <p className="eyebrow text-center mb-3">Practice &amp; Grow</p>
+          <h2 className="title-cormorant text-center text-[clamp(36px,5vw,64px)] mb-4">
+            Your English <em>Skills</em>
+          </h2>
+          <div className="section-divider">
+            <span></span>
+            <div className="divider-diamond"></div>
+            <span></span>
+          </div>
+
+          <p className="text-center italic text-[var(--brown-mid)] mb-12 text-base">
+            Complete your story chapters first — then unlock the full suite of
+            skill activities below.
+          </p>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
+            {SKILLS.map((s) => (
+              <Link key={s.slug} href={`/skills/${s.slug}`} className="skill-card">
+                <span
+                  className="text-[36px] mb-3 block"
+                  style={{ filter: "drop-shadow(0 2px 6px rgba(184,150,62,0.3))" }}
+                >
+                  {SKILL_EMOJI[s.slug] || "✨"}
+                </span>
+                <p className="font-cinzel text-[11px] tracking-[0.12em] text-[var(--brown)] mb-2 uppercase">
+                  {s.title}
+                </p>
+                <p className="text-xs italic text-[var(--brown-mid)] leading-relaxed mb-3.5">
+                  {s.description}
+                </p>
+                <span
+                  className="inline-block px-4 py-2 rounded-full font-cinzel text-[9px] tracking-[0.15em] uppercase"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, rgba(184,150,62,0.15), rgba(212,176,106,0.2))",
+                    border: "1px solid rgba(184,150,62,0.4)",
+                    color: "var(--gold)",
+                  }}
+                >
+                  Explore
+                </span>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* MUSIC + SKILLS + GAMES + AR strip */}
-      <section className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          { label: "Palm Tree Music", href: "/music", icon: <MusicIcon className="w-6 h-6" /> },
-          { label: "Practice Skills", href: "/skills", icon: <SparkleIcon className="w-6 h-6" /> },
-          { label: "Open The Games", href: "/games", icon: <MicIcon className="w-6 h-6" /> },
-          { label: "AR Experience", href: "/ar", icon: <ARCubeIcon className="w-6 h-6" /> },
-        ].map((c) => (
+      <hr className="section-hr" />
+
+      {/* ─── GAMES ─── */}
+      <section className="section-beige min-h-screen flex flex-col justify-center py-24 px-6 md:px-12">
+        <div className="max-w-[1200px] mx-auto w-full">
+          <p className="eyebrow text-center mb-3">Play &amp; Learn</p>
+          <h2 className="title-cormorant text-center text-[clamp(36px,5vw,64px)] mb-4">
+            The <em>Games</em> Garden
+          </h2>
+          <div className="section-divider">
+            <span></span>
+            <div className="divider-diamond"></div>
+            <span></span>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-8 justify-center mb-16">
+            <Link href="/games/2026" className="game-era-btn modern glass-deep">
+              <p className="game-era-year">2026</p>
+              <p className="font-cinzel text-xs tracking-[0.2em] text-[var(--brown)] uppercase">
+                Modern Games
+              </p>
+              <p className="text-[13px] italic text-[var(--brown-mid)] mt-2 leading-relaxed">
+                Ten interactive digital games for today&apos;s learners — fast,
+                fun, deeply educational.
+              </p>
+            </Link>
+            <Link
+              href="/games/1973"
+              className="game-era-btn traditional glass-deep"
+            >
+              <p className="game-era-year">1973</p>
+              <p className="font-cinzel text-xs tracking-[0.2em] text-[var(--brown)] uppercase">
+                Traditional Games
+              </p>
+              <p className="text-[13px] italic text-[var(--brown-mid)] mt-2 leading-relaxed">
+                Ten Omani-inspired games reimagined as language-learning
+                experiences rooted in heritage.
+              </p>
+            </Link>
+          </div>
+
+          <div className="text-center">
+            <Link href="/games" className="btn-outline">
+              Open Games Garden
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <hr className="section-hr" />
+
+      {/* ─── AR + CERTIFICATE strip ─── */}
+      <section className="section-lighter py-24 px-6 md:px-12">
+        <div className="max-w-[1200px] mx-auto w-full grid md:grid-cols-2 gap-8">
           <Link
-            key={c.label}
-            href={c.href}
-            className="glass p-7 flex flex-col gap-4 hover:-translate-y-1 transition-transform"
+            href="/ar"
+            className="glass-deep p-10 rounded-[20px] hover:-translate-y-1 transition-transform text-center"
           >
-            <div className="w-12 h-12 rounded-2xl bevel bg-gradient-to-br from-[#f5dfa3] to-[#8a6529] flex items-center justify-center text-cocoa">
-              {c.icon}
-            </div>
-            <h3 className="font-display gold-text text-lg tracking-wide">
-              {c.label}
+            <p className="eyebrow mb-3">Immersive</p>
+            <h3 className="title-cormorant text-4xl mb-3">
+              The <em>AR</em> Experience
             </h3>
-            <span className="text-[0.7rem] tracking-[0.18em] uppercase text-cocoa/60">
-              Open Section
-            </span>
+            <p className="text-base italic text-[var(--brown-mid)] mb-6 leading-relaxed">
+              Step into the village. Hold the palm tree in your hands. Practice
+              vocabulary in three dimensions.
+            </p>
+            <span className="btn-outline">Open AR</span>
           </Link>
-        ))}
+          <Link
+            href="/certificate"
+            className="glass-deep p-10 rounded-[20px] hover:-translate-y-1 transition-transform text-center"
+          >
+            <p className="eyebrow mb-3">Completion</p>
+            <h3 className="title-cormorant text-4xl mb-3">
+              Your <em>Certificate</em>
+            </h3>
+            <p className="text-base italic text-[var(--brown-mid)] mb-6 leading-relaxed">
+              A luxury glass-gold certificate carrying your name, your avatar,
+              and your journey under the palm tree.
+            </p>
+            <span className="btn-outline">View Certificate</span>
+          </Link>
+        </div>
       </section>
-    </div>
+    </>
   );
 }

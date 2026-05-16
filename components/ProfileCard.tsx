@@ -7,29 +7,43 @@ export default function ProfileCard() {
 
   useEffect(() => {
     setProfile(getProfile());
-    const onStorage = () => setProfile(getProfile());
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("profile-updated", onStorage);
+    const refresh = () => setProfile(getProfile());
+    window.addEventListener("storage", refresh);
+    window.addEventListener("profile-updated", refresh);
     return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("profile-updated", onStorage);
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("profile-updated", refresh);
     };
   }, []);
 
-  const name = profile?.username || "Guest Learner";
-  const desc = profile?.description || "Begin your cinematic English journey";
-  const avatar = profile?.avatar || "A1";
+  const name = profile?.username || "Young Explorer";
+  const desc = profile?.description || "Begin your journey";
+  const avatar = profile?.avatar || "🌴";
 
   return (
-    <div className="hidden md:flex items-center gap-3 pl-2 pr-5 py-1.5 rounded-full glass min-w-[260px] max-w-[340px]">
-      <div className="relative w-11 h-11 rounded-full overflow-hidden border border-[rgba(138,101,41,0.55)] bevel bg-gradient-to-br from-[#f5dfa3] to-[#a87f3a] flex items-center justify-center text-cocoa font-display text-sm">
+    <div
+      className="hidden md:flex items-center gap-2.5 px-4 py-1.5 rounded-full"
+      style={{
+        background: "rgba(255,248,235,0.3)",
+        border: "1px solid rgba(184,150,62,0.3)",
+        backdropFilter: "blur(12px)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6)",
+      }}
+    >
+      <div
+        className="w-8 h-8 rounded-full flex items-center justify-center text-base"
+        style={{
+          background: "linear-gradient(135deg, var(--gold-pale), var(--gold-light))",
+          border: "1px solid var(--gold)",
+        }}
+      >
         {avatar}
       </div>
-      <div className="flex flex-col leading-tight">
-        <span className="font-display text-[0.95rem] gold-text tracking-wide">
+      <div className="flex flex-col leading-tight max-w-[160px]">
+        <span className="font-cinzel text-[11px] font-medium text-[var(--brown)] truncate">
           {name}
         </span>
-        <span className="text-[0.72rem] text-cocoa/70 truncate max-w-[200px]">
+        <span className="text-[10px] italic text-[var(--brown-mid)] truncate">
           {desc}
         </span>
       </div>

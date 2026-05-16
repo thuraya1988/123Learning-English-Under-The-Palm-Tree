@@ -1,29 +1,27 @@
 import SectionTitle from "../../components/SectionTitle";
 import SkillCard from "../../components/SkillCard";
-import GlassCard from "../../components/GlassCard";
 import { SKILLS } from "../../data/skills";
 
 export default function SkillsPage() {
   return (
-    <div className="flex flex-col gap-12">
-      <SectionTitle
-        eyebrow="Section 5"
-        title="Practice Your English Skills Under the Palm Tree"
-        subtitle="Users must first read chapters before practicing skills. Each card is carved into the surface — premium depth and warm gold glow."
-      />
+    <section className="min-h-screen pt-32 pb-24 px-6 md:px-12">
+      <div className="max-w-[1200px] mx-auto w-full">
+        <SectionTitle
+          eyebrow="Practice & Grow"
+          title={
+            <>
+              Your English <em>Skills</em>
+            </>
+          }
+          subtitle="Complete your story chapters first — then unlock the full suite of skill activities below."
+        />
 
-      <GlassCard variant="inset" className="p-5">
-        <p className="text-cocoa/75 text-sm tracking-wide">
-          Prerequisite: open the story section and read the linked chapters
-          before practicing.
-        </p>
-      </GlassCard>
-
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-        {SKILLS.map((s) => (
-          <SkillCard key={s.slug} skill={s} />
-        ))}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
+          {SKILLS.map((s) => (
+            <SkillCard key={s.slug} skill={s} />
+          ))}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

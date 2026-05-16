@@ -16,68 +16,68 @@ export default function SkillPage({ params }: { params: { skill: string } }) {
   if (!skill) return notFound();
 
   return (
-    <div className="flex flex-col gap-12">
-      <SectionTitle
-        eyebrow="Skill"
-        title={skill.title}
-        subtitle={skill.description}
-      />
+    <section className="min-h-screen pt-32 pb-24 px-6 md:px-12">
+      <div className="max-w-[1200px] mx-auto w-full">
+        <SectionTitle
+          eyebrow="Skill"
+          title={<em>{skill.title}</em>}
+          subtitle={skill.description}
+        />
 
-      <GlassCard variant="inset" className="p-5">
-        <p className="text-cocoa/75 text-sm">
-          Prerequisite check: {skill.prerequisite}
-        </p>
-      </GlassCard>
+        <div className="mb-8">
+          <GlassCard className="p-5">
+            <p className="font-cinzel text-[11px] tracking-[0.2em] text-[var(--gold)] uppercase mb-1">
+              Prerequisite Check
+            </p>
+            <p className="text-[var(--brown-mid)] italic text-sm">
+              {skill.prerequisite}
+            </p>
+          </GlassCard>
+        </div>
 
-      <div className="grid lg:grid-cols-12 gap-8">
-        <GlassCard className="lg:col-span-7 p-8">
-          <h3 className="font-display gold-text text-xl tracking-wide">
-            Story-File-Based Activity
-          </h3>
-          <p className="mt-2 text-cocoa/75">
-            [Chapter-Based Activity Placeholder]
-          </p>
+        <div className="grid lg:grid-cols-12 gap-8">
+          <GlassCard className="lg:col-span-7 p-8">
+            <p className="font-cinzel text-[12px] tracking-[0.18em] text-[var(--gold)] uppercase mb-3">
+              Story-File-Based Activity
+            </p>
+            <p className="text-[var(--brown-mid)] italic text-lg leading-relaxed">
+              [Chapter-Based Activity Placeholder]
+            </p>
+            <div className="gold-line my-6" />
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[
+                ["TTS Interface", "[Pipper Integration Placeholder]"],
+                ["Score", "[Score System Placeholder]"],
+                ["Progress", "[Progress Tracking Placeholder]"],
+                ["Classroom Sync", "[Schorom Integration Placeholder]"],
+              ].map(([t, b]) => (
+                <div key={t} className="skill-card !text-left !p-5">
+                  <p className="font-cinzel text-[11px] tracking-[0.15em] text-[var(--gold)] uppercase mb-2">
+                    {t}
+                  </p>
+                  <p className="text-[var(--brown-mid)] text-sm italic">{b}</p>
+                </div>
+              ))}
+            </div>
+            <div className="gold-line my-6" />
+            <div className="flex flex-wrap gap-3">
+              <GlassButton variant="gold">Start Activity</GlassButton>
+              <GlassButton variant="dark" href="/story">
+                Open Chapters
+              </GlassButton>
+            </div>
+          </GlassCard>
 
-          <div className="grid sm:grid-cols-2 gap-4 mt-6">
-            <GlassCard variant="inset" className="p-5">
-              <h4 className="font-display gold-text">TTS Interface</h4>
-              <p className="text-cocoa/75 text-sm mt-2">
-                [Pipper Integration Placeholder]
-              </p>
-            </GlassCard>
-            <GlassCard variant="inset" className="p-5">
-              <h4 className="font-display gold-text">Score</h4>
-              <p className="text-cocoa/75 text-sm mt-2">
-                [Score System Placeholder]
-              </p>
-            </GlassCard>
-            <GlassCard variant="inset" className="p-5">
-              <h4 className="font-display gold-text">Progress</h4>
-              <p className="text-cocoa/75 text-sm mt-2">
-                [Progress Tracking Placeholder]
-              </p>
-            </GlassCard>
-            <GlassCard variant="inset" className="p-5">
-              <h4 className="font-display gold-text">Classroom Sync</h4>
-              <p className="text-cocoa/75 text-sm mt-2">
-                [Schorom Integration Placeholder]
-              </p>
-            </GlassCard>
+          <div className="lg:col-span-5 flex flex-col gap-6">
+            <ThreeDCharacter
+              name={`${skill.title} Coach`}
+              context="skill"
+            />
+            <PipperConnector feature={`${skill.title} Voice`} />
+            <SchoromConnector feature={`${skill.title} Progress`} />
           </div>
-
-          <div className="hairline my-6" />
-          <div className="flex flex-wrap gap-3">
-            <GlassButton variant="gold">Start Activity</GlassButton>
-            <GlassButton variant="dark" href="/story">Open Chapters</GlassButton>
-          </div>
-        </GlassCard>
-
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          <ThreeDCharacter name={`${skill.title} Coach`} context="skill" />
-          <PipperConnector feature={`${skill.title} Voice`} />
-          <SchoromConnector feature={`${skill.title} Progress`} />
         </div>
       </div>
-    </div>
+    </section>
   );
 }

@@ -1,33 +1,26 @@
 type Props = {
   eyebrow?: string;
-  title: string;
+  title: React.ReactNode;
   subtitle?: string;
-  align?: "left" | "center";
 };
 
-export default function SectionTitle({
-  eyebrow,
-  title,
-  subtitle,
-  align = "left",
-}: Props) {
-  const a = align === "center" ? "text-center items-center" : "text-left items-start";
+export default function SectionTitle({ eyebrow, title, subtitle }: Props) {
   return (
-    <div className={`flex flex-col ${a} gap-3 mb-10`}>
-      {eyebrow && (
-        <span className="text-[0.7rem] tracking-[0.32em] uppercase text-cocoa/60">
-          {eyebrow}
-        </span>
-      )}
-      <h2 className="font-display gold-text text-3xl md:text-5xl leading-tight tracking-wide">
+    <div className="text-center mb-12">
+      {eyebrow && <p className="eyebrow mb-3">{eyebrow}</p>}
+      <h2 className="title-cormorant text-[clamp(36px,5vw,64px)] mb-4">
         {title}
       </h2>
+      <div className="section-divider">
+        <span></span>
+        <div className="divider-diamond"></div>
+        <span></span>
+      </div>
       {subtitle && (
-        <p className="max-w-2xl text-cocoa/75 text-base md:text-lg leading-relaxed font-serif">
+        <p className="max-w-2xl mx-auto text-base md:text-lg italic text-[var(--brown-mid)] leading-relaxed -mt-6 mb-6">
           {subtitle}
         </p>
       )}
-      <div className="hairline w-40 mt-2" />
     </div>
   );
 }

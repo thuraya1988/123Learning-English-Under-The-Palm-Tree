@@ -1,5 +1,4 @@
 "use client";
-import { ARCubeIcon } from "./Icons";
 
 type Props = {
   title: string;
@@ -19,45 +18,62 @@ export default function ARViewer({
   modelPlaceholder = "[AR Model Placeholder]",
 }: Props) {
   return (
-    <div className="glass p-5 md:p-7">
+    <div className="glass-deep p-6 md:p-7 rounded-[20px]">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="font-display gold-text text-xl tracking-wide">
+          <p className="font-cinzel text-[12px] tracking-[0.18em] text-[var(--gold)] uppercase mb-1">
+            {description || "Augmented Reality"}
+          </p>
+          <h3 className="font-cormorant text-2xl text-[var(--brown)]">
             {title}
           </h3>
-          {description && (
-            <p className="text-cocoa/70 text-xs tracking-[0.2em] uppercase">
-              {description}
-            </p>
-          )}
         </div>
-        <span className="icon-btn" aria-hidden>
-          <ARCubeIcon />
+        <span className="text-2xl" aria-hidden>
+          📦
         </span>
       </div>
-      <div className="relative h-[320px] rounded-3xl overflow-hidden glass-inset flex items-center justify-center">
-        {/* Real swap target:
-            <model-viewer
-              src="/models/palm-tree.glb"
-              ios-src="/models/palm-tree.usdz"
-              ar
-              ar-modes="webxr scene-viewer quick-look"
-              camera-controls
-              autoplay
-            /> */}
+      <div
+        className="relative h-[320px] rounded-3xl overflow-hidden flex items-center justify-center"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(240,232,220,0.6), rgba(232,221,208,0.8))",
+          border: "1px solid rgba(184,150,62,0.3)",
+          boxShadow: "inset 0 8px 24px rgba(61,43,31,0.18)",
+        }}
+      >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,244,220,0.5),transparent_70%)]" />
         <div className="relative flex flex-col items-center gap-3">
-          <div className="w-24 h-24 rounded-3xl bevel border border-[rgba(138,101,41,0.55)] bg-gradient-to-br from-[#f5dfa3] to-[#8a6529] flex items-center justify-center">
-            <ARCubeIcon className="w-10 h-10 text-cocoa" />
+          <div
+            className="w-24 h-24 rounded-3xl flex items-center justify-center text-4xl"
+            style={{
+              background: "linear-gradient(135deg, var(--gold-light), var(--gold))",
+              border: "1px solid var(--gold)",
+              boxShadow:
+                "0 8px 24px rgba(184,150,62,0.35), inset 0 1px 0 rgba(255,255,255,0.5)",
+            }}
+          >
+            🧊
           </div>
-          <p className="font-display text-cocoa/80 tracking-[0.2em] uppercase text-[0.7rem]">
+          <p className="font-cinzel text-[11px] tracking-[0.2em] uppercase text-[var(--brown-mid)]">
             {modelPlaceholder}
           </p>
         </div>
-        <span className="absolute top-3 left-3 text-[0.65rem] tracking-[0.22em] uppercase text-cocoa/70 glass px-3 py-1 rounded-full">
+        <span
+          className="absolute top-3 left-3 font-cinzel text-[10px] tracking-[0.2em] uppercase text-[var(--brown-mid)] px-3 py-1 rounded-full"
+          style={{
+            background: "rgba(255,248,235,0.7)",
+            border: "1px solid rgba(184,150,62,0.3)",
+          }}
+        >
           WebXR ready · placeholder
         </span>
-        <span className="absolute bottom-3 right-3 text-[0.65rem] tracking-[0.22em] uppercase text-cocoa/70 glass px-3 py-1 rounded-full">
+        <span
+          className="absolute bottom-3 right-3 font-cinzel text-[10px] tracking-[0.2em] uppercase text-[var(--brown-mid)] px-3 py-1 rounded-full"
+          style={{
+            background: "rgba(255,248,235,0.7)",
+            border: "1px solid rgba(184,150,62,0.3)",
+          }}
+        >
           [Story File AR Content Placeholder]
         </span>
       </div>

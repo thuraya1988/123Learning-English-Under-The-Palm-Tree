@@ -16,47 +16,71 @@ const navItems = [
 export default function Footer() {
   const year = new Date().getFullYear();
   return (
-    <footer className="relative mt-20 px-4 md:px-12 pb-10">
-      <div className="glass mx-auto max-w-[1480px] px-6 md:px-12 py-10 flex flex-col gap-8 overflow-hidden">
-        <div className="absolute -top-20 -right-16 w-72 h-72 rounded-full bg-[radial-gradient(circle,rgba(233,201,124,0.45),transparent_70%)] blur-2xl pointer-events-none" />
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bevel border border-[rgba(138,101,41,0.55)] bg-gradient-to-br from-[#f5dfa3] via-[#d6ad58] to-[#8a6529] flex items-center justify-center">
-              <PalmIcon className="w-7 h-7" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-display gold-text text-xl tracking-wide">
-                Learn Under The Palm Tree
-              </span>
-              <span className="text-[0.7rem] text-cocoa/70 tracking-[0.2em] uppercase">
-                Cinematic English Journey
-              </span>
-            </div>
-          </div>
-          <nav className="flex flex-wrap gap-x-5 gap-y-2">
-            {navItems.map((n) => (
-              <Link
-                key={n.href}
-                href={n.href}
-                className="text-cocoa/80 hover:text-cocoa hover:gold-text text-sm tracking-[0.18em] uppercase transition"
-              >
-                {n.label}
-              </Link>
-            ))}
-          </nav>
+    <footer
+      className="px-6 md:px-16 py-16 text-center"
+      style={{
+        background: "rgba(30,18,12,0.06)",
+        borderTop: "1px solid rgba(184,150,62,0.2)",
+      }}
+    >
+      <div className="flex flex-col items-center gap-3 mb-8">
+        <div
+          className="w-[60px] h-[60px] rounded-full flex items-center justify-center"
+          style={{
+            background: "rgba(255,248,235,0.4)",
+            border: "2px solid var(--gold)",
+            boxShadow:
+              "0 4px 16px rgba(184,150,62,0.3), inset 0 1px 0 rgba(255,255,255,0.8), inset 0 -1px 0 rgba(184,150,62,0.3)",
+          }}
+        >
+          <PalmIcon className="w-8 h-8" />
         </div>
-        <div className="hairline" />
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-cocoa/70 text-xs tracking-[0.18em] uppercase">
-          <span>
-            © {year} Learn Under The Palm Tree. All rights reserved.
-          </span>
-          <div className="flex gap-3 opacity-70">
-            <span>[Social Placeholder]</span>
-            <span>[Social Placeholder]</span>
-            <span>[Social Placeholder]</span>
-          </div>
-        </div>
+        <p className="font-cinzel text-[13px] tracking-[0.3em] text-[var(--brown)]">
+          LEARN UNDER THE PALM TREE
+        </p>
+        <div className="gold-line" />
       </div>
+
+      <nav className="flex flex-wrap gap-6 md:gap-8 justify-center mb-8">
+        {navItems.map((n) => (
+          <Link
+            key={n.href}
+            href={n.href}
+            className="font-cinzel text-[10px] tracking-[0.2em] text-[var(--brown-mid)] hover:text-[var(--gold)] transition-colors uppercase"
+          >
+            {n.label}
+          </Link>
+        ))}
+      </nav>
+
+      <div className="flex gap-4 justify-center mb-8">
+        {["📘", "📸", "🐦", "▶️"].map((s, i) => (
+          <button
+            key={i}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-base transition-all hover:-translate-y-0.5"
+            style={{
+              background: "rgba(255,248,235,0.3)",
+              border: "1px solid rgba(184,150,62,0.3)",
+            }}
+            aria-label={`Social ${i + 1}`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-[12px] italic text-[rgba(107,76,56,0.7)] leading-relaxed">
+        All educational content, stories, games, characters, and systems are the
+        intellectual property of
+        <br />
+        <strong className="text-[var(--gold)]">
+          Thuraya Mohammed bin Ali Al Naabi
+        </strong>{" "}
+        — English Teacher, Sumail Al Qurooshiyah.
+        <br />
+        © {year} Learn Under The Palm Tree. All rights reserved. Unauthorised
+        reproduction is strictly prohibited.
+      </p>
     </footer>
   );
 }

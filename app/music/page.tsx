@@ -1,87 +1,128 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import SectionTitle from "../../components/SectionTitle";
 import GlassCard from "../../components/GlassCard";
-import GlassButton from "../../components/GlassButton";
 import PipperConnector from "../../components/PipperConnector";
 import { MUSIC_CATEGORIES, TRACKS } from "../../data/music";
-import { PauseIcon, PlayIcon, MusicIcon } from "../../components/Icons";
+
+const MUSIC_ICONS = ["🎵", "🎶", "🎼", "🎹", "🥁", "🎷", "🎺", "🎻", "🎤", "🎧"];
+
+// Sample audio files from the repo
+const SAMPLE_AUDIO = [
+  "/audio/joyful.mp3",
+  "/audio/crystal-ringing.mp3",
+  "/audio/bamboo-whoosh.mp3",
+];
 
 export default function MusicPage() {
   const [playingId, setPlayingId] = useState<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const toggle = (id: number, src: string) => {
+    if (playingId === id) {
+      audioRef.current?.pause();
+      setPlayingId(null);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.src = src;
+        audioRef.current.play().catch(() => {});
+      }
+      setPlayingId(id);
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-16">
-      <SectionTitle
-        eyebrow="Section 4"
-        title="Palm Tree Music"
-        subtitle="Songs, soundtrack, and educational music linked to chapters of the story file."
-      />
+    <section className="min-h-screen pt-32 pb-24 px-6 md:px-12">
+      <div className="max-w-[1200px] mx-auto w-full">
+        <audio ref={audioRef} onEnded={() => setPlayingId(null)} hidden />
 
-      {/* Three curved category cards */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {MUSIC_CATEGORIES.map((c) => (
-          <div
-            key={c.key}
-            className="glass overflow-hidden"
-            style={{ borderRadius: "180px 180px 28px 28px" }}
-          >
-            <div className="relative h-56 bg-[radial-gradient(circle_at_50%_40%,rgba(255,244,220,0.6),transparent_70%)] flex items-center justify-center">
-              <MusicIcon className="w-16 h-16 text-cocoa/70" />
-              <span className="absolute top-3 left-3 glass px-3 py-1 rounded-full text-[0.6rem] tracking-[0.2em] uppercase text-cocoa/70">
-                [Cover Art Placeholder]
-              </span>
-            </div>
-            <div className="p-6">
-              <h3 className="font-display gold-text text-xl tracking-wide">
-                {c.title}
-              </h3>
-              <p className="text-cocoa/75 text-sm mt-2">{c.blurb}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+        <SectionTitle
+          eyebrow="Sounds of the Palm"
+          title={
+            <>
+              Palm Tree <em>Music</em>
+            </>
+          }
+          subtitle="Songs, soundtrack, and educational music linked to the chapters of the story file."
+        />
 
-      {/* 10 tracks */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {TRACKS.map((t) => {
-          const playing = playingId === t.id;
-          return (
-            <GlassCard key={t.id} className="p-6">
-              <div className="flex items-center justify-between">
-                <span className="text-[0.7rem] tracking-[0.22em] uppercase text-cocoa/70">
-                  Track {t.id.toString().padStart(2, "0")}
-                </span>
-                <span className="text-[0.7rem] tracking-[0.18em] uppercase text-cocoa/60">
-                  {t.category}
-                </span>
+        {/* Curved category cards */}
+        <div className="grid md:grid-cols-3 gap-6 mb-16">
+          {MUSIC_CATEGORIES.map((c, i) => (
+            <div
+              key={c.key}
+              className="glass-deep overflow-hidden"
+              style={{ borderRadius: "180px 180px 24px 24px" }}
+            >
+              <div
+                className="h-52 flex items-center justify-center text-6xl"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(184,150,62,0.15) 0%, rgba(240,232,220,0.3) 60%, rgba(240,232,220,0.6) 100%)",
+                }}
+              >
+                {["🎵", "🎼", "📚"][i]}
               </div>
-              <h4 className="font-display gold-text text-xl tracking-wide mt-2">
-                {t.title}
-              </h4>
-              <p className="text-cocoa/70 text-xs mt-2">{t.lyricsPlaceholder}</p>
-              <p className="text-cocoa/65 text-xs">{t.audioPlaceholder}</p>
-              <p className="text-cocoa/65 text-xs">
-                Related chapter: {t.relatedChapter}
-              </p>
-              <div className="hairline my-4" />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPlayingId(playing ? null : t.id)}
-                  className="icon-btn"
-                  aria-label={playing ? "Pause" : "Play"}
-                >
-                  {playing ? <PauseIcon /> : <PlayIcon />}
-                </button>
-                <GlassButton variant="ghost">Lyrics</GlassButton>
-                <GlassButton variant="ghost">TTS</GlassButton>
+              <div className="p-6 text-center">
+                <h3 className="font-cinzel text-[13px] tracking-[0.15em] text-[var(--brown)] uppercase mb-2">
+                  {c.title}
+                </h3>
+                <p className="text-sm italic text-[var(--brown-mid)] leading-relaxed">
+                  {c.blurb}
+                </p>
               </div>
-            </GlassCard>
-          );
-        })}
-      </div>
+            </div>
+          ))}
+        </div>
 
-      <PipperConnector feature="Music Voice / TTS" />
-    </div>
+        {/* Tracks */}
+        <div className="grid md:grid-cols-2 gap-6 mb-12">
+          {TRACKS.map((t, i) => {
+            const playing = playingId === t.id;
+            const src = SAMPLE_AUDIO[i % SAMPLE_AUDIO.length];
+            return (
+              <GlassCard key={t.id} className="p-7">
+                <div className="flex items-start gap-5">
+                  <button
+                    onClick={() => toggle(t.id, src)}
+                    aria-label={playing ? "Pause" : "Play"}
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-2xl flex-shrink-0 transition-transform hover:scale-105"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, rgba(184,150,62,0.2), rgba(212,176,106,0.3))",
+                      border: "1px solid var(--gold)",
+                      boxShadow: "0 0 20px rgba(184,150,62,0.15)",
+                    }}
+                  >
+                    {playing ? "⏸" : MUSIC_ICONS[i % MUSIC_ICONS.length]}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-cinzel text-[10px] tracking-[0.2em] uppercase text-[var(--brown-mid)]">
+                        Track {String(t.id).padStart(2, "0")}
+                      </span>
+                      <span className="font-cinzel text-[10px] tracking-[0.18em] uppercase text-[var(--gold)]">
+                        {t.category}
+                      </span>
+                    </div>
+                    <h4 className="font-cinzel text-[14px] tracking-[0.12em] text-[var(--brown)] uppercase mb-2">
+                      {t.title}
+                    </h4>
+                    <p className="text-[13px] italic text-[var(--brown-mid)] leading-relaxed">
+                      {t.lyricsPlaceholder}
+                    </p>
+                    <p className="text-[12px] italic text-[var(--brown-mid)]/70 mt-2">
+                      Related chapter: {t.relatedChapter}
+                    </p>
+                  </div>
+                </div>
+              </GlassCard>
+            );
+          })}
+        </div>
+
+        <PipperConnector feature="Music Voice / TTS" />
+      </div>
+    </section>
   );
 }

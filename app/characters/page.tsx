@@ -1,86 +1,103 @@
 import Link from "next/link";
-import GlassButton from "../../components/GlassButton";
+import Image from "next/image";
 import SectionTitle from "../../components/SectionTitle";
-import PalmIcon from "../../components/PalmIcon";
 import { CHARACTERS, CHARACTER_GROUPS } from "../../data/characters";
+
+const GROUP_IMAGES: Record<string, string> = {
+  teachers: "/images/scenes/teachers.png",
+  students: "/images/scenes/students.png",
+  villagers: "/images/scenes/villagers.png",
+};
 
 export default function CharactersPage() {
   return (
-    <div className="flex flex-col gap-16">
-      <SectionTitle
-        eyebrow="Section 2"
-        title="Characters"
-        subtitle="Teachers, students, and villagers — each grounded in the story file. Names appear in English only."
-      />
+    <section className="min-h-screen pt-32 pb-24 px-6 md:px-12">
+      <div className="max-w-[1200px] mx-auto w-full">
+        <SectionTitle
+          eyebrow="The People Of The Village"
+          title={
+            <>
+              Meet the <em>Palmers</em>
+            </>
+          }
+          subtitle="Teachers, students, and villagers — every face carries a story rooted in the chapters of the book."
+        />
 
-      {/* Three arch cards */}
-      <div className="grid md:grid-cols-3 gap-8">
-        {CHARACTER_GROUPS.map((g) => (
-          <div key={g.key} className="glass arch-card overflow-hidden">
-            <div className="relative h-80 bg-[radial-gradient(circle_at_50%_40%,rgba(255,244,220,0.6),transparent_70%)]">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <PalmIcon className="w-24 h-24 opacity-80" />
+        <div className="grid md:grid-cols-3 gap-8 mb-20">
+          {CHARACTER_GROUPS.map((g) => (
+            <Link key={g.key} href={`#${g.key}`} className="arch-card glass-deep">
+              <div
+                className="arch-img"
+                style={{
+                  backgroundImage: `url(${GROUP_IMAGES[g.key]})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              />
+              <div className="p-6 text-center">
+                <h3 className="font-cinzel text-[14px] tracking-[0.15em] text-[var(--brown)] mb-2 uppercase">
+                  The {g.title}
+                </h3>
+                <p className="text-sm italic text-[var(--brown-mid)] mb-4 leading-relaxed">
+                  {g.blurb}
+                </p>
+                <span className="btn-outline">Meet The Palmers</span>
               </div>
-              <span className="absolute top-3 left-3 glass px-3 py-1 rounded-full text-[0.65rem] tracking-[0.22em] uppercase text-cocoa/70">
-                [Cinematic Image Placeholder]
-              </span>
-            </div>
-            <div className="p-7">
-              <h3 className="font-display gold-text text-2xl tracking-wide">
-                {g.title}
-              </h3>
-              <p className="text-cocoa/75 text-sm mt-2 leading-relaxed">
-                {g.blurb}
-              </p>
-              <div className="mt-5">
-                <GlassButton variant="gold" href={`/characters#${g.key}`}>
-                  Meet The Palmers
-                </GlassButton>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
 
-      {/* Group portrait cards */}
-      {CHARACTER_GROUPS.map((g) => {
-        const list = CHARACTERS.filter((c) => c.group === g.key);
-        return (
-          <section key={g.key} id={g.key} className="flex flex-col gap-8">
-            <SectionTitle eyebrow="Group" title={g.title} subtitle={g.blurb} />
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {list.map((c) => (
-                <Link
-                  key={c.slug}
-                  href={`/characters/${c.slug}`}
-                  className="block glass overflow-hidden hover:-translate-y-1 transition-transform"
-                  style={{ borderRadius: "180px 180px 28px 28px" }}
-                >
-                  <div className="relative h-64 bg-[radial-gradient(circle_at_50%_35%,rgba(255,244,220,0.7),transparent_70%)] flex items-center justify-center">
-                    <div className="w-28 h-28 rounded-full bevel border border-[rgba(138,101,41,0.55)] bg-gradient-to-br from-[#f5dfa3] via-[#d6ad58] to-[#8a6529] flex items-center justify-center text-cocoa font-display text-3xl">
-                      {c.name[0]}
+        {CHARACTER_GROUPS.map((g) => {
+          const list = CHARACTERS.filter((c) => c.group === g.key);
+          return (
+            <section key={g.key} id={g.key} className="mb-20 scroll-mt-32">
+              <SectionTitle
+                eyebrow={g.key}
+                title={<>The <em>{g.title}</em></>}
+                subtitle={g.blurb}
+              />
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {list.map((c) => (
+                  <Link
+                    key={c.slug}
+                    href={`/characters/${c.slug}`}
+                    className="glass-deep overflow-hidden hover:-translate-y-1 transition-transform block"
+                    style={{ borderRadius: "180px 180px 24px 24px" }}
+                  >
+                    <div
+                      className="relative h-64 flex items-end justify-center"
+                      style={{
+                        background:
+                          "linear-gradient(180deg, rgba(184,150,62,0.15) 0%, rgba(240,232,220,0.3) 60%, rgba(240,232,220,0.6) 100%)",
+                        borderRadius: "120px 120px 0 0",
+                      }}
+                    >
+                      <Image
+                        src={c.image}
+                        alt={c.name}
+                        width={220}
+                        height={260}
+                        className="object-contain w-auto h-full p-4"
+                      />
                     </div>
-                    <span className="absolute top-3 left-3 glass px-3 py-1 rounded-full text-[0.6rem] tracking-[0.2em] uppercase text-cocoa/70">
-                      [Character Image Placeholder]
-                    </span>
-                  </div>
-                  <div className="p-5">
-                    <h4 className="font-display gold-text text-xl tracking-wide">
-                      {c.name}
-                    </h4>
-                    <p className="text-[0.7rem] tracking-[0.22em] uppercase text-cocoa/65 mt-1">
-                      {c.role}
-                    </p>
-                    <p className="text-cocoa/75 text-sm mt-3 line-clamp-2">
-                      {c.description}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        );
-      })}
-    </div>
+                    <div className="p-5 text-center">
+                      <h4 className="font-cinzel text-[13px] tracking-[0.18em] text-[var(--brown)] uppercase mb-1">
+                        {c.name}
+                      </h4>
+                      <p className="text-[11px] italic text-[var(--gold)] tracking-[0.1em] uppercase mb-2">
+                        {c.role}
+                      </p>
+                      <p className="text-[13px] italic text-[var(--brown-mid)] line-clamp-2">
+                        {c.description}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </section>
   );
 }

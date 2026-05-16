@@ -2,31 +2,43 @@ import GlassButton from "../../components/GlassButton";
 import SectionTitle from "../../components/SectionTitle";
 import ChapterCard from "../../components/ChapterCard";
 import { CHAPTERS } from "../../data/chapters";
-import { STORY_REFERENCE } from "../../data/storyReference";
 
 export default function StoryPage() {
   return (
-    <div className="flex flex-col gap-16">
-      <SectionTitle
-        eyebrow="Section 3"
-        title={STORY_REFERENCE.title}
-        subtitle={STORY_REFERENCE.intro}
-      />
+    <section className="min-h-screen pt-32 pb-24 px-6 md:px-12">
+      <div className="max-w-[1200px] mx-auto w-full">
+        <SectionTitle
+          eyebrow="The Novel"
+          title={
+            <>
+              <em>123</em> Let&apos;s Learn English
+              <br />
+              Under the Palm Tree
+            </>
+          }
+        />
 
-      <div className="flex flex-wrap gap-3">
-        <GlassButton variant="gold" href="/story/chapter/1">Enter</GlassButton>
-        <GlassButton variant="ghost" href="/ar">Open AR Scenes</GlassButton>
-      </div>
+        <p className="text-center max-w-[680px] mx-auto mb-10 text-xl italic leading-[1.8] text-[var(--brown-mid)]">
+          &quot;There was once a village that taught children how to dream in
+          two languages. Beneath the shade of an ancient palm, every word became
+          a key — and every story, a door.&quot;
+        </p>
 
-      {/* Flowing chain layout with floating chapter cards */}
-      <div className="relative">
-        <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px bg-gradient-to-b from-transparent via-[rgba(138,101,41,0.55)] to-transparent pointer-events-none hidden md:block" />
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-7">
-          {CHAPTERS.map((c, i) => (
-            <ChapterCard key={c.id} chapter={c} index={i} />
+        <div className="flex flex-wrap gap-4 justify-center mb-16">
+          <GlassButton variant="gold" href="/story/chapter/1">
+            Enter The Story
+          </GlassButton>
+          <GlassButton variant="outline" href="/ar">
+            Open AR Scenes
+          </GlassButton>
+        </div>
+
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+          {CHAPTERS.map((c) => (
+            <ChapterCard key={c.id} chapter={c} />
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

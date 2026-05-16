@@ -1,13 +1,9 @@
 "use client";
 import { useState } from "react";
 
-const PALETTE = [
-  { id: "A1", colors: "from-[#f5dfa3] to-[#a87f3a]" },
-  { id: "A2", colors: "from-[#e9c97c] to-[#6b4e1f]" },
-  { id: "A3", colors: "from-[#d6ad58] to-[#4c3815]" },
-  { id: "A4", colors: "from-[#f4e6c4] to-[#8a6529]" },
-  { id: "A5", colors: "from-[#ead4a5] to-[#3a2a17]" },
-  { id: "A6", colors: "from-[#dbb978] to-[#2d220d]" },
+export const AVATAR_OPTIONS = [
+  "🌴", "🦋", "🌸", "⭐", "🦅", "🌙",
+  "🌺", "🦁", "🌿", "🐚", "🦚", "✨",
 ];
 
 type Props = {
@@ -16,33 +12,36 @@ type Props = {
 };
 
 export default function AvatarSelector({ value, onChange }: Props) {
-  const [internal, setInternal] = useState(value || "A1");
+  const [internal, setInternal] = useState(value || "🌴");
   const select = (id: string) => {
     setInternal(id);
     onChange?.(id);
   };
+  const active = value ?? internal;
   return (
-    <div className="flex flex-wrap gap-3">
-      {PALETTE.map((a) => {
-        const active = (value ?? internal) === a.id;
+    <div className="grid grid-cols-6 gap-2">
+      {AVATAR_OPTIONS.map((a) => {
+        const selected = active === a;
         return (
           <button
-            key={a.id}
+            key={a}
             type="button"
-            aria-label={`Select avatar ${a.id}`}
-            onClick={() => select(a.id)}
-            className={`relative w-14 h-14 rounded-full bevel border transition-all ${
-              active
-                ? "border-[rgba(138,101,41,0.8)] shadow-gold scale-110"
-                : "border-[rgba(138,101,41,0.4)] hover:scale-105"
-            } bg-gradient-to-br ${a.colors}`}
+            aria-label={`Avatar ${a}`}
+            onClick={() => select(a)}
+            className={`w-full aspect-square rounded-full flex items-center justify-center text-xl cursor-pointer transition-all ${
+              selected
+                ? "scale-110"
+                : "hover:scale-105"
+            }`}
+            style={{
+              border: `2px solid ${selected ? "var(--gold)" : "transparent"}`,
+              background: "rgba(255,248,235,0.5)",
+              boxShadow: selected
+                ? "0 0 0 3px rgba(184,150,62,0.2), 0 4px 12px rgba(184,150,62,0.2)"
+                : "0 2px 8px rgba(61,43,31,0.1)",
+            }}
           >
-            <span className="absolute inset-0 flex items-center justify-center font-display text-sm text-cocoa">
-              {a.id}
-            </span>
-            {active && (
-              <span className="absolute -inset-1 rounded-full ring-2 ring-[rgba(233,201,124,0.65)] animate-pulse pointer-events-none" />
-            )}
+            {a}
           </button>
         );
       })}

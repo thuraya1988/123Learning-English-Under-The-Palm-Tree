@@ -17,12 +17,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased">
+      <body className="antialiased">
         <AmbientBackdrop />
         <Header />
-        <main className="relative pt-28 pb-24 px-4 sm:px-6 lg:px-12 max-w-[1480px] mx-auto">
-          {children}
-        </main>
+        <main>{children}</main>
         <Footer />
       </body>
     </html>

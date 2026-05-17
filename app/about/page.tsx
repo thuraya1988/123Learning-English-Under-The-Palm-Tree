@@ -49,7 +49,7 @@ export default function AboutPage() {
           <div className="lg:col-span-7 glass-deep rounded-[24px] p-8 relative overflow-hidden">
             <div className="relative aspect-[16/10] rounded-2xl overflow-hidden mb-6">
               <Image
-                src="/images/scenes/cover.jpeg"
+                src="/My.website.background/main.jpeg"
                 alt="The Palm Tree village"
                 fill
                 className="object-cover"

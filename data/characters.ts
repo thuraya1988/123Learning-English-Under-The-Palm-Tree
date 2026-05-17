@@ -1,10 +1,9 @@
 /**
  * Character records.
  *
- * Names are grouped as Teachers / Students / Villagers, all in English.
- * Each character carries the real cartoon image from /public/images/characters.
- * Descriptions, related chapters, voice lines, and 3D models remain placeholders
- * pending the story file linking — nothing is invented.
+ * All character portraits live in /public/characters-withnamesandbackgrond/
+ * (the folder the author named). Descriptions, related chapters, voice lines,
+ * and 3D models remain placeholders pending the story file.
  */
 
 export type CharacterGroup = "teachers" | "students" | "villagers";
@@ -46,169 +45,84 @@ export const CHARACTER_GROUPS: {
   },
 ];
 
-const placeholder = {
+const ph = {
   description: "[Character Description Placeholder]",
   relatedChapter: "[Story File Chapter Reference]",
   voicePlaceholder: "[Pipper Integration Placeholder]",
   modelPlaceholder: "[3D Model Placeholder]",
 };
 
+const folder = "/characters-withnamesandbackgrond";
+
 export const CHARACTERS: Character[] = [
   // ─── TEACHERS ───
-  {
-    slug: "thuraya",
-    name: "Thuraya",
-    group: "teachers",
+  { slug: "thuraya", name: "Thuraya", group: "teachers",
     role: "English Teacher · Author",
-    image: "/images/characters/thuraya.jpeg",
-    ...placeholder,
-  },
-  {
-    slug: "mathla",
-    name: "Mathla",
-    group: "teachers",
+    image: `${folder}/thuraya-name+background.png`, ...ph },
+  { slug: "mathla", name: "Mathla", group: "teachers",
     role: "[Role Placeholder]",
-    image: "/images/characters/mathla.png",
-    ...placeholder,
-  },
-  {
-    slug: "sofia",
-    name: "Sofia",
-    group: "teachers",
+    image: `${folder}/math;a-name+background.png`, ...ph },
+  { slug: "sofia", name: "Sofia", group: "teachers",
     role: "[Role Placeholder]",
-    image: "/images/characters/sofia.png",
-    ...placeholder,
-  },
-  {
-    slug: "fatakat",
-    name: "Fatakat",
-    group: "teachers",
+    image: `${folder}/sofia-name+background.png`, ...ph },
+  { slug: "fatakat", name: "Fatakat", group: "teachers",
     role: "[Role Placeholder]",
-    image: "/images/characters/fatakat.jpeg",
-    ...placeholder,
-  },
+    image: `${folder}/fatakat-name+background.png`, ...ph },
+  { slug: "noorah", name: "Noorah", group: "teachers",
+    role: "[Role Placeholder]",
+    image: `${folder}/noorah-name+background.png`, ...ph },
+  { slug: "rahma", name: "Rahma", group: "teachers",
+    role: "[Role Placeholder]",
+    image: `${folder}/rahma-name+background.png`, ...ph },
 
   // ─── STUDENTS ───
-  {
-    slug: "minnah",
-    name: "Minnah",
-    group: "students",
+  { slug: "minnah-mustafa", name: "Minnah & Mustafa", group: "students",
     role: "[Role Placeholder]",
-    image: "/images/characters/minnah.png",
-    ...placeholder,
-  },
-  {
-    slug: "ahmed",
-    name: "Ahmed",
-    group: "students",
+    image: `${folder}/minnah+mustafa-name+background.png`, ...ph },
+  { slug: "ahmed", name: "Ahmed", group: "students",
     role: "[Role Placeholder]",
-    image: "/images/characters/ahmed.png",
-    ...placeholder,
-  },
-  {
-    slug: "ali",
-    name: "Ali",
-    group: "students",
+    image: `${folder}/Ahmed-name+background.png`, ...ph },
+  { slug: "ali", name: "Ali", group: "students",
     role: "[Role Placeholder]",
-    image: "/images/characters/ali.jpg",
-    ...placeholder,
-  },
-  {
-    slug: "khalil",
-    name: "Khalil",
-    group: "students",
+    image: `${folder}/ali-name+background.png`, ...ph },
+  { slug: "khalil", name: "Khalil", group: "students",
     role: "[Role Placeholder]",
-    image: "/images/characters/khalil.png",
-    ...placeholder,
-  },
-  {
-    slug: "kalaf",
-    name: "Kalaf",
-    group: "students",
+    image: `${folder}/khalil-name+background.png`, ...ph },
+  { slug: "khalaf", name: "Khalaf", group: "students",
     role: "[Role Placeholder]",
-    image: "/images/characters/kalaf.png",
-    ...placeholder,
-  },
-  {
-    slug: "mustafa",
-    name: "Mustafa",
-    group: "students",
+    image: `${folder}/khalaf-name+background.png`, ...ph },
+  { slug: "sadoo", name: "Sadoo", group: "students",
     role: "[Role Placeholder]",
-    image: "/images/characters/mustafa.png",
-    ...placeholder,
-  },
-  {
-    slug: "sadoo",
-    name: "Sadoo",
-    group: "students",
+    image: `${folder}/sadoo-name+background.png`, ...ph },
+  { slug: "john", name: "John", group: "students",
     role: "[Role Placeholder]",
-    image: "/images/characters/sadoo.png",
-    ...placeholder,
-  },
-  {
-    slug: "jhon",
-    name: "Jhon",
-    group: "students",
+    image: `${folder}/john-name+background.png`, ...ph },
+  { slug: "mohamadain", name: "Mohamadain", group: "students",
     role: "[Role Placeholder]",
-    image: "/images/characters/jhon.png",
-    ...placeholder,
-  },
-  {
-    slug: "mohammadain",
-    name: "Mohammadain",
-    group: "students",
+    image: `${folder}/mohamadain-name+background.png`, ...ph },
+  { slug: "marhoon", name: "Marhoon", group: "students",
     role: "[Role Placeholder]",
-    image: "/images/characters/mohammadain.png",
-    ...placeholder,
-  },
+    image: `${folder}/marhoon-name+background.png`, ...ph },
 
   // ─── VILLAGERS ───
-  {
-    slug: "mansoor",
-    name: "Mansoor",
-    group: "villagers",
+  { slug: "mansoor", name: "Mansoor", group: "villagers",
     role: "[Role Placeholder]",
-    image: "/images/characters/mansoor.png",
-    ...placeholder,
-  },
-  {
-    slug: "malood",
-    name: "Malood",
-    group: "villagers",
+    image: `${folder}/mansoorname+background.png`, ...ph },
+  { slug: "malood", name: "Malood", group: "villagers",
     role: "[Role Placeholder]",
-    image: "/images/characters/malood.png",
-    ...placeholder,
-  },
-  {
-    slug: "nasser",
-    name: "Nasser",
-    group: "villagers",
+    image: `${folder}/malood-name+background.png`, ...ph },
+  { slug: "nasser", name: "Nasser", group: "villagers",
     role: "[Role Placeholder]",
-    image: "/images/characters/nasser.png",
-    ...placeholder,
-  },
-  {
-    slug: "khamees",
-    name: "Khamees",
-    group: "villagers",
+    image: `${folder}/nasser-name+background.png`, ...ph },
+  { slug: "khamees", name: "Khamees", group: "villagers",
     role: "[Role Placeholder]",
-    image: "/images/characters/khamees.jpeg",
-    ...placeholder,
-  },
-  {
-    slug: "obaid",
-    name: "Obaid",
-    group: "villagers",
+    image: `${folder}/khamees-name+background.png`, ...ph },
+  { slug: "obaid", name: "Obaid", group: "villagers",
     role: "[Role Placeholder]",
-    image: "/images/characters/obaid.jpeg",
-    ...placeholder,
-  },
-  {
-    slug: "zahran",
-    name: "Zahran",
-    group: "villagers",
+    image: `${folder}/Obaid-name+background.png`, ...ph },
+  { slug: "zahran", name: "Zahran", group: "villagers",
     role: "[Role Placeholder]",
-    image: "/images/characters/zahran.jpeg",
-    ...placeholder,
-  },
+    image: `${folder}/zahran-name+background.png`, ...ph },
 ];
+
+export const PALM_TREE_FAMILY_IMAGE = `${folder}/palm-tree-family.png`;

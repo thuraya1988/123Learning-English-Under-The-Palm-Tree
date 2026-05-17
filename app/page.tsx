@@ -25,9 +25,9 @@ const ABOUT_CARDS = [
 ];
 
 const GROUP_IMAGES: Record<string, string> = {
-  teachers: "/images/scenes/teachers.png",
-  students: "/images/scenes/students.png",
-  villagers: "/images/scenes/villagers.png",
+  teachers: "/My.website.background/background-1.jpeg",
+  students: "/My.website.background/background-2.jpeg",
+  villagers: "/My.website.background/background-3.jpeg",
 };
 
 const MUSIC_ICONS = ["🎵", "🎶", "🎼", "🎹", "🥁", "🎷", "🎺", "🎻", "🎤", "🎧"];

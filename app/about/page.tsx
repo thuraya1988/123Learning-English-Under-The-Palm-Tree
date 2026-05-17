@@ -80,13 +80,11 @@ export default function AboutPage() {
         <div className="grid md:grid-cols-2 gap-6 mb-12">
           <GlassCard variant="dark" className="p-8">
             <p className="font-cinzel text-[12px] tracking-[0.2em] text-[var(--gold)] mb-3 uppercase">
-              Author Statement · Audio
+              Author Statement
             </p>
-            <audio
-              controls
-              src="/audio/author-statement.mpeg"
-              className="w-full mt-2"
-            />
+            <p className="text-[var(--gold-pale)]/80 text-sm italic mt-2">
+              [Author Statement Audio Placeholder]
+            </p>
             <p className="text-[var(--gold-pale)]/70 text-xs italic mt-3">
               Voice recording by Thuraya Mohammed bin Ali Al Naabi.
             </p>
@@ -95,7 +93,11 @@ export default function AboutPage() {
             <p className="font-cinzel text-[12px] tracking-[0.2em] text-[var(--gold)] mb-3 uppercase">
               Dedication · Audio
             </p>
-            <audio controls src="/audio/dedication.mpeg" className="w-full mt-2" />
+            <audio
+              controls
+              src="/Website-music-soundeffect/dedication.mpeg"
+              className="w-full mt-2"
+            />
             <p className="text-[var(--gold-pale)]/70 text-xs italic mt-3">
               A dedication to every student who sat beneath the palm.
             </p>

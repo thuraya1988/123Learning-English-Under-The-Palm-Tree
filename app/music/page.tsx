@@ -7,11 +7,13 @@ import { MUSIC_CATEGORIES, TRACKS } from "../../data/music";
 
 const MUSIC_ICONS = ["🎵", "🎶", "🎼", "🎹", "🥁", "🎷", "🎺", "🎻", "🎤", "🎧"];
 
-// Sample audio files from the repo
+// Sample audio sources for the play/pause demo on the music preview tracks.
+// Real per-track audio will come from /public/Songs-section/.
 const SAMPLE_AUDIO = [
-  "/audio/joyful.mp3",
-  "/audio/crystal-ringing.mp3",
-  "/audio/bamboo-whoosh.mp3",
+  "/Website-music-soundeffect/main-background-website-music.mpeg",
+  "/Website-music-soundeffect/second-background-website-music.mpeg",
+  "/Website-music-soundeffect/music-background.mp3",
+  "/Website-music-soundeffect/thinking-music.mp3",
 ];
 
 export default function MusicPage() {

@@ -13,7 +13,8 @@ type CharacterItem = {
   messageEn?: string;
 };
 
-const IMAGE_BASE = "/characters-withnamesandbackgrond";
+const IMAGE_BASE = "/assets/characters";
+const PLACEHOLDER_IMAGE = `${IMAGE_BASE}/placeholder-name+background.png`;
 
 const placeholderAr = "سيُضاف وصف هذه الشخصية قريبًا.";
 const placeholderEn = "This character description will be added soon.";
@@ -23,7 +24,10 @@ const placeholderMessageEn = "The character message will be added soon.";
 const characters: CharacterItem[] = [
   {
     id: "ahmed",
-    imageCandidates: [`${IMAGE_BASE}/Ahmed-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/Ahmed-name+background.png`,
+      `${IMAGE_BASE}/ahmed-name+background.png`,
+    ],
     descAr:
       "أحمد هو المدير العام المصغّر. يجلس مستقيمًا كأنه جاء المدرسة يقيّم أداء البقية، وليس ليدرس فقط. شكله يقول: رجاءً التزموا بالنظام، حتى لو كان عمركم عشر سنوات.",
     descEn:
@@ -33,7 +37,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "ali",
-    imageCandidates: [`${IMAGE_BASE}/ali-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/ali-name+background.png`,
+      `${IMAGE_BASE}/Ali-name+background.png`,
+    ],
     descAr:
       "علي هو الذكي الهادئ. يفهم قبل ما يخلص الشرح، ويعطيك إحساسًا أنك أنت الذي تحتاج درسًا إضافيًا، لا هو.",
     descEn:
@@ -43,7 +50,11 @@ const characters: CharacterItem[] = [
   },
   {
     id: "fatakat",
-    imageCandidates: [`${IMAGE_BASE}/fatakat-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/fatakat-name+background.png`,
+      `${IMAGE_BASE}/fatakat-name+background.PNG`,
+      `${IMAGE_BASE}/fatkat-name+background.png`,
+    ],
     descAr:
       "فتكات قوية، سريعة الرد، وحاضرة دائمًا. شكلها يقول: أنا مسيطرة… إلى أن يدخل السكن كير الشعبي ويقلبها إلى ليمونة رسمية مع صوفيا.",
     descEn:
@@ -53,7 +64,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "john",
-    imageCandidates: [`${IMAGE_BASE}/john-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/john-name+background.png`,
+      `${IMAGE_BASE}/John-name+background.png`,
+    ],
     descAr:
       "جون من برّا أجنبي، ومن داخل عماني قديم متنكر. إذا فصل واشتغل العرق العماني، يتحول من Mr. John إلى سلوم الغبر: يتحمس، يجرب، ويقول Adventure قبل ما يفكر إذا القرار أصلًا آمن.",
     descEn:
@@ -63,7 +77,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "khalaf",
-    imageCandidates: [`${IMAGE_BASE}/khalaf-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/khalaf-name+background.png`,
+      `${IMAGE_BASE}/Khalaf-name+background.png`,
+    ],
     descAr:
       "خلف مظلوم الإشاعات. مظهره الجاد وعصاه جعلوا الناس يبنون عنه أساطير، بينما هو في الحقيقة رجل هادئ فقط يريد أن يعيش بعيدًا عن دراما الأطفال وجرائم مالود الزراعية.",
     descEn:
@@ -73,7 +90,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "khalil",
-    imageCandidates: [`${IMAGE_BASE}/khalil-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/khalil-name+background.png`,
+      `${IMAGE_BASE}/Khalil-name+background.png`,
+    ],
     descAr:
       "خليل هو الابتسامة المشبوهة. لطيف، يساعد، ويضحك… لكنه دائمًا قريب جدًا من أي موقف يضحك أو يورّط.",
     descEn:
@@ -83,7 +103,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "khamees",
-    imageCandidates: [`${IMAGE_BASE}/khamees-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/khamees-name+background.png`,
+      `${IMAGE_BASE}/Khamees-name+background.png`,
+    ],
     descAr:
       "خميس طاقته من طاقة أولاد القرية الأصيلة: حركة، حضور، وفضول دائم. إذا صار شيء في الساحة، غالبًا خميس قريب منه أو في قلبه.",
     descEn:
@@ -93,7 +116,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "malood",
-    imageCandidates: [`${IMAGE_BASE}/malood-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/malood-name+background.png`,
+      `${IMAGE_BASE}/Malood-name+background.png`,
+    ],
     descAr:
       "مالود ليس ماعزًا فقط، بل وزارة كاملة للتخريب والثروة الحيوانية. يأكل الدفاتر، يسرق اللمعان، يدخل البيوت وكأنه يدفع الإيجار، ثم ينظر للجميع بوجه يقول: أنا المظلوم هنا.",
     descEn:
@@ -103,7 +129,11 @@ const characters: CharacterItem[] = [
   },
   {
     id: "mansoor",
-    imageCandidates: [`${IMAGE_BASE}/mansoorname+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/mansoorname+background.png`,
+      `${IMAGE_BASE}/mansoor-name+background.png`,
+      `${IMAGE_BASE}/Mansoor-name+background.png`,
+    ],
     descAr:
       "منصور ليس طفلًا، بل إنذار طوارئ متنقل. إذا وجد كرسيًا وقف فوقه، وإذا وجد هدوءًا اعتبره استفزازًا شخصيًا يجب كسره فورًا.",
     descEn:
@@ -113,7 +143,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "marhoon",
-    imageCandidates: [`${IMAGE_BASE}/marhoon-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/marhoon-name+background.png`,
+      `${IMAGE_BASE}/Marhoon-name+background.png`,
+    ],
     descAr:
       "مرهون يدخل المكان فيصير الجو رسميًا تلقائيًا. وجهه يقول: أنا لا أمزح. وإذا تكلم، تكفيه جملة واحدة بدل محاضرة كاملة.",
     descEn:
@@ -123,7 +156,11 @@ const characters: CharacterItem[] = [
   },
   {
     id: "mathla",
-    imageCandidates: [`${IMAGE_BASE}/math;a-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/math;a-name+background.png`,
+      `${IMAGE_BASE}/mathla-name+background.png`,
+      `${IMAGE_BASE}/Mathla-name+background.png`,
+    ],
     descAr:
       "مثلى تدخل المشهد وكأن عندها موسيقى تصويرية خاصة. مرتبة، أنيقة، وواثقة. حضورها يقول: نعم، أنا اللقطة.",
     descEn:
@@ -133,7 +170,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "minnah-mustafa",
-    imageCandidates: [`${IMAGE_BASE}/minnah+mustafa-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/minnah+mustafa-name+background.png`,
+      `${IMAGE_BASE}/Minnah+Mustafa-name+background.png`,
+    ],
     descAr:
       "منّة ومصطفى ثنائي سريع الإيقاع: تعليق جاهز، حضور واضح، وطاقة تجعل أي مشهد أكثر حياة. مصطفى عنده مايك داخلي، ومنّة تخطف المشهد بتعليق مضبوط.",
     descEn:
@@ -143,7 +183,11 @@ const characters: CharacterItem[] = [
   },
   {
     id: "mohamadain",
-    imageCandidates: [`${IMAGE_BASE}/mohamadain-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/mohamadain-name+background.png`,
+      `${IMAGE_BASE}/mohamadeen-name+background.png`,
+      `${IMAGE_BASE}/Mohamadain-name+background.png`,
+    ],
     descAr:
       "محمدين يدخل المكان ومعه هيبة وكاريزما مصرية في نفس اللحظة. يقدر يشرح، يضبط الصف، ويطلق تعليقًا ذكيًا يجعل الكل يضحك ويحترم.",
     descEn:
@@ -153,7 +197,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "nasser",
-    imageCandidates: [`${IMAGE_BASE}/nasser-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/nasser-name+background.png`,
+      `${IMAGE_BASE}/Nasser-name+background.png`,
+    ],
     descAr:
       "ناصر هو ملك البيك أب الأسطوري. سيارته صوتها يقول: هذا آخر يوم لي، لكن ثقته تقول: لا، هذه مجرد البداية.",
     descEn:
@@ -163,7 +210,11 @@ const characters: CharacterItem[] = [
   },
   {
     id: "noorah",
-    imageCandidates: [`${IMAGE_BASE}/noorah-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/noorah-name+background.png`,
+      `${IMAGE_BASE}/Noorah-name+background.png`,
+      `${IMAGE_BASE}/noura-name+background.png`,
+    ],
     descAr:
       "نورة هي هيئة الأسئلة والاستفسارات. تسأل قبل الدرس وأثناءه وبعده، وربما عن سبب وجوده من الأساس. إذا سكتت، فهي فقط تعيد شحن الأسئلة.",
     descEn:
@@ -173,7 +224,11 @@ const characters: CharacterItem[] = [
   },
   {
     id: "obaid",
-    imageCandidates: [`${IMAGE_BASE}/Obaid-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/Obaid-name+background.png`,
+      `${IMAGE_BASE}/obaid-name+background.png`,
+      `${IMAGE_BASE}/Ubaid-name+background.png`,
+    ],
     descAr:
       "عبيد من الشخصيات التي تحضر بهدوء لكن لا تمر مرورًا عاديًا. هدوءه يجعلك تتوقع أنه يعرف تفاصيل أكثر مما يقول.",
     descEn:
@@ -183,7 +238,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "palm-tree-family",
-    imageCandidates: [`${IMAGE_BASE}/palm-tree-family.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/palm-tree-family.png`,
+      `${IMAGE_BASE}/Palm-tree-family.png`,
+    ],
     descAr:
       "هذه ليست شخصية واحدة، بل روح العالم كله: العائلة، القرية، الضحك، والفوضى الجميلة تحت ظل النخلة.",
     descEn:
@@ -193,7 +251,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "rahma",
-    imageCandidates: [`${IMAGE_BASE}/rahma-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/rahma-name+background.png`,
+      `${IMAGE_BASE}/Rahma-name+background.png`,
+    ],
     descAr:
       "رحمة هي الهدوء اللطيف وسط مهرجان الضوضاء. وجودها يذكّر الجميع أن العالم لا يتكون فقط من صراخ ومطاردات ماعز.",
     descEn:
@@ -203,7 +264,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "sadoo",
-    imageCandidates: [`${IMAGE_BASE}/sadoo-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/sadoo-name+background.png`,
+      `${IMAGE_BASE}/Sadoo-name+background.png`,
+    ],
     descAr:
       "سادو هو أبو المهمات المستحيلة. صاحب دكان، خياط، وتاجر، وربما عنده حل لكل شيء إلا الهدوء. لو طلبت منه باب غواصة، غالبًا سيقول: دقيقة أشوف لك.",
     descEn:
@@ -213,7 +277,11 @@ const characters: CharacterItem[] = [
   },
   {
     id: "sofia",
-    imageCandidates: [`${IMAGE_BASE}/sofia-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/sofia-name+background.png`,
+      `${IMAGE_BASE}/Sophia-name+background.png`,
+      `${IMAGE_BASE}/sofia-name+background.PNG`,
+    ],
     descAr:
       "صوفيا هي وزيرة الاعتراضات الرسمية. جون يقترح، وهي ترفض بعينها قبل لسانها. لا يوجد في داخلها أي أرض تتسع لفصلات جون.",
     descEn:
@@ -223,7 +291,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "thuraya",
-    imageCandidates: [`${IMAGE_BASE}/thuraya-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/thuraya-name+background.png`,
+      `${IMAGE_BASE}/Thuraya-name+background.png`,
+    ],
     descAr:
       "ثريا هي الإدارة العليا للقرية: تنظيم، تعليم، ترجمة، وتهدئة أزمات. قوية جدًا… لكن إذا ظهرت الوزغة، تنهار الهيبة في ثانيتين وتتحول من مديرة تنفيذية إلى فنزوز قادر على الطيران بسرعة: تشوووووو.",
     descEn:
@@ -233,7 +304,10 @@ const characters: CharacterItem[] = [
   },
   {
     id: "zahran",
-    imageCandidates: [`${IMAGE_BASE}/zahran-name+background.png`],
+    imageCandidates: [
+      `${IMAGE_BASE}/zahran-name+background.png`,
+      `${IMAGE_BASE}/Zahran-name+background.png`,
+    ],
     descAr:
       "زهران هو الشايب الذي إذا سألته سؤالًا أعطاك تاريخ القرية من سنة التأسيس. يهرف كثيرًا، لكن عنده أرشيف حي يمشي على قدمين.",
     descEn:
@@ -243,28 +317,29 @@ const characters: CharacterItem[] = [
   },
 ];
 
-function SmartImage({ sources, alt }: { sources: string[]; alt: string }) {
-  const all = useMemo(() => sources, [sources]);
-  const [index, setIndex] = useState(0);
-  const [failed, setFailed] = useState(false);
+function mergeSources(candidates: string[]) {
+  const unique = new Set<string>([...candidates, PLACEHOLDER_IMAGE]);
+  return [...unique];
+}
 
-  const currentSrc = all[index];
+function SmartImage({
+  sources,
+  alt,
+}: {
+  sources: string[];
+  alt: string;
+}) {
+  const allSources = useMemo(() => mergeSources(sources), [sources]);
+  const [index, setIndex] = useState(0);
+
+  const currentSrc = allSources[index] ?? PLACEHOLDER_IMAGE;
 
   const handleError = () => {
-    if (index < all.length - 1) {
-      setIndex(index + 1);
-    } else {
-      setFailed(true);
-    }
+    setIndex((prev) => {
+      if (prev < allSources.length - 1) return prev + 1;
+      return prev;
+    });
   };
-
-  if (failed || !currentSrc) {
-    return (
-      <div className="character-image character-image-fallback">
-        <span>[Character Image Placeholder]</span>
-      </div>
-    );
-  }
 
   return (
     <img
@@ -325,132 +400,13 @@ function CharacterCard({
           </span>
         </div>
       </button>
-
-      <style jsx>{`
-        .character-card {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
-        .image-arch {
-          position: relative;
-          overflow: hidden;
-          border-radius: 999px 999px 28px 28px;
-          background: #d9cfbe;
-          box-shadow: 0 18px 40px rgba(48, 37, 24, 0.12),
-            inset 0 0 0 1px rgba(99, 80, 58, 0.12);
-          aspect-ratio: 1 / 1.08;
-        }
-        .character-image {
-          width: 100%;
-          height: 100%;
-          display: block;
-          object-fit: cover;
-          object-position: center top;
-        }
-        .character-image-fallback {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: linear-gradient(180deg, #e8d5a3 0%, #b8963e 100%);
-          color: #3d2b1f;
-          font-family: "Cinzel", serif;
-          font-size: 12px;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-        }
-        .text-card {
-          position: relative;
-          width: 100%;
-          border: none;
-          border-radius: 22px;
-          padding: 18px 18px 16px;
-          text-align: start;
-          cursor: pointer;
-          transition: transform 0.2s ease, box-shadow 0.2s ease,
-            background 0.2s ease;
-          box-shadow: 0 16px 30px rgba(50, 34, 18, 0.12);
-          min-height: 220px;
-          font-family: "EB Garamond", serif;
-        }
-        .text-card:hover {
-          transform: translateY(-4px);
-        }
-        .text-card.arabic {
-          background: linear-gradient(180deg, #fff6ea 0%, #f7ead7 100%);
-          color: #4c3622;
-          border: 1px solid rgba(166, 119, 55, 0.2);
-          font-family: "Cairo", "Tajawal", "EB Garamond", serif;
-        }
-        .text-card.english {
-          background: linear-gradient(180deg, #eef6ff 0%, #ddeeff 100%);
-          color: #223b56;
-          border: 1px solid rgba(73, 115, 168, 0.18);
-        }
-        .lang-pill {
-          position: absolute;
-          top: 12px;
-          inset-inline-end: 12px;
-          min-width: 44px;
-          height: 28px;
-          border-radius: 999px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 0.78rem;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          background: rgba(255, 255, 255, 0.8);
-          box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
-        }
-        .text-card-body {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding-top: 18px;
-        }
-        .character-description {
-          margin: 0;
-          font-size: 0.95rem;
-          line-height: 1.8;
-          font-weight: 600;
-        }
-        .message-box {
-          padding: 12px 14px;
-          border-radius: 16px;
-          background: rgba(255, 255, 255, 0.52);
-          border: 1px solid rgba(0, 0, 0, 0.06);
-        }
-        .message-label {
-          display: block;
-          font-size: 0.77rem;
-          font-weight: 800;
-          margin-bottom: 6px;
-          opacity: 0.78;
-          text-transform: uppercase;
-          letter-spacing: 0.03em;
-        }
-        .character-message {
-          margin: 0;
-          font-size: 0.9rem;
-          line-height: 1.7;
-          font-weight: 600;
-        }
-        .tap-hint {
-          display: inline-block;
-          margin-top: auto;
-          font-size: 0.8rem;
-          opacity: 0.75;
-          font-weight: 700;
-        }
-      `}</style>
     </article>
   );
 }
 
 export default function CharactersSection() {
   const initialState = Object.fromEntries(
-    characters.map((item) => [item.id, "ar" as Language])
+    characters.map((item) => [item.id, "ar"])
   ) as Record<string, Language>;
 
   const [cardLanguage, setCardLanguage] =
@@ -466,20 +422,10 @@ export default function CharactersSection() {
   return (
     <section className="characters-section" aria-labelledby="characters-title">
       <div className="section-head">
-        <p className="eyebrow !text-center !justify-center inline-flex">
-          The People Of The Village
-        </p>
-        <h2 id="characters-title" className="title-cormorant">
-          Meet the <em>Palmers</em>
-        </h2>
-        <div className="section-divider">
-          <span></span>
-          <div className="divider-diamond"></div>
-          <span></span>
-        </div>
-        <p className="section-sub">
-          Tap any card to switch between Arabic and English. Names live inside
-          the portraits, so the cards focus on personality.
+        <h2 id="characters-title">Characters</h2>
+        <p>
+          Semi-circle image cards with bilingual toggle text. Missing assets use
+          placeholders automatically.
         </p>
       </div>
 
@@ -497,38 +443,170 @@ export default function CharactersSection() {
       <style jsx>{`
         .characters-section {
           width: 100%;
-          padding: 80px 24px 100px;
+          padding: 48px 20px 72px;
+          background: radial-gradient(
+              circle at top,
+              rgba(240, 232, 220, 0.24),
+              transparent 30%
+            ),
+            linear-gradient(180deg, #f8f1e7 0%, #f2e7d8 100%);
         }
+
         .section-head {
           max-width: 980px;
-          margin: 0 auto 32px;
+          margin: 0 auto 28px;
           text-align: center;
         }
+
         .section-head h2 {
           margin: 0 0 10px;
-          font-size: clamp(36px, 5vw, 64px);
+          font-size: clamp(1.8rem, 2vw, 2.4rem);
+          color: #2b251f;
         }
-        .section-sub {
-          margin: 0 auto;
-          max-width: 640px;
-          color: var(--brown-mid);
+
+        .section-head p {
+          margin: 0;
+          color: #6c6258;
           font-size: 0.98rem;
-          font-style: italic;
         }
+
         .characters-grid {
           max-width: 1280px;
           margin: 0 auto;
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-          gap: 32px 24px;
+          gap: 28px 24px;
           align-items: start;
         }
+
+        .character-card {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        .image-arch {
+          position: relative;
+          overflow: hidden;
+          border-radius: 999px 999px 28px 28px;
+          background: #d9cfbe;
+          box-shadow: 0 18px 40px rgba(48, 37, 24, 0.12),
+            inset 0 0 0 1px rgba(99, 80, 58, 0.12);
+          aspect-ratio: 1 / 1.08;
+        }
+
+        .character-image {
+          width: 100%;
+          height: 100%;
+          display: block;
+          object-fit: cover;
+          object-position: center top;
+        }
+
+        .text-card {
+          position: relative;
+          width: 100%;
+          border: none;
+          border-radius: 22px;
+          padding: 18px 18px 16px;
+          text-align: start;
+          cursor: pointer;
+          transition: transform 0.2s ease, box-shadow 0.2s ease,
+            background 0.2s ease;
+          box-shadow: 0 16px 30px rgba(50, 34, 18, 0.12);
+          min-height: 220px;
+        }
+
+        .text-card:hover {
+          transform: translateY(-4px);
+        }
+
+        .text-card.arabic {
+          background: linear-gradient(180deg, #fff6ea 0%, #f7ead7 100%);
+          color: #4c3622;
+          border: 1px solid rgba(166, 119, 55, 0.2);
+        }
+
+        .text-card.english {
+          background: linear-gradient(180deg, #eef6ff 0%, #ddeeff 100%);
+          color: #223b56;
+          border: 1px solid rgba(73, 115, 168, 0.18);
+        }
+
+        .lang-pill {
+          position: absolute;
+          top: 12px;
+          inset-inline-end: 12px;
+          min-width: 44px;
+          height: 28px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.78rem;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          background: rgba(255, 255, 255, 0.8);
+          box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        .text-card-body {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          padding-top: 18px;
+        }
+
+        .character-description {
+          margin: 0;
+          font-size: 0.95rem;
+          line-height: 1.8;
+          font-weight: 600;
+        }
+
+        .message-box {
+          padding: 12px 14px;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.52);
+          border: 1px solid rgba(0, 0, 0, 0.06);
+        }
+
+        .message-label {
+          display: block;
+          font-size: 0.77rem;
+          font-weight: 800;
+          margin-bottom: 6px;
+          opacity: 0.78;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+        }
+
+        .character-message {
+          margin: 0;
+          font-size: 0.9rem;
+          line-height: 1.7;
+          font-weight: 600;
+        }
+
+        .tap-hint {
+          display: inline-block;
+          margin-top: auto;
+          font-size: 0.8rem;
+          opacity: 0.75;
+          font-weight: 700;
+        }
+
         @media (max-width: 640px) {
           .characters-section {
             padding-inline: 14px;
           }
+
           .characters-grid {
             grid-template-columns: 1fr;
+          }
+
+          .text-card {
+            min-height: 200px;
           }
         }
       `}</style>

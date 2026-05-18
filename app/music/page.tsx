@@ -81,7 +81,7 @@ export default function MusicPage() {
         <div className="grid md:grid-cols-2 gap-6 mb-12">
           {TRACKS.map((t, i) => {
             const playing = playingId === t.id;
-            const src = SAMPLE_AUDIO[i % SAMPLE_AUDIO.length];
+            const src = t.audio;
             return (
               <GlassCard key={t.id} className="p-7">
                 <div className="flex items-start gap-5">
@@ -111,7 +111,7 @@ export default function MusicPage() {
                       {t.title}
                     </h4>
                     <p className="text-[13px] italic text-[var(--brown-mid)] leading-relaxed">
-                      {t.lyricsPlaceholder}
+                      {t.desc}
                     </p>
                     <p className="text-[12px] italic text-[var(--brown-mid)]/70 mt-2">
                       Related chapter: {t.relatedChapter}

@@ -1,18 +1,16 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import GlassButton from "../../../../components/GlassButton";
-import GlassCard from "../../../../components/GlassCard";
-import SectionTitle from "../../../../components/SectionTitle";
-import ThreeDCharacter from "../../../../components/ThreeDCharacter";
-import ARViewer from "../../../../components/ARViewer";
-import PipperConnector from "../../../../components/PipperConnector";
-import SchoromConnector from "../../../../components/SchoromConnector";
 import { CHAPTERS } from "../../../../data/chapters";
 
 export function generateStaticParams() {
   return CHAPTERS.map((c) => ({ id: String(c.id) }));
 }
 
-export default function ChapterPage({ params }: { params: { id: string } }) {
+export default function ChapterPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const id = Number(params.id);
   const chapter = CHAPTERS.find((c) => c.id === id);
   if (!chapter) return notFound();
@@ -21,93 +19,176 @@ export default function ChapterPage({ params }: { params: { id: string } }) {
   const next = id < 36 ? id + 1 : null;
 
   return (
-    <section className="min-h-screen pt-32 pb-24 px-6 md:px-12">
-      <div className="max-w-[1200px] mx-auto w-full">
-        <SectionTitle
-          eyebrow={`Chapter ${String(chapter.id).padStart(2, "0")}`}
-          title={<em>{chapter.title}</em>}
-          subtitle={chapter.summary}
-        />
+    <section style={{ paddingTop: 100, paddingBottom: 60 }}>
+      {/* Chapter header */}
+      <div
+        style={{
+          maxWidth: 1100,
+          margin: "0 auto",
+          padding: "30px 40px 20px",
+          textAlign: "center",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--caps)",
+            fontSize: 11,
+            letterSpacing: "0.3em",
+            color: "var(--gold)",
+            textTransform: "uppercase",
+          }}
+        >
+          Chapter {chapter.id} of 36
+        </span>
+        <h1
+          style={{
+            fontFamily: "var(--serif)",
+            fontSize: "clamp(40px, 5vw, 64px)",
+            fontWeight: 300,
+            color: "var(--burgundy)",
+            marginTop: 6,
+            marginBottom: 8,
+          }}
+        >
+          {chapter.title}
+        </h1>
+        <p
+          style={{
+            fontFamily: "var(--serif)",
+            fontStyle: "italic",
+            fontSize: 20,
+            color: "var(--brown-mid)",
+          }}
+        >
+          {chapter.subtitle}
+        </p>
+        {chapter.summary && (
+          <p
+            style={{
+              maxWidth: 720,
+              margin: "20px auto 0",
+              color: "var(--brown-mid)",
+              lineHeight: 1.8,
+              fontSize: 16,
+            }}
+          >
+            {chapter.summary}
+          </p>
+        )}
+      </div>
 
-        <div className="grid lg:grid-cols-12 gap-8 mb-12">
-          <GlassCard className="lg:col-span-7 p-8">
-            <p className="font-cinzel text-[12px] tracking-[0.18em] text-[var(--gold)] uppercase mb-3">
-              Chapter Text
-            </p>
-            <p className="text-[var(--brown-mid)] font-eb italic leading-[1.8] text-lg">
-              [Story File Reference Required] — chapter text will be rendered
-              from the story file here. Until the story file is linked, the
-              text area displays only this placeholder.
-            </p>
-            <div className="gold-line my-6" />
-            <div className="grid sm:grid-cols-2 gap-4">
-              {[
-                ["Vocabulary", chapter.vocabularyPlaceholder],
-                ["Listening", chapter.listeningPlaceholder],
-                ["Comprehension", chapter.comprehensionPlaceholder],
-                ["Character Dialogue", chapter.dialoguePlaceholder],
-              ].map(([title, body]) => (
-                <div
-                  key={title}
-                  className="skill-card !text-left !p-5"
-                >
-                  <p className="font-cinzel text-[11px] tracking-[0.15em] text-[var(--gold)] uppercase mb-2">
-                    {title}
-                  </p>
-                  <p className="text-[var(--brown-mid)] text-sm italic">
-                    {body}
-                  </p>
-                </div>
-              ))}
-            </div>
-            <div className="gold-line my-6" />
-            <div className="flex flex-wrap gap-3">
-              <GlassButton variant="gold">Mark As Read</GlassButton>
-              <GlassButton variant="dark" href="/skills">
-                Practice Skills
-              </GlassButton>
-              <GlassButton variant="outline" href="/ar">
-                Open AR Scene
-              </GlassButton>
-            </div>
-            <p className="font-cinzel text-[10px] tracking-[0.2em] uppercase text-[var(--brown-mid)] mt-4">
-              Skill unlock: {chapter.skillUnlock}
-            </p>
-          </GlassCard>
-
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            <ThreeDCharacter
-              name={`Chapter ${chapter.id} Guide`}
-              context="chapter"
+      {/* Embed of the official story file */}
+      {chapter.available ? (
+        <div
+          style={{
+            maxWidth: 1100,
+            margin: "30px auto 50px",
+            padding: "0 20px",
+          }}
+        >
+          <div
+            style={{
+              borderRadius: 24,
+              overflow: "hidden",
+              border: "1px solid rgba(184,150,62,0.35)",
+              boxShadow: "0 20px 50px -20px rgba(61,43,31,0.25)",
+              background: "#f5f0e8",
+            }}
+          >
+            <iframe
+              src={`/story/complete.html#chapter-${chapter.id}`}
+              title={`${chapter.title} — ${chapter.subtitle}`}
+              style={{
+                display: "block",
+                width: "100%",
+                height: "80vh",
+                border: "none",
+              }}
             />
-            <ARViewer
-              title={`Chapter ${chapter.id} AR Scene`}
-              description="Story file scene placeholder"
-              modelPlaceholder={chapter.arScenePlaceholder}
-            />
-            <PipperConnector feature="Chapter Narration" />
-            <SchoromConnector feature="Chapter Completion" />
           </div>
+          <p
+            style={{
+              textAlign: "center",
+              marginTop: 12,
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              color: "var(--brown-mid)",
+            }}
+          >
+            From{" "}
+            <a
+              href="/story/complete.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--burgundy)" }}
+            >
+              the complete story file
+            </a>{" "}
+            · Scroll inside the frame to read.
+          </p>
         </div>
+      ) : (
+        <div
+          style={{
+            maxWidth: 720,
+            margin: "30px auto 60px",
+            padding: 40,
+            textAlign: "center",
+            borderRadius: 24,
+            background: "var(--cream-light)",
+            border: "1px solid rgba(184,150,62,0.3)",
+          }}
+        >
+          <p
+            style={{
+              fontFamily: "var(--serif)",
+              fontStyle: "italic",
+              fontSize: 18,
+              color: "var(--brown-mid)",
+              marginBottom: 14,
+            }}
+          >
+            [Chapter {chapter.id} is not yet released]
+          </p>
+          <p style={{ color: "var(--brown-mid)", fontSize: 14 }}>
+            The author is preparing this chapter. Chapters 1–9 of{" "}
+            <em>Under The Palm Tree</em> are available now.
+          </p>
+        </div>
+      )}
 
-        <div className="flex justify-between gap-4">
-          {prev ? (
-            <GlassButton variant="outline" href={`/story/chapter/${prev}`}>
-              ← Previous
-            </GlassButton>
-          ) : (
-            <div />
-          )}
-          {next ? (
-            <GlassButton variant="gold" href={`/story/chapter/${next}`}>
-              Next Chapter →
-            </GlassButton>
-          ) : (
-            <GlassButton variant="gold" href="/certificate">
-              View Certificate
-            </GlassButton>
-          )}
-        </div>
+      {/* Nav */}
+      <div
+        style={{
+          maxWidth: 1100,
+          margin: "0 auto",
+          padding: "0 20px",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        {prev ? (
+          <Link href={`/story/chapter/${prev}`} className="btn-outline">
+            ← Previous
+          </Link>
+        ) : (
+          <span />
+        )}
+        <Link href="/#stories" className="btn-outline">
+          All Chapters
+        </Link>
+        {next ? (
+          <Link href={`/story/chapter/${next}`} className="btn-burgundy">
+            Next Chapter →
+          </Link>
+        ) : (
+          <Link href="/certificate" className="btn-burgundy">
+            View Certificate →
+          </Link>
+        )}
       </div>
     </section>
   );

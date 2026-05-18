@@ -242,10 +242,13 @@ export default function HomeClient() {
             <Link
               key={c.id}
               href={`/story/chapter/${c.id}`}
-              className={`chapter-card ${i >= 8 ? "locked" : ""}`}
+              className={`chapter-card ${c.available ? "" : "locked"}`}
+              title={c.available ? `${c.title} — ${c.subtitle}` : `Chapter ${c.id}`}
             >
               <div className="chapter-roman">{ROMANS[i]}</div>
-              <div className="chapter-label">Chapter {c.id}</div>
+              <div className="chapter-label">
+                {c.available ? c.title : `Chapter ${c.id}`}
+              </div>
             </Link>
           ))}
         </div>

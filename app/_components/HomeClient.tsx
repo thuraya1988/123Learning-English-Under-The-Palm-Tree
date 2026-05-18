@@ -100,6 +100,7 @@ export default function HomeClient() {
 
       {/* ═══ HERO ═══ */}
       <header className="teaser bg-cream" id="home">
+        <div className="botanical-corner left-top" aria-hidden />
         <div className="teaser-inner">
           <div className="teaser-text fade-up visible">
             <span className="eyebrow">Begin your journey</span>
@@ -153,6 +154,8 @@ export default function HomeClient() {
 
       {/* ═══ ABOUT ═══ */}
       <section className="teaser bg-cream" id="about">
+        <div className="botanical-corner left-top" aria-hidden />
+        <div className="botanical-corner right-top" aria-hidden />
         <div className="teaser-inner">
           <div className="teaser-text fade-up visible">
             <span className="eyebrow">About the project</span>
@@ -255,6 +258,7 @@ export default function HomeClient() {
       </section>
 
       {/* ═══ MUSIC BAND ═══ */}
+      <div className="music-band-wrap">
       <section className="music-band">
         <button
           type="button"
@@ -296,6 +300,7 @@ export default function HomeClient() {
           </div>
         </div>
       </section>
+      </div>
 
       {/* ═══ SONGS ═══ */}
       <section className="section-pad bg-cream-light" id="songs">

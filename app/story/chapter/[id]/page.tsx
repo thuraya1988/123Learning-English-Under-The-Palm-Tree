@@ -96,7 +96,7 @@ export default function ChapterPage({
             }}
           >
             <iframe
-              src={`/story/complete.html#chapter-${chapter.id}`}
+              src={`/story/novel.html#chapter-${chapter.id}`}
               title={`${chapter.title} — ${chapter.subtitle}`}
               style={{
                 display: "block",
@@ -118,7 +118,7 @@ export default function ChapterPage({
           >
             From{" "}
             <a
-              href="/story/complete.html"
+              href="/story/novel.html"
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: "var(--burgundy)" }}

@@ -56,7 +56,20 @@ export default function GamePage({
         </GlassCard>
 
         <GlassCard className="p-6 md:p-8 mb-8">
-          <H5PEmbed slug={game.h5p} title={`${game.title} — H5P activity`} height={620} />
+          {game.available ? (
+            <H5PEmbed slug={game.h5p} title={`${game.title} — H5P activity`} height={620} />
+          ) : (
+            <div className="text-center p-10">
+              <p className="font-cinzel text-[11px] tracking-[0.22em] uppercase text-[var(--burgundy)] mb-3">
+                Game Coming Soon
+              </p>
+              <p className="text-[var(--brown-mid)] italic">
+                The activity file for <strong>{game.title}</strong> has not been
+                uploaded yet. It will appear here automatically once the author
+                publishes it.
+              </p>
+            </div>
+          )}
         </GlassCard>
 
         <div className="grid lg:grid-cols-12 gap-8 mb-12">

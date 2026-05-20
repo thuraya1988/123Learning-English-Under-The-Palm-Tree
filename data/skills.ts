@@ -22,7 +22,7 @@ export const SKILLS: Skill[] = [
     description:
       "Listen to chapter narrations and character dialogue from the story file.",
     prerequisite: "Read the linked chapters before practicing.",
-    h5p: "listening.html",
+    h5p: "listening-skill-app.html",
   },
   {
     slug: "reading",
@@ -56,7 +56,7 @@ export const SKILLS: Skill[] = [
     title: "Spelling",
     description: "Practice spelling drawn from the story file vocabulary.",
     prerequisite: "Complete the related vocabulary set.",
-    h5p: "spelling.html",
+    h5p: "spelling-skill-app.html",
   },
   {
     slug: "pronunciation",

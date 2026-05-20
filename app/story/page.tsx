@@ -62,7 +62,7 @@ export default function StoryPage() {
         </div>
         <div style={{ marginTop: 26 }}>
           <a
-            href="/story/complete.html"
+            href="/story/novel.html"
             target="_blank"
             rel="noopener noreferrer"
             className="btn-burgundy"

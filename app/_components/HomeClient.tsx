@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { TRACKS, WEBSITE_AUDIO } from "../../data/music";
 import { CHAPTERS } from "../../data/chapters";
+import { ALL_GAMES } from "../../data/games";
 import RegistrationCard from "./RegistrationCard";
 
 /** Roman numerals 1-36 */
@@ -30,22 +31,13 @@ const SKILLS = [
     desc: "Letter by letter, the way dates are picked from the bunch." },
 ];
 
-const GAMES = [
-  { slug: "palm-tree-board", name: "Palm Tree Board", era: "2026", desc: "A story-led race across the village square." },
-  { slug: "story-path", name: "Story Path", era: "2026", desc: "Choose your own path through the chapters." },
-  { slug: "palm-crossword", name: "Palm Crossword", era: "2026", desc: "Words from the chapters, woven into a grid." },
-  { slug: "fill-the-story", name: "Fill The Story", era: "2026", desc: "Complete the sentence — the page completes itself." },
-  { slug: "odd-one-out", name: "Odd One Out", era: "2026", desc: "Find the word that does not belong." },
-  { slug: "palm-memory", name: "Palm Memory", era: "2026", desc: "Find Malood the goat among the pairs." },
-  { slug: "trad-1", name: "Traditional Game I", era: "1973", desc: "Heritage play — title coming soon." },
-  { slug: "trad-2", name: "Traditional Game II", era: "1973", desc: "Heritage play — title coming soon." },
-  { slug: "trad-3", name: "Traditional Game III", era: "1973", desc: "Heritage play — title coming soon." },
-  { slug: "trad-4", name: "Traditional Game IV", era: "1973", desc: "Heritage play — title coming soon." },
-  { slug: "trad-5", name: "Traditional Game V", era: "1973", desc: "Heritage play — title coming soon." },
-  { slug: "trad-6", name: "Traditional Game VI", era: "1973", desc: "Heritage play — title coming soon." },
-  { slug: "trad-7", name: "Traditional Game VII", era: "1973", desc: "Heritage play — title coming soon." },
-  { slug: "trad-8", name: "Traditional Game VIII", era: "1973", desc: "Heritage play — title coming soon." },
-];
+const GAMES = ALL_GAMES.map((g) => ({
+  slug: g.slug,
+  name: g.title,
+  era: g.category,
+  desc: g.intro,
+  available: g.available,
+}));
 
 const GALLERY = [
   { src: "/My.website.background/main.jpeg",          shape: "shape-arch",  caption: "The main view of the village" },

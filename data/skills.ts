@@ -65,6 +65,7 @@ export const SKILLS: Skill[] = [
     description:
       "Mirror character pronunciation with TTS and feedback placeholders.",
     prerequisite: "Read the linked chapters before practicing.",
+    h5p: "pronunciation-skill-app.html",
   },
   {
     slug: "progress-tracker",

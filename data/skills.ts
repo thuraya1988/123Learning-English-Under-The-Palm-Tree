@@ -43,6 +43,7 @@ export const SKILLS: Skill[] = [
     title: "Speaking",
     description: "Speak with characters and rehearse short dialogues.",
     prerequisite: "Read the linked chapters before practicing.",
+    h5p: "palm-echo-speak.html",
   },
   {
     slug: "vocabulary",
@@ -76,5 +77,33 @@ export const SKILLS: Skill[] = [
     title: "Improvement Plan",
     description: "A guided plan based on completed activities and scores.",
     prerequisite: "Complete at least one chapter and one skill activity.",
+  },
+];
+
+/**
+ * Comprehensive practice activities — the two "Sharpen Your Skills" apps the
+ * author uploaded. These render on the home page as the burgundy practice cards.
+ */
+export type SharpenActivity = {
+  slug: string;
+  title: string;
+  description: string;
+  h5p: string;
+};
+
+export const SHARPEN_ACTIVITIES: SharpenActivity[] = [
+  {
+    slug: "sharpen-your-skills-1",
+    title: "Sharpen Your Skills · 1",
+    description:
+      "Your first round of comprehensive practice — gentle warm-ups that weave reading, listening, and vocabulary together.",
+    h5p: "sharpen-your-skills-1.html",
+  },
+  {
+    slug: "sharpen-your-activity-skills",
+    title: "Sharpen Your Activity Skills",
+    description:
+      "The second round — deeper activities that combine story, grammar, and writing for learners ready to climb higher.",
+    h5p: "sharpen-your-activity-skills.html",
   },
 ];

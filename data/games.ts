@@ -71,7 +71,8 @@ export const MODERN_GAMES: Game[] = [
     intro: "Speak after the palm — train your speaking with echo prompts.",
     objective: "Speaking practice grounded in chapter dialogue.",
     levels: MODERN_LEVELS,
-    available: false,
+    h5p: "palm-echo-speak.html",
+    available: true,
   },
   {
     slug: "palm-scribe-write",
@@ -80,7 +81,8 @@ export const MODERN_GAMES: Game[] = [
     intro: "Write under the palm — guided scenes for handwriting and composition.",
     objective: "Writing practice grounded in story scenes.",
     levels: MODERN_LEVELS,
-    available: false,
+    h5p: "palm-scribe-write.html",
+    available: true,
   },
   {
     slug: "palm-grove-grammar",
@@ -89,7 +91,8 @@ export const MODERN_GAMES: Game[] = [
     intro: "Walk the grove and place every grammar piece in its correct spot.",
     objective: "Grammar practice grounded in chapter sentences.",
     levels: MODERN_LEVELS,
-    available: false,
+    h5p: "palm-grove-grammar.html",
+    available: true,
   },
   {
     slug: "falaj-builder-sentence",
@@ -98,7 +101,8 @@ export const MODERN_GAMES: Game[] = [
     intro: "Build sentences the way a falaj is built — channel by channel.",
     objective: "Sentence building grounded in story phrases.",
     levels: MODERN_LEVELS,
-    available: false,
+    h5p: "falaj-builder-sentence.html",
+    available: true,
   },
   {
     slug: "complete-the-story",
@@ -117,7 +121,8 @@ export const MODERN_GAMES: Game[] = [
     intro: "Words of the village, woven into a grid.",
     objective: "Vocabulary recall.",
     levels: MODERN_LEVELS,
-    available: false,
+    h5p: "palm-crossword.html",
+    available: true,
   },
   {
     slug: "odd-one-out",
@@ -126,7 +131,8 @@ export const MODERN_GAMES: Game[] = [
     intro: "Find the word that does not belong with the rest.",
     objective: "Category and vocabulary discrimination.",
     levels: MODERN_LEVELS,
-    available: false,
+    h5p: "odd-one-out.html",
+    available: true,
   },
   {
     slug: "quffah-match-memory",
@@ -135,7 +141,8 @@ export const MODERN_GAMES: Game[] = [
     intro: "Match pairs hidden in the quffah baskets — a memory game.",
     objective: "Vocabulary memory + visual recall.",
     levels: MODERN_LEVELS,
-    available: false,
+    h5p: "quffah-match-memory.html",
+    available: true,
   },
   {
     slug: "palm-board-adventure",
@@ -144,7 +151,8 @@ export const MODERN_GAMES: Game[] = [
     intro: "A story-led board race across the village square.",
     objective: "Mixed-skill challenge across chapters.",
     levels: MODERN_LEVELS,
-    available: false,
+    h5p: "palm-board-adventure.html",
+    available: true,
   },
   {
     slug: "palm-quiz-show",
@@ -153,7 +161,8 @@ export const MODERN_GAMES: Game[] = [
     intro: "A cinematic quiz show under the palm — fast questions, gentle host.",
     objective: "Comprehension + speed quiz.",
     levels: MODERN_LEVELS,
-    available: false,
+    h5p: "palm-quiz-show.html",
+    available: true,
   },
   {
     slug: "seedling-lab",
@@ -162,7 +171,8 @@ export const MODERN_GAMES: Game[] = [
     intro: "Grow seedlings as you learn — each word becomes a small green leaf.",
     objective: "Vocabulary builder with gentle progression.",
     levels: MODERN_LEVELS,
-    available: false,
+    h5p: "seedling-lab.html",
+    available: true,
   },
   {
     slug: "shade-story-maker",
@@ -171,7 +181,8 @@ export const MODERN_GAMES: Game[] = [
     intro: "Sit in the shade and weave your own story from prompt cards.",
     objective: "Creative writing scaffolded by story prompts.",
     levels: MODERN_LEVELS,
-    available: false,
+    h5p: "shade-story-maker.html",
+    available: true,
   },
 ];
 
@@ -193,7 +204,8 @@ export const TRADITIONAL_GAMES: Game[] = [
     intro: "Step through the gates of Mutrah — a heritage journey through trade and language.",
     objective: "Cultural vocabulary + heritage scenes.",
     levels: TRADITIONAL_LEVELS,
-    available: false,
+    h5p: "darwazat-mutrah.html",
+    available: true,
   },
 ];
 

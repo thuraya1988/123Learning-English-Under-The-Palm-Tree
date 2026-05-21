@@ -400,30 +400,40 @@ export default function HomeClient() {
           ))}
         </div>
 
-        {/* PRACTICE CARDS */}
+        {/* SHARPEN PRACTICE CARDS */}
         <div className="practice-cards">
-          <Link href="/skills" className="practice-card fade-up visible">
+          <a
+            href="/h5p/sharpen-your-skills-1.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="practice-card fade-up visible"
+          >
             <div className="pc-num">I</div>
             <h3>
-              Practice <em>One</em>
+              Sharpen Your <em>Skills · 1</em>
             </h3>
             <p>
-              Your first round of exercises — gentle warm-ups across reading,
-              listening, and vocabulary. Step in at your own pace.
+              Your first round of comprehensive practice — gentle warm-ups that
+              weave reading, listening, and vocabulary together.
             </p>
-            <span className="pc-btn">Begin practice one →</span>
-          </Link>
-          <Link href="/skills" className="practice-card fade-up visible">
+            <span className="pc-btn">Open activity →</span>
+          </a>
+          <a
+            href="/h5p/sharpen-your-activity-skills.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="practice-card fade-up visible"
+          >
             <div className="pc-num">II</div>
             <h3>
-              Practice <em>Two</em>
+              Sharpen Your <em>Activity Skills</em>
             </h3>
             <p>
-              The second round — deeper exercises that weave story, grammar, and
-              writing together. For learners ready to climb higher.
+              The second round — deeper activities that combine story, grammar,
+              and writing for learners ready to climb higher.
             </p>
-            <span className="pc-btn">Begin practice two →</span>
-          </Link>
+            <span className="pc-btn">Open activity →</span>
+          </a>
         </div>
 
         {/* OLEC */}

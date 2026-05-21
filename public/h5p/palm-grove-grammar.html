@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Palm Grove -- Grammar Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --green:  #2d9e62; --green-l: #e8fdf2; --green-b: #7dd4a8;
+  --blue:   #2878c4; --blue-l:  #e6f4ff; --blue-b:  #7ac0f0;
+  --gold:   #d08000; --gold-l:  #fff4e0; --gold-b:  #f0c060;
+  --purple: #7040c0; --purple-l:#f2ecff; --purple-b:#b090e0;
+  --red:    #c04040; --red-l:   #fff0f0; --red-b:   #f09090;
+  --ink:    #1a2030; --white:   #ffffff; --bg:      #f0f7ff;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Nunito',sans-serif;min-height:100vh;padding:16px 16px 60px}
+
+/* ── HEADER ── */
+.header{background:linear-gradient(135deg,var(--green),var(--blue));border-radius:24px;padding:22px 20px;text-align:center;margin-bottom:16px;position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='30' r='20' fill='none' stroke='%23ffffff08' stroke-width='1'/%3E%3C/svg%3E") repeat;pointer-events:none}
+.header-palm{font-size:2.4rem;display:block;animation:sway 4s ease-in-out infinite;position:relative}
+@keyframes sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+.header h1{font-family:'Fredoka One',cursive;font-size:clamp(1.3rem,4vw,1.9rem);color:white;text-shadow:0 2px 12px rgba(0,0,0,0.2);margin:6px 0 3px;position:relative}
+.header p{font-size:0.82rem;color:rgba(255,255,255,0.82);position:relative}
+.back-link{position:absolute;top:14px;left:14px;color:rgba(255,255,255,0.8);text-decoration:none;font-size:0.75rem;font-weight:700;background:rgba(255,255,255,0.15);padding:6px 12px;border-radius:20px}
+
+/* ── SCOREBOARD ── */
+.scoreboard{background:white;border-radius:20px;padding:14px 20px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;box-shadow:0 4px 16px rgba(0,0,0,0.06);margin-bottom:16px}
+.sc-item{text-align:center}
+.sc-val{font-family:'Fredoka One',cursive;font-size:1.6rem;line-height:1}
+.sc-lbl{font-size:0.65rem;font-weight:800;color:#90a0b8;text-transform:uppercase;letter-spacing:0.1em;margin-top:2px}
+.sc-div{width:1px;background:#e8eef4}
+
+/* ── GRAMMAR FILTER ── */
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.ftag{padding:7px 16px;border-radius:20px;font-size:0.78rem;font-weight:800;cursor:pointer;border:2.5px solid transparent;transition:all 0.2s;white-space:nowrap}
+.ftag.all   {background:var(--blue-l);color:var(--blue);border-color:var(--blue-b)}
+.ftag.sp    {background:var(--green-l);color:var(--green);border-color:var(--green-b)}
+.ftag.past  {background:var(--gold-l);color:var(--gold);border-color:var(--gold-b)}
+.ftag.fut   {background:var(--purple-l);color:var(--purple);border-color:var(--purple-b)}
+.ftag.q     {background:var(--red-l);color:var(--red);border-color:var(--red-b)}
+.ftag.active{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,0.1)}
+.ftag.all.active   {background:var(--blue);color:white}
+.ftag.sp.active    {background:var(--green);color:white}
+.ftag.past.active  {background:var(--gold);color:white}
+.ftag.fut.active   {background:var(--purple);color:white}
+.ftag.q.active     {background:var(--red);color:white}
+
+/* ── QUESTION CARD ── */
+.qcard{background:white;border-radius:24px;padding:22px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.07);margin-bottom:14px}
+.qcard-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.qcard-tag{font-family:'Fredoka One',cursive;font-size:0.78rem;padding:5px 14px;border-radius:20px;color:white}
+.qcard-num{font-size:0.72rem;font-weight:800;color:#90a0b8}
+.qcard-story{font-size:0.72rem;color:#90a0b8;font-weight:700}
+
+/* Timer bar */
+.timer-wrap{background:#e8eef4;border-radius:20px;height:8px;overflow:hidden;margin-bottom:16px}
+.timer-bar{height:100%;border-radius:20px;transition:width 0.5s linear;background:linear-gradient(90deg,var(--green),var(--blue))}
+.timer-bar.warn{background:linear-gradient(90deg,#e06020,var(--red))}
+
+/* Question text */
+.q-text{font-size:1.05rem;font-weight:700;color:var(--ink);line-height:1.65;margin-bottom:6px}
+.q-sentence{font-size:1.1rem;font-weight:800;color:var(--blue);background:var(--blue-l);border:2px solid var(--blue-b);border-radius:14px;padding:12px 16px;margin-bottom:16px;line-height:1.6}
+.q-sentence .blank{display:inline-block;min-width:80px;border-bottom:3px solid var(--blue);padding:0 6px;text-align:center;color:var(--blue)}
+
+/* Options grid */
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px}
+.opt{padding:13px 14px;border-radius:16px;border:2.5px solid #d0dce8;background:#f8fbff;font-weight:800;font-size:0.9rem;cursor:pointer;transition:all 0.18s;color:var(--ink);text-align:center;line-height:1.4}
+.opt:hover:not(:disabled){background:var(--blue-l);border-color:var(--blue-b);transform:translateY(-2px);box-shadow:0 4px 12px rgba(40,120,196,0.12)}
+.opt.correct{background:var(--green-l);border-color:var(--green);color:var(--green);animation:popIn 0.3s}
+.opt.wrong  {background:var(--red-l);border-color:var(--red);color:var(--red);animation:shake 0.35s}
+.opt.reveal {background:var(--green-l);border-color:var(--green-b);color:var(--green)}
+@keyframes popIn{0%{transform:scale(0.95)}50%{transform:scale(1.04)}100%{transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* Feedback bar */
+.feedback{border-radius:14px;padding:12px 16px;font-weight:700;font-size:0.88rem;display:none;line-height:1.55}
+.feedback.ok{background:var(--green-l);border:2px solid var(--green-b);color:var(--green);display:block}
+.feedback.no{background:var(--red-l);border:2px solid var(--red-b);color:var(--red);display:block}
+.feedback-ar{font-size:0.82rem;direction:rtl;text-align:right;margin-top:4px;opacity:0.8}
+
+/* Bottom buttons */
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+.btn-next{background:linear-gradient(135deg,var(--green),var(--blue));color:white;border:none;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.9rem;padding:12px 28px;border-radius:20px;cursor:pointer;box-shadow:0 4px 14px rgba(40,120,196,0.25);transition:all 0.25s;display:none}
+.btn-next:hover{transform:translateY(-2px)}
+.btn-skip{background:#f0f4f8;border:none;color:#7090a8;font-family:'Nunito',sans-serif;font-weight:700;font-size:0.82rem;padding:10px 20px;border-radius:20px;cursor:pointer;transition:all 0.2s}
+.btn-skip:hover{background:#e0e8f0}
+
+/* ── PROGRESS BAR ── */
+.progress-wrap{background:#e0eaf4;border-radius:20px;height:10px;overflow:hidden;margin-bottom:16px}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:20px;transition:width 0.5s ease}
+
+/* ── TOPIC CARDS (grammar reference) ── */
+.topics-section{margin-bottom:16px}
+.topics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.topic-card{border-radius:20px;padding:16px 18px;cursor:pointer;border:2.5px solid transparent;transition:all 0.25s}
+.topic-card.sp    {background:var(--green-l);border-color:var(--green-b)}
+.topic-card.past  {background:var(--gold-l);border-color:var(--gold-b)}
+.topic-card.fut   {background:var(--purple-l);border-color:var(--purple-b)}
+.topic-card.q     {background:var(--red-l);border-color:var(--red-b)}
+.topic-card:hover {transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,0.1)}
+.tc-icon{font-size:1.6rem;margin-bottom:7px}
+.tc-name{font-family:'Fredoka One',cursive;font-size:1rem;color:var(--ink);margin-bottom:4px}
+.tc-formula{font-size:0.78rem;font-weight:700;margin-bottom:6px;font-family:'Courier New',monospace;background:rgba(255,255,255,0.6);padding:4px 10px;border-radius:8px;display:inline-block}
+.tc-ex{font-size:0.78rem;color:rgba(26,32,48,0.6);font-style:italic;line-height:1.5}
+.tc-count{font-size:0.65rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;margin-top:8px;opacity:0.6}
+
+/* ── COMPLETE SCREEN ── */
+#completeScreen{display:none;text-align:center;background:white;border-radius:24px;padding:40px 24px;box-shadow:0 4px 20px rgba(0,0,0,0.07)}
+.complete-palm{font-size:4rem;animation:sway 4s ease-in-out infinite;display:block;margin-bottom:12px}
+.complete-title{font-family:'Fredoka One',cursive;font-size:2rem;color:var(--green);margin-bottom:8px}
+.complete-score{font-family:'Fredoka One',cursive;font-size:3rem;color:var(--blue);margin:12px 0}
+.complete-msg{font-size:1rem;color:#5080a0;font-style:italic;margin-bottom:20px;line-height:1.6}
+.btn-restart{background:linear-gradient(135deg,var(--green),var(--blue));color:white;border:none;font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;padding:14px 36px;border-radius:20px;cursor:pointer;box-shadow:0 4px 20px rgba(40,120,196,0.3);transition:all 0.25s}
+.btn-restart:hover{transform:translateY(-3px)}
+
+/* Responsive */
+@media(max-width:480px){.opts{grid-template-columns:1fr}}
+
+/* Thuraya Guide */
+.thuraya-guide{position:fixed;right:16px;bottom:16px;z-index:9999;display:flex;align-items:flex-end;gap:10px;max-width:min(92vw,420px)}
+.thuraya-guide.hidden{display:none}
+.thuraya-avatar{width:96px;height:96px;border-radius:24px;object-fit:cover;border:3px solid #fff;box-shadow:0 10px 26px rgba(0,0,0,.22);background:#fff}
+.thuraya-bubble{background:rgba(255,255,255,.98);border:2px solid #7ac0f0;border-radius:18px;padding:12px 14px;box-shadow:0 10px 26px rgba(0,0,0,.12);max-width:300px}
+.thuraya-name{font-weight:800;font-size:.75rem;color:#2878c4;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+.thuraya-text{font-size:.92rem;line-height:1.55;color:#1a2030}
+.thuraya-sub{font-size:.82rem;line-height:1.5;color:#5d7288;margin-top:6px;direction:rtl;text-align:right}
+.thuraya-actions{display:flex;gap:8px;margin-top:8px}
+.thuraya-btn{border:none;border-radius:999px;padding:7px 11px;font-weight:800;cursor:pointer}
+.thuraya-btn.primary{background:#2878c4;color:#fff}
+.thuraya-btn.secondary{background:#eef6ff;color:#2878c4}
+@media (max-width:700px){.thuraya-guide{left:12px;right:12px;bottom:12px}.thuraya-avatar{width:76px;height:76px}.thuraya-bubble{max-width:none}}
+
+</style>
+
+</head>
+<body>
+
+<!-- HEADER -->
+
+<div class="header">
+  <a class="back-link" href="index.html">← Home</a>
+  <span class="header-palm">🌴</span>
+  <h1>Palm Grove</h1>
+  <p>Grammar Game • with Thuraya</p>
+</div>
+
+<!-- SCOREBOARD -->
+
+<div class="scoreboard">
+  <div class="sc-item">
+    <div class="sc-val" id="scScore" style="color:var(--green)">0</div>
+    <div class="sc-lbl">Score</div>
+  </div>
+  <div class="sc-div"></div>
+  <div class="sc-item">
+    <div class="sc-val" id="scStreak" style="color:var(--gold)">0🔥</div>
+    <div class="sc-lbl">Streak</div>
+  </div>
+  <div class="sc-div"></div>
+  <div class="sc-item">
+    <div class="sc-val" id="scQ" style="color:var(--blue)">0/0</div>
+    <div class="sc-lbl">Questions</div>
+  </div>
+  <div class="sc-div"></div>
+  <div class="sc-item">
+    <div class="sc-val" id="scPct" style="color:var(--purple)">-</div>
+    <div class="sc-lbl">Accuracy</div>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+
+<div class="progress-wrap">
+  <div class="progress-bar" id="progressBar" style="width:0%"></div>
+</div>
+
+<!-- GRAMMAR TOPIC CARDS (reference) -->
+
+<div class="topics-section" id="topicsSection">
+  <div class="filter-row" style="margin-bottom:10px">
+    <span style="font-family:'Fredoka One',cursive;font-size:0.85rem;color:#5080a0;align-self:center">Grammar Topics from the Stories:</span>
+  </div>
+  <div class="topics-grid">
+    <div class="topic-card sp" onclick="startTopic('sp')">
+      <div class="tc-icon">🟢</div>
+      <div class="tc-name">Simple Present</div>
+      <div class="tc-formula">Subject + V(s/es)</div>
+      <div class="tc-ex">John <strong>teaches</strong> English every day.<br>Thuraya <strong>walks</strong> to school.</div>
+      <div class="tc-count">14 questions</div>
+    </div>
+    <div class="topic-card past" onclick="startTopic('past')">
+      <div class="tc-icon">🟡</div>
+      <div class="tc-name">Simple Past</div>
+      <div class="tc-formula">Subject + V-ed / irregular</div>
+      <div class="tc-ex">Mansoor <strong>ran</strong> to the falaj.<br>Sophia's face <strong>turned</strong> yellow.</div>
+      <div class="tc-count">14 questions</div>
+    </div>
+    <div class="topic-card fut" onclick="startTopic('fut')">
+      <div class="tc-icon">🟣</div>
+      <div class="tc-name">Simple Future</div>
+      <div class="tc-formula">Subject + will + V</div>
+      <div class="tc-ex">Khamees <strong>will learn</strong> fast.<br>Malood <strong>will eat</strong> the papers.</div>
+      <div class="tc-count">8 questions</div>
+    </div>
+    <div class="topic-card q" onclick="startTopic('q')">
+      <div class="tc-icon">🔴</div>
+      <div class="tc-name">Questions</div>
+      <div class="tc-formula">Do/Did/Will + Subject + V?</div>
+      <div class="tc-ex"><strong>Did</strong> John get a letter?<br><strong>Does</strong> Sadoo have a shop?</div>
+      <div class="tc-count">8 questions</div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:16px">
+    <button onclick="startTopic('all')" style="background:linear-gradient(135deg,var(--green),var(--blue));border:none;color:white;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.9rem;padding:13px 32px;border-radius:20px;cursor:pointer;box-shadow:0 4px 14px rgba(40,120,196,0.25)">
+      🌴 Play All Topics -- ابدأ كل المواضيع
+    </button>
+  </div>
+</div>
+
+<!-- FILTER (shown during game) -->
+
+<div class="filter-row" id="filterRow" style="display:none">
+  <div class="ftag all active"  onclick="filterQ('all',this)" >🌴 All</div>
+  <div class="ftag sp"          onclick="filterQ('sp',this)"  >🟢 Simple Present</div>
+  <div class="ftag past"        onclick="filterQ('past',this)">🟡 Simple Past</div>
+  <div class="ftag fut"         onclick="filterQ('fut',this)" >🟣 Future</div>
+  <div class="ftag q"           onclick="filterQ('q',this)"   >🔴 Questions</div>
+</div>
+
+<!-- QUESTION CARD -->
+
+<div class="qcard" id="qcard" style="display:none">
+  <div class="qcard-top">
+    <div>
+      <div class="qcard-tag" id="qTag">Simple Present</div>
+      <div class="qcard-story" id="qStory">Story 1</div>
+    </div>
+    <div class="qcard-num" id="qNum">Q 1 of 20</div>
+  </div>
+
+  <div class="timer-wrap"><div class="timer-bar" id="timerBar" style="width:100%"></div></div>
+
+  <div class="q-text" id="qText"></div>
+  <div class="q-sentence" id="qSentence"></div>
+  <div class="opts" id="qOpts"></div>
+  <div class="feedback" id="qFb"></div>
+
+  <div class="btn-row">
+    <button class="btn-skip" onclick="skipQ()">⏭ Skip</button>
+    <button class="btn-next" id="nextBtn" onclick="nextQ()">Next Question →</button>
+  </div>
+</div>
+
+<!-- COMPLETE -->
+
+<div id="completeScreen">
+  <span class="complete-palm">🌴</span>
+  <div class="complete-title">Well Done!</div>
+  <div class="complete-score" id="finalScore">0 / 0</div>
+  <div class="complete-msg" id="finalMsg"></div>
+  <button class="btn-restart" onclick="restart()">🌴 Play Again</button>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// ALL GRAMMAR QUESTIONS -- extracted from the
+// 12 Palm Tree stories with context sentences
+// ════════════════════════════════════════════
+const ALL_QS = [
+
+  // ══ SIMPLE PRESENT ══
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 1', text:'Choose the correct verb form:',
+    sentence:'John ___ English in Al-Qurawashiyah.',
+    opts:['teach','teaches','taught','is teach'],
+    answer:'teaches',
+    exp:'We use verb+s/es with He/She/It in Simple Present.',
+    expAr:'نضيف s أو es للفعل مع ضمائر المفرد الغائب (he/she/it).' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 2', text:'Choose the correct form:',
+    sentence:'The falaj ___ water to the farms every day.',
+    opts:['carry','carries','carried','is carry'],
+    answer:'carries',
+    exp:'carry → carries (we change y to i and add es).',
+    expAr:'الأفعال التي تنتهي بـ y تتحول إلى ies في المفرد الغائب.' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 3', text:'Which sentence is correct?',
+    sentence:'___ Thuraya go to school every morning?',
+    opts:['Do','Does','Did','Is'],
+    answer:'Does',
+    exp:'We use DOES to make questions with He/She/It.',
+    expAr:'نستخدم Does مع ضمائر المفرد الغائب في الأسئلة.' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 3', text:'Choose the correct negative:',
+    sentence:'Mansoor ___ sit quietly in class.',
+    opts:["don't","doesn't","didn't","isn't"],
+    answer:"doesn't",
+    exp:"We use doesn't for negative sentences with He/She/It.",
+    expAr:'نستخدم doesn\'t في النفي مع ضمائر المفرد الغائب.' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 4', text:'Fill in the blank:',
+    sentence:'Khamees ___ carefully before he speaks.',
+    opts:['watch','watches','watched','watching'],
+    answer:'watches',
+    exp:'watch → watches with He/She/It.',
+    expAr:'الفعل المنتهي بـ ch يأخذ es مع المفرد الغائب.' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 6', text:'Choose the correct form:',
+    sentence:'Omani names ___ many generations of family history.',
+    opts:['carry','carries','carried','will carry'],
+    answer:'carry',
+    exp:'Names is plural, so we use the base form without s.',
+    expAr:'مع الجمع نستخدم الفعل بدون s.' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 7', text:'Choose the correct form:',
+    sentence:'Marhoona ___ sandalwood and saffron to make her mixture.',
+    opts:['use','uses','used','using'],
+    answer:'uses',
+    exp:'use → uses with She (Marhoona).',
+    expAr:'تضاف s مع she في المضارع البسيط.' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 8', text:'Which is correct?',
+    sentence:'Sadoo ___ a small shop next to the falaj.',
+    opts:['have','has','had','having'],
+    answer:'has',
+    exp:'have → has with He/She/It. "have" is irregular.',
+    expAr:'have يصبح has مع ضمائر المفرد الغائب.' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 9', text:'Fill in the blank:',
+    sentence:'The camera ___ everything about the village.',
+    opts:['change','changes','changed','is changed'],
+    answer:'changes',
+    exp:'change → changes with The camera (it).',
+    expAr:'نضيف s للفعل مع the camera (it) في المضارع البسيط.' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 10', text:'Choose the correct form:',
+    sentence:'Shayb Khalaf ___ herbs every week for the village.',
+    opts:['collect','collects','collected','collecting'],
+    answer:'collects',
+    exp:'collect → collects with He.',
+    expAr:'نضيف s للفعل مع he في المضارع البسيط.' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 11', text:'Which sentence is correct?',
+    sentence:'___ Khamees come to school early every day?',
+    opts:['Do','Does','Did','Will'],
+    answer:'Does',
+    exp:'Use DOES for questions with He/She/It in Simple Present.',
+    expAr:'نستخدم Does في أسئلة المضارع البسيط مع المفرد الغائب.' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 12', text:'Fill in the blank:',
+    sentence:'Khamees ___ letters every morning before school.',
+    opts:['practise','practises','practised','is practise'],
+    answer:'practises',
+    exp:'practise → practises with He (Khamees).',
+    expAr:'تضاف s أو es للفعل مع he في المضارع البسيط.' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 2', text:'Choose the correct form:',
+    sentence:'Palm trees ___ shade and dates for the village.',
+    opts:['give','gives','gave','giving'],
+    answer:'give',
+    exp:'Palm trees is plural -- use base verb without s.',
+    expAr:'مع الجمع نستخدم الفعل الأساسي بدون s.' },
+
+  { topic:'sp', tag:'Simple Present', color:'#2d9e62',
+    story:'Story 5', text:'Choose the negative:',
+    sentence:'The wasp ___ go away when John moves.',
+    opts:["don't","doesn't","didn't","won't"],
+    answer:"doesn't",
+    exp:"Doesn't is used with It (the wasp) for negative present.",
+    expAr:"نستخدم doesn't في النفي مع it في المضارع البسيط." },
+
+  // ══ SIMPLE PAST ══
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 1', text:'Choose the correct past tense:',
+    sentence:'John ___ a letter from Oman.',
+    opts:['get','gets','got','getted'],
+    answer:'got',
+    exp:'get → got (irregular past tense).',
+    expAr:'get فعل شاذ، ماضيه got.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 1', text:'Choose the correct past tense:',
+    sentence:'Sophia ___ by the airplane window.',
+    opts:['sit','sits','sat','sitted'],
+    answer:'sat',
+    exp:'sit → sat (irregular past tense).',
+    expAr:'sit فعل شاذ، ماضيه sat.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 3', text:'Fill in the blank:',
+    sentence:'John ___ the letters in the dirt.',
+    opts:['draw','draws','drew','drawed'],
+    answer:'drew',
+    exp:'draw → drew (irregular past tense).',
+    expAr:'draw فعل شاذ، ماضيه drew.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 4', text:'Which is the correct past form?',
+    sentence:'Trust slowly ___ between John and the students.',
+    opts:['grow','grows','grew','growed'],
+    answer:'grew',
+    exp:'grow → grew (irregular past tense).',
+    expAr:'grow فعل شاذ، ماضيه grew.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 5', text:'Choose the correct past tense:',
+    sentence:'The wasp ___ on John\'s shoulder.',
+    opts:['land','lands','landed','landt'],
+    answer:'landed',
+    exp:'land → landed (regular verb, add -ed).',
+    expAr:'land فعل منتظم، نضيف ed لتكوين الماضي.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 5', text:'Fill in the blank:',
+    sentence:'Mansoor ___ up a thin stick to help John.',
+    opts:['pick','picks','picked','pickt'],
+    answer:'picked',
+    exp:'pick → picked (regular verb, add -ed).',
+    expAr:'pick فعل منتظم، ماضيه picked.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 6', text:'Which is correct?',
+    sentence:'Uncle Nasser ___ everyone in his old pickup truck.',
+    opts:['drive','drives','drove','drived'],
+    answer:'drove',
+    exp:'drive → drove (irregular past tense).',
+    expAr:'drive فعل شاذ، ماضيه drove.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 7', text:'Choose the correct past tense:',
+    sentence:'Sophia\'s face ___ bright yellow.',
+    opts:['turn','turns','turned','turnt'],
+    answer:'turned',
+    exp:'turn → turned (regular verb, add -ed).',
+    expAr:'turn فعل منتظم، ماضيه turned.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 8', text:'Fill in the blank:',
+    sentence:'Sadoo ___ the palm tree very quickly.',
+    opts:['climb','climbs','climbed','clomb'],
+    answer:'climbed',
+    exp:'climb → climbed (regular verb, add -ed).',
+    expAr:'climb فعل منتظم، ماضيه climbed.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 9', text:'Choose the correct past tense:',
+    sentence:'John ___ up the camera and clicked.',
+    opts:['hold','holds','held','holded'],
+    answer:'held',
+    exp:'hold → held (irregular past tense).',
+    expAr:'hold فعل شاذ، ماضيه held.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 10', text:'Which is correct?',
+    sentence:'Khalaf ___ quietly and said very little.',
+    opts:['sit','sits','sat','sitted'],
+    answer:'sat',
+    exp:'sit → sat (irregular past tense).',
+    expAr:'sit فعل شاذ، ماضيه sat.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 11', text:'Fill in the blank:',
+    sentence:'Khamees ___ before he spoke.',
+    opts:['hesitate','hesitates','hesitated','hesitaed'],
+    answer:'hesitated',
+    exp:'hesitate → hesitated (regular, drop e add -ed).',
+    expAr:'hesitate فعل منتظم ينتهي بـ e، نضيف d فقط.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 12', text:'Choose the correct negative:',
+    sentence:'Mansoor ___ come to school early.',
+    opts:["don't","doesn't","didn't","wasn't"],
+    answer:"didn't",
+    exp:"Didn't is used for all subjects in Simple Past negative.",
+    expAr:"نستخدم didn't في نفي الماضي البسيط مع جميع الضمائر." },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 3', text:'Fill in the blank:',
+    sentence:'The children ___ "Good morning" all together.',
+    opts:['say','says','said','sayed'],
+    answer:'said',
+    exp:'say → said (irregular past tense).',
+    expAr:'say فعل شاذ، ماضيه said.' },
+
+  { topic:'past', tag:'Simple Past', color:'#d08000',
+    story:'Story 7', text:'Choose the correct past form:',
+    sentence:'John ___ so hard he had to sit down.',
+    opts:['laugh','laughs','laughed','laught'],
+    answer:'laughed',
+    exp:'laugh → laughed (regular verb, add -ed).',
+    expAr:'laugh فعل منتظم، ماضيه laughed.' },
+
+  // ══ SIMPLE FUTURE ══
+  { topic:'fut', tag:'Simple Future', color:'#7040c0',
+    story:'Story 12', text:'Choose the correct future form:',
+    sentence:'Khamees ___ read perfectly one day.',
+    opts:['will','is','was','does'],
+    answer:'will',
+    exp:'Use will + base verb for Simple Future.',
+    expAr:'نستخدم will + الفعل الأساسي للمستقبل البسيط.' },
+
+  { topic:'fut', tag:'Simple Future', color:'#7040c0',
+    story:'Story 1', text:'Fill in the blank:',
+    sentence:'John ___ teach English in Al-Qurawashiyah next year.',
+    opts:['will','is','was','does'],
+    answer:'will',
+    exp:'will + teach = simple future.',
+    expAr:'will + الفعل الأساسي يكوّن المستقبل البسيط.' },
+
+  { topic:'fut', tag:'Simple Future', color:'#7040c0',
+    story:'Story 7', text:'Choose the correct future negative:',
+    sentence:'Sophia ___ visit Marhoona\'s salon again.',
+    opts:["won't","doesn't","didn't","isn't"],
+    answer:"won't",
+    exp:"Won't = will not -- used for future negatives.",
+    expAr:"won't = will not نستخدمها لنفي المستقبل البسيط." },
+
+  { topic:'fut', tag:'Simple Future', color:'#7040c0',
+    story:'Story 10', text:'Choose the correct future question:',
+    sentence:'___ Khalaf share his secrets one day?',
+    opts:['Will','Does','Did','Is'],
+    answer:'Will',
+    exp:'Use WILL at the start for future questions.',
+    expAr:'نستخدم Will في بداية أسئلة المستقبل البسيط.' },
+
+  { topic:'fut', tag:'Simple Future', color:'#7040c0',
+    story:'Story 11', text:'Fill in the blank:',
+    sentence:'Khamees ___ improve his English every day.',
+    opts:['will','does','did','was'],
+    answer:'will',
+    exp:'will + improve = future action.',
+    expAr:'will + الفعل الأساسي يعبّر عن المستقبل.' },
+
+  { topic:'fut', tag:'Simple Future', color:'#7040c0',
+    story:'Story 6', text:'Choose the correct form:',
+    sentence:'Nasser ___ drive us to school tomorrow.',
+    opts:['will','does','did','is'],
+    answer:'will',
+    exp:'Use will for future plans and promises.',
+    expAr:'نستخدم will للخطط والوعود في المستقبل.' },
+
+  { topic:'fut', tag:'Simple Future', color:'#7040c0',
+    story:'Story 3', text:'Fill in the blank:',
+    sentence:'The children ___ remember this lesson forever.',
+    opts:['will','does','did','are'],
+    answer:'will',
+    exp:'will + remember = future prediction.',
+    expAr:'will + الفعل الأساسي يعبّر عن التنبؤ بالمستقبل.' },
+
+  { topic:'fut', tag:'Simple Future', color:'#7040c0',
+    story:'Story 5', text:'Choose the correct future:',
+    sentence:'The wasp ___ not come back to the class!',
+    opts:['will','does','did','is'],
+    answer:'will',
+    exp:'will not = won\'t -- future negative.',
+    expAr:'will not (أو won\'t) للنفي في المستقبل البسيط.' },
+
+  // ══ QUESTIONS ══
+  { topic:'q', tag:'Questions', color:'#c04040',
+    story:'Story 1', text:'Choose the correct question word:',
+    sentence:'___ did John receive from Oman?',
+    opts:['What','Who','When','Where'],
+    answer:'What',
+    exp:'What is used to ask about things.',
+    expAr:'نستخدم What للسؤال عن الأشياء.' },
+
+  { topic:'q', tag:'Questions', color:'#c04040',
+    story:'Story 5', text:'Choose the correct auxiliary verb:',
+    sentence:'___ Mansoor help John with the wasp?',
+    opts:['Do','Does','Did','Will'],
+    answer:'Did',
+    exp:'Use DID to ask questions in Simple Past.',
+    expAr:'نستخدم Did لتكوين أسئلة الماضي البسيط.' },
+
+  { topic:'q', tag:'Questions', color:'#c04040',
+    story:'Story 8', text:'Fill in the blank:',
+    sentence:'___ Sadoo climb palm trees every week?',
+    opts:['Do','Does','Did','Will'],
+    answer:'Does',
+    exp:'Use DOES to ask questions about He/She/It in present.',
+    expAr:'نستخدم Does لأسئلة المضارع مع المفرد الغائب.' },
+
+  { topic:'q', tag:'Questions', color:'#c04040',
+    story:'Story 6', text:'Choose the correct question:',
+    sentence:'___ is Uncle Nasser\'s pickup truck old?',
+    opts:['Why','What','Who','When'],
+    answer:'Why',
+    exp:'Why is used to ask about reasons.',
+    expAr:'نستخدم Why للسؤال عن الأسباب.' },
+
+  { topic:'q', tag:'Questions', color:'#c04040',
+    story:'Story 2', text:'Choose the correct question word:',
+    sentence:'___ does the falaj carry?',
+    opts:['What','Who','Where','How'],
+    answer:'What',
+    exp:'What asks about things -- the falaj carries things.',
+    expAr:'What تستخدم للسؤال عن الأشياء.' },
+
+  { topic:'q', tag:'Questions', color:'#c04040',
+    story:'Story 11', text:'Fill in the blank:',
+    sentence:'___ did Khamees say he can do?',
+    opts:['What','Who','Where','When'],
+    answer:'What',
+    exp:'What asks about things or actions.',
+    expAr:'What تستخدم للسؤال عن الأفعال والأشياء.' },
+
+  { topic:'q', tag:'Questions', color:'#c04040',
+    story:'Story 3', text:'Choose the correct auxiliary:',
+    sentence:'___ John write on the blackboard?',
+    opts:['Do','Does','Did','Was'],
+    answer:'Did',
+    exp:'Did + subject + base verb for past questions.',
+    expAr:'Did + الفاعل + الفعل الأساسي لأسئلة الماضي.' },
+
+  { topic:'q', tag:'Questions', color:'#c04040',
+    story:'Story 9', text:'Choose the correct question:',
+    sentence:'___ did John bring to the classroom?',
+    opts:['What','Who','Why','How much'],
+    answer:'What',
+    exp:'What -- asking about the thing (camera) John brought.',
+    expAr:'What للسؤال عن الشيء الذي جلبه جون.' },
+];
+
+// ── STATE ──
+let pool = [];
+let idx  = 0;
+let score = 0;
+let streak = 0;
+let correct = 0;
+let answered = false;
+let timerInterval = null;
+let timeLeft = 15;
+
+// ── START TOPIC ──
+function startTopic(topic) {
+  document.getElementById('topicsSection').style.display = 'none';
+  document.getElementById('filterRow').style.display    = 'flex';
+  document.getElementById('qcard').style.display        = 'block';
+
+  filterQ(topic, document.querySelector('.ftag.' + (topic==='all'?'all':topic)));
+}
+
+function filterQ(topic, el) {
+  if (el) {
+    document.querySelectorAll('.ftag').forEach(f => f.classList.remove('active'));
+    el.classList.add('active');
+  }
+  if (topic === 'all') pool = shuffle([...ALL_QS]);
+  else pool = shuffle(ALL_QS.filter(q => q.topic === topic));
+  idx = 0; score = 0; streak = 0; correct = 0; answered = false;
+  updateScore();
+  updateProgress();
+  showQ();
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+// ── SHOW QUESTION ──
+function showQ() {
+  if (idx >= pool.length) { showComplete(); return; }
+  const q = pool[idx];
+  answered = false;
+
+  // Tag
+  const tag = document.getElementById('qTag');
+  tag.textContent = q.tag;
+  tag.style.background = q.color;
+  document.getElementById('qStory').textContent = q.story;
+  document.getElementById('qNum').textContent = `Q ${idx+1} of ${pool.length}`;
+  document.getElementById('qText').textContent = q.text;
+  document.getElementById('qSentence').innerHTML = q.sentence.replace('___', `<span class="blank">___</span>`);
+
+  // Options
+  const optsEl = document.getElementById('qOpts');
+  const shuffledOpts = shuffle([...q.opts]);
+  optsEl.innerHTML = shuffledOpts.map(o =>
+    `<button class="opt" onclick="answer('${o.replace(/'/g,"\\'")}', this)">${o}</button>`
+  ).join('');
+
+  // Feedback
+  const fb = document.getElementById('qFb');
+  fb.className = 'feedback';
+  fb.textContent = '';
+
+  document.getElementById('nextBtn').style.display = 'none';
+  startTimer();
+  updateProgress();
+}
+
+// ── TIMER ──
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = 15;
+  const bar = document.getElementById('timerBar');
+  bar.style.width = '100%';
+  bar.className = 'timer-bar';
+
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    bar.style.width = (timeLeft / 15 * 100) + '%';
+    if (timeLeft <= 5) bar.className = 'timer-bar warn';
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      if (!answered) timeUp();
+    }
+  }, 1000);
+}
+
+function timeUp() {
+  answered = true;
+  streak = 0;
+  const q = pool[idx];
+  document.querySelectorAll('.opt').forEach(b => {
+    b.disabled = true;
+    if (b.textContent === q.answer) b.classList.add('reveal');
+  });
+  showFeedback(false, q);
+  document.getElementById('nextBtn').style.display = 'inline-flex';
+  updateScore();
+}
+
+// ── ANSWER ──
+function answer(chosen, btn) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerInterval);
+  const q = pool[idx];
+  const isOk = chosen === q.answer;
+
+  document.querySelectorAll('.opt').forEach(b => {
+    b.disabled = true;
+    if (b.textContent === q.answer) b.classList.add('correct');
+    if (b === btn && !isOk) b.classList.add('wrong');
+  });
+
+  if (isOk) {
+    streak++;
+    correct++;
+    const bonus = streak >= 3 ? 15 : 10;
+    score += bonus;
+  } else {
+    streak = 0;
+  }
+
+  showFeedback(isOk, q);
+  document.getElementById('nextBtn').style.display = 'inline-flex';
+  updateScore();
+}
+
+function showFeedback(ok, q) {
+  const fb = document.getElementById('qFb');
+  fb.className = 'feedback ' + (ok ? 'ok' : 'no');
+  fb.innerHTML = ok
+    ? `✅ Correct! ${streak >= 3 ? '🔥 +15 Streak Bonus!' : '+10 pts'}<br><span style="font-weight:600">${q.exp}</span><div class="feedback-ar">${q.expAr}</div>`
+    : `❌ The answer is: <strong>${q.answer}</strong><br><span style="font-weight:600">${q.exp}</span><div class="feedback-ar">${q.expAr}</div>`;
+}
+
+function nextQ() {
+  idx++;
+  showQ();
+}
+
+function skipQ() {
+  clearInterval(timerInterval);
+  idx++;
+  streak = 0;
+  updateScore();
+  showQ();
+}
+
+function updateScore() {
+  document.getElementById('scScore').textContent  = score;
+  document.getElementById('scStreak').textContent = streak + (streak >= 3 ? '🔥' : '');
+  document.getElementById('scQ').textContent      = correct + '/' + idx;
+  const pct = idx > 0 ? Math.round(correct/idx*100) + '%' : '-';
+  document.getElementById('scPct').textContent    = pct;
+}
+
+function updateProgress() {
+  const pct = pool.length ? (idx / pool.length * 100) : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
+// ── COMPLETE ──
+function showComplete() {
+  clearInterval(timerInterval);
+  document.getElementById('qcard').style.display    = 'none';
+  document.getElementById('filterRow').style.display = 'none';
+  document.getElementById('completeScreen').style.display = 'block';
+
+  const pct = pool.length ? Math.round(correct/pool.length*100) : 0;
+  document.getElementById('finalScore').textContent = `${correct} / ${pool.length}`;
+  const msg = pct >= 90 ? '🌟 Outstanding! You are a Palm Grove Master!'
+            : pct >= 75 ? '🌴 Excellent work! Your grammar is strong!'
+            : pct >= 60 ? '✦ Good job! Keep practising to reach the top!'
+            : pct >= 40 ? '📝 Getting there! Review the topics and try again.'
+            :             '💪 Keep going! Every mistake is a lesson. Try again!';
+  document.getElementById('finalMsg').innerHTML = `${msg}<br><span style="direction:rtl;display:block;text-align:center;font-size:0.85rem;color:#7090a8;margin-top:8px">نقاطك: ${score} | دقة: ${pct}%</span>`;
+}
+
+function restart() {
+  document.getElementById('completeScreen').style.display = 'none';
+  document.getElementById('topicsSection').style.display  = 'block';
+  document.getElementById('filterRow').style.display      = 'none';
+  document.getElementById('qcard').style.display          = 'none';
+  score = 0; streak = 0; correct = 0; idx = 0;
+  updateScore();
+  updateProgress();
+}
+
+const THURAYA_LINES = {
+  welcome: {en:"Hello! I am Thuraya. Choose a grammar topic and let's learn together.", ar:"هيا نختار موضوع القواعد ونبدأ معًا."},
+  topic: {en:"Great choice. Read carefully and pick the best answer.", ar:"اختيار ممتاز. اقرئي السؤال جيدًا ثم اختاري الإجابة الأفضل."},
+  correct: {en:"Excellent! That answer is correct.", ar:"ممتاز! هذه إجابة صحيحة."},
+  wrong: {en:"Good try. Let's think and try again.", ar:"محاولة جميلة. نفكر مرة ثانية ونحاول من جديد."},
+  timeout: {en:"Time is over. Take a breath and try the next one.", ar:"انتهى الوقت. خذي نفسًا وجربي السؤال التالي."},
+  complete: {en:"Wonderful work. You finished this grammar round.", ar:"عمل رائع. أنهيتِ جولة القواعد بنجاح."},
+  restart: {en:"We are starting again. Ready?", ar:"سنبدأ من جديد. جاهزة؟"}
+};
+let lastThurayaKey = "welcome";
+async function thurayaSpeak(en, ar){
+  const enNode = document.getElementById("thurayaEn");
+  const arNode = document.getElementById("thurayaAr");
+  if(enNode) enNode.textContent = en;
+  if(arNode) arNode.textContent = ar;
+  try{
+    const res = await fetch("/api/tts", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({text_en:en, text_ar:ar, voice:"thuraya-bilingual", engine:"piper"})
+    });
+    if(res.ok){
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.play().catch(()=>{});
+      return;
+    }
+  }catch(e){}
+  if("speechSynthesis" in window){
+    speechSynthesis.cancel();
+    const u1 = new SpeechSynthesisUtterance(en);
+    u1.lang = "en-US";
+    const u2 = new SpeechSynthesisUtterance(ar);
+    u2.lang = "ar";
+    speechSynthesis.speak(u1);
+    speechSynthesis.speak(u2);
+  }
+}
+function thurayaSay(key){
+  lastThurayaKey = key;
+  const line = THURAYA_LINES[key];
+  if(line) thurayaSpeak(line.en, line.ar);
+}
+function thurayaReplay(){ thurayaSay(lastThurayaKey); }
+function thurayaToggle(){
+  const box = document.getElementById("thurayaGuide");
+  if(!box) return;
+  if(box.classList.contains("hidden")){ box.classList.remove("hidden"); }
+  else { box.classList.add("hidden"); }
+}
+
+window.addEventListener("load", ()=> setTimeout(()=>thurayaSay("welcome"), 500));
+
+document.addEventListener("click", (ev)=>{
+  const t = ev.target;
+  if(!t) return;
+  if(t.classList && (t.classList.contains("topic-card") || t.classList.contains("ftag"))){
+    setTimeout(()=>thurayaSay("topic"), 100);
+  }
+  if(t.classList && (t.classList.contains("btn-restart") || t.classList.contains("btn-next") || t.id==="lvl1" || t.id==="lvl2" || t.id==="lvl3")){
+    setTimeout(()=>thurayaSay("restart"), 120);
+  }
+});
+
+const __origShowFeedback = typeof showFeedback === "function" ? showFeedback : null;
+if(__origShowFeedback){
+  showFeedback = function(isCorrect, ...rest){
+    const result = __origShowFeedback.call(this, isCorrect, ...rest);
+    thurayaSay(isCorrect ? "correct" : "wrong");
+    return result;
+  }
+}
+const __origShowCompleteScreen = typeof showCompleteScreen === "function" ? showCompleteScreen : null;
+if(__origShowCompleteScreen){
+  showCompleteScreen = function(...args){
+    const result = __origShowCompleteScreen.apply(this, args);
+    thurayaSay("complete");
+    return result;
+  }
+}
+
+</script>
+
+
+<div class="thuraya-guide" id="thurayaGuide" aria-live="polite">
+  <img class="thuraya-avatar" src="thuraya-reference.png" alt="Thuraya guide"/>
+  <div class="thuraya-bubble">
+    <div class="thuraya-name">Thuraya</div>
+    <div class="thuraya-text" id="thurayaEn">Hello! I am Thuraya. Choose a grammar topic and let's learn together.</div>
+    <div class="thuraya-sub" id="thurayaAr">هيا نختار موضوع القواعد ونبدأ معًا.</div>
+    <div class="thuraya-actions">
+      <button class="thuraya-btn primary" type="button" onclick="thurayaReplay()">🔊 Replay</button>
+      <button class="thuraya-btn secondary" type="button" onclick="thurayaToggle()">Hide</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

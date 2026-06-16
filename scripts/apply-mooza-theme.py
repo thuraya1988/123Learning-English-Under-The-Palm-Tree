@@ -15,7 +15,8 @@ from pathlib import Path
 ROOT = Path(".")
 THEME_MARK = "/* PALM-PALETTE-THEME */"
 
-TARGETS = sorted(ROOT.glob("public/new-version/*.html"))
+TARGETS = sorted(ROOT.glob("public/h5p/*.html"))
+TARGETS += sorted(ROOT.glob("public/new-version/*.html"))
 for name in ["2castel-of-the-palms.html", "saloan-marhoona-new.html",
              "ar-two-games.html", "under-the-palm-complex-level.html",
              "mooza-kitchen.html"]:

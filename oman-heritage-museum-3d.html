@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>متحف التراث العماني — Omani Heritage Museum</title>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cormorant+Garamond:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;background:#0a0705;font-family:'Amiri',serif;color:#f0e6d0;-webkit-user-select:none;user-select:none}
+canvas{display:block;position:fixed;top:0;left:0}
+#loading{position:fixed;inset:0;background:#0a0705;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;transition:opacity 1.2s ease}
+#loading.hide{opacity:0;pointer-events:none}
+#loading h1{font-size:2.2rem;color:#c9a84c;margin-bottom:.5rem}
+#loading h2{font-family:'Cormorant Garamond',serif;font-size:1rem;color:#807060;margin-bottom:2rem;font-weight:300}
+#loading .track{width:260px;height:3px;background:#1a1210;border-radius:2px;overflow:hidden}
+#loading .bar{width:0%;height:100%;background:linear-gradient(90deg,#8a6a2c,#c9a84c,#e8c547);transition:width .4s;border-radius:2px}
+#loading p{margin-top:1.2rem;color:#5a5040;font-size:.85rem}
+
+#rname{position:fixed;top:58px;left:50%;transform:translateX(-50%);font-size:1.1rem;color:#c9a84c;opacity:0;transition:opacity .6s;z-index:40;text-shadow:0 2px 15px rgba(0,0,0,.95);pointer-events:none;white-space:nowrap;text-align:center}
+#rname.show{opacity:1}
+#cross{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:30;pointer-events:none;width:22px;height:22px}
+#cross::before,#cross::after{content:'';position:absolute;background:rgba(201,168,76,.4)}
+#cross::before{width:1.5px;height:100%;left:50%;transform:translateX(-50%)}
+#cross::after{width:100%;height:1.5px;top:50%;transform:translateY(-50%)}
+#panel{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(10,7,5,.93);border:1px solid rgba(201,168,76,.22);border-radius:12px;padding:1.5rem 2rem 1.8rem;max-width:460px;width:88%;opacity:0;transition:opacity .5s ease,transform .5s ease;pointer-events:none;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:50}
+#panel.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+#panel .ar-t{font-family:'Amiri',serif;font-size:1.35rem;color:#c9a84c;text-align:right;margin-bottom:.15rem;direction:rtl;line-height:1.5}
+#panel .en-t{font-family:'Cormorant Garamond',serif;font-size:1.05rem;color:#e8d8b8;text-align:left;margin-bottom:.8rem;font-style:italic;direction:ltr}
+#panel .desc{font-size:.88rem;line-height:1.7;color:#a09580}
+#panel .desc.ar{direction:rtl;text-align:right}
+#panel .desc.en{direction:ltr;text-align:left;font-family:'Cormorant Garamond',serif;font-size:.95rem}
+#langBtn{position:absolute;top:.65rem;left:.65rem;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.3);color:#c9a84c;padding:.2rem .55rem;border-radius:5px;cursor:pointer;font-family:'Amiri',serif;font-size:.78rem;transition:background .3s;z-index:2}
+#langBtn:hover{background:rgba(201,168,76,.28)}
+#instr{position:fixed;inset:0;background:rgba(10,7,5,.9);display:flex;align-items:center;justify-content:center;z-index:200;cursor:pointer;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+#instr.hide{display:none}
+#instr .box{text-align:center;max-width:360px;padding:2rem}
+#instr h2{font-size:1.7rem;color:#c9a84c;margin-bottom:.3rem}
+#instr h3{font-family:'Cormorant Garamond',serif;font-size:1.1rem;color:#a09070;margin-bottom:1.8rem;font-weight:300}
+#instr p{font-size:.88rem;color:#706050;margin-bottom:.5rem;line-height:1.5}
+.key{display:inline-block;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.28);padding:.12rem .4rem;border-radius:4px;font-family:'Cormorant Garamond',serif;color:#c9a84c;margin:0 .08rem;font-size:.82rem}
+#instr .start{margin-top:1.8rem;color:#c9a84c;font-size:.95rem;animation:pulse 2.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+#joy{position:fixed;bottom:2.5rem;left:2.5rem;width:108px;height:108px;z-index:80;display:none}
+#joy .base{position:absolute;inset:0;border-radius:50%;background:rgba(201,168,76,.06);border:2px solid rgba(201,168,76,.2)}
+#joy .thumb{position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(201,168,76,.3);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none}
+#hint{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);font-size:.75rem;color:rgba(201,168,76,.35);z-index:25;pointer-events:none;white-space:nowrap}
+@media(max-width:768px){
+  #joy{display:block}
+  #cross{display:none}
+  #panel{bottom:10rem;max-width:88%;padding:1.2rem 1.5rem 1.4rem}
+  #panel .ar-t{font-size:1.15rem}
+  #hint{display:none}
+}
+</style>
+</head>
+<body>
+<div id="loading">
+  <h1>متحف التراث العماني</h1>
+  <h2>Omani Heritage Virtual Museum</h2>
+  <div class="track"><div class="bar" id="lbar"></div></div>
+  <p id="ltxt">جاري التحميل…</p>
+</div>
+
+<div id="rname"></div>
+<div id="cross"></div>
+<div id="panel">
+  <button id="langBtn">EN</button>
+  <div class="ar-t" id="pAr"></div>
+  <div class="en-t" id="pEn"></div>
+  <div class="desc ar" id="pDesc"></div>
+</div>
+<div id="instr">
+  <div class="box">
+    <h2>متحف التراث العماني</h2>
+    <h3>Omani Heritage Virtual Museum</h3>
+    <p>حرّك بالأسهم أو <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span></p>
+    <p>Move with Arrow Keys or WASD</p>
+    <p>حرّك الفأرة للنظر حولك · Mouse to look around</p>
+    <p>اضغط <span class="key">Shift</span> للركض · Sprint with Shift</p>
+    <p class="start">— انقر للمتابعة · Click to Enter —</p>
+  </div>
+</div>
+<div id="joy">
+  <div class="base"></div>
+  <div class="thumb" id="jthumb"></div>
+</div>
+<div id="hint">WASD للحركة · الفأرة للنظر · اقترب من اللوحة لمعلوماتها</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+setTimeout(function(){var l=document.getElementById('loading');if(l){l.classList.add('hide');}},12000);
+var CFG={wallH:4.5,cW:6,rD:6,rW:7,oW:4,eye:1.7,spd:7,sprint:1.8,sens:0.002,fW:2.2,fH:1.6,fB:0.13,prox:4.5,fogD:0.012,base:'public/gallery/heritage/heritage-'};
+var SCENES=[
+{ar:'دق الجولة',en:'Daqq Al-Joula',da:'أداء تقليدي للطبول العمانية يصاحب الاحتفالات والتجمعات الشعبية في مختلف مناطق عُمان',de:'Traditional Omani drumming performance that accompanies celebrations and folk gatherings across Oman',img:'01'},
+{ar:'لعبة الدومنة',en:'Dominoes Game',da:'لعبة شعبية محبوبة تجمع الأصدقاء والعائلات في المجالس العمانية الدافئة',de:'A beloved social game that brings friends and families together in warm Omani gatherings',img:'02'},
+{ar:'طاق طاق طاقية',en:'Taq Taq Taqiya',da:'لعبة أطفال تقليدية مشهورة وقصيدة شعبية عمانية توارثتها الأجيال',de:'A famous traditional children\'s game and Omani nursery rhyme passed down through generations',img:'03'},
+{ar:'دروازة مطرح',en:'Muttrah Gate',da:'البوابة التاريخية لمطرح، من أقدم وأعرق المناطق التجارية والسياحية في سلطنة عُمان',de:'The historic gateway to Muttrah, one of the oldest and most prestigious trading districts in Oman',img:'04'},
+{ar:'العيدية',en:'Eidiya',da:'تقليد عريق ومبارك في تقديم المال للأطفال خلال احتفالات عيد الفطر وعيد الأضحى',de:'The cherished tradition of giving money to children during Eid al-Fitr and Eid al-Adha celebrations',img:'05'},
+{ar:'الحول حول',en:'Al-Hawla Hawl',da:'احتفال عماني تقليدي فريد يصادف موسم الحصاد السنوي ويجمع أهل القرية',de:'A unique traditional Omani celebration marking the annual harvest season, gathering villagers together',img:'06'},
+{ar:'بناء بيت طيني',en:'Mud House Building',da:'حرفة بناء البيوت من الطين والحجر والمواد الطبيعية بأساليب تقليدية متوارثة',de:'The traditional craft of building houses from mud, stone, and natural materials using inherited methods',img:'07'},
+{ar:'الحناء',en:'Henna',da:'فن نقش الحناء القديم والجميل في المناسبات والأعراس والاحتفالات العمانية',de:'The ancient and beautiful art of henna design for weddings, occasions, and Omani celebrations',img:'08'},
+{ar:'خياطة الكمة العمانية',en:'Omani Kumma Embroidery',da:'حرفة خياطة وتطريز الكمة العمانية التقليدية بتطريزها الدقيق والمعقد والجميل',de:'The intricate craft of embroidering the traditional Omani Kumma cap with precise and beautiful patterns',img:'09'},
+{ar:'يا حمامة درجي درجي',en:'Ya Hamama Dirji Dirji',da:'أغنية أطفال عمانية محبوبة جداً ومشهورة تُغنى في التجمعات والاحتفالات',de:'A very beloved and famous Omani children\'s song sung at gatherings and celebrations',img:'10'},
+{ar:'لعبة العنبر',en:'Al-Anbar Game',da:'لعبة جماعية تقليدية شهيرة تُلعب في الساحات المفتوحة بين فرق الشباب',de:'A famous traditional team game played in open spaces between groups of young men',img:'11'},
+{ar:'لعبة حبوة مو تدوري',en:'Habwa Ma Tuduri',da:'لعبة مطاردة تقليدية ممتعة ومثيرة يمارسها الأطفال العمانيون في أزقة القرى',de:'An exciting traditional chasing game played by Omani children in village alleyways',img:'12'},
+{ar:'إصلاح قارب خشبي',en:'Wooden Boat Repair',da:'حرفة صيانة وإصلاح القوارب الخشبية التقليدية المستخدمة في الصيد والنقل البحري',de:'The craft of maintaining and repairing traditional wooden boats used for fishing and sea transport',img:'13'},
+{ar:'تعلم القرآن',en:'Learning the Quran',da:'تقليد تعليم القرآن الكريم وإقراءه في حلقات العلم والكُتّاب التقليدية العمانية',de:'The time-honored tradition of teaching and reciting the Quran in traditional Omani learning circles',img:'14'},
+{ar:'سوق عماني قديم',en:'Old Omani Market',da:'لمحة حية عن الأسواق التقليدية المزدحمة والمتنوعة في عُمان القديمة',de:'A vivid glimpse into the bustling and diverse traditional markets of old Oman',img:'15'},
+{ar:'دق الهيل',en:'Grinding Cardamom',da:'الممارسة التقليدية الرائعة لطحن الهيل لتحضير القهوة العمانية الأصيلة',de:'The wonderful traditional practice of grinding cardamom for preparing authentic Omani coffee',img:'16'},
+{ar:'فتحي يا وردة',en:'Fathi Ya Warda',da:'أغنية شعبية عمانية تقليدية جميلة ومفعمة بالحيوية تُؤدى في الاحتفالات',de:'A beautiful and lively traditional Omani folk song performed at celebrations',img:'17'},
+{ar:'جلسة قهوة عمانية',en:'Omani Coffee Session',da:'الطقس الاجتماعي الجميل في تحضير وتقديم ومشاركة القهوة العمانية مع التمر',de:'The beautiful social ritual of preparing, serving, and sharing Omani coffee with dates',img:'18'},
+{ar:'إصلاح شبكة الصيد',en:'Fishing Net Repair',da:'حرفة أساسية ومهمة في صيانة وإصلاح شباك الصيد في المجتمعات الساحلية العمانية',de:'An essential craft of maintaining and repairing fishing nets in Omani coastal communities',img:'19'},
+{ar:'نساء يحملن الماء',en:'Women Carrying Water',da:'مشهد مؤثر يجسد الدور التقليدي المهم للنساء في جلب وحمل الماء من الآبار والعيون',de:'A moving scene depicting the important traditional role of women in collecting water from wells',img:'20'},
+{ar:'غزل الصوف',en:'Wool Spinning',da:'حرفة غزل الصوف تقليدياً ويدوياً إلى خيوط ناعمة لنسج الأقمشة والملابس',de:'The traditional handcraft of spinning soft wool into yarn for weaving fabrics and garments',img:'21'},
+{ar:'فن الرزحة',en:'Razha Art',da:'رقصة السيوف التقليدية العمانية المذهلة والحماسية التي تُقدم في الاحتفالات الكبيرة',de:'The impressive and spirited traditional Omani sword dance performed at major celebrations',img:'22'},
+{ar:'خبز عماني',en:'Omani Bread',da:'فن صنع الخبز العماني التقليدي اللذيذ في الأفران المشتركة والبيوت',de:'The art of making delicious traditional Omani bread in communal ovens and homes',img:'23'},
+{ar:'كنز التمر',en:'Treasure of Dates',da:'الأهمية الثقافية والاقتصادية والغذائية العميقة للتمور في التراث والحياة العمانية',de:'The deep cultural, economic, and nutritional significance of dates in Omani heritage and life',img:'24'},
+{ar:'جَداد النخيل',en:'Palm Harvest Season',da:'موسم جني التمور السنوي المبارك، ركن أساسي ومهم في الحياة الزراعية العمانية',de:'The blessed annual date harvest season, a cornerstone of Omani agricultural life',img:'25'},
+{ar:'لعبة لتتج',en:'Letetj Game',da:'لعبة أطفال عمانية تقليدية ممتعة تتطلب الخفة والسرعة والذكاء',de:'A fun traditional Omani children\'s game requiring agility, speed, and cleverness',img:'26'},
+{ar:'إعداد العرسية',en:'Preparing Areesah',da:'التقليد الجميل في إعداد طبق العرسية، وهو طبق احتفالي عماني مميز ولذيذ',de:'The beautiful tradition of preparing Areesah, a distinctive and delicious celebratory Omani dish',img:'27'},
+{ar:'اللعب في الفلج',en:'Playing in the Falaj',da:'الأطفال يمارسون ألعابهم الممتعة والمسلية في قنوات الفلج التقليدية المائية',de:'Children enjoying fun and entertaining games in the traditional falaj water channels',img:'28'},
+{ar:'قراءة القرآن',en:'Quran Recitation',da:'ممارسة تلاوة القرآن الكريم وحفظه في الحياة اليومية والروحانية العمانية',de:'The practice of Quran recitation and memorization in daily Omani spiritual life',img:'29'},
+{ar:'الحلوى العمانية',en:'Omani Halwa',da:'الحلوى العمانية التقليدية الشهية والمحبوبة، تُحضر بعناية للمناسبات والأعياد',de:'The delicious and beloved traditional Omani Halwa, carefully prepared for occasions and feasts',img:'30'},
+{ar:'عمل السعفيات',en:'Palm Frond Weaving',da:'حرفة نسج أسعاف النخيل الجميلة تقليدياً إلى أدوات منزلية وزينة متنوعة',de:'The beautiful traditional craft of weaving palm fronds into various household items and decorations',img:'31'},
+{ar:'لعبة المسقوح',en:'Al-Masqooh Game',da:'لعبة تقليدية عمانية شهيرة تُلعب بالحجارة الصغيرة أو الرموز بين اللاعبين',de:'A famous traditional Omani game played with small stones or tokens between players',img:'32'},
+{ar:'فتحي يا وردة وغمضي يا وردة',en:'Fathi Ya Wardah Game',da:'لعبة أطفال عمانية ممتعة مبنية على الأغنية الشعبية المشهورة جداً',de:'A fun Omani children\'s game based on the very popular folk song',img:'17'},
+{ar:'تجفيف التمور',en:'Drying Dates',da:'الطريقة التقليدية العريقة لتجفيف التمور تحت أشعة الشمس الدافئة في عُمان',de:'The ancient traditional method of drying dates under the warm Omani sun',img:'33'}
+];
+var ROOMS=[
+{side:'left',z:-8,ar:'غرفة الفنون الشعبية',en:'Folk Arts Room',fi:[0,1,2]},
+{side:'right',z:-20,ar:'غرفة الألعاب التراثية',en:'Heritage Games Room',fi:[3,4]},
+{side:'left',z:-32,ar:'غرفة الحرف اليدوية',en:'Handicrafts Room',fi:[5,6,7]},
+{side:'right',z:-44,ar:'غرفة الأغاني والألعاب',en:'Songs & Games',fi:[8,9]},
+{side:'left',z:-56,ar:'غرفة القوارب والبحر',en:'Boats & Sea Room',fi:[10,11,12]},
+{side:'right',z:-68,ar:'غرفة التعليم والسوق',en:'Education & Market',fi:[13,14]},
+{side:'left',z:-80,ar:'غرفة الحياة اليومية',en:'Daily Life Room',fi:[15,16,17]},
+{side:'right',z:-92,ar:'غرفة الصيد والماء',en:'Fishing & Water',fi:[18,19]},
+{side:'left',z:-104,ar:'غرفة الحرف والرقص',en:'Crafts & Dance',fi:[20,21,22]},
+{side:'right',z:-116,ar:'غرفة الزراعة والتمور',en:'Agriculture & Dates',fi:[23,24]},
+{side:'left',z:-128,ar:'غرفة الألعاب والطعام',en:'Games & Food',fi:[25,26,27]},
+{side:'right',z:-140,ar:'غرفة التقاليد والدين',en:'Traditions & Faith',fi:[28,29]},
+{side:'left',z:-152,ar:'غرفة الحرف العمانية',en:'Omani Crafts',fi:[30,31]},
+{side:'right',z:-164,ar:'غرفة التمور والتجفيف',en:'Dates & Drying',fi:[32,33]}
+];
+var lang='ar',locked=false,yaw=0,pitch=0,K={},frameList=[],aRoom=null,curNear=null;
+var isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+var J={id:null,x:0,z:0,cx:0,cy:0},LK={id:null,x:0,y:0};
+var hdrTimer=null,hdrShown=false;
+var scene=new THREE.Scene();
+scene.background=new THREE.Color(0x080604);
+scene.fog=new THREE.FogExp2(0x080604,CFG.fogD);
+var camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,0.1,200);
+camera.position.set(0,CFG.eye,3);
+camera.rotation.order='YXZ';
+var renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=0.65;
+renderer.outputEncoding=THREE.sRGBEncoding;
+document.body.prepend(renderer.domElement);
+scene.add(new THREE.AmbientLight(0x1a0e07,0.3));
+var wallMat=new THREE.MeshStandardMaterial({color:0x2a1a0e,roughness:0.88,side:THREE.DoubleSide});
+var floorMat=new THREE.MeshStandardMaterial({color:0x131010,roughness:0.95});
+var ceilMat=new THREE.MeshStandardMaterial({color:0x1c1410,roughness:0.82});
+var goldMat=new THREE.MeshStandardMaterial({color:0xc9a84c,metalness:0.55,roughness:0.28,emissive:0xc9a84c,emissiveIntensity:0.06});
+var carpetMat=new THREE.MeshStandardMaterial({color:0x3a0a12,roughness:0.92});
+var carpetBorderMat=new THREE.MeshStandardMaterial({color:0xc9a84c,roughness:0.6,metalness:0.2});
+var loadDone=false;
+var lMgr=new THREE.LoadingManager();
+var tLoad=new THREE.TextureLoader(lMgr);
+lMgr.onProgress=function(url,loaded,total){
+  var pct=Math.round(loaded/total*100);
+  document.getElementById('lbar').style.width=pct+'%';
+  document.getElementById('ltxt').textContent=loaded+' / '+total;
+};
+lMgr.onLoad=function(){if(!loadDone){loadDone=true;hideLoading();}};
+lMgr.onError=function(url){console.warn('Failed:',url);};
+setTimeout(function(){if(!loadDone){loadDone=true;hideLoading();}},5000);
+function hideLoading(){setTimeout(function(){document.getElementById('loading').classList.add('hide');},300);}
+function mkWall(w,h,x,z,ry){var m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),wallMat);m.position.set(x,h/2,z);if(ry)m.rotation.y=ry;scene.add(m);return m;}
+function buildMuseum(){
+  var H=CFG.wallH,hw=CFG.cW/2,len=180,cStart=6,cEnd=-172;
+  var fl=new THREE.Mesh(new THREE.PlaneGeometry(50,len),floorMat);
+  fl.rotation.x=-Math.PI/2;fl.position.set(0,0,-len/2+cStart);scene.add(fl);
+  var cl=new THREE.Mesh(new THREE.PlaneGeometry(50,len),ceilMat);
+  cl.rotation.x=Math.PI/2;cl.position.set(0,H,-len/2+cStart);scene.add(cl);
+  var cp=new THREE.Mesh(new THREE.PlaneGeometry(2.0,len),carpetMat);
+  cp.rotation.x=-Math.PI/2;cp.position.set(0,0.008,-len/2+cStart);scene.add(cp);
+  var cbGeo=new THREE.PlaneGeometry(0.06,len);
+  var cb1=new THREE.Mesh(cbGeo,carpetBorderMat);cb1.rotation.x=-Math.PI/2;cb1.position.set(-1.03,0.012,-len/2+cStart);scene.add(cb1);
+  var cb2=new THREE.Mesh(cbGeo,carpetBorderMat);cb2.rotation.x=-Math.PI/2;cb2.position.set(1.03,0.012,-len/2+cStart);scene.add(cb2);
+  mkWall(len,H,-25,-len/2+cStart,Math.PI/2);
+  mkWall(len,H,25,-len/2+cStart,Math.PI/2);
+  mkWall(50,H,0,cStart,0);
+  mkWall(50,H,0,cEnd,0);
+  var lR=ROOMS.filter(function(r){return r.side==='left';}).sort(function(a,b){return b.z-a.z;});
+  var rR=ROOMS.filter(function(r){return r.side==='right';}).sort(function(a,b){return b.z-a.z;});
+  buildCorridorWall(lR,-hw,cStart,cEnd,H);
+  buildCorridorWall(rR,hw,cStart,cEnd,H);
+  ROOMS.forEach(function(rm){
+    var s=rm.side==='left'?-1:1;
+    var bx=s*(hw+CFG.rD),mx=s*(hw+CFG.rD/2),hRW=CFG.rW/2;
+    mkWall(CFG.rW,H,bx,rm.z,Math.PI/2);
+    mkWall(CFG.rD,H,mx,rm.z-hRW,0);
+    mkWall(CFG.rD,H,mx,rm.z+hRW,0);
+    var lt=new THREE.PointLight(0xffa050,2.0,10,2);
+    lt.position.set(mx,H-0.35,rm.z);scene.add(lt);
+    makeNameplate(rm);
+  });
+  for(var z=cStart;z>cEnd;z-=14){
+    var clt=new THREE.PointLight(0xffa050,0.5,9,2);
+    clt.position.set(0,H-0.15,z);scene.add(clt);
+  }
+  ROOMS.forEach(function(rm){
+    var n=rm.fi.length,s=rm.side==='left'?-1:1;
+    var bx=s*(hw+CFG.rD),ry=s>0?-Math.PI/2:Math.PI/2;
+    var offsets=n===2?[-1.6,1.6]:[-2.4,0,2.4];
+    for(var i=0;i<n;i++){makeFrame(SCENES[rm.fi[i]],bx,rm.z+offsets[i],ry,s,rm);}
+  });
+}
+function buildCorridorWall(rooms,wallX,startZ,endZ,H){
+  var pz=startZ;
+  for(var i=0;i<rooms.length;i++){
+    var rm=rooms[i],gapStart=rm.z+CFG.oW/2,gapEnd=rm.z-CFG.oW/2;
+    if(pz>gapStart)mkWall(pz-gapStart,H,wallX,(pz+gapStart)/2,Math.PI/2);
+    pz=gapEnd;
+  }
+  if(pz>endZ)mkWall(pz-endZ,H,wallX,(pz+endZ)/2,Math.PI/2);
+}
+function makeNameplate(rm){
+  var cv=document.createElement('canvas');cv.width=512;cv.height=128;
+  var ctx=cv.getContext('2d');
+  ctx.fillStyle='#150e07';ctx.fillRect(0,0,512,128);
+  ctx.strokeStyle='#c9a84c';ctx.lineWidth=2.5;
+  roundRect(ctx,4,4,504,120,6);ctx.stroke();
+  ctx.fillStyle='#c9a84c';ctx.font='bold 32px Amiri, serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(rm.ar,256,46);
+  ctx.fillStyle='#d4c4a0';ctx.font='18px "Cormorant Garamond", serif';ctx.fillText(rm.en,256,95);
+  var tx=new THREE.CanvasTexture(cv);
+  var s=rm.side==='left'?-1:1;
+  var m=new THREE.Mesh(new THREE.PlaneGeometry(3.2,0.8),new THREE.MeshBasicMaterial({map:tx,side:THREE.DoubleSide,transparent:true}));
+  m.position.set(s*(CFG.cW/2-0.04),CFG.wallH-0.7,rm.z);
+  m.rotation.y=s>0?-Math.PI/2:Math.PI/2;scene.add(m);
+}
+function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
+function makeFrame(data,x,z,ry,s,rm){
+  var g=new THREE.Group(),fw=CFG.fW,fh=CFG.fH,fb=CFG.fB;
+  var hGeo=new THREE.BoxGeometry(fw+fb*2,fb,0.09),vGeo=new THREE.BoxGeometry(fb,fh+fb*2,0.09);
+  var top=new THREE.Mesh(hGeo,goldMat);top.position.y=fh/2+fb/2;g.add(top);
+  var bot=new THREE.Mesh(hGeo,goldMat);bot.position.y=-fh/2-fb/2;g.add(bot);
+  var lft=new THREE.Mesh(vGeo,goldMat);lft.position.x=-fw/2-fb/2;g.add(lft);
+  var rgt=new THREE.Mesh(vGeo,goldMat);rgt.position.x=fw/2+fb/2;g.add(rgt);
+  var insetMat=new THREE.MeshStandardMaterial({color:0x8a6a2c,roughness:0.4,metalness:0.3});
+  var inset=new THREE.Mesh(new THREE.PlaneGeometry(fw+0.04,fh+0.04),insetMat);inset.position.z=0.005;g.add(inset);
+  var imgMat=new THREE.MeshStandardMaterial({color:0x2a1a0e,roughness:0.7});
+  var imgMesh=new THREE.Mesh(new THREE.PlaneGeometry(fw-0.02,fh-0.02),imgMat);imgMesh.position.z=0.01;g.add(imgMesh);
+  var url=CFG.base+data.img+'.jpg';
+  tLoad.load(url,function(tex){tex.encoding=THREE.sRGBEncoding;imgMat.map=tex;imgMat.needsUpdate=true;},undefined,function(){createFallbackTexture(data,imgMat);});
+  var sp=new THREE.PointLight(0xffa560,1.5,5.5,2);sp.position.set(0,1.1,0.45);g.add(sp);
+  var off=0.07;
+  g.position.set(x-s*off,CFG.eye,z);g.rotation.y=ry;scene.add(g);
+  frameList.push({pos:new THREE.Vector3(x-s*off,CFG.eye,z),norm:new THREE.Vector3(Math.sin(ry),0,Math.cos(ry)),data:data,rm:rm});
+}
+function createFallbackTexture(data,mat){
+  document.fonts.ready.then(function(){
+    var cv=document.createElement('canvas');cv.width=512;cv.height=384;
+    var ctx=cv.getContext('2d');
+    var grad=ctx.createLinearGradient(0,0,0,384);grad.addColorStop(0,'#2a1a0e');grad.addColorStop(0.5,'#1a0e07');grad.addColorStop(1,'#2a1a0e');
+    ctx.fillStyle=grad;ctx.fillRect(0,0,512,384);
+    ctx.strokeStyle='#c9a84c';ctx.lineWidth=1.5;ctx.strokeRect(20,20,472,344);
+    ctx.fillStyle='#c9a84c';ctx.font='bold 30px Amiri, serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(data.ar,256,160);
+    ctx.fillStyle='#d4c4a0';ctx.font='20px "Cormorant Garamond", serif';ctx.fillText(data.en,256,220);
+    var tex=new THREE.CanvasTexture(cv);tex.encoding=THREE.sRGBEncoding;mat.map=tex;mat.needsUpdate=true;
+  });
+}
+function canMoveTo(px,pz){
+  var m=0.35,hw=CFG.cW/2;
+  if(Math.abs(px)<hw-m&&pz>-170&&pz<5)return true;
+  for(var i=0;i<ROOMS.length;i++){
+    var rm=ROOMS[i],s=rm.side==='left'?-1:1;
+    var xi=s*(hw+m),xb=s*(hw+CFG.rD)-s*m;
+    var z1=rm.z-CFG.rW/2+m,z2=rm.z+CFG.rW/2-m;
+    var oz1=rm.z-CFG.oW/2+m,oz2=rm.z+CFG.oW/2-m;
+    var loX=Math.min(xi,xb),hiX=Math.max(xi,xb);
+    if(px>=loX&&px<=hiX&&pz>=z1&&pz<=z2)return true;
+    if(pz>=oz1&&pz<=oz2){if(s<0){if(px<=hw+m&&px>=xi)return true;}else{if(px>=hw-m&&px<=xi)return true;}}
+  }
+  return false;
+}
+renderer.domElement.addEventListener('click',function(){if(!isMobile&&!locked)renderer.domElement.requestPointerLock();});
+document.addEventListener('pointerlockchange',function(){locked=document.pointerLockElement===renderer.domElement;if(locked)document.getElementById('instr').classList.add('hide');});
+document.addEventListener('mousemove',function(e){
+  if(locked){yaw-=e.movementX*CFG.sens;pitch-=e.movementY*CFG.sens;pitch=Math.max(-1.2,Math.min(1.2,pitch));}
+});
+document.addEventListener('keydown',function(e){K[e.code]=true;if(e.code==='Escape'&&locked)document.exitPointerLock();if(e.code==='KeyR'){camera.position.set(0,CFG.eye,3);yaw=0;pitch=0;}});
+document.addEventListener('keyup',function(e){K[e.code]=false;});
+if(isMobile)document.getElementById('instr').addEventListener('click',function(){document.getElementById('instr').classList.add('hide');});
+var jEl=document.getElementById('joy'),jThumb=document.getElementById('jthumb');
+jEl.addEventListener('touchstart',function(e){e.preventDefault();var t=e.changedTouches[0];J.id=t.identifier;var r=jEl.getBoundingClientRect();J.cx=r.left+r.width/2;J.cy=r.top+r.height/2;},{passive:false});
+jEl.addEventListener('touchmove',function(e){e.preventDefault();for(var i=0;i<e.changedTouches.length;i++){var t=e.changedTouches[i];if(t.identifier===J.id){var dx=t.clientX-J.cx,dy=t.clientY-J.cy,dist=Math.sqrt(dx*dx+dy*dy),maxD=38;if(dist>maxD){dx=dx/dist*maxD;dy=dy/dist*maxD;dist=maxD;}jThumb.style.transform='translate(calc(-50% + '+dx+'px), calc(-50% + '+dy+'px))';J.x=dx/maxD;J.z=dy/maxD;}}},{passive:false});
+jEl.addEventListener('touchend',function(e){for(var i=0;i<e.changedTouches.length;i++){if(e.changedTouches[i].identifier===J.id){J.id=null;jThumb.style.transform='translate(-50%, -50%)';J.x=0;J.z=0;}}});
+renderer.domElement.addEventListener('touchstart',function(e){for(var i=0;i<e.changedTouches.length;i++){var t=e.changedTouches[i];if(t.identifier!==J.id&&LK.id===null){LK.id=t.identifier;LK.x=t.clientX;LK.y=t.clientY;}}},{passive:true});
+renderer.domElement.addEventListener('touchmove',function(e){for(var i=0;i<e.changedTouches.length;i++){var t=e.changedTouches[i];if(t.identifier===LK.id){yaw-=(t.clientX-LK.x)*0.006;pitch-=(t.clientY-LK.y)*0.006;pitch=Math.max(-1.2,Math.min(1.2,pitch));LK.x=t.clientX;LK.y=t.clientY;}}},{passive:true});
+renderer.domElement.addEventListener('touchend',function(e){for(var i=0;i<e.changedTouches.length;i++){if(e.changedTouches[i].identifier===LK.id)LK.id=null;}},{passive:true});
+var pArEl=document.getElementById('pAr'),pEnEl=document.getElementById('pEn'),pDescEl=document.getElementById('pDesc'),panelEl=document.getElementById('panel');
+function showPanel(d){pArEl.textContent=d.ar;pEnEl.textContent=d.en;if(lang==='ar'){pDescEl.textContent=d.da;pDescEl.className='desc ar';}else{pDescEl.textContent=d.de;pDescEl.className='desc en';}panelEl.classList.add('show');}
+function hidePanel(){panelEl.classList.remove('show');curNear=null;}
+document.getElementById('langBtn').addEventListener('click',function(e){e.stopPropagation();lang=lang==='ar'?'en':'ar';document.getElementById('langBtn').textContent=lang==='ar'?'EN':'عربي';if(curNear)showPanel(curNear);});
+var rnEl=document.getElementById('rname'),rnTimer=null;
+function showRoomName(rm){rnEl.textContent=rm.ar+' — '+rm.en;rnEl.classList.add('show');clearTimeout(rnTimer);rnTimer=setTimeout(function(){rnEl.classList.remove('show');},3500);}
+function update(dt){
+  var sprinting=K.ShiftLeft||K.ShiftRight,speed=(sprinting?CFG.spd*CFG.sprint:CFG.spd)*dt;
+  var fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)),rgt=new THREE.Vector3(fwd.z,0,-fwd.x);
+  var dx=0,dz=0;
+  if(K.KeyW||K.ArrowUp){dx+=fwd.x*speed;dz+=fwd.z*speed;}
+  if(K.KeyS||K.ArrowDown){dx-=fwd.x*speed;dz-=fwd.z*speed;}
+  if(K.KeyA||K.ArrowLeft){dx-=rgt.x*speed;dz-=rgt.z*speed;}
+  if(K.KeyD||K.ArrowRight){dx+=rgt.x*speed;dz+=rgt.z*speed;}
+  if(J.id!==null){dx=(fwd.x*(-J.z)+rgt.x*J.x)*speed;dz=(fwd.z*(-J.z)+rgt.z*J.x)*speed;}
+  if(dx!==0||dz!==0){var nx=camera.position.x+dx,nz=camera.position.z+dz;if(canMoveTo(nx,nz)){camera.position.x=nx;camera.position.z=nz;}else if(canMoveTo(nx,camera.position.z)){camera.position.x=nx;}else if(canMoveTo(camera.position.x,nz)){camera.position.z=nz;}}
+  camera.rotation.y=yaw;camera.rotation.x=pitch;
+  if(isMobile&&LK.id===null&&J.id===null)yaw+=0.0012;
+  var best=null,bestD=Infinity,cp=camera.position;
+  for(var i=0;i<frameList.length;i++){var f=frameList[i],d=cp.distanceTo(f.pos);if(d<CFG.prox){var toP=new THREE.Vector3().subVectors(cp,f.pos).normalize(),dot=toP.dot(f.norm);if(dot>-0.2&&d<bestD){bestD=d;best=f;}}}
+  if(best){if(curNear!==best){curNear=best;showPanel(best.data);}}else if(curNear){hidePanel();}
+  var inRoom=null;
+  for(var j=0;j<ROOMS.length;j++){var rm=ROOMS[j],s=rm.side==='left'?-1:1;var x1=Math.min(s*CFG.cW/2,s*(CFG.cW/2+CFG.rD)),x2=Math.max(s*CFG.cW/2,s*(CFG.cW/2+CFG.rD));if(cp.x>x1&&cp.x<x2&&cp.z>rm.z-CFG.rW/2&&cp.z<rm.z+CFG.rW/2){inRoom=rm;break;}}
+  if(inRoom&&inRoom!==aRoom){aRoom=inRoom;showRoomName(inRoom);}else if(!inRoom){aRoom=null;}
+}
+var clock=new THREE.Clock();
+function animate(){requestAnimationFrame(animate);var dt=Math.min(clock.getDelta(),0.1);update(dt);renderer.render(scene,camera);}
+window.addEventListener('resize',function(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+document.fonts.ready.then(function(){buildMuseum();animate();});
+})();
+</script>
+</body>
+</html>

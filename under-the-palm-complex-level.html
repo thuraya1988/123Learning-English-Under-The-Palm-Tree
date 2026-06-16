@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Under the Palm Tree — 3D Adaptive Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Mono:wght@300;400&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0806;--surface:#1a1510;--surface2:#231e17;--surface3:#2e2820;--gold:#c8a24e;--copper:#b87333;--sand:#d4b896;--green:#5a8a5e;--red:#a85454;--blue:#5a7a9a;--text:#f0e8d8;--muted:#8a7e6e;--whisper:#5e5548;--border:rgba(200,162,78,0.12);--shadow:0 8px 32px rgba(0,0,0,0.4)}
+*{margin:0;padding:0;box-sizing:border-box}
+html{font-size:16px;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Cormorant Garamond',serif;line-height:1.7;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");opacity:.3;pointer-events:none;z-index:9999}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--copper);border-radius:3px}
+.page{display:none;min-height:100vh;animation:fadeIn .6s ease}.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes glow{0%,100%{box-shadow:0 0 5px var(--gold)}50%{box-shadow:0 0 20px var(--gold),0 0 40px rgba(200,162,78,0.3)}}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-15px)}}
+@keyframes confetti{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(400px) rotate(720deg);opacity:0}}
+#landing{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:40px 20px;background:radial-gradient(ellipse at 30% 20%,rgba(200,162,78,0.08),transparent 60%),radial-gradient(ellipse at 70% 80%,rgba(184,115,51,0.06),transparent 50%),var(--bg)}
+#landing h1{font-size:3em;font-weight:300;color:var(--gold);letter-spacing:.12em;margin-bottom:10px}
+#landing h2{font-size:1.3em;font-weight:300;font-style:italic;color:var(--muted);margin-bottom:40px}
+.landing-palm{font-size:4em;margin:20px 0;opacity:.3}
+.landing-quote{max-width:500px;font-style:italic;color:var(--muted);margin-bottom:40px;line-height:1.8;opacity:.7}
+.start-btn{background:linear-gradient(135deg,var(--gold),var(--copper));color:var(--bg);border:none;padding:16px 50px;font-family:'DM Mono',monospace;font-size:.85em;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .3s}
+.start-btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(200,162,78,0.3);letter-spacing:.2em}
+.top-nav{display:flex;justify-content:space-between;align-items:center;padding:12px 25px;background:rgba(26,21,16,0.95);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:500;backdrop-filter:blur(10px)}
+.nav-brand{font-size:1em;color:var(--gold);font-weight:300;letter-spacing:.06em;cursor:pointer}
+.nav-links{display:flex;gap:15px;align-items:center;flex-wrap:wrap}
+.nav-link{color:var(--muted);font-family:'DM Mono',monospace;font-size:.68em;letter-spacing:.06em;cursor:pointer;transition:color .3s;padding:5px 0;border-bottom:1px solid transparent}
+.nav-link:hover,.nav-link.active{color:var(--gold);border-bottom-color:var(--gold)}
+.nav-badge{background:var(--surface2);border:1px solid var(--gold);border-radius:20px;padding:4px 12px;font-family:'DM Mono',monospace;font-size:.65em;color:var(--gold)}
+.nav-badge.copper{border-color:var(--copper);color:var(--copper)}
+.sound-toggle{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.8em;transition:all .3s}
+.sound-toggle:hover{border-color:var(--gold);color:var(--gold)}
+#dashboard{padding:40px 20px;max-width:1200px;margin:0 auto;padding-bottom:340px}
+.dash-header{text-align:center;margin-bottom:40px}
+.dash-header h1{font-size:2em;font-weight:300;color:var(--gold);letter-spacing:.08em}
+.dash-header p{color:var(--muted);font-size:.95em;margin-top:5px}
+.stats-bar{display:flex;justify-content:center;gap:20px;margin:25px 0;flex-wrap:wrap}
+.stat-item{text-align:center;padding:12px 20px;background:var(--surface);border-radius:8px;border:1px solid var(--border);min-width:100px}
+.stat-value{font-family:'DM Mono',monospace;font-size:1.6em;color:var(--gold);display:block}
+.stat-label{font-size:.65em;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'DM Mono',monospace}
+.skills-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;margin-top:25px}
+.skill-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:25px;cursor:pointer;transition:all .4s;position:relative;overflow:hidden}
+.skill-card:hover{transform:translateY(-4px);border-color:var(--gold);box-shadow:0 12px 40px rgba(200,162,78,0.15)}
+.skill-card::before{content:'';position:absolute;top:0;left:0;width:100%;height:3px;background:linear-gradient(90deg,var(--gold),var(--copper));opacity:0;transition:opacity .3s}
+.skill-card:hover::before{opacity:1}
+.skill-icon{font-size:2.2em;margin-bottom:12px}
+.skill-name{font-size:1.3em;color:var(--gold);font-weight:600;margin-bottom:4px}
+.skill-desc{font-size:.82em;color:var(--muted);margin-bottom:12px;line-height:1.5}
+.skill-tier-badge{display:inline-block;font-family:'DM Mono',monospace;font-size:.6em;letter-spacing:.06em;padding:3px 10px;border-radius:12px;margin-bottom:10px;border:1px solid}
+.tier-foundation{color:#5a8a5e;border-color:#5a8a5e;background:rgba(90,138,94,0.1)}
+.tier-building{color:var(--copper);border-color:var(--copper);background:rgba(184,115,51,0.1)}
+.tier-mastery{color:var(--gold);border-color:var(--gold);background:rgba(200,162,78,0.1)}
+.tier-untested{color:var(--whisper);border-color:var(--whisper);background:rgba(94,85,72,0.1)}
+.skill-progress{background:var(--surface3);height:5px;border-radius:3px;overflow:hidden;margin-bottom:6px}
+.skill-progress-fill{height:100%;border-radius:3px;transition:width 1s ease}
+.skill-level{font-family:'DM Mono',monospace;font-size:.65em;color:var(--whisper)}
+.skill-meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.progress-ring{width:55px;height:55px;position:absolute;top:18px;right:18px}
+.progress-ring circle{fill:none;stroke-width:3.5;stroke-linecap:round;transform:rotate(-90deg);transform-origin:center}
+.progress-ring .bg{stroke:var(--surface3)}.progress-ring .fg{transition:stroke-dashoffset 1s ease}
+.placement-btn{background:linear-gradient(135deg,var(--copper),var(--gold));color:var(--bg);border:none;padding:8px 18px;font-family:'DM Mono',monospace;font-size:.65em;letter-spacing:.08em;cursor:pointer;border-radius:4px;transition:all .3s;display:block;margin-top:10px;text-transform:uppercase}
+.placement-btn:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(200,162,78,0.3)}
+#placement{padding:30px 20px;max-width:800px;margin:0 auto;padding-bottom:340px}
+.placement-intro{background:var(--surface);border:1px solid var(--gold);border-radius:16px;padding:40px;text-align:center;margin-bottom:30px}
+.placement-intro h2{color:var(--gold);font-size:1.6em;font-weight:300;margin-bottom:10px}
+.placement-intro p{color:var(--muted);line-height:1.7;margin-bottom:8px}
+.placement-info{background:var(--surface2);border-radius:8px;padding:20px;margin:20px 0;text-align:left}
+.tier-row{display:flex;align-items:center;gap:12px;margin:10px 0;padding:8px 12px;border-radius:6px;background:var(--surface)}
+#levels{padding:40px 20px;max-width:1000px;margin:0 auto;padding-bottom:340px}
+.levels-header{display:flex;align-items:center;gap:20px;margin-bottom:25px;flex-wrap:wrap}
+.back-btn{background:var(--surface2);border:1px solid var(--border);color:var(--gold);padding:8px 16px;font-family:'DM Mono',monospace;font-size:.7em;letter-spacing:.08em;cursor:pointer;border-radius:5px;transition:all .3s}
+.back-btn:hover{border-color:var(--gold);background:var(--surface3)}
+.levels-title{font-size:1.6em;color:var(--gold);font-weight:300}
+.levels-sub{color:var(--muted);font-size:.85em;margin-bottom:5px}
+.tier-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.tier-tab{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:8px 16px;font-family:'DM Mono',monospace;font-size:.65em;cursor:pointer;border-radius:5px;transition:all .3s}
+.tier-tab:hover{border-color:var(--gold)}.tier-tab.active{border-color:var(--gold);color:var(--gold);background:var(--surface2)}.tier-tab.locked{opacity:.35;cursor:not-allowed}
+.levels-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px}
+.level-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer;transition:all .3s;min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.level-card:hover:not(.locked){transform:translateY(-3px);border-color:var(--gold)}.level-card.locked{opacity:.35;cursor:not-allowed}
+.level-card.completed{border-color:var(--green);background:rgba(90,138,94,0.08)}
+.level-card.current{border-color:var(--gold);animation:glow 2s infinite}
+.level-num{font-family:'DM Mono',monospace;font-size:1.3em;color:var(--gold)}
+.level-stars{font-size:.6em;margin-top:3px}.level-score{font-family:'DM Mono',monospace;font-size:.55em;color:var(--whisper);margin-top:2px}
+#quiz{padding:25px 20px;max-width:800px;margin:0 auto;padding-bottom:340px}
+.quiz-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px}
+.quiz-progress{flex:1;margin:0 15px}.quiz-progress-bar{background:var(--surface3);height:3px;border-radius:2px;overflow:hidden}
+.quiz-progress-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--copper));border-radius:2px;transition:width .5s ease}
+.quiz-info{display:flex;gap:12px;font-family:'DM Mono',monospace;font-size:.7em;color:var(--muted)}
+.quiz-question-num{color:var(--gold)}.quiz-score-display{color:var(--green)}.quiz-timer{color:var(--copper)}.quiz-streak{color:var(--sand)}
+.question-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:30px;margin-bottom:20px;animation:slideIn .4s ease}
+.question-passage{background:var(--surface2);border-left:3px solid var(--gold);padding:12px 18px;margin-bottom:18px;font-style:italic;color:var(--sand);font-size:.9em;line-height:1.8;border-radius:0 6px 6px 0}
+.question-text{font-size:1.1em;color:var(--text);margin-bottom:20px;line-height:1.7}
+.options-list{display:flex;flex-direction:column;gap:8px}
+.option-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:12px 18px;font-family:'Cormorant Garamond',serif;font-size:1em;text-align:left;cursor:pointer;border-radius:8px;transition:all .3s;display:flex;align-items:center;gap:12px;line-height:1.5}
+.option-btn:hover:not(.disabled){border-color:var(--gold);background:var(--surface3)}
+.option-btn .opt-letter{font-family:'DM Mono',monospace;font-size:.7em;color:var(--gold);min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:1px solid var(--gold);border-radius:50%;flex-shrink:0}
+.option-btn.correct{border-color:var(--green);background:rgba(90,138,94,0.15)}.option-btn.correct .opt-letter{background:var(--green);color:white;border-color:var(--green)}
+.option-btn.wrong{border-color:var(--red);background:rgba(168,84,84,0.15)}.option-btn.wrong .opt-letter{background:var(--red);color:white;border-color:var(--red)}
+.option-btn.disabled{pointer-events:none;opacity:.65}
+.fill-blank-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 15px;font-family:'Cormorant Garamond',serif;font-size:1.05em;border-radius:6px;width:100%;margin:8px 0;outline:none;transition:border-color .3s}
+.fill-blank-input:focus{border-color:var(--gold)}.fill-blank-input.correct{border-color:var(--green)}.fill-blank-input.wrong{border-color:var(--red)}
+.text-answer{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:12px;font-family:'Cormorant Garamond',serif;font-size:1em;border-radius:8px;width:100%;min-height:80px;resize:vertical;outline:none;transition:border-color .3s;line-height:1.7}
+.text-answer:focus{border-color:var(--gold)}
+.hint-btn{background:transparent;border:1px solid var(--copper);color:var(--copper);padding:7px 18px;font-family:'DM Mono',monospace;font-size:.68em;letter-spacing:.08em;cursor:pointer;border-radius:5px;transition:all .3s;margin-top:8px}
+.hint-btn:hover{background:rgba(184,115,51,0.1)}.hint-btn:disabled{opacity:.3;cursor:not-allowed}
+.next-btn{background:linear-gradient(135deg,var(--gold),var(--copper));color:var(--bg);border:none;padding:12px 35px;font-family:'DM Mono',monospace;font-size:.75em;letter-spacing:.1em;cursor:pointer;border-radius:5px;transition:all .3s;margin-top:12px;display:none}
+.next-btn.show{display:inline-block}.next-btn:hover{transform:translateY(-2px)}
+.feedback-bar{padding:12px 18px;border-radius:8px;margin-top:10px;font-size:.9em;display:none;animation:slideIn .3s ease}
+.feedback-bar.show{display:block}
+.feedback-bar.correct{background:rgba(90,138,94,0.15);border:1px solid var(--green);color:var(--green)}
+.feedback-bar.wrong{background:rgba(168,84,84,0.15);border:1px solid var(--red);color:var(--red)}
+.feedback-bar .fb-ar{font-family:'Tajawal',sans-serif;font-size:.8em;opacity:.8;direction:rtl;text-align:right;display:block;margin-top:3px}
+.result-overlay{position:fixed;inset:0;background:rgba(10,8,6,0.92);display:none;align-items:center;justify-content:center;z-index:2000;backdrop-filter:blur(10px)}
+.result-overlay.show{display:flex}
+.result-card{background:var(--surface);border:1px solid var(--gold);border-radius:16px;padding:45px;text-align:center;max-width:480px;width:90%;animation:bounce .6s ease}
+.result-icon{font-size:3.5em;margin-bottom:10px}.result-score{font-size:3.5em;font-weight:300;color:var(--gold);font-family:'DM Mono',monospace;margin:15px 0}
+.result-stars{font-size:1.8em;margin:12px 0;letter-spacing:4px}.result-message{color:var(--muted);font-size:1em;margin-bottom:8px;line-height:1.6}
+.result-detail{color:var(--whisper);font-size:.8em;margin-bottom:20px;font-family:'DM Mono',monospace}
+.result-btn{background:linear-gradient(135deg,var(--gold),var(--copper));color:var(--bg);border:none;padding:12px 30px;font-family:'DM Mono',monospace;font-size:.75em;letter-spacing:.08em;cursor:pointer;border-radius:5px;margin:4px;transition:all .3s}
+.result-btn.secondary{background:var(--surface2);color:var(--gold);border:1px solid var(--gold)}
+.result-btn:hover{transform:translateY(-2px)}
+#flashcards{padding:40px 20px;max-width:700px;margin:0 auto;text-align:center;padding-bottom:340px}
+.flashcard{width:100%;max-width:480px;height:280px;margin:25px auto;perspective:1000px;cursor:pointer}
+.flashcard-inner{position:relative;width:100%;height:100%;transition:transform .6s;transform-style:preserve-3d}
+.flashcard.flipped .flashcard-inner{transform:rotateY(180deg)}
+.flashcard-front,.flashcard-back{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:25px;border:1px solid var(--border)}
+.flashcard-front{background:linear-gradient(135deg,var(--surface),var(--surface2))}
+.flashcard-back{background:linear-gradient(135deg,var(--surface2),var(--surface3));transform:rotateY(180deg)}
+.flashcard-word{font-size:1.8em;color:var(--gold);margin-bottom:8px}.flashcard-context{font-style:italic;color:var(--muted);font-size:.85em;line-height:1.6}
+.flashcard-meaning{font-size:1.3em;color:var(--sand);margin-bottom:8px}.flashcard-ar{font-family:'Tajawal',sans-serif;font-size:1.1em;color:var(--copper);direction:rtl}
+.flash-nav{display:flex;justify-content:center;gap:12px;margin-top:15px}
+.flash-btn{background:var(--surface2);border:1px solid var(--border);color:var(--gold);padding:8px 22px;font-family:'DM Mono',monospace;font-size:.7em;cursor:pointer;border-radius:5px;transition:all .3s}
+.flash-btn:hover{border-color:var(--gold)}
+.fc-tabs{display:flex;justify-content:center;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.fc-tab{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:6px 14px;font-family:'DM Mono',monospace;font-size:.65em;cursor:pointer;border-radius:4px;transition:all .3s}
+.fc-tab.active{border-color:var(--gold);color:var(--gold);background:var(--surface2)}
+#analyzer{padding:40px 20px;max-width:1000px;margin:0 auto;padding-bottom:340px}
+.chart-container{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:25px;margin-bottom:20px}
+.chart-title{font-size:1.1em;color:var(--gold);margin-bottom:15px}
+.bar-chart{display:flex;align-items:flex-end;gap:12px;height:180px;padding:10px 0}
+.bar{flex:1;background:linear-gradient(180deg,var(--gold),var(--copper));border-radius:4px 4px 0 0;position:relative;min-width:25px}
+.bar-label{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:.5em;color:var(--muted);white-space:nowrap}
+.bar-value{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:.6em;color:var(--gold)}
+.radar-chart{display:flex;justify-content:center;gap:20px;flex-wrap:wrap}
+.radar-item{text-align:center;padding:12px;background:var(--surface2);border-radius:8px;min-width:90px;border:1px solid var(--border)}
+.radar-score{font-family:'DM Mono',monospace;font-size:1.3em;color:var(--gold)}
+.radar-label{font-size:.65em;color:var(--muted);text-transform:uppercase;font-family:'DM Mono',monospace;margin-top:3px}
+#certificates{padding:40px 20px;max-width:800px;margin:0 auto;text-align:center;padding-bottom:340px}
+.cert-card{background:linear-gradient(135deg,var(--surface),var(--surface2));border:2px solid var(--gold);border-radius:14px;padding:40px;margin:20px 0}
+.cert-title{font-size:1.8em;color:var(--gold);font-weight:300;margin-bottom:8px}
+.cert-subtitle{color:var(--muted);font-style:italic;margin-bottom:15px}
+.cert-name{font-size:1.5em;color:var(--sand);margin:12px 0;font-weight:600}
+.cert-skill{font-family:'DM Mono',monospace;font-size:.75em;color:var(--copper);text-transform:uppercase}
+.cert-date{font-family:'DM Mono',monospace;font-size:.65em;color:var(--whisper);margin-top:12px}
+.cert-badge{font-size:2.5em;margin:12px 0}.cert-locked{opacity:.35;filter:grayscale(1)}
+
+/* ===== 3D CONTAINER ===== */
+#char3d-container{position:fixed;bottom:0;left:0;right:0;height:300px;z-index:800;pointer-events:none;transition:all .7s cubic-bezier(.4,0,.2,1);background:linear-gradient(0deg,rgba(10,8,6,0.98) 0%,rgba(10,8,6,0.7) 50%,transparent 100%);border-top:1px solid rgba(200,162,78,0.08)}
+#char3d-container.hidden{transform:translateY(100%);opacity:0}
+#char3d-container.visible{transform:translateY(0);opacity:1}
+#char3d-canvas{width:100%;height:100%;pointer-events:auto;cursor:pointer}
+#char3d-canvas canvas{display:block;filter:contrast(1.03) saturate(1.05)}
+.char3d-bubble{position:absolute;bottom:calc(100% + 8px);background:var(--surface2);border:1px solid var(--gold);border-radius:12px;padding:14px 18px;min-width:220px;max-width:320px;font-family:'Cormorant Garamond',serif;font-size:.9em;color:var(--text);line-height:1.6;box-shadow:0 8px 30px rgba(0,0,0,0.5);opacity:0;visibility:hidden;transition:all .4s ease;pointer-events:none;z-index:10}
+.char3d-bubble.show{opacity:1;visibility:visible}
+.char3d-bubble::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);border-left:8px solid transparent;border-right:8px solid transparent;border-top:8px solid var(--gold)}
+.char3d-bubble.left-bubble{left:12%}.char3d-bubble.right-bubble{right:12%}
+.char3d-bubble .b-name{font-family:'DM Mono',monospace;font-size:.6em;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px}
+.char3d-bubble .b-ar{font-family:'Tajawal',sans-serif;direction:rtl;text-align:right;display:block;font-size:.82em;color:var(--sand);border-top:1px solid var(--border);padding-top:6px;margin-top:4px}
+.char3d-label{position:absolute;bottom:10px;font-family:'DM Mono',monospace;font-size:.65em;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;pointer-events:none;opacity:.7}
+.char3d-label.left-label{left:18%}.char3d-label.right-label{right:18%}
+.achievement-popup{position:fixed;top:15px;right:15px;background:var(--surface);border:1px solid var(--gold);border-radius:10px;padding:15px 20px;z-index:5000;animation:slideIn .5s;display:none;box-shadow:var(--shadow);max-width:260px}
+.achievement-popup.show{display:block}.achievement-popup .a-icon{font-size:1.8em;margin-bottom:5px}
+.achievement-popup .a-title{font-family:'DM Mono',monospace;font-size:.65em;color:var(--gold);text-transform:uppercase}
+.achievement-popup .a-desc{color:var(--text);font-size:.88em;margin-top:3px}
+.confetti-piece{position:fixed;width:8px;height:8px;top:-10px;z-index:6000;animation:confetti 2.5s ease forwards;pointer-events:none}
+@media(max-width:768px){#landing h1{font-size:2em}.skills-grid{grid-template-columns:1fr}#char3d-container{height:200px}.char3d-bubble{min-width:160px;max-width:220px;font-size:.8em}.top-nav{flex-wrap:wrap;gap:8px;padding:10px 15px}.nav-links{gap:8px;flex-wrap:wrap}.levels-grid{grid-template-columns:repeat(auto-fill,minmax(65px,1fr))}}
+@media(max-width:480px){#char3d-container{height:160px}.char3d-bubble{display:none!important}}
+</style>
+</head>
+<body>
+
+<div id="landing" class="page active">
+  <div class="landing-palm">🌴</div>
+  <h1>Under the Palm Tree</h1>
+  <h2>تحت ظل النخلة — Adaptive Learning</h2>
+  <div class="landing-quote">"When you live in your imagination, many things can happen."</div>
+  <p style="color:var(--muted);margin-bottom:10px;font-size:.9em">By Thuraya Al-Naibi · Samail, Oman</p>
+  <p style="color:var(--whisper);font-size:.78em;margin-bottom:25px;font-family:'DM Mono',monospace">7 Skills · 3 Tiers · 210 Levels</p>
+  <button class="start-btn" onclick="startApp()">Begin Your Journey</button>
+  <p style="color:var(--whisper);font-size:.72em;margin-top:12px">Meet <strong style="color:var(--sand)">Mohammed</strong> & <strong style="color:var(--sand)">Fatma</strong> — your 3D learning companions</p>
+</div>
+
+<nav class="top-nav" id="topNav" style="display:none">
+  <span class="nav-brand" onclick="showPage('dashboard')">🌴 Under the Palm Tree</span>
+  <div class="nav-links">
+    <span class="nav-link" onclick="showPage('dashboard')">Dashboard</span>
+    <span class="nav-link" onclick="showPage('flashcards')">Flashcards</span>
+    <span class="nav-link" onclick="showPage('analyzer')">Progress</span>
+    <span class="nav-link" onclick="showPage('certificates')">Certificates</span>
+    <span class="nav-badge" id="navPoints">⭐ 0</span>
+    <span class="nav-badge copper" id="navLevel">Lvl 1</span>
+    <button class="sound-toggle" id="soundBtn" onclick="toggleSound()">🔊</button>
+  </div>
+</nav>
+
+<div id="dashboard" class="page">
+  <div class="dash-header"><h1>Your Learning Journey</h1><p id="dashSubtext">Take a placement test for each skill</p><div class="stats-bar" id="statsBar"></div></div>
+  <div class="skills-grid" id="skillsGrid"></div>
+</div>
+
+<div id="placement" class="page">
+  <div class="placement-intro" id="placementIntro"></div>
+  <div id="placementQuiz"></div>
+</div>
+
+<div id="levels" class="page">
+  <div class="levels-header"><button class="back-btn" onclick="showPage('dashboard')">← Back</button><div><div class="levels-title" id="levelsTitle"></div><div class="levels-sub" id="levelsSub"></div></div></div>
+  <div class="tier-tabs" id="tierTabs"></div>
+  <div class="levels-grid" id="levelsGrid"></div>
+</div>
+
+<div id="quiz" class="page">
+  <div class="quiz-header">
+    <button class="back-btn" onclick="exitQuiz()">← Exit</button>
+    <div class="quiz-progress"><div class="quiz-progress-bar"><div class="quiz-progress-fill" id="quizProgressFill"></div></div></div>
+    <div class="quiz-info"><span class="quiz-question-num" id="qNum">1/30</span><span class="quiz-score-display" id="qScore">0 pts</span><span class="quiz-streak" id="qStreak">🔥 0</span><span class="quiz-timer" id="qTimer">0:00</span></div>
+  </div>
+  <div id="questionArea"></div>
+  <div id="feedbackArea"></div>
+  <div style="text-align:center"><button class="hint-btn" id="hintBtn" onclick="useHint()">💡 Ask Mohammed & Fatma</button><br><button class="next-btn" id="nextBtn" onclick="nextQuestion()">Next →</button></div>
+</div>
+
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-card">
+    <div class="result-icon" id="resultIcon"></div><div class="result-stars" id="resultStars"></div><div class="result-score" id="resultScore"></div>
+    <div class="result-message" id="resultMessage"></div><div class="result-detail" id="resultDetail"></div>
+    <button class="result-btn" onclick="retryLevel()">Try Again</button>
+    <button class="result-btn secondary" onclick="closeResult();showPage(currentReturnPage)">Continue</button>
+  </div>
+</div>
+
+<div id="flashcards" class="page">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;justify-content:center"><button class="back-btn" onclick="showPage('dashboard')">← Back</button><h2 style="color:var(--gold);font-weight:300;font-size:1.4em">Flashcards</h2></div>
+  <div class="fc-tabs" id="fcTabs"></div>
+  <div class="flashcard" id="flashcard" onclick="flipCard()"><div class="flashcard-inner" id="flashcardInner"><div class="flashcard-front"><div class="flashcard-word" id="fcFront"></div><div class="flashcard-context" id="fcContext"></div><p style="color:var(--whisper);font-size:.7em;margin-top:12px;font-family:'DM Mono',monospace">Click to flip</p></div><div class="flashcard-back"><div class="flashcard-meaning" id="fcBack"></div><div class="flashcard-ar" id="fcAr"></div></div></div></div>
+  <div class="flash-nav"><button class="flash-btn" onclick="prevCard()">← Previous</button><span id="fcCounter" style="color:var(--muted);font-family:'DM Mono',monospace;font-size:.75em;align-self:center">1/20</span><button class="flash-btn" onclick="nextCard()">Next →</button></div>
+</div>
+
+<div id="analyzer" class="page">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:25px;justify-content:center"><button class="back-btn" onclick="showPage('dashboard')">← Back</button><h2 style="color:var(--gold);font-weight:300;font-size:1.4em">Progress</h2></div>
+  <div id="analyzerContent"></div>
+</div>
+
+<div id="certificates" class="page">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:25px;justify-content:center"><button class="back-btn" onclick="showPage('dashboard')">← Back</button><h2 style="color:var(--gold);font-weight:300;font-size:1.4em">Certificates</h2></div>
+  <div id="certContent"></div>
+</div>
+
+<!-- ===== 3D CHARACTER CONTAINER ===== -->
+<div id="char3d-container" class="hidden">
+  <div id="char3d-canvas"></div>
+  <div class="char3d-bubble left-bubble" id="bubbleMohammed"><span class="b-name">Mohammed محمد</span><span id="mohammedBubbleText">Hello!</span><span class="b-ar" id="mohammedBubbleAr">مرحباً!</span></div>
+  <div class="char3d-bubble right-bubble" id="bubbleFatma"><span class="b-name">Fatma فاطمة</span><span id="fatmaBubbleText">Hello!</span><span class="b-ar" id="fatmaBubbleAr">مرحباً!</span></div>
+  <div class="char3d-label left-label">Mohammed محمد</div>
+  <div class="char3d-label right-label">Fatma فاطمة</div>
+</div>
+
+<div class="achievement-popup" id="achPopup"><div class="a-icon" id="achIcon"></div><div class="a-title" id="achTitle"></div><div class="a-desc" id="achDesc"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+// ============================================================
+// 3D CHARACTER SYSTEM — HIGH QUALITY
+// ============================================================
+let charRenderer,charScene,charCamera,mohammed3D,fatma3D,charAnimId,charTimers={};
+
+function initChar3D(){
+  const C=document.getElementById('char3d-canvas');
+  if(!C||typeof THREE==='undefined')return;
+  charRenderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
+  charRenderer.setSize(C.clientWidth,C.clientHeight);
+  charRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  charRenderer.shadowMap.enabled=true;
+  charRenderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  charRenderer.outputEncoding=THREE.sRGBEncoding;
+  charRenderer.toneMapping=THREE.ACESFilmicToneMapping;
+  charRenderer.toneMappingExposure=1.2;
+  C.appendChild(charRenderer.domElement);
+
+  charScene=new THREE.Scene();
+  const bgC=document.createElement('canvas');bgC.width=2;bgC.height=512;
+  const bgX=bgC.getContext('2d'),bgG=bgX.createLinearGradient(0,0,0,512);
+  bgG.addColorStop(0,'#0e0c0a');bgG.addColorStop(0.35,'#1a1510');bgG.addColorStop(0.65,'#231e17');bgG.addColorStop(1,'#12100e');
+  bgX.fillStyle=bgG;bgX.fillRect(0,0,2,512);
+  charScene.background=new THREE.CanvasTexture(bgC);
+
+  const a=C.clientWidth/C.clientHeight;
+  charCamera=new THREE.PerspectiveCamera(24,a,0.1,50);
+  charCamera.position.set(0,2.4,10.5);charCamera.lookAt(0,1.1,0);
+
+  // Professional 3-point lighting
+  const key=new THREE.DirectionalLight(0xffeedd,1.1);
+  key.position.set(5,7,4);key.castShadow=true;
+  key.shadow.mapSize.set(1024,1024);key.shadow.bias=-0.0005;
+  key.shadow.camera.near=1;key.shadow.camera.far=20;
+  key.shadow.camera.left=-6;key.shadow.camera.right=6;
+  key.shadow.camera.top=6;key.shadow.camera.bottom=-2;
+  charScene.add(key);
+  charScene.add(new THREE.DirectionalLight(0xccddff,0.3).translateX(-4).translateY(3).translateZ(3));
+  const rim=new THREE.DirectionalLight(0xc8a24e,0.55);rim.position.set(0,3,-5);charScene.add(rim);
+  charScene.add(new THREE.AmbientLight(0xffeedd,0.2));
+  const warm=new THREE.PointLight(0xc8a24e,0.35,12);warm.position.set(0,1.5,5);charScene.add(warm);
+
+  // Ground
+  const gnd=new THREE.Mesh(new THREE.PlaneGeometry(22,14),new THREE.MeshStandardMaterial({color:0x0a0806,roughness:0.95}));
+  gnd.rotation.x=-Math.PI/2;gnd.receiveShadow=true;charScene.add(gnd);
+
+  // Shadow discs
+  const shM=new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.22});
+  [-3,3].forEach(x=>{const d=new THREE.Mesh(new THREE.CircleGeometry(0.55,48),shM);d.rotation.x=-Math.PI/2;d.position.set(x,0.005,0);charScene.add(d);});
+
+  // Floating golden dust
+  const pN=40,pGeo=new THREE.BufferGeometry(),pPos=new Float32Array(pN*3);
+  for(let i=0;i<pN;i++){pPos[i*3]=(Math.random()-.5)*14;pPos[i*3+1]=Math.random()*5.5;pPos[i*3+2]=(Math.random()-.5)*10;}
+  pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+  const pts=new THREE.Points(pGeo,new THREE.PointsMaterial({color:0xc8a24e,size:0.025,transparent:true,opacity:0.35,sizeAttenuation:true}));
+  charScene.add(pts);charScene.userData.particles=pts;
+
+  // Palm tree silhouette
+  buildPalm(-6);buildPalm(7);
+
+  // Characters
+  mohammed3D=buildMohammed();mohammed3D.position.set(-3,0,0);mohammed3D.rotation.y=0.28;charScene.add(mohammed3D);
+  fatma3D=buildFatma();fatma3D.position.set(3,0,0);fatma3D.rotation.y=-0.28;charScene.add(fatma3D);
+
+  // Click
+  const rc=new THREE.Raycaster(),ms=new THREE.Vector2();
+  charRenderer.domElement.addEventListener('click',e=>{
+    const r=charRenderer.domElement.getBoundingClientRect();
+    ms.x=((e.clientX-r.left)/r.width)*2-1;ms.y=-((e.clientY-r.top)/r.height)*2+1;
+    rc.setFromCamera(ms,charCamera);const h=rc.intersectObjects(charScene.children,true);
+    if(h.length){let o=h[0].object;while(o.parent&&!o.userData.cn)o=o.parent;if(o.userData.cn)charSpeak3D(o.userData.cn);}
+  });
+
+  window.addEventListener('resize',()=>{const c=document.getElementById('char3d-canvas');if(!c||!charCamera)return;charCamera.aspect=c.clientWidth/c.clientHeight;charCamera.updateProjectionMatrix();charRenderer.setSize(c.clientWidth,c.clientHeight);});
+
+  anim3D(performance.now());
+}
+
+function buildPalm(x){
+  const g=new THREE.Group();
+  const tM=new THREE.MeshStandardMaterial({color:0x2a1a0a,roughness:0.9,transparent:true,opacity:0.2});
+  const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,0,0),new THREE.Vector3(.1,1.5,-.05),new THREE.Vector3(-.05,3,-.1),new THREE.Vector3(.05,4.5,-.15),new THREE.Vector3(0,5.5,-.1)]);
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(curve,20,.08,8,false),tM));
+  const fM=new THREE.MeshStandardMaterial({color:0x1a3a1a,roughness:0.8,transparent:true,opacity:0.15,side:THREE.DoubleSide});
+  for(let i=0;i<7;i++){const fg=new THREE.PlaneGeometry(.3,1.8),fp=fg.attributes.position;
+    for(let j=0;j<fp.count;j++){fp.setZ(j,-Math.abs(fp.getY(j))*.35);}fg.computeVertexNormals();
+    const f=new THREE.Mesh(fg,fM);f.position.y=5.5;f.rotation.y=(i/7)*Math.PI*2;f.rotation.x=.6;g.add(f);}
+  g.position.set(x,0,-4);g.scale.setScalar(.55);charScene.add(g);
+}
+
+function mkMat(c,r,m){return new THREE.MeshStandardMaterial({color:c,roughness:r||0.6,metalness:m||0});}
+
+function buildMohammed(){
+  const g=new THREE.Group();
+  g.userData={cn:'mohammed',mouth:null,rArm:null,lLid:null,rLid:null,head:null,state:'idle',bt:0,nb:2+Math.random()*3,st:0};
+
+  const skin=mkMat(0xc8956a,.5);
+  const white=mkMat(0xf5f0e8,.65);
+  const gold=mkMat(0xc8a24e,.25,.65);
+  const kumma=mkMat(0xf0ebe0,.7);
+  const hair=mkMat(0x1a0e05,.45);
+  const ew=mkMat(0xf8f5f0,.15);
+  const iris=mkMat(0x3a2510,.1);
+  const pupil=new THREE.MeshBasicMaterial({color:0x050200});
+  const hl=new THREE.MeshBasicMaterial({color:0xffffff});
+  const lip=mkMat(0xb06858,.35);
+  const beard=mkMat(0x1a0e05,.85);
+  const sandal=mkMat(0x6a4a30,.7);
+
+  // HEAD — deformed high-poly sphere
+  const hGeo=new THREE.SphereGeometry(.38,64,64);
+  const hp=hGeo.attributes.position;
+  for(let i=0;i<hp.count;i++){
+    let x=hp.getX(i),y=hp.getY(i),z=hp.getZ(i);
+    if(z>.12)z*=.88;
+    if(y<-.08&&Math.abs(x)>.12)x*=1.07;
+    if(y<-.25&&Math.abs(x)<.07)y-=.025;
+    if(y>.28)x*=.97;
+    hp.setXYZ(i,x,y,z);
+  }
+  hGeo.computeVertexNormals();
+  const head=new THREE.Mesh(hGeo,skin);head.position.y=1.78;head.castShadow=true;g.add(head);g.userData.head=head;
+
+  // Hair
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(.37,48,24,0,Math.PI*2,0,Math.PI*.52),hair).translateY(1.82));
+
+  // Kumma
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(.355,48,24,0,Math.PI*2,0,Math.PI*.52),kumma).translateY(2.05));
+  const kr1=new THREE.Mesh(new THREE.TorusGeometry(.335,.012,8,64),gold);kr1.position.y=2.05;kr1.rotation.x=Math.PI/2;g.add(kr1);
+  const kr2=new THREE.Mesh(new THREE.TorusGeometry(.24,.008,8,64),gold);kr2.position.y=2.16;kr2.rotation.x=Math.PI/2;g.add(kr2);
+  // Cross-hatch embroidery
+  for(let i=0;i<8;i++){const a=(i/8)*Math.PI*2,line=new THREE.Mesh(new THREE.BoxGeometry(.003,.003,.12),gold);
+    line.position.set(Math.cos(a)*.3,2.07,Math.sin(a)*.3);line.lookAt(0,2.07,0);g.add(line);}
+
+  // EYES
+  const eY=1.82,eZ=.34,eSp=.115;
+  function makeEye(xOff){
+    const eg=new THREE.Group();
+    eg.add(new THREE.Mesh(new THREE.SphereGeometry(.058,32,32),ew));
+    const ir=new THREE.Mesh(new THREE.SphereGeometry(.035,32,32),iris);ir.position.z=.032;eg.add(ir);
+    const pu=new THREE.Mesh(new THREE.CircleGeometry(.018,24),pupil);pu.position.z=.06;eg.add(pu);
+    const h1=new THREE.Mesh(new THREE.SphereGeometry(.008,12,12),hl);h1.position.set(.013,.013,.065);eg.add(h1);
+    eg.position.set(xOff,eY,eZ);return eg;
+  }
+  const lE=makeEye(-eSp),rE=makeEye(eSp);g.add(lE);g.add(rE);
+
+  // Eyelids
+  const lidG=new THREE.SphereGeometry(.063,32,16,0,Math.PI*2,0,Math.PI*.5);
+  const lL=new THREE.Mesh(lidG,skin);lL.position.set(-eSp,eY+.008,eZ);lL.scale.y=0;g.add(lL);g.userData.lLid=lL;
+  const rL=new THREE.Mesh(lidG.clone(),skin);rL.position.set(eSp,eY+.008,eZ);rL.scale.y=0;g.add(rL);g.userData.rLid=rL;
+
+  // Eyebrows
+  const browG=new THREE.BoxGeometry(.11,.018,.022);
+  const lB=new THREE.Mesh(browG,hair);lB.position.set(-eSp,eY+.085,eZ+.015);lB.rotation.z=.06;g.add(lB);
+  const rB=new THREE.Mesh(browG.clone(),hair);rB.position.set(eSp,eY+.085,eZ+.015);rB.rotation.z=-.06;g.add(rB);
+
+  // Nose
+  const nT=new THREE.Mesh(new THREE.SphereGeometry(.028,24,24),skin);nT.position.set(0,eY-.07,eZ+.04);nT.scale.set(1,.65,.75);g.add(nT);
+  const nB=new THREE.Mesh(new THREE.CylinderGeometry(.013,.022,.09,16),skin);nB.position.set(0,eY-.01,eZ+.02);nB.rotation.x=.2;g.add(nB);
+  const nM=mkMat(0x8a6040,.7);
+  [-.018,.018].forEach(dx=>{const n=new THREE.Mesh(new THREE.SphereGeometry(.011,12,12),nM);n.position.set(dx,eY-.09,eZ+.03);n.scale.set(1,.55,.7);g.add(n);});
+
+  // Mouth
+  const m=new THREE.Mesh(new THREE.SphereGeometry(.038,24,24),lip);
+  m.position.set(0,eY-.17,eZ+.01);m.scale.set(1.9,.28,1);g.add(m);g.userData.mouth=m;
+
+  // Ears
+  [-1,1].forEach(s=>{const ear=new THREE.Mesh(new THREE.SphereGeometry(.038,16,16),skin);ear.position.set(s*.37,eY-.01,0);ear.scale.set(.28,.65,.45);g.add(ear);});
+
+  // Beard
+  const bD=new THREE.Mesh(new THREE.SphereGeometry(.13,24,24),beard);bD.position.set(0,eY-.26,eZ-.06);bD.scale.set(1.25,.55,.8);g.add(bD);
+  // Mustache
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(.12,.016,.028),beard).translateY(eY-.13).translateZ(eZ+.02));
+
+  // BODY (dishdasha) — LatheGeometry for smooth shape
+  const bP=[new THREE.Vector2(.001,0),new THREE.Vector2(.5,0),new THREE.Vector2(.52,.1),new THREE.Vector2(.47,.35),new THREE.Vector2(.41,.6),new THREE.Vector2(.39,.85),new THREE.Vector2(.42,1.05),new THREE.Vector2(.39,1.2),new THREE.Vector2(.31,1.35),new THREE.Vector2(.16,1.42),new THREE.Vector2(.13,1.48),new THREE.Vector2(.001,1.5)];
+  const body=new THREE.Mesh(new THREE.LatheGeometry(bP,48),white);body.castShadow=true;g.add(body);
+
+  // Collar V-shape
+  const collar=new THREE.Mesh(new THREE.TorusGeometry(.16,.018,8,32,Math.PI),gold);
+  collar.position.set(0,1.38,.13);collar.rotation.x=-.3;collar.rotation.y=Math.PI;g.add(collar);
+
+  // Arms
+  const aG=new THREE.CylinderGeometry(.05,.06,.7,16);
+  const lA=new THREE.Mesh(aG,white);lA.position.set(-.44,.85,0);lA.rotation.z=.15;lA.castShadow=true;g.add(lA);
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(.058,16,16),skin).translateX(-.5).translateY(.48));
+
+  const rP=new THREE.Group();rP.position.set(.42,1.15,0);
+  const rA=new THREE.Mesh(aG.clone(),white);rA.position.y=-.35;rA.castShadow=true;rP.add(rA);
+  rP.add(new THREE.Mesh(new THREE.SphereGeometry(.058,16,16),skin).translateY(-.72));
+  g.add(rP);g.userData.rArm=rP;
+
+  // Feet
+  [-.14,.14].forEach(dx=>{g.add(new THREE.Mesh(new THREE.BoxGeometry(.12,.05,.22),sandal).translateX(dx).translateY(.025).translateZ(.05));});
+
+  g.traverse(c=>{if(c.isMesh)c.castShadow=true;});
+  return g;
+}
+
+function buildFatma(){
+  const g=new THREE.Group();
+  g.userData={cn:'fatma',mouth:null,rArm:null,lLid:null,rLid:null,head:null,state:'idle',bt:0,nb:2.5+Math.random()*3,st:0};
+
+  const skin=mkMat(0xc8956a,.48);
+  const purple=mkMat(0x7a4a7a,.6);
+  const pLight=mkMat(0x9a6a9a,.52);
+  const gold=mkMat(0xc8a24e,.25,.65);
+  const hair=mkMat(0x0a0500,.45);
+  const ew=mkMat(0xf8f5f0,.15);
+  const iris=mkMat(0x2a1808,.1);
+  const pupil=new THREE.MeshBasicMaterial({color:0x050200});
+  const hl=new THREE.MeshBasicMaterial({color:0xffffff});
+  const lip=mkMat(0xc07060,.3);
+  const shoe=mkMat(0x3a2a2a,.7);
+  const lash=new THREE.MeshBasicMaterial({color:0x0a0500});
+
+  // HEAD — feminine, slightly smaller
+  const hGeo=new THREE.SphereGeometry(.35,64,64);
+  const hp=hGeo.attributes.position;
+  for(let i=0;i<hp.count;i++){
+    let x=hp.getX(i),y=hp.getY(i),z=hp.getZ(i);
+    if(z>.12)z*=.91;
+    if(y<-.04)x*=1.03;
+    if(y<-.2&&Math.abs(x)<.06)y-=.015;
+    if(y>.25)x*=.97;
+    hp.setXYZ(i,x,y,z);
+  }
+  hGeo.computeVertexNormals();
+  const head=new THREE.Mesh(hGeo,skin);head.position.y=1.72;head.castShadow=true;g.add(head);g.userData.head=head;
+
+  // Hair under hijab
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(.34,32,16,0,Math.PI*2,0,Math.PI*.55),hair).translateY(1.76));
+
+  // HIJAB layers
+  const hMain=new THREE.Mesh(new THREE.SphereGeometry(.43,48,32,0,Math.PI*2,0,Math.PI*.62),pLight);
+  hMain.position.y=1.78;hMain.scale.set(1.06,1.12,1);g.add(hMain);
+  // Drape back
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(.14,.36,.85,24),pLight).translateY(1.12).translateZ(-.2));
+  // Face frame
+  const frame=new THREE.Mesh(new THREE.TorusGeometry(.3,.022,8,32,Math.PI),purple);
+  frame.position.set(0,1.63,.26);frame.rotation.x=.3;g.add(frame);
+  // Second frame
+  const frame2=new THREE.Mesh(new THREE.TorusGeometry(.28,.012,8,32,Math.PI),gold);
+  frame2.position.set(0,1.62,.27);frame2.rotation.x=.32;g.add(frame2);
+  // Pin
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(.018,16,16),gold).translateY(1.53).translateZ(.33));
+
+  // EYES — larger, feminine
+  const eY=1.75,eZ=.32,eSp=.1;
+  function makeEye(xOff){
+    const eg=new THREE.Group();
+    eg.add(new THREE.Mesh(new THREE.SphereGeometry(.053,32,32),ew));
+    const ir=new THREE.Mesh(new THREE.SphereGeometry(.036,32,32),iris);ir.position.z=.028;eg.add(ir);
+    const pu=new THREE.Mesh(new THREE.CircleGeometry(.016,24),pupil);pu.position.z=.055;eg.add(pu);
+    const h1=new THREE.Mesh(new THREE.SphereGeometry(.008,12,12),hl);h1.position.set(.012,.012,.06);eg.add(h1);
+    eg.position.set(xOff,eY,eZ);return eg;
+  }
+  g.add(makeEye(-eSp));g.add(makeEye(eSp));
+
+  // Eyelids
+  const lidG=new THREE.SphereGeometry(.058,32,16,0,Math.PI*2,0,Math.PI*.5);
+  const lL=new THREE.Mesh(lidG,skin);lL.position.set(-eSp,eY+.006,eZ);lL.scale.y=0;g.add(lL);g.userData.lLid=lL;
+  const rL=new THREE.Mesh(lidG.clone(),skin);rL.position.set(eSp,eY+.006,eZ);rL.scale.y=0;g.add(rL);g.userData.rLid=rL;
+
+  // Eyebrows (thinner)
+  const browG=new THREE.BoxGeometry(.09,.012,.015);
+  g.add(new THREE.Mesh(browG,hair).translateX(-eSp).translateY(eY+.072).translateZ(eZ+.015));
+  g.add(new THREE.Mesh(browG.clone(),hair).translateX(eSp).translateY(eY+.072).translateZ(eZ+.015));
+
+  // Eyelashes
+  const lashG=new THREE.BoxGeometry(.075,.007,.007);
+  const lLh=new THREE.Mesh(lashG,lash);lLh.position.set(-eSp,eY+.055,eZ+.025);lLh.rotation.z=.15;g.add(lLh);
+  const rLh=new THREE.Mesh(lashG.clone(),lash);rLh.position.set(eSp,eY+.055,eZ+.025);rLh.rotation.z=-.15;g.add(rLh);
+
+  // Nose (smaller, feminine)
+  const nT=new THREE.Mesh(new THREE.SphereGeometry(.022,24,24),skin);nT.position.set(0,eY-.055,eZ+.04);nT.scale.set(.85,.55,.65);g.add(nT);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(.01,.016,.065,12),skin).translateY(eY-.01).translateZ(eZ+.02));
+
+  // Mouth (fuller lips)
+  const m=new THREE.Mesh(new THREE.SphereGeometry(.032,24,24),lip);
+  m.position.set(0,eY-.14,eZ+.01);m.scale.set(1.7,.32,1);g.add(m);g.userData.mouth=m;
+
+  // Earrings
+  [-1,1].forEach(s=>{g.add(new THREE.Mesh(new THREE.SphereGeometry(.014,16,16),gold).translateX(s*.34).translateY(eY-.04).translateZ(.04));});
+
+  // BODY (dress) — LatheGeometry
+  const bP=[new THREE.Vector2(.001,0),new THREE.Vector2(.54,0),new THREE.Vector2(.52,.15),new THREE.Vector2(.45,.4),new THREE.Vector2(.37,.65),new THREE.Vector2(.35,.9),new THREE.Vector2(.37,1.1),new THREE.Vector2(.34,1.25),new THREE.Vector2(.27,1.35),new THREE.Vector2(.15,1.4),new THREE.Vector2(.12,1.45),new THREE.Vector2(.001,1.48)];
+  const body=new THREE.Mesh(new THREE.LatheGeometry(bP,48),purple);body.castShadow=true;g.add(body);
+
+  // Gold trim
+  const trim=new THREE.Mesh(new THREE.TorusGeometry(.39,.014,8,48),gold);trim.position.y=.48;trim.rotation.x=Math.PI/2;g.add(trim);
+  const trim2=new THREE.Mesh(new THREE.TorusGeometry(.36,.008,8,48),gold);trim2.position.y=.52;trim2.rotation.x=Math.PI/2;g.add(trim2);
+
+  // Arms
+  const aG=new THREE.CylinderGeometry(.044,.05,.6,16);
+  const lA=new THREE.Mesh(aG,purple);lA.position.set(-.39,.8,0);lA.rotation.z=.15;lA.castShadow=true;g.add(lA);
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(.048,16,16),skin).translateX(-.43).translateY(.48));
+
+  const rP=new THREE.Group();rP.position.set(.35,1.1,0);
+  const rA=new THREE.Mesh(aG.clone(),purple);rA.position.y=-.3;rA.castShadow=true;rP.add(rA);
+  rP.add(new THREE.Mesh(new THREE.SphereGeometry(.048,16,16),skin).translateY(-.62));
+  g.add(rP);g.userData.rArm=rP;
+
+  // Feet
+  [-.12,.12].forEach(dx=>{g.add(new THREE.Mesh(new THREE.BoxGeometry(.1,.04,.18),shoe).translateX(dx).translateY(.02).translateZ(.04));});
+
+  g.traverse(c=>{if(c.isMesh)c.castShadow=true;});
+  return g;
+}
+
+function anim3D(time){
+  charAnimId=requestAnimationFrame(anim3D);
+  if(!charRenderer)return;
+  const C=document.getElementById('char3d-container');
+  if(C.classList.contains('hidden'))return; // Skip when hidden
+  const t=time*.001;
+
+  // Particles
+  const pts=charScene.userData.particles;
+  if(pts){const p=pts.geometry.attributes.position;
+    for(let i=0;i<p.count;i++){let y=p.getY(i)+.003;if(y>5.5)y=0;p.setY(i,y);p.setX(i,p.getX(i)+Math.sin(t+i)*.0008);}
+    p.needsUpdate=true;pts.rotation.y=t*.015;}
+
+  animChar(mohammed3D,t,0);animChar(fatma3D,t,1.2);
+  charRenderer.render(charScene,charCamera);
+}
+
+function animChar(c,t,ph){
+  if(!c)return;const u=c.userData,t2=t+ph;
+  c.position.y=Math.sin(t2*1.5)*.03;
+  // Head
+  if(u.head){u.head.rotation.z=Math.sin(t2*.7)*.02;u.head.rotation.x=Math.sin(t2*.5)*.01;}
+  // Blink
+  u.bt+=.016;if(u.bt>u.nb){u.bt=0;u.nb=2+Math.random()*4;
+    if(u.lLid&&u.rLid){u.lLid.scale.y=1;u.rLid.scale.y=1;setTimeout(()=>{if(u.lLid)u.lLid.scale.y=0;if(u.rLid)u.rLid.scale.y=0;},140);}}
+  // Mouth
+  if(u.mouth){u.mouth.scale.y=u.state==='speaking'?.28+Math.abs(Math.sin(t*12))*2.2:.28;}
+  // Arm
+  if(u.rArm){if(u.state==='waving')u.rArm.rotation.z=Math.sin(t*8)*.5-.8;
+    else if(u.state==='celebrating')u.rArm.rotation.z=-2.5+Math.sin(t*6)*.3;
+    else u.rArm.rotation.z*=.95;}
+  // Jump
+  if(u.state==='celebrating')c.position.y+=Math.abs(Math.sin(t*5+ph))*.15;
+}
+
+function setCharState3D(w,s,d){const c=w==='mohammed'?mohammed3D:fatma3D;if(!c)return;c.userData.state=s;clearTimeout(c.userData.st);if(s!=='idle')c.userData.st=setTimeout(()=>{c.userData.state='idle';},d||3000);}
+function char3DShow(){document.getElementById('char3d-container').classList.remove('hidden');document.getElementById('char3d-container').classList.add('visible');if(!charRenderer)initChar3D();}
+function char3DHide(){document.getElementById('char3d-container').classList.remove('visible');document.getElementById('char3d-container').classList.add('hidden');}
+
+function char3DSpeak(w,en,ar){
+  if(charTimers[w])clearTimeout(charTimers[w]);
+  const b=document.getElementById(w==='mohammed'?'bubbleMohammed':'bubbleFatma');
+  document.getElementById(w==='mohammed'?'mohammedBubbleText':'fatmaBubbleText').textContent=en;
+  document.getElementById(w==='mohammed'?'mohammedBubbleAr':'fatmaBubbleAr').textContent=ar;
+  b.classList.add('show');setCharState3D(w,'speaking',4500);
+  charTimers[w]=setTimeout(()=>{b.classList.remove('show');},4500);
+}
+
+function charSpeak3D(w){
+  const h={mohammed:[{en:'Think about the context!',ar:'فكر في السياق!'},{en:'Look for keywords!',ar:'ابحث عن كلمات مفتاحية!'},{en:'Read carefully!',ar:'اقرأ بعناية!'},{en:'The answer is nearby!',ar:'الإجابة قريبة!'},{en:'Great progress!',ar:'تقدم رائع!'}],
+    fatma:[{en:'You can do it!',ar:'تستطيع!'},{en:'I believe in you!',ar:'أؤمن بك!'},{en:'Keep going!',ar:'استمر!'},{en:'Every step counts!',ar:'كل خطوة مهمة!'},{en:'Getting better!',ar:'تتحسن!'}]};
+  const r=h[w][Math.floor(Math.random()*h[w].length)];char3DSpeak(w,r.en,r.ar);setCharState3D(w,'waving',1500);
+}
+
+function char3DCelebrate(w){setCharState3D(w,'celebrating',2000);}
+
+function char3DPageGreeting(p){
+  if(charTimers.greet)clearTimeout(charTimers.greet);
+  charTimers.greet=setTimeout(()=>{
+    if(p==='dashboard'){char3DSpeak('mohammed','Welcome back! Ready?','مرحباً! مستعد؟');setTimeout(()=>char3DSpeak('fatma','Pick a skill!','اختر مهارة!'),2200);}
+    else if(p==='levels')char3DSpeak('mohammed','Choose your level!','اختر مستواك!');
+    else if(p==='flashcards')char3DSpeak('fatma','Click to flip!','انقر لقلب البطاقة!');
+    else if(p==='analyzer')char3DSpeak('mohammed','Your progress!','تقدمك!');
+    else if(p==='certificates')char3DSpeak('fatma','Your achievements!','إنجازاتك!');
+  },600);
+}
+
+// ============================================================
+// PLATFORM — Same as before, Mohammed replacing Salim
+// ============================================================
+const SKILLS=[{id:'reading',name:'Reading',icon:'📖',color:'#c8a24e',desc:'Comprehension from the novel.'},{id:'vocabulary',name:'Vocabulary',icon:'📝',color:'#b87333',desc:'Words in context.'},{id:'grammar',name:'Grammar',icon:'📐',color:'#5a8a5e',desc:'Grammar from sentences.'},{id:'writing',name:'Writing',icon:'✍️',color:'#5a7a9a',desc:'Descriptive & narrative tasks.'},{id:'speaking',name:'Speaking',icon:'🗣️',color:'#9a6a5a',desc:'Pronunciation & fluency.'},{id:'spelling',name:'Spelling',icon:'🔤',color:'#7a5a9a',desc:'Dictation & correction.'},{id:'listening',name:'Listening',icon:'👂',color:'#5a9a8a',desc:'Rhythm, tone & detail.'}];
+const TIERS={foundation:{name:'Foundation',icon:'🌱',color:'#5a8a5e',levels:[1,10],cssClass:'tier-foundation'},building:{name:'Building',icon:'🏗️',color:'#b87333',levels:[11,20],cssClass:'tier-building'},mastery:{name:'Mastery',icon:'👑',color:'#c8a24e',levels:[21,30],cssClass:'tier-mastery'}};
+const LPT=10,QPL=30,PQ=15;
+const VOCAB=[{w:'morning',m:'the early part of the day',ar:'صباح',ctx:'The morning had settled.',t:'foundation'},{w:'window',m:'opening for light',ar:'نافذة',ctx:'Thuraya sat near the window.',t:'foundation'},{w:'water',m:'clear liquid for life',ar:'ماء',ctx:'Water moved through the falaj.',t:'foundation'},{w:'children',m:'young people',ar:'أطفال',ctx:'Children poured into the yard.',t:'foundation'},{w:'school',m:'place to learn',ar:'مدرسة',ctx:'The first day at school.',t:'foundation'},{w:'village',m:'small rural community',ar:'قرية',ctx:'A small village taught the world.',t:'foundation'},{w:'coffee',m:'hot drink from beans',ar:'قهوة',ctx:'The aroma of Turkish coffee.',t:'foundation'},{w:'light',m:'brightness for sight',ar:'ضوء',ctx:'The light entered reluctantly.',t:'foundation'},{w:'door',m:'barrier at entrance',ar:'باب',ctx:'A wooden door.',t:'foundation'},{w:'book',m:'set of written pages',ar:'كتاب',ctx:'Absorbed in her book.',t:'foundation'},{w:'shimmering',m:'emitting soft trembling light',ar:'متلألئ',ctx:'Its surface shimmering.',t:'building'},{w:'aroma',m:'pleasant distinctive smell',ar:'رائحة',ctx:'The deep aroma of coffee.',t:'building'},{w:'reluctantly',m:'with hesitation',ar:'بتردد',ctx:'Light entered reluctantly.',t:'building'},{w:'reverence',m:'deep respect',ar:'تبجيل',ctx:'With a kind of reverence.',t:'building'},{w:'composure',m:'calm self-control',ar:'رباطة جأش',ctx:'His composure.',t:'building'},{w:'steadiness',m:'firm unchanging quality',ar:'ثبات',ctx:'A steadiness.',t:'building'},{w:'unhurried',m:'without haste',ar:'بدون تسرع',ctx:'Unhurriededly.',t:'building'},{w:'absorbed',m:'completely engrossed',ar:'منغمس',ctx:'Absorbed in her book.',t:'building'},{w:'dissolved',m:'gradually disappeared',ar:'تلاشى',ctx:'The hall dissolved.',t:'building'},{w:'indifferent',m:'no interest',ar:'لا مبالي',ctx:'Indifferent to observation.',t:'building'},{w:'falaj',m:'traditional water channel',ar:'فلج',ctx:'Water moved through the falaj.',t:'mastery'},{w:'dishdasha',m:'traditional Omani garment',ar:'دشداشة',ctx:'His dishdasha was clean.',t:'mastery'},{w:'luban',m:'frankincense resin',ar:'لبان',ctx:'Luban.',t:'mastery'},{w:'qandeel',m:'traditional oil lamp',ar:'قنديل',ctx:'A small qandeel.',t:'mastery'},{w:'bisat',m:'traditional woven mat',ar:'بساط',ctx:'On the floor, a bisat.',t:'mastery'},{w:'letj',m:'stone-hopping game',ar:'ليج',ctx:'This is letj.',t:'mastery'},{w:'nahsher',m:'knocking fruit from trees',ar:'نشر',ctx:'They are doing nahsher.',t:'mastery'},{w:'imamah',m:'traditional turban',ar:'عمامة',ctx:'An imamah.',t:'mastery'},{w:'oud',m:'perfume from agarwood',ar:'عود',ctx:'Oud. Warm and deep.',t:'mastery'},{w:'frankincense',m:'aromatic resin incense',ar:'بخور',ctx:'Omani frankincense.',t:'mastery'}];
+const EX={morning:'The morning had settled — not with noise, not with light, but with a held breath.',bosphorus:'The Bosphorus lay before her like a long, slow thought — its surface shimmering.',coffee:'The coffee had grown cold. Patient, faithful, slightly forgotten.',father:'He had not made a speech. He was not a man who filled moments with words.',oud:'Oud. Warm and deep — the kind of scent that changes a room.',falaj:'Water moved through a narrow channel of stone — clear, uninterrupted.',heat:'The airplane door opened — and the heat did not wait.',mountains:'Mountains. Not gentle hills. These were wide and dry and absolute.',malood:'The morning arrived wearing the face of peace. Its first lie.',world:'I think we didn\'t move to another country. We moved to another world.',three_words:'Three words learned. Not from a textbook. From a goat.',saeed:'He is not allowed to go to school.'};
+
+let state={started:false,totalPoints:0,currentSkill:null,activeTier:'foundation',skills:{},achievements:[],soundOn:true};
+let quiz={questions:[],idx:0,score:0,answers:[],streak:0,maxStreak:0,start:0,timer:null,hints:0,skillId:'',level:1,tier:'foundation'};
+let fcState={cards:[],current:0,category:'all'};let currentReturnPage='dashboard';let audioCtx=null;
+
+function load(){try{const s=localStorage.getItem('palmTree_v4');if(s)state=JSON.parse(s);}catch(e){}if(!state.skills||!Object.keys(state.skills).length){state.skills={};SKILLS.forEach(s=>{state.skills[s.id]={placed:false,placementScore:0,activeTier:'foundation',tiers:{foundation:{completed:{},currentLevel:1,totalScore:0,attempts:0},building:{completed:{},currentLevel:11,totalScore:0,attempts:0},mastery:{completed:{},currentLevel:21,totalScore:0,attempts:0}},totalScore:0,attempts:0};});}}
+function save(){try{localStorage.setItem('palmTree_v4',JSON.stringify(state));}catch(e){}}
+function srng(s){return function(){s=(s*16807)%2147483647;return(s-1)/2147483646;};}
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+function shuffle(a,r){const c=[...a];for(let i=c.length-1;i>0;i--){const j=Math.floor((r||Math.random)()*(i+1));[c[i],c[j]]=[c[j],c[i]];}return c;}
+function getA(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function tone(ok){try{const c=getA(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);if(ok){o.frequency.setValueAtTime(523,c.currentTime);o.frequency.setValueAtTime(659,c.currentTime+.1);o.frequency.setValueAtTime(784,c.currentTime+.2);}else{o.frequency.setValueAtTime(311,c.currentTime);o.frequency.setValueAtTime(277,c.currentTime+.15);}g.gain.setValueAtTime(.08,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.3);o.start(c.currentTime);o.stop(c.currentTime+.35);}catch(e){}}
+function confetti(){const cols=['#c8a24e','#b87333','#5a8a5e','#d4b896','#5a7a9a'];for(let i=0;i<25;i++){const el=document.createElement('div');el.className='confetti-piece';el.style.left=Math.random()*100+'vw';el.style.background=pick(cols);el.style.animationDelay=Math.random()+'s';el.style.animationDuration=(2+Math.random()*1.5)+'s';document.body.appendChild(el);setTimeout(()=>el.remove(),4000);}}
+
+// QUESTION GENERATOR
+function genQ(sid,tier,rng){
+  const tv=VOCAB.filter(v=>v.t===tier);
+  const easy=['morning','coffee','village','school'],med=['bosphorus','oud','falaj','heat'],hard=['father','malood','world','three_words'];
+  switch(sid){
+    case'reading':{const ek=tier==='foundation'?easy:tier==='building'?med:hard;const p=EX[pick(ek)];const c=tier==='foundation'?'A simple description':'A reflective literary passage';const o=shuffle([c,'A dialogue','A list of instructions','A news report'],rng);return{type:'mc',passage:p,question:'What type of writing is this?',options:o,answer:o.indexOf(c),pts:10,h_en:'Look at the style.',h_ar:'انظر الأسلوب'};}
+    case'vocabulary':{const v=pick(tv);const wr=tv.filter(x=>x.w!==v.w).slice(0,3).map(x=>x.m);const o=shuffle([v.m,...wr],rng);return{type:'mc',question:`"${v.w}" means...`,passage:`"${v.ctx}"`,options:o,answer:o.indexOf(v.m),pts:10,h_en:`Context: "${v.ctx}"`,h_ar:`السياق: "${v.ctx}"`};}
+    case'grammar':{const gs={foundation:[{s:'Thuraya ___ on a chair.',a:'sat',o:['sat','sits','sitting','is sat']},{s:'The children ___ into the yard.',a:'poured',o:['pours','poured','pouring','was poured']},{s:'She ___ in her book.',a:'was absorbed',o:['absorbed','was absorbing','was absorbed','is absorbed']}],building:[{s:'He spoke Arabic ___ a man returning.',a:'like',o:['like','as','similar','same']},{s:'He ___ not allowed.',a:'was',o:['was','is','did','has']},{s:'Sophia said she ___ nothing.',a:'didn\'t know',o:['doesn\'t know','didn\'t know','isn\'t knowing','hasn\'t known']}],mastery:[{s:'If he eats it, I ___ end this.',a:'will',o:['will','would','would have','am']},{s:'She continued ___.',a:'folding',o:['to fold','folding','folded','folds']},{s:'Without ___ it, she smiled.',a:'knowing',o:['know','knowing','known','to know']}]};const g=pick(gs[tier]);const o=shuffle([...g.o],rng);return{type:'mc',question:`Complete: "${g.s}"`,options:o,answer:o.indexOf(g.a),pts:10,h_en:'Think about tense.',h_ar:'فكر في الزمن'};}
+    case'writing':{const pr={foundation:['Write 2 sentences about a morning.'],building:['Write 3 sentences about the Bosphorus.'],mastery:['Write 4 sentences comparing two places.']};return{type:'text',question:pick(pr[tier]),pts:15,h_en:'Use descriptive language.',h_ar:'استخدم لغة وصفية'};}
+    case'speaking':{const wr={foundation:['morning','children'],building:['shimmering','aroma'],mastery:['Bosphorus','frankincense']};const w=pick(wr[tier]);return{type:'mc',question:`Pronounce: "${w}"`,options:shuffle([`/${w}/ syllables`, `/WRONG/`, `/ABCD/`, `/XYZ/`],rng),answer:0,pts:10,h_en:`Say "${w}" aloud.`,h_ar:`قل "${w}" بصوت عالٍ`};}
+    case'spelling':{const wr={foundation:['morning','school'],building:['shimmering','attention'],mastery:['uninterrupted','philosophical']};const w=pick(wr[tier]);return{type:'fill',question:`Unscramble: "${w.split('').sort(()=>rng()-.5).join('')}"`,answer:w.toLowerCase(),pts:10,h_en:`Starts with "${w[0]}", ${w.length} letters.`,h_ar:`تبدأ بـ "${w[0]}"، ${w.length} حروف`};}
+    case'listening':{const lq={foundation:[{p:'The morning had settled.',q:'What time?',o:['Morning','Afternoon','Night','Midday'],a:0}],building:[{p:'He spoke like a man returning.',q:'Device?',o:['Alliteration','Simile','Hyperbole','Onomatopoeia'],a:1}],mastery:[{p:'This was its first lie.',q:'What does "its" refer to?',o:['Room','Morning','Peace','Village'],a:1}]};const l=pick(lq[tier]);const o=shuffle([...l.o],rng);return{type:'mc',passage:l.p,question:l.q,options:o,answer:o.indexOf(l.o[l.a]),pts:10,h_en:'Read aloud.',h_ar:'اقرأ بصوت عالٍ'};}
+    default:return{type:'mc',question:'?',options:['A','B','C','D'],answer:0,pts:10};
+  }
+}
+
+// PLACEMENT
+function openPlacement(sid){state.currentSkill=sid;const sk=SKILLS.find(s=>s.id===sid);showPage('placement');document.getElementById('placementIntro').innerHTML=`<h2>${sk.icon} ${sk.name} — Placement Test</h2><p>This test determines your tier.</p><p style="color:var(--whisper);font-size:.85em">${PQ} questions</p><div class="placement-info"><div class="tier-row"><div>🌱</div><div><div style="color:#5a8a5e">Foundation</div><div style="font-size:.75em;color:var(--muted)">Start from Level 1</div></div></div><div class="tier-row"><div>🏗️</div><div><div style="color:#b87333">Building</div><div style="font-size:.75em;color:var(--muted)">Start from Level 11</div></div></div><div class="tier-row"><div>👑</div><div><div style="color:#c8a24e">Mastery</div><div style="font-size:.75em;color:var(--muted)">Start from Level 21</div></div></div></div><button class="start-btn" onclick="beginPlacement('${sid}')">Start Test</button>`;document.getElementById('placementQuiz').innerHTML='';setTimeout(()=>char3DSpeak('mohammed','This test finds your level!','هذا الاختبار يحدد مستواك!'),500);setTimeout(()=>char3DSpeak('fatma','I\'m here for hints!','أنا هنا للتلميحات!'),2500);}
+
+function beginPlacement(sid){const rng=srng(Date.now()),qs=[];['foundation','building','mastery'].forEach(t=>{for(let i=0;i<5;i++)qs.push(genQ(sid,t,rng));});quiz={questions:shuffle(qs,rng),idx:0,score:0,answers:[],streak:0,maxStreak:0,start:Date.now(),timer:null,hints:2,skillId:sid,level:0,tier:'placement'};document.getElementById('placementIntro').style.display='none';renderPQ();}
+
+function renderPQ(){const q=quiz.questions[quiz.idx];if(!q)return finishPlacement();const n=quiz.questions.length;document.getElementById('placementQuiz').innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 20px;margin-bottom:20px;display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:.7em;color:var(--muted)"><span>Q${quiz.idx+1}/${n}</span><span style="color:var(--gold)">${quiz.score}pts</span><span>🔥${quiz.streak}</span></div><div class="question-card">${q.passage?`<div class="question-passage">${q.passage}</div>`:''}<div class="question-text">${q.question}</div>${q.type==='mc'?renderOpts(q):q.type==='fill'?`<input type="text" class="fill-blank-input" id="pFill" placeholder="Type..." onkeypress="if(event.key==='Enter')subPF()">`:`<textarea class="text-answer" id="pText" placeholder="Write..."></textarea>`}</div>${q.type!=='mc'?`<div style="text-align:center"><button class="next-btn show" onclick="${q.type==='fill'?'subPF()':'subPT()'}">Submit</button></div>`:''}`;}
+
+function renderOpts(q){let h='<div class="options-list">';q.options.forEach((o,i)=>{h+=`<button class="option-btn" onclick="selPO(${i})"><span class="opt-letter">${String.fromCharCode(65+i)}</span><span>${o}</span></button>`;});return h+'</div>';}
+
+function selPO(i){const q=quiz.questions[quiz.idx];const b=document.querySelectorAll('.option-btn');b.forEach(x=>x.classList.add('disabled'));const ok=i===q.answer;b[i].classList.add(ok?'correct':'wrong');if(!ok)b[q.answer].classList.add('correct');procPA(ok,q.pts);}
+function subPF(){const q=quiz.questions[quiz.idx];const el=document.getElementById('pFill');const ok=el.value.trim().toLowerCase()===q.answer;el.classList.add(ok?'correct':'wrong');if(!ok){el.value=q.answer;el.style.color='var(--green)';}procPA(ok,q.pts);}
+function subPT(){const el=document.getElementById('pText');const w=el.value.trim().split(/\s+/).length;procPA(w>=5,Math.min(15,w*2));}
+
+function procPA(ok,mp){const pts=ok?mp:0;quiz.score+=pts;quiz.answers.push({ok,pts});if(ok){quiz.streak++;quiz.maxStreak=Math.max(quiz.maxStreak,quiz.streak);}else quiz.streak=0;if(state.soundOn)tone(ok);const fb=ok?{c:'correct',en:pick(['Correct!','Well done!','Excellent!']),ar:pick(['صحيح!','أحسنت!','ممتاز!'])}:{c:'wrong',en:pick(['Not quite.','Almost!','Keep trying!']),ar:pick(['ليس تماماً','تقريباً!','حاول!'])};const area=document.getElementById('placementQuiz');area.innerHTML+=`<div class="feedback-bar show ${fb.c}"><div>${fb.en}</div><div class="fb-ar">${fb.ar}</div></div>`;const btn=document.createElement('button');btn.className='next-btn show';btn.textContent='Next →';btn.style.cssText='display:block;margin:10px auto 0';btn.onclick=()=>{quiz.idx++;renderPQ();};area.appendChild(btn);char3DSpeak(ok?'fatma':'mohammed',fb.en,fb.ar);}
+
+function finishPlacement(){const total=quiz.questions.reduce((s,q)=>s+q.pts,0);const pct=Math.round(quiz.score/total*100);let tier='foundation',sl=1;if(pct>=80){tier='mastery';sl=21;}else if(pct>=50){tier='building';sl=11;}const sk=state.skills[quiz.skillId];sk.placed=true;sk.placementScore=pct;sk.activeTier=tier;sk.tiers[tier].currentLevel=sl;save();const skill=SKILLS.find(s=>s.id===quiz.skillId);const ti=TIERS[tier];if(pct>=50){confetti();char3DCelebrate('mohammed');char3DCelebrate('fatma');}document.getElementById('placementQuiz').innerHTML='';document.getElementById('placementIntro').style.display='block';document.getElementById('placementIntro').innerHTML=`<div style="font-size:3em;margin-bottom:10px">${ti.icon}</div><h2>Your Level: ${ti.name}</h2><p style="color:var(--sand)">Score: <strong>${pct}%</strong> · 🔥${quiz.maxStreak}</p><p style="color:var(--muted)">Starting at <strong style="color:${ti.color}">Level ${sl}</strong></p><button class="start-btn" onclick="openSkillLevels('${quiz.skillId}')" style="margin-top:20px">Start →</button><br><button class="back-btn" onclick="showPage('dashboard')" style="margin-top:10px">Back</button>`;char3DSpeak('fatma',`You placed in ${ti.name}! ${pct}%!`,`${pct}%! مستوى ${ti.name}!`);}
+
+// LEVEL QUIZ
+function startLevelQuiz(sid,tier,lv){const rng=srng(sid.charCodeAt(0)*1000+tier.charCodeAt(0)*100+lv);const qs=[];for(let i=0;i<QPL;i++)qs.push(genQ(sid,tier,rng));quiz={questions:qs,idx:0,score:0,answers:[],streak:0,maxStreak:0,start:Date.now(),timer:null,hints:3,skillId:sid,level:lv,tier};currentReturnPage='levels';showPage('quiz');const sk=SKILLS.find(s=>s.id===sid);setTimeout(()=>char3DSpeak('mohammed',`Level ${lv} of ${sk.name}!`,`${sk.name} — المستوى ${lv}!`),400);setTimeout(()=>char3DSpeak('fatma','Click me for hints!','انقر عليّ للتلميحات!'),2500);startQTimer();renderQ();}
+
+function startQTimer(){clearInterval(quiz.timer);quiz.timer=setInterval(()=>{const e=Math.floor((Date.now()-quiz.start)/1000);document.getElementById('qTimer').textContent=`${Math.floor(e/60)}:${(e%60).toString().padStart(2,'0')}`;},1000);}
+
+function renderQ(){const q=quiz.questions[quiz.idx];if(!q)return endLevelQuiz();const n=quiz.questions.length;document.getElementById('qNum').textContent=`${quiz.idx+1}/${n}`;document.getElementById('qScore').textContent=`${quiz.score}pts`;document.getElementById('qStreak').textContent=`🔥${quiz.streak}`;document.getElementById('quizProgressFill').style.width=`${(quiz.idx/n)*100}%`;document.getElementById('nextBtn').classList.remove('show');document.getElementById('hintBtn').disabled=false;document.getElementById('feedbackArea').innerHTML='';let h='<div class="question-card">';if(q.passage)h+=`<div class="question-passage">${q.passage}</div>`;h+=`<div class="question-text">${q.question}</div>`;if(q.type==='mc')h+=renderOpts(q);else if(q.type==='fill'){h+=`<input type="text" class="fill-blank-input" id="qFill" placeholder="Type..." onkeypress="if(event.key==='Enter')subQF()">`;h+=`<button class="next-btn show" onclick="subQF()" style="display:block;margin:8px auto 0">Submit</button>`;}else{h+=`<textarea class="text-answer" id="qText" placeholder="Write..."></textarea>`;h+=`<button class="next-btn show" onclick="subQT()" style="display:block;margin:8px auto 0">Submit</button>`;}h+='</div>';document.getElementById('questionArea').innerHTML=h;}
+
+function selQO(i){const q=quiz.questions[quiz.idx];const b=document.querySelectorAll('.option-btn');b.forEach(x=>x.classList.add('disabled'));const ok=i===q.answer;b[i].classList.add(ok?'correct':'wrong');if(!ok)b[q.answer].classList.add('correct');procQA(ok,q.pts);}
+function subQF(){const q=quiz.questions[quiz.idx];const el=document.getElementById('qFill');const ok=el.value.trim().toLowerCase()===q.answer;el.classList.add(ok?'correct':'wrong');if(!ok){el.value=q.answer;el.style.color='var(--green)';}procQA(ok,q.pts);}
+function subQT(){const el=document.getElementById('qText');const w=el.value.trim().split(/\s+/).length;procQA(w>=5,Math.min(25,w*2));}
+
+function procQA(ok,mp){const pts=ok?mp:0;quiz.score+=pts;quiz.answers.push({ok,pts});if(ok){quiz.streak++;quiz.maxStreak=Math.max(quiz.maxStreak,quiz.streak);if(quiz.streak>=3)quiz.score+=5;}else quiz.streak=0;document.getElementById('qScore').textContent=`${quiz.score}pts`;document.getElementById('qStreak').textContent=`🔥${quiz.streak}`;if(state.soundOn)tone(ok);const fb=ok?{c:'correct',en:pick(['Excellent!','Perfect!','Well done!']),ar:pick(['ممتاز!','صحيح!','أحسنت!'])}:{c:'wrong',en:pick(['Not quite.','Almost!','Keep going!']),ar:pick(['ليس تماماً','تقريباً!','استمر!'])};document.getElementById('feedbackArea').innerHTML=`<div class="feedback-bar show ${fb.c}"><div>${fb.en}</div><div class="fb-ar">${fb.ar}</div></div>`;document.getElementById('nextBtn').classList.add('show');char3DSpeak(ok?'fatma':'mohammed',fb.en,fb.ar);if(ok&&quiz.streak>=3)char3DCelebrate('fatma');}
+
+function nextQuestion(){quiz.idx++;renderQ();}
+function useHint(){if(quiz.hints<=0)return;quiz.hints--;const q=quiz.questions[quiz.idx];char3DSpeak(quiz.hints%2===0?'mohammed':'fatma',q.h_en||'Think!',q.h_ar||'فكر!');document.getElementById('hintBtn').disabled=true;}
+
+function endLevelQuiz(){clearInterval(quiz.timer);const max=quiz.questions.reduce((s,q)=>s+q.pts,0);const pct=Math.round(quiz.score/max*100);const stars=pct>=90?3:pct>=70?2:pct>=50?1:0;const sk=state.skills[quiz.skillId];const td=sk.tiers[quiz.tier];if(quiz.score>(td.completed[quiz.level]||0))td.completed[quiz.level]=quiz.score;if(stars>0){const nx=quiz.level+1;if(nx<=TIERS[quiz.tier].levels[1])td.currentLevel=Math.max(td.currentLevel,nx);if(Object.keys(td.completed).length>=LPT&&quiz.tier!=='mastery'){const nt=quiz.tier==='foundation'?'building':'mastery';sk.tiers[nt].currentLevel=TIERS[nt].levels[0];showAch({icon:TIERS[nt].icon,title:`${TIERS[nt].name} Unlocked!`,desc:`In ${SKILLS.find(s=>s.id===quiz.skillId).name}!`});}}td.totalScore=Object.values(td.completed).reduce((a,b)=>a+b,0);td.attempts++;sk.totalScore=Object.values(sk.tiers).reduce((a,t)=>a+t.totalScore,0);sk.attempts++;state.totalPoints=Object.values(state.skills).reduce((a,s)=>a+s.totalScore,0);checkAch(quiz.skillId,stars,pct);save();if(stars>0){confetti();char3DCelebrate('mohammed');char3DCelebrate('fatma');}document.getElementById('resultIcon').textContent=pct>=90?'🏆':pct>=70?'⭐':pct>=50?'👍':'📝';document.getElementById('resultStars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);document.getElementById('resultScore').textContent=`${pct}%`;document.getElementById('resultMessage').textContent=pct>=90?'Outstanding!':pct>=70?'Great work!':pct>=50?'Good effort!':'Keep practicing!';document.getElementById('resultDetail').textContent=`Score: ${quiz.score}/${max} · Streak: 🔥${quiz.maxStreak}`;document.getElementById('resultOverlay').classList.add('show');char3DSpeak('fatma',pct>=90?'MashaAllah! Perfect!':pct>=70?'Well done!':'You\'ll get it!',pct>=90?'ما شاء الله!':pct>=70?'أحسنت!':'ستحصل عليها!');updateNav();}
+
+function exitQuiz(){clearInterval(quiz.timer);showPage(currentReturnPage);}
+function retryLevel(){document.getElementById('resultOverlay').classList.remove('show');startLevelQuiz(quiz.skillId,quiz.tier,quiz.level);}
+function closeResult(){document.getElementById('resultOverlay').classList.remove('show');}
+
+// ACHIEVEMENTS
+function checkAch(sid,stars,pct){const a=[];if(!state.achievements.includes('first')&&stars>0){state.achievements.push('first');a.push({icon:'🌟',title:'First Steps',desc:'First level!'});}if(!state.achievements.includes('perfect')&&pct===100){state.achievements.push('perfect');a.push({icon:'💎',title:'Perfect!',desc:'100%!'});}if(!state.achievements.includes('s5')&&quiz.maxStreak>=5){state.achievements.push('s5');a.push({icon:'🔥',title:'On Fire!',desc:'5 streak!'});}if(!state.achievements.includes('1k')&&state.totalPoints>=1000){state.achievements.push('1k');a.push({icon:'🏆',title:'1000 Stars',desc:'1000 points!'});}if(a.length)setTimeout(()=>showAch(a[0]),1200);save();}
+function showAch(a){document.getElementById('achIcon').textContent=a.icon;document.getElementById('achTitle').textContent=a.title;document.getElementById('achDesc').textContent=a.desc;document.getElementById('achPopup').classList.add('show');setTimeout(()=>document.getElementById('achPopup').classList.remove('show'),4000);}
+
+// FLASHCARDS
+function initFC(cat){fcState.category=cat||'all';fcState.cards=cat==='all'?[...VOCAB]:VOCAB.filter(v=>v.t===cat);fcState.current=0;renderFC();}
+function renderFC(){if(!fcState.cards.length)return;const c=fcState.cards[fcState.current];document.getElementById('fcFront').textContent=c.w;document.getElementById('fcContext').textContent=`"${c.ctx}"`;document.getElementById('fcBack').textContent=c.m;document.getElementById('fcAr').textContent=c.ar;document.getElementById('fcCounter').textContent=`${fcState.current+1}/${fcState.cards.length}`;document.getElementById('flashcard').classList.remove('flipped');}
+function flipCard(){document.getElementById('flashcard').classList.toggle('flipped');}
+function nextCard(){fcState.current=(fcState.current+1)%fcState.cards.length;renderFC();}
+function prevCard(){fcState.current=(fcState.current-1+fcState.cards.length)%fcState.cards.length;renderFC();}
+
+// PAGES
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='dashboard')renderDash();if(id==='levels')renderLevels();if(id==='flashcards'){renderFCTabs();initFC('all');}if(id==='analyzer')renderAnalyzer();if(id==='certificates')renderCerts();if(id!=='landing'&&state.started){char3DShow();char3DPageGreeting(id);}updateNav();window.scrollTo(0,0);}
+
+function startApp(){state.started=true;document.getElementById('topNav').style.display='flex';showPage('dashboard');save();}
+
+function renderDash(){const td=Object.values(state.skills).reduce((a,s)=>a+Object.values(s.tiers).reduce((b,t)=>b+Object.keys(t.completed).length,0),0);document.getElementById('dashSubtext').textContent=td===0?'Take a placement test':'Every level brings you closer';document.getElementById('statsBar').innerHTML=`<div class="stat-item"><span class="stat-value">${state.totalPoints}</span><span class="stat-label">Points</span></div><div class="stat-item"><span class="stat-value">${td}</span><span class="stat-label">Levels</span></div><div class="stat-item"><span class="stat-value">${state.achievements.length}</span><span class="stat-label">Badges</span></div><div class="stat-item"><span class="stat-value">${Math.round(td/210*100)}%</span><span class="stat-label">Done</span></div>`;let g='';SKILLS.forEach(skill=>{const sk=state.skills[skill.id];const ad=Object.values(sk.tiers).reduce((a,t)=>a+Object.keys(t.completed).length,0);const pct=Math.round(ad/30*100);const circ=2*Math.PI*22;const off=circ-(pct/100)*circ;const tl=sk.placed?TIERS[sk.activeTier]:null;g+=`<div class="skill-card" onclick="${sk.placed?`openSkillLevels('${skill.id}')`:`openPlacement('${skill.id}')`}"><svg class="progress-ring" viewBox="0 0 54 54"><circle class="bg" cx="27" cy="27" r="22"/><circle class="fg" cx="27" cy="27" r="22" stroke="${skill.color}" stroke-dasharray="${circ}" stroke-dashoffset="${off}"/></svg><div class="skill-icon">${skill.icon}</div><div class="skill-name">${skill.name}</div><div class="skill-desc">${skill.desc}</div>${sk.placed?`<span class="skill-tier-badge ${tl.cssClass}">${tl.icon} ${tl.name}</span><div class="skill-progress"><div class="skill-progress-fill" style="width:${pct}%;background:${skill.color}"></div></div><div class="skill-meta"><span class="skill-level">Lv.${sk.tiers[sk.activeTier].currentLevel} · ${sk.totalScore}pts</span></div>`:`<span class="skill-tier-badge tier-untested">❓ Not Tested</span><button class="placement-btn" onclick="event.stopPropagation();openPlacement('${skill.id}')">Placement Test</button>`}</div>`;});document.getElementById('skillsGrid').innerHTML=g;}
+
+function openSkillLevels(sid){state.currentSkill=sid;state.activeTier=state.skills[sid].activeTier;showPage('levels');}
+
+function renderLevels(){const sid=state.currentSkill,skill=SKILLS.find(s=>s.id===sid),sk=state.skills[sid];document.getElementById('levelsTitle').textContent=`${skill.icon} ${skill.name}`;document.getElementById('levelsSub').textContent=`${TIERS[sk.activeTier].icon} ${TIERS[sk.activeTier].name}`;let tabs='';['foundation','building','mastery'].forEach(t=>{const tI=TIERS[t];const a=state.activeTier===t;const u=t==='foundation'||sk.tiers[t].currentLevel>tI.levels[0]||sk.activeTier===t||(t==='building'&&Object.keys(sk.tiers.foundation.completed).length>=8)||(t==='mastery'&&Object.keys(sk.tiers.building.completed).length>=8);tabs+=`<div class="tier-tab ${a?'active':''} ${u?'':'locked'}" onclick="${u?`selectTier('${t}')`:''}">${tI.icon} ${tI.name} ${u?'':'🔒'}</div>`;});document.getElementById('tierTabs').innerHTML=tabs;const at=state.activeTier,td=sk.tiers[at],[lo,hi]=TIERS[at].levels;let g='';for(let i=lo;i<=hi;i++){const done=td.completed[i]>0,cur=i===td.currentLevel,lk=i>td.currentLevel;const mx=QPL*12;const p=done?Math.round((td.completed[i]/mx)*100):0;const st=p>=90?'⭐⭐⭐':p>=70?'⭐⭐☆':p>=50?'⭐☆☆':'☆☆☆';g+=`<div class="level-card ${lk?'locked':''} ${done?'completed':''} ${cur&&!done?'current':''}" onclick="${lk?'':`startLevelQuiz('${sid}','${at}',${i})`}"><div class="level-num">${i}</div>${done?`<div class="level-stars">${st}</div><div class="level-score">${p}%</div>`:''}${lk?'<div style="color:var(--whisper);font-size:.75em">🔒</div>':''}</div>`;}document.getElementById('levelsGrid').innerHTML=g;}
+function selectTier(t){state.activeTier=t;renderLevels();}
+
+function renderAnalyzer(){let h='<div class="chart-container"><div class="chart-title">Skills</div><div class="radar-chart">';SKILLS.forEach(s=>{const d=Object.values(state.skills[s.id].tiers).reduce((a,t)=>a+Object.keys(t.completed).length,0);h+=`<div class="radar-item"><div class="radar-score">${Math.round(d/30*100)}%</div><div class="radar-label">${s.icon} ${s.name}</div></div>`;});h+='</div></div>';h+='<div class="chart-container"><div class="chart-title">Points</div><div class="bar-chart">';const mx=Math.max(...SKILLS.map(s=>state.skills[s.id].totalScore),1);SKILLS.forEach(s=>{const pts=state.skills[s.id].totalScore;h+=`<div class="bar" style="height:${Math.max(5,(pts/mx)*160)}px;background:linear-gradient(180deg,${s.color},${s.color}88)"><div class="bar-value">${pts}</div><div class="bar-label">${s.icon}</div></div>`;});h+='</div></div>';h+='<div class="chart-container"><div class="chart-title">Achievements</div><div style="display:flex;gap:12px;flex-wrap:wrap">';[{id:'first',i:'🌟',t:'First Steps'},{id:'perfect',i:'💎',t:'Perfect'},{id:'s5',i:'🔥',t:'On Fire'},{id:'1k',i:'🏆',t:'1000 Stars'}].forEach(a=>{const u=state.achievements.includes(a.id);h+=`<div style="padding:12px;background:${u?'var(--surface2)':'var(--surface)'};border:1px solid ${u?'var(--gold)':'var(--border)'};border-radius:8px;text-align:center;min-width:70px;opacity:${u?1:.3}"><div style="font-size:1.5em">${a.i}</div><div style="font-size:.6em;color:var(--muted);font-family:'DM Mono',monospace;margin-top:3px">${a.t}</div></div>`;});h+='</div></div>';document.getElementById('analyzerContent').innerHTML=h;}
+
+function renderCerts(){let h='';SKILLS.forEach(s=>{const sk=state.skills[s.id];const d=Object.values(sk.tiers).reduce((a,t)=>a+Object.keys(t.completed).length,0);const c=d>=30;h+=`<div class="cert-card ${c?'':'cert-locked'}"><div class="cert-badge">${c?'🏅':'🔒'}</div><div class="cert-skill">${s.icon} ${s.name}</div><div class="cert-title">Certificate</div>${c?`<div class="cert-name">Outstanding</div><p style="color:var(--muted)">All 30 levels. ${sk.totalScore}pts.</p>`:`<p style="color:var(--whisper)">Progress: ${d}/30</p>`}</div>`;});document.getElementById('certContent').innerHTML=h;}
+
+function renderFCTabs(){let h='<button class="fc-tab active" onclick="selFCT(this,\'all\')">All</button>';['foundation','building','mastery'].forEach(t=>{h+=`<button class="fc-tab" onclick="selFCT(this,'${t}')">${TIERS[t].icon} ${TIERS[t].name}</button>`;});document.getElementById('fcTabs').innerHTML=h;}
+function selFCT(el,cat){document.querySelectorAll('.fc-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');initFC(cat);}
+function updateNav(){document.getElementById('navPoints').textContent=`⭐ ${state.totalPoints}`;const mx=Math.max(...Object.values(state.skills).map(s=>s.tiers[s.activeTier]?.currentLevel||1));document.getElementById('navLevel').textContent=`Lvl ${mx}`;}
+function toggleSound(){state.soundOn=!state.soundOn;document.getElementById('soundBtn').textContent=state.soundOn?'🔊':'🔇';save();}
+
+// INIT
+load();updateNav();setInterval(save,30000);
+if(state.started){document.getElementById('topNav').style.display='flex';document.getElementById('landing').classList.remove('active');document.getElementById('dashboard').classList.add('active');renderDash();setTimeout(()=>{char3DShow();char3DPageGreeting('dashboard');},500);}
+</script>
+</body>
+</html>

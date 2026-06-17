@@ -12,9 +12,14 @@ ROOT = Path(__file__).resolve().parent.parent
 MARKER = "piper-client.js"
 SCRIPT_TAG = '<script src="/js/piper-client.js"></script>'
 
-# Find every HTML file that calls /api/tts. Use git grep so we stay within the repo.
+# Find every HTML file that speaks — either by calling /api/tts or by using
+# the browser's speechSynthesis. The shim hooks both, so any of them benefits.
 out = subprocess.check_output(
-    ["git", "-C", str(ROOT), "grep", "-l", "/api/tts"], text=True
+    [
+        "git", "-C", str(ROOT), "grep", "-l", "-E",
+        r"/api/tts|speechSynthesis|SpeechSynthesisUtterance",
+    ],
+    text=True,
 ).strip().splitlines()
 
 targets = [ROOT / p for p in out if p.endswith(".html")]

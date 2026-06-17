@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🌴 Fill the Story</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --green:#2d9e62; --greenl:#e8fdf2; --greenb:#7dd4a8;
+  --blue:#2878c4;  --bluel:#e6f4ff;  --blueb:#7ac0f0;
+  --gold:#d08000;  --goldl:#fff4e0;  --goldb:#f0c060;
+  --ink:#1a2030;   --bg:#f0f7ff;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Nunito',sans-serif;min-height:100vh;padding:14px 14px 60px}
+
+.header{background:linear-gradient(135deg,var(–green),var(–blue));border-radius:22px;padding:18px 20px;text-align:center;margin-bottom:14px;position:relative}
+.header h1{font-family:‘Fredoka One’,cursive;font-size:clamp(1.2rem,4vw,1.8rem);color:white}
+.header p{font-size:0.8rem;color:rgba(255,255,255,.82);margin-top:3px}
+.back-link{position:absolute;top:12px;left:14px;color:rgba(255,255,255,.8);text-decoration:none;font-size:0.75rem;font-weight:700;background:rgba(255,255,255,.15);padding:5px 12px;border-radius:20px}
+
+.scoreboard{background:white;border-radius:18px;padding:12px 18px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;box-shadow:0 4px 14px rgba(0,0,0,.06);margin-bottom:14px}
+.sc-item{text-align:center}
+.sc-val{font-family:‘Fredoka One’,cursive;font-size:1.5rem;line-height:1}
+.sc-lbl{font-size:0.62rem;font-weight:800;color:#90a0b8;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+.sc-div{width:1px;background:#e8eef4}
+
+.level-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;justify-content:center}
+.lvl-btn{padding:9px 20px;border-radius:20px;font-size:0.82rem;font-weight:800;cursor:pointer;border:2.5px solid transparent;transition:all 0.2s;font-family:‘Nunito’,sans-serif}
+.lvl-btn.l1{background:var(–greenl);color:var(–green);border-color:var(–greenb)}
+.lvl-btn.l2{background:var(–bluel);color:var(–blue);border-color:var(–blueb)}
+.lvl-btn.l3{background:var(–goldl);color:var(–gold);border-color:var(–goldb)}
+.lvl-btn.active{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.12);color:white}
+.lvl-btn.l1.active{background:var(–green)}
+.lvl-btn.l2.active{background:var(–blue)}
+.lvl-btn.l3.active{background:var(–gold)}
+
+/* STORY CARD */
+.story-card{background:white;border-radius:24px;padding:20px;box-shadow:0 4px 20px rgba(0,0,0,.07);margin-bottom:14px;max-width:760px;margin-left:auto;margin-right:auto}
+.story-meta{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.story-num{font-family:‘Fredoka One’,cursive;font-size:.75rem;color:white;background:var(–blue);padding:4px 12px;border-radius:20px}
+.story-title{font-family:‘Fredoka One’,cursive;font-size:1rem;color:var(–ink)}
+.story-ref{font-size:.7rem;color:#90a0b8;margin-left:auto}
+
+/* WORD BANK */
+.bank-wrap{background:var(–greenl);border:2px solid var(–greenb);border-radius:16px;padding:12px 16px;margin-bottom:16px}
+.bank-label{font-size:.68rem;font-weight:800;color:var(–green);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px}
+.bank-chips{display:flex;flex-wrap:wrap;gap:7px}
+.bank-chip{
+background:white;border:2px solid var(–greenb);
+color:var(–green);border-radius:20px;
+padding:5px 14px;font-size:.82rem;font-weight:800;
+cursor:pointer;transition:all .18s;user-select:none;
+}
+.bank-chip:hover{background:var(–green);color:white;transform:translateY(-2px)}
+.bank-chip.used{opacity:.35;cursor:not-allowed;transform:none;pointer-events:none}
+
+/* PASSAGE */
+.passage{
+font-family:‘Cormorant Garamond’,serif;
+font-size:clamp(1rem,2.5vw,1.15rem);
+line-height:2.1;
+color:var(–ink);
+background:var(–goldl);
+border:2px solid var(–goldb);
+border-radius:16px;
+padding:18px 20px;
+margin-bottom:14px;
+}
+
+/* BLANK input */
+.blank-wrap{display:inline-block;position:relative;vertical-align:middle;margin:0 3px}
+.blank-input{
+border:none;border-bottom:3px solid var(–blue);
+background:rgba(40,120,196,.06);
+font-family:‘Cormorant Garamond’,serif;
+font-size:clamp(1rem,2.5vw,1.15rem);
+font-weight:700;color:var(–blue);
+text-align:center;outline:none;
+padding:2px 6px;border-radius:4px 4px 0 0;
+min-width:80px;width:auto;
+transition:all .2s;
+cursor:pointer;
+}
+.blank-input:focus{background:var(–bluel);border-bottom-color:var(–blue)}
+.blank-input.correct{background:var(–greenl);border-bottom-color:var(–green);color:var(–green)}
+.blank-input.wrong{background:#fff0f0;border-bottom-color:#c04040;color:#c04040;animation:shake .3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+/* ARABIC PASSAGE (shown after check) */
+.passage-ar{
+font-size:.92rem;line-height:1.85;color:#5070a0;
+direction:rtl;text-align:right;font-style:italic;
+margin-top:12px;display:none;
+}
+.passage-ar.show{display:block}
+
+/* BUTTONS */
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-bottom:10px}
+.btn-check{background:linear-gradient(135deg,var(–green),var(–blue));color:white;border:none;font-family:‘Fredoka One’,cursive;font-size:.95rem;padding:12px 28px;border-radius:18px;cursor:pointer;box-shadow:0 4px 14px rgba(40,120,196,.2);transition:all .25s}
+.btn-check:hover{transform:translateY(-2px)}
+.btn-clear{background:#f0f4f8;border:none;color:#7090a8;font-family:‘Nunito’,sans-serif;font-weight:700;font-size:.82rem;padding:10px 20px;border-radius:16px;cursor:pointer}
+.btn-next{background:linear-gradient(135deg,var(–gold),#e06820);color:white;border:none;font-family:‘Fredoka One’,cursive;font-size:.95rem;padding:12px 28px;border-radius:18px;cursor:pointer;display:none;transition:all .25s}
+.btn-next:hover{transform:translateY(-2px)}
+
+/* FEEDBACK */
+.fb-bar{border-radius:14px;padding:11px 16px;font-weight:700;font-size:.88rem;display:none;margin-bottom:12px;line-height:1.55}
+.fb-bar.ok{background:var(–greenl);border:2px solid var(–greenb);color:var(–green);display:block}
+.fb-bar.no{background:#fff0f0;border:2px solid #f09090;color:#c04040;display:block}
+
+/* PROGRESS */
+.progress-wrap{background:#e0eaf4;border-radius:20px;height:8px;overflow:hidden;margin-bottom:14px;max-width:760px;margin-left:auto;margin-right:auto}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(–green),var(–blue));border-radius:20px;transition:width .5s ease}
+
+/* WIN */
+#winOverlay{display:none;position:fixed;inset:0;background:rgba(10,20,40,.55);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:20px}
+#winOverlay.show{display:flex}
+.win-card{background:white;border-radius:26px;padding:36px 28px;text-align:center;width:100%;max-width:380px;animation:popIn .45s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popIn{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+.win-palm{font-size:3.5rem;animation:sway 4s ease-in-out infinite;display:block;margin-bottom:8px}
+@keyframes sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+.win-title{font-family:‘Fredoka One’,cursive;font-size:1.8rem;color:var(–green);margin-bottom:6px}
+.win-score{font-family:‘Fredoka One’,cursive;font-size:2.8rem;color:var(–blue);margin:8px 0}
+.win-msg{font-size:.9rem;color:#5080a0;font-style:italic;margin-bottom:20px;line-height:1.6}
+.btn-again{background:linear-gradient(135deg,var(–green),var(–blue));color:white;border:none;font-family:‘Nunito’,sans-serif;font-weight:800;font-size:.95rem;padding:13px 32px;border-radius:20px;cursor:pointer;margin:4px;transition:all .25s}
+.btn-again:hover{transform:translateY(-3px)}
+</style>
+
+
+</head>
+<body>
+
+<div class="header">
+  <a class="back-link" href="index.html">← Home</a>
+  <h1>📖 Fill the Story</h1>
+  <p>Fill the blanks — then read the story aloud! 🌴</p>
+</div>
+
+<div class="scoreboard">
+  <div class="sc-item"><div class="sc-val" id="scCorrect" style="color:var(--green)">0</div><div class="sc-lbl">Correct</div></div>
+  <div class="sc-div"></div>
+  <div class="sc-item"><div class="sc-val" id="scScore" style="color:var(--blue)">0</div><div class="sc-lbl">Score</div></div>
+  <div class="sc-div"></div>
+  <div class="sc-item"><div class="sc-val" id="scStory" style="color:var(--gold)">1/4</div><div class="sc-lbl">Story</div></div>
+  <div class="sc-div"></div>
+  <div class="sc-item"><div class="sc-val" id="scTime" style="color:#7040c0">0s</div><div class="sc-lbl">Time</div></div>
+</div>
+
+<div class="level-row">
+  <button class="lvl-btn l1 active" id="lvl1" onclick="startLevel(1)">🌱 Level 1 — Simple Present</button>
+  <button class="lvl-btn l2"        id="lvl2" onclick="startLevel(2)">🌴 Level 2 — Simple Past</button>
+  <button class="lvl-btn l3"        id="lvl3" onclick="startLevel(3)">⭐ Level 3 — Mixed Tenses</button>
+</div>
+
+<div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+
+<div id="storyArea"></div>
+
+<div id="winOverlay">
+  <div class="win-card">
+    <span class="win-palm">🌴</span>
+    <div class="win-title">Stories Complete!</div>
+    <div class="win-score" id="winScore">0 pts</div>
+    <div class="win-msg" id="winMsg"></div>
+    <button class="btn-again" onclick="startLevel(currentLevel)">🔄 Play Again</button>
+    <button class="btn-again" style="background:linear-gradient(135deg,var(--gold),#e06820)" onclick="nextLevel()">Next Level →</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// STORIES DATA
+//
+// Each story has:
+//   title, ref (story reference)
+//   parts: array of strings and blank objects
+//     { blank: true, answer: 'WORD', hint: 'grammar hint' }
+//   bank: the word bank (includes answer + 1-2 distractors)
+//   passageAr: Arabic translation shown after checking
+//
+// The passage is constructed by joining the parts —
+// strings render as text, blanks render as input fields.
+// ══════════════════════════════════════════════════════
+
+const STORY_SETS = {
+
+  // ── LEVEL 1: Simple Present ──────────────────────────
+  1: [
+    {
+      title: 'Thuraya and the Classroom',
+      ref: 'Stories 1–3',
+      bank: ['teaches','carries','walks','goes','has','gives','says'],
+      passage: [
+        'Every morning, Thuraya ',
+        {blank:true, answer:'walks', hint:'She/simple present'},
+        ' to school early. She is an English teacher who ',
+        {blank:true, answer:'teaches', hint:'He/She/It → verb+s'},
+        ' her students with patience and care. The falaj ',
+        {blank:true, answer:'carries', hint:'It → carry+ies'},
+        ' water past the school yard. When class begins, Thuraya ',
+        {blank:true, answer:'says', hint:'She → say+s'},
+        ' "Good morning!" — and the whole class answers together.'
+      ],
+      passageAr: 'كل صباح، ثريا تمشي للمدرسة مبكراً. هي معلمة إنجليزية تُدرّس طلابها بصبر واهتمام. الفلج يحمل الماء بجانب ساحة المدرسة. حين تبدأ الحصة، ثريا تقول "صباح الخير!" — ويجيب الصف كله معاً.'
+    },
+    {
+      title: 'Sadoo\'s Amazing Dokan',
+      ref: 'Story 8',
+      bank: ['has','sells','climbs','knows','works','opens','fixes'],
+      passage: [
+        'Sadoo ',
+        {blank:true, answer:'has', hint:'He → have → has'},
+        ' the most famous shop in Al-Qurawashiyah. He ',
+        {blank:true, answer:'sells', hint:'He/sell+s'},
+        ' everything the village needs. Every week, Sadoo ',
+        {blank:true, answer:'climbs', hint:'He/climb+s'},
+        ' the tallest palm tree to harvest the dates. He also ',
+        {blank:true, answer:'fixes', hint:'He/fix+es'},
+        ' things that are broken. John ',
+        {blank:true, answer:'knows', hint:'He/know+s'},
+        ' Sadoo is the real hero of the village.'
+      ],
+      passageAr: 'سادو عنده أشهر دكان في القرواشية. يبيع كل ما تحتاجه القرية. كل أسبوع يتسلق أطول نخلة ليجمع الرطب. ويصلح الأشياء المكسورة أيضاً. جون يعلم أن سادو هو البطل الحقيقي للقرية.'
+    },
+    {
+      title: 'The Falaj Every Day',
+      ref: 'Story 2',
+      bank: ['flows','gives','runs','waters','brings','feeds','passes'],
+      passage: [
+        'The falaj ',
+        {blank:true, answer:'flows', hint:'It → flow+s'},
+        ' from the mountains to the village every single day. It ',
+        {blank:true, answer:'brings', hint:'It → bring+s'},
+        ' fresh water to every house and farm. It also ',
+        {blank:true, answer:'waters', hint:'It → water+s'},
+        ' the palm trees and the fields. The palm tree ',
+        {blank:true, answer:'gives', hint:'It → give+s'},
+        ' shade and dates. Together, the falaj and the palm tree ',
+        {blank:true, answer:'feeds', hint:'It → feed+s (IRREGULAR!)'},
+        ' the whole village.'
+      ],
+      passageAr: 'الفلج يجري من الجبال إلى القرية كل يوم. يجلب الماء العذب لكل بيت ومزرعة. يسقي النخيل والحقول أيضاً. النخلة تعطي الظل والرطب. معاً، الفلج والنخلة يُطعمان القرية كاملة.'
+    },
+    {
+      title: 'What Can You Do?',
+      ref: 'Story 11',
+      bank: ['can','run','watch','listen','laugh','read','write'],
+      passage: [
+        'John asks every student: "What ',
+        {blank:true, answer:'can', hint:'Modal verb — same for all subjects'},
+        ' you do?" Mansoor says: "I can ',
+        {blank:true, answer:'run', hint:'Base verb after can'},
+        '!" Khalil says: "I can make everyone ',
+        {blank:true, answer:'laugh', hint:'Base verb after can'},
+        '!" Then Khamees says quietly: "I can ',
+        {blank:true, answer:'watch', hint:'Base verb after can'},
+        '. And I can ',
+        {blank:true, answer:'listen', hint:'Base verb after can'},
+        '. And watching and listening — that is how I ',
+        {blank:true, answer:'learn', hint:'Base verb — how I...'},
+        '."'
+      ],
+      bank: ['can','run','watch','listen','laugh','learn','write'],
+      passageAr: 'جون يسأل كل طالب: "ماذا تستطيع أن تفعل؟" منصور يقول: "أستطيع الركض!" خليل يقول: "أستطيع أن أجعل الجميع يضحك!" ثم خميس يقول بهدوء: "أستطيع المراقبة. والإنصات. والمراقبة والإنصات — هكذا أتعلم."'
+    }
+  ],
+
+  // ── LEVEL 2: Simple Past ──────────────────────────────
+  2: [
+    {
+      title: 'The Day John Arrived',
+      ref: 'Story 1',
+      bank: ['received','sat','arrived','said','looked','held','smiled'],
+      passage: [
+        'One morning, John ',
+        {blank:true, answer:'received', hint:'receive+d — regular past'},
+        ' a letter from Oman. He ',
+        {blank:true, answer:'sat', hint:'sit → sat — IRREGULAR'},
+        ' at his wooden table and ',
+        {blank:true, answer:'held', hint:'hold → held — IRREGULAR'},
+        ' the letter in his hand. He ',
+        {blank:true, answer:'looked', hint:'look+ed — regular past'},
+        ' at Sophia across the room. "I got the job," he ',
+        {blank:true, answer:'said', hint:'say → said — IRREGULAR'},
+        '. Sophia ',
+        {blank:true, answer:'smiled', hint:'smile+d — regular past'},
+        '.'
+      ],
+      passageAr: 'ذات صباح، استلم جون رسالة من عُمان. جلس على طاولته الخشبية وأمسك الرسالة بيده. نظر إلى صوفيا في الغرفة. قال: "حصلت على الوظيفة." ابتسمت صوفيا.'
+    },
+    {
+      title: 'The Wasp Incident',
+      ref: 'Story 5',
+      bank: ['landed','froze','picked','moved','flew','laughed','felt'],
+      passage: [
+        'A wasp ',
+        {blank:true, answer:'landed', hint:'land+ed — regular past'},
+        ' on John\'s shoulder. Everyone ',
+        {blank:true, answer:'froze', hint:'freeze → froze — IRREGULAR'},
+        '. Mansoor ',
+        {blank:true, answer:'picked', hint:'pick+ed — regular past'},
+        ' up a thin stick. He slowly ',
+        {blank:true, answer:'moved', hint:'move+d — regular past'},
+        ' it near the wasp. The wasp ',
+        {blank:true, answer:'flew', hint:'fly → flew — IRREGULAR'},
+        ' away. The class ',
+        {blank:true, answer:'laughed', hint:'laugh+ed — regular past'},
+        ' and everyone ',
+        {blank:true, answer:'felt', hint:'feel → felt — IRREGULAR'},
+        ' relief.'
+      ],
+      passageAr: 'جلس دبّور على كتف جون. تجمّد الجميع. التقط منصور عصا رفيعة. حرّكها ببطء نحو الدبّور. طار الدبّور. ضحك الصف وشعر الجميع بالارتياح.'
+    },
+    {
+      title: 'Sophia at the Salon',
+      ref: 'Story 7',
+      bank: ['visited','applied','waited','turned','froze','said','laughed'],
+      passage: [
+        'Sophia ',
+        {blank:true, answer:'visited', hint:'visit+ed — regular past'},
+        ' Marhoona\'s salon. Marhoona ',
+        {blank:true, answer:'applied', hint:'apply → applied — y to i+ed'},
+        ' a mixture of sandalwood and saffron to her face. They ',
+        {blank:true, answer:'waited', hint:'wait+ed — regular past'},
+        '. When Sophia looked in the mirror she ',
+        {blank:true, answer:'froze', hint:'freeze → froze — IRREGULAR'},
+        '. Her face had ',
+        {blank:true, answer:'turned', hint:'turn+ed — regular past'},
+        ' yellow. Marhoona ',
+        {blank:true, answer:'said', hint:'say → said — IRREGULAR'},
+        ' calmly: "It will go." John ',
+        {blank:true, answer:'laughed', hint:'laugh+ed — regular past'},
+        ' when he saw her.'
+      ],
+      passageAr: 'زارت صوفيا صالون مرهونة. طبّقت مرهونة خليطاً من الصندل والزعفران على وجهها. انتظرتا. حين نظرت صوفيا للمرآة تجمّدت. وجهها اصفرّ. قالت مرهونة بهدوء: "سيزول." ضحك جون حين رآها.'
+    },
+    {
+      title: 'Khamees Practiced',
+      ref: 'Story 12',
+      bank: ['came','sat','wrote','erased','raised','read','smiled'],
+      passage: [
+        'Every morning, Khamees ',
+        {blank:true, answer:'came', hint:'come → came — IRREGULAR'},
+        ' to school early. He ',
+        {blank:true, answer:'sat', hint:'sit → sat — IRREGULAR'},
+        ' near the window and ',
+        {blank:true, answer:'wrote', hint:'write → wrote — IRREGULAR'},
+        ' letters again and again. He ',
+        {blank:true, answer:'erased', hint:'erase+d — regular past'},
+        ' them and wrote again. When John ',
+        {blank:true, answer:'read', hint:'read → read (past, same spelling, different sound)'},
+        ' the sentence aloud, Khamees slowly ',
+        {blank:true, answer:'raised', hint:'raise+d — regular past'},
+        ' his hand and ',
+        {blank:true, answer:'read', hint:'read the sentence — same verb!'},
+        ' it correctly.'
+      ],
+      bank: ['came','sat','wrote','erased','raised','read','smiled'],
+      passageAr: 'كل صباح كان خميس يأتي للمدرسة مبكراً. يجلس بجانب النافذة ويكتب الحروف مراراً. يمحوها ويكتب من جديد. حين قرأ جون الجملة بصوت عالٍ، رفع خميس ببطء يده وقرأها بشكل صحيح.'
+    }
+  ],
+
+  // ── LEVEL 3: Mixed Tenses ────────────────────────────
+  3: [
+    {
+      title: 'From Then to Now',
+      ref: 'Stories 1–12',
+      bank: ['arrived','teaches','will remember','came','lives','will continue'],
+      passage: [
+        'John ',
+        {blank:true, answer:'arrived', hint:'Past: he arrived once'},
+        ' in Al-Qurawashiyah on a warm morning. Now he ',
+        {blank:true, answer:'teaches', hint:'Present: he teaches every day'},
+        ' English to the children every single day. Thuraya ',
+        {blank:true, answer:'came', hint:'Past: she came to meet them'},
+        ' to the airport and welcomed them. She still ',
+        {blank:true, answer:'lives', hint:'Present: she still lives there'},
+        ' in the village. The children ',
+        {blank:true, answer:'will remember', hint:'Future: they will always remember'},
+        ' these lessons forever. The adventure ',
+        {blank:true, answer:'will continue', hint:'Future: it will continue'},
+        '.'
+      ],
+      passageAr: 'وصل جون إلى القرواشية في صباح دافئ. الآن يدرّس الإنجليزية للأطفال كل يوم. جاءت ثريا للمطار ورحّبت بهم. لا تزال تعيش في القرية. الأطفال سيتذكرون هذه الدروس إلى الأبد. المغامرة ستستمر.'
+    },
+    {
+      title: 'The Falaj: Past, Present, Future',
+      ref: 'Story 2',
+      bank: ['has flowed','flows','will flow','carried','carries','will carry'],
+      passage: [
+        'Long ago, the falaj ',
+        {blank:true, answer:'carried', hint:'Past: it carried water long ago'},
+        ' water through the same stone channels. Today, it ',
+        {blank:true, answer:'flows', hint:'Present: it flows every day'},
+        ' past the mud houses of Al-Qurawashiyah. It ',
+        {blank:true, answer:'carries', hint:'Present: it carries everything'},
+        ' water, stories, memories. One day, it ',
+        {blank:true, answer:'will flow', hint:'Future: will + base verb'},
+        ' past houses that do not exist yet. It ',
+        {blank:true, answer:'will carry', hint:'Future: will + base verb'},
+        ' the stories of children who have not been born yet.'
+      ],
+      passageAr: 'منذ زمن بعيد، حمل الفلج الماء عبر نفس قنوات الحجارة. اليوم يجري بجانب البيوت الطينية للقرواشية. يحمل الماء والقصص والذكريات. يوماً ما سيجري بجانب بيوت لم توجد بعد. سيحمل قصص أطفال لم يولدوا بعد.'
+    },
+    {
+      title: 'Thuraya\'s Big Three',
+      ref: 'All Stories',
+      bank: ['wrote','writes','will write','taught','teaches','will teach'],
+      passage: [
+        'Thuraya ',
+        {blank:true, answer:'wrote', hint:'Past: she wrote the first story'},
+        ' the first story of Al-Qurawashiyah in 1973. Now she ',
+        {blank:true, answer:'writes', hint:'Present: she writes every day'},
+        ' a new chapter every day. One day she ',
+        {blank:true, answer:'will write', hint:'Future: will + base verb'},
+        ' the final story — in 2027. She ',
+        {blank:true, answer:'taught', hint:'Past: teach → taught — IRREGULAR'},
+        ' John how the village works. Now she ',
+        {blank:true, answer:'teaches', hint:'Present: she teaches now'},
+        ' him the deeper secrets. Soon she ',
+        {blank:true, answer:'will teach', hint:'Future: will + base verb'},
+        ' him the last one.'
+      ],
+      passageAr: 'كتبت ثريا أول قصة للقرواشية عام 1973. الآن تكتب فصلاً جديداً كل يوم. يوماً ما ستكتب القصة الأخيرة — عام 2027. علّمت جون كيف تعمل القرية. الآن تعلّمه الأسرار الأعمق. قريباً ستعلّمه السر الأخير.'
+    },
+    {
+      title: 'A Day That Changed Everything',
+      ref: 'Stories 3 & 12',
+      bank: ['was','is','will be','said','says','will say','began','begins','will begin'],
+      passage: [
+        'The first day of school ',
+        {blank:true, answer:'was', hint:'Past: it was the first day'},
+        ' unlike anything John expected. Now every day ',
+        {blank:true, answer:'is', hint:'Present: every day is…'},
+        ' a new surprise. Tomorrow ',
+        {blank:true, answer:'will be', hint:'Future: will + base verb be'},
+        ' even better. That first day, a child ',
+        {blank:true, answer:'said', hint:'Past: say → said'},
+        ' "Good morning" for the first time. Now Khamees ',
+        {blank:true, answer:'says', hint:'Present: he says it daily'},
+        ' it with full confidence. One day he ',
+        {blank:true, answer:'will say', hint:'Future: will + base verb'},
+        ' it to his own students.'
+      ],
+      passageAr: 'كان اليوم الأول للمدرسة مختلفاً عن كل توقعات جون. الآن كل يوم هو مفاجأة جديدة. غداً سيكون أفضل. في ذلك اليوم الأول، قال طفل "صباح الخير" للمرة الأولى. الآن يقولها خميس بكامل الثقة. يوماً ما سيقولها لطلابه هو.'
+    }
+  ]
+};
+
+// ── STATE ──
+let currentLevel = 1;
+let currentStoryIdx = 0;
+let score = 0;
+let totalCorrect = 0;
+let timerSec = 0;
+let timerID = null;
+let checked = false;
+
+function startLevel(lvl) {
+  currentLevel = lvl;
+  [1,2,3].forEach(i => document.getElementById('lvl'+i).classList.toggle('active', i===lvl));
+  currentStoryIdx = 0;
+  score = 0;
+  totalCorrect = 0;
+  timerSec = 0;
+  checked = false;
+  clearInterval(timerID);
+  timerID = setInterval(() => {
+    timerSec++;
+    document.getElementById('scTime').textContent = timerSec + 's';
+  }, 1000);
+  renderStory();
+  updateScoreboard();
+}
+
+function renderStory() {
+  const stories = STORY_SETS[currentLevel];
+  const story = stories[currentStoryIdx];
+  checked = false;
+  updateProgress();
+
+  // Build HTML
+  let html = `
+    <div class="story-card">
+      <div class="story-meta">
+        <span class="story-num">Story ${currentStoryIdx + 1} of ${stories.length}</span>
+        <span class="story-title">${story.title}</span>
+        <span class="story-ref">${story.ref}</span>
+      </div>
+
+      <!-- Word Bank -->
+      <div class="bank-wrap">
+        <div class="bank-label">📚 Word Bank — بنك الكلمات</div>
+        <div class="bank-chips">
+          ${story.bank.map(w => `<span class="bank-chip" onclick="fillFromBank('${w}')">${w}</span>`).join('')}
+        </div>
+      </div>
+
+      <!-- Passage -->
+      <div class="passage" id="passage">`;
+
+  story.passage.forEach((part, i) => {
+    if (typeof part === 'string') {
+      html += part;
+    } else {
+      html += `<span class="blank-wrap">
+        <input class="blank-input" id="blank-${i}"
+          data-answer="${part.answer}"
+          data-hint="${part.hint}"
+          size="${Math.max(8, part.answer.length + 2)}"
+          placeholder="___"
+          oninput="onBlankInput(this)"
+          autocomplete="off" autocorrect="off" spellcheck="false"
+        />
+      </span>`;
+    }
+  });
+
+  html += `
+        <div class="passage-ar" id="passageAr">${story.passageAr}</div>
+      </div>
+
+      <div class="fb-bar" id="fbBar"></div>
+
+      <div class="btn-row">
+        <button class="btn-clear" onclick="clearBlanks()">✕ Clear</button>
+        <button class="btn-next" id="btnNext" onclick="nextStory()">Next Story →</button>
+        <button class="btn-check" onclick="checkStory()">✅ Check</button>
+      </div>
+    </div>`;
+
+  document.getElementById('storyArea').innerHTML = html;
+  document.getElementById('scStory').textContent = (currentStoryIdx+1) + '/' + stories.length;
+}
+
+// ── FILL FROM BANK ──
+function fillFromBank(word) {
+  if (checked) return;
+  // Find first empty blank
+  const inputs = document.querySelectorAll('.blank-input');
+  for (let inp of inputs) {
+    if (!inp.value) {
+      inp.value = word;
+      // Mark chip as used
+      document.querySelectorAll('.bank-chip').forEach(chip => {
+        if (chip.textContent === word && !chip.classList.contains('used')) {
+          chip.classList.add('used');
+          return;
+        }
+      });
+      inp.focus();
+      break;
+    }
+  }
+}
+
+function onBlankInput(inp) {
+  // Auto-resize
+  inp.size = Math.max(8, inp.value.length + 2);
+}
+
+function clearBlanks() {
+  document.querySelectorAll('.blank-input').forEach(inp => {
+    inp.value = '';
+    inp.className = 'blank-input';
+    inp.size = 8;
+  });
+  document.querySelectorAll('.bank-chip').forEach(c => c.classList.remove('used'));
+  document.getElementById('fbBar').className = 'fb-bar';
+  document.getElementById('fbBar').textContent = '';
+  document.getElementById('btnNext').style.display = 'none';
+  document.getElementById('passageAr').classList.remove('show');
+  checked = false;
+}
+
+// ── CHECK ──
+function checkStory() {
+  if (checked) return;
+  checked = true;
+
+  const inputs = document.querySelectorAll('.blank-input');
+  let correct = 0;
+  let total = inputs.length;
+
+  inputs.forEach(inp => {
+    const userVal = inp.value.trim().toLowerCase();
+    const answer  = inp.dataset.answer.toLowerCase();
+    if (userVal === answer) {
+      inp.className = 'blank-input correct';
+      correct++;
+    } else {
+      inp.className = 'blank-input wrong';
+      // Show correct answer after shake
+      setTimeout(() => {
+        inp.value = inp.dataset.answer;
+        inp.className = 'blank-input correct';
+        inp.style.opacity = '.6';
+      }, 700);
+    }
+  });
+
+  totalCorrect += correct;
+  const pts = correct * 15 + (correct === total ? 20 : 0); // bonus for perfect
+  score += pts;
+  updateScoreboard();
+
+  const fb = document.getElementById('fbBar');
+  if (correct === total) {
+    fb.className = 'fb-bar ok';
+    fb.textContent = `🌟 Perfect! All ${total} correct! +${pts} pts`;
+  } else {
+    fb.className = 'fb-bar no';
+    fb.textContent = `${correct}/${total} correct. +${pts} pts — Keep going! 🌴`;
+  }
+
+  // Show Arabic translation
+  document.getElementById('passageAr').classList.add('show');
+  document.getElementById('btnNext').style.display = 'block';
+}
+
+function nextStory() {
+  const stories = STORY_SETS[currentLevel];
+  currentStoryIdx++;
+  if (currentStoryIdx >= stories.length) {
+    showWin();
+  } else {
+    renderStory();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+}
+
+function updateProgress() {
+  const stories = STORY_SETS[currentLevel];
+  const pct = stories.length ? (currentStoryIdx / stories.length * 100) : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
+function updateScoreboard() {
+  document.getElementById('scCorrect').textContent = totalCorrect;
+  document.getElementById('scScore').textContent   = score;
+}
+
+function showWin() {
+  clearInterval(timerID);
+  const stories = STORY_SETS[currentLevel];
+  const totalBlanks = stories.reduce((sum, s) => sum + s.passage.filter(p => typeof p !== 'string').length, 0);
+  document.getElementById('winScore').textContent = score + ' pts';
+  const pct = totalBlanks ? Math.round(totalCorrect / totalBlanks * 100) : 0;
+  const msg = pct === 100 ? '🌟 Perfect! Every single blank was correct!'
+            : pct >= 80   ? '🌴 Excellent! Strong grammar and vocabulary!'
+            : pct >= 60   ? '✦ Good work! Review the tenses and try again.'
+            :               '💪 Keep practising — the stories are always here!';
+  document.getElementById('winMsg').innerHTML = `${msg}<br><span style="font-size:.8rem;color:#7090a8">Accuracy: ${pct}% | Time: ${timerSec}s</span>`;
+  document.getElementById('winOverlay').classList.add('show');
+}
+
+function nextLevel() {
+  document.getElementById('winOverlay').classList.remove('show');
+  startLevel(currentLevel < 3 ? currentLevel + 1 : 1);
+}
+
+window.addEventListener('load', () => startLevel(1));
+</script>
+
+</body>
+</html>

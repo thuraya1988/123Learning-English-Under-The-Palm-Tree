@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🌴 Palm Echo</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --l1-bg:#e8f8f0; --l1-border:#7dd4a8; --l1-text:#1a6640; --l1-badge:#2d9e62;
+  --l2-bg:#e6f4ff; --l2-border:#7ac0f0; --l2-text:#1a4e80; --l2-badge:#2878c4;
+  --l3-bg:#fff4e0; --l3-border:#f0c060; --l3-text:#7a4800; --l3-badge:#d08000;
+  --ink:#1a2030;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:#f0f7ff;font-family:'Nunito',sans-serif;min-height:100vh;padding-bottom:60px}
+
+/* HEADER */
+.header{background:linear-gradient(135deg,#2d9e62,#2878c4);padding:28px 24px 22px;text-align:center;position:relative}
+.header-icon{font-size:2.8rem;display:block;margin-bottom:6px;animation:sway 4s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+.header h1{font-family:'Cinzel',serif;font-size:clamp(1.3rem,4vw,2rem);color:white;text-shadow:0 2px 12px rgba(0,0,0,0.2);margin-bottom:4px}
+.header p{font-size:0.88rem;color:rgba(255,255,255,0.82);font-style:italic}
+.back-link{position:absolute;top:16px;left:16px;color:rgba(255,255,255,0.8);text-decoration:none;font-size:0.78rem;font-weight:700;background:rgba(255,255,255,0.15);padding:6px 14px;border-radius:20px}
+
+/* LEVEL PILLS */
+.level-row{display:flex;gap:10px;padding:16px 16px 0;overflow-x:auto;scrollbar-width:none;max-width:860px;margin:0 auto}
+.level-row::-webkit-scrollbar{display:none}
+.level-pill{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:30px;font-size:0.78rem;font-weight:800;cursor:pointer;border:2.5px solid transparent;transition:all 0.2s}
+.level-pill.l1{background:var(--l1-bg);color:var(--l1-text);border-color:var(--l1-border)}
+.level-pill.l2{background:var(--l2-bg);color:var(--l2-text);border-color:var(--l2-border)}
+.level-pill.l3{background:var(--l3-bg);color:var(--l3-text);border-color:var(--l3-border)}
+.level-pill.active{box-shadow:0 4px 14px rgba(0,0,0,0.12);transform:translateY(-2px)}
+
+/* CONTAINER */
+.container{max-width:860px;margin:0 auto;padding:16px}
+
+/* PROMPT GRID */
+.section-title{font-family:'Cinzel',serif;font-size:0.72rem;letter-spacing:0.2em;color:#6080a0;text-transform:uppercase;margin-bottom:12px;margin-top:4px}
+.prompt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:20px}
+
+.prompt-card{border-radius:20px;padding:16px 18px;cursor:pointer;border:2.5px solid transparent;transition:all 0.25s;position:relative;overflow:hidden}
+.prompt-card::before{content:'';position:absolute;top:-20px;right:-20px;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,0.25);pointer-events:none}
+.prompt-card.l1{background:linear-gradient(135deg,#d4f5e4,#e8fdf2);border-color:var(--l1-border)}
+.prompt-card.l1:hover,.prompt-card.l1.selected{background:linear-gradient(135deg,#b8edcf,#d4f5e4);border-color:var(--l1-badge);transform:translateY(-3px);box-shadow:0 8px 24px rgba(45,158,98,0.18)}
+.prompt-card.l2{background:linear-gradient(135deg,#cce8ff,#e6f4ff);border-color:var(--l2-border)}
+.prompt-card.l2:hover,.prompt-card.l2.selected{background:linear-gradient(135deg,#b0d8ff,#cce8ff);border-color:var(--l2-badge);transform:translateY(-3px);box-shadow:0 8px 24px rgba(40,120,196,0.18)}
+.prompt-card.l3{background:linear-gradient(135deg,#fde8b0,#fff4d8);border-color:var(--l3-border)}
+.prompt-card.l3:hover,.prompt-card.l3.selected{background:linear-gradient(135deg,#fcd880,#fde8b0);border-color:var(--l3-badge);transform:translateY(-3px);box-shadow:0 8px 24px rgba(208,128,0,0.18)}
+
+.card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.card-emoji{font-size:1.6rem}
+.card-badge{font-family:'Cinzel',serif;font-size:0.6rem;font-weight:700;letter-spacing:0.1em;padding:3px 10px;border-radius:20px;color:white;text-transform:uppercase}
+.l1 .card-badge{background:var(--l1-badge)} .l2 .card-badge{background:var(--l2-badge)} .l3 .card-badge{background:var(--l3-badge)}
+.card-title{font-weight:800;font-size:0.9rem;color:var(--ink);margin-bottom:5px;line-height:1.35}
+.card-hint{font-size:0.75rem;color:rgba(26,32,48,0.55);line-height:1.5;font-style:italic}
+.card-story{font-size:0.65rem;font-weight:800;color:rgba(26,32,48,0.4);margin-top:8px;letter-spacing:0.05em;text-transform:uppercase}
+
+/* SPEAKING BOX */
+.speak-box{background:white;border-radius:24px;padding:22px;box-shadow:0 4px 20px rgba(0,0,0,0.06);margin-bottom:16px}
+
+/* Prompt display */
+.prompt-display{background:linear-gradient(135deg,#e8f4ff,#f0faf4);border:2px solid #b0d8e8;border-radius:16px;padding:16px 20px;margin-bottom:18px}
+.prompt-display-label{font-size:0.68rem;font-weight:800;color:#5090b8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px}
+.prompt-display-text{font-size:1rem;font-weight:700;color:var(--ink);line-height:1.6}
+.prompt-display-ar{font-size:0.88rem;color:#6080a0;direction:rtl;text-align:right;margin-top:5px;font-style:italic}
+
+/* Steps indicator */
+.steps{display:flex;gap:8px;margin-bottom:18px;align-items:center}
+.step{display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:700;padding:6px 14px;border-radius:20px;transition:all 0.3s}
+.step.active{background:linear-gradient(135deg,#2d9e62,#2878c4);color:white;box-shadow:0 3px 12px rgba(40,120,196,0.2)}
+.step.done{background:#e8fdf2;color:#2d9e62;border:1.5px solid #7dd4a8}
+.step.todo{background:#f0f4f8;color:#90a8c0;border:1.5px solid #d0dce8}
+.step-num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;flex-shrink:0}
+.step.active .step-num{background:rgba(255,255,255,0.3)}
+.step.done .step-num{background:var(--l1-badge);color:white}
+.step.todo .step-num{background:#d0dce8;color:#8090a8}
+
+/* Microphone area */
+.mic-area{text-align:center;padding:10px 0}
+.mic-btn{width:80px;height:80px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 12px;transition:all 0.25s;position:relative}
+.mic-btn.idle{background:linear-gradient(135deg,#2d9e62,#2878c4);box-shadow:0 6px 24px rgba(40,120,196,0.3)}
+.mic-btn.recording{background:linear-gradient(135deg,#c04040,#e06020);box-shadow:0 6px 24px rgba(192,64,64,0.4);animation:micPulse 0.8s ease-in-out infinite}
+.mic-btn.done{background:linear-gradient(135deg,#7dd4a8,#2d9e62);box-shadow:0 6px 20px rgba(45,158,98,0.3)}
+.mic-btn:disabled{opacity:0.4;cursor:not-allowed;animation:none}
+@keyframes micPulse{0%,100%{box-shadow:0 6px 24px rgba(192,64,64,0.4),0 0 0 0 rgba(192,64,64,0.4)}50%{box-shadow:0 6px 24px rgba(192,64,64,0.4),0 0 0 18px rgba(192,64,64,0)}}
+
+.mic-status{font-size:0.85rem;font-weight:700;color:#5080a0;margin-bottom:10px;min-height:22px}
+.mic-status.rec{color:#c04040;animation:blink 1s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.5}}
+
+/* Waveform */
+.waveform{display:flex;align-items:center;justify-content:center;gap:3px;height:44px;margin-bottom:12px}
+.wb{width:4px;background:#b0c8e0;border-radius:4px;min-height:4px;transition:height 0.08s}
+.waveform.active .wb{background:linear-gradient(to top,#2d9e62,#2878c4)}
+
+/* Transcript box */
+.transcript-box{background:#f8fbff;border:2px solid #c8dff0;border-radius:14px;padding:14px 16px;min-height:60px;font-size:0.95rem;line-height:1.7;color:var(--ink);margin-bottom:14px;font-style:italic;color:#6080a0;transition:border-color 0.3s}
+.transcript-box.has-text{color:var(--ink);font-style:normal;border-color:#7ac0f0}
+
+/* Buttons */
+.btn-row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.btn-retry{background:#f0f4f8;border:none;color:#7090a8;font-family:'Nunito',sans-serif;font-weight:700;font-size:0.82rem;padding:10px 20px;border-radius:20px;cursor:pointer;transition:all 0.2s}
+.btn-retry:hover{background:#e0e8f0}
+.btn-analyse{background:linear-gradient(135deg,#2d9e62,#2878c4);border:none;color:white;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.88rem;padding:12px 28px;border-radius:20px;cursor:pointer;box-shadow:0 4px 16px rgba(40,120,196,0.25);transition:all 0.25s;display:flex;align-items:center;gap:8px}
+.btn-analyse:hover{transform:translateY(-2px)}
+.btn-analyse:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+
+/* LOADING */
+#loading{display:none;text-align:center;padding:32px 0}
+.loading-palm{font-size:2.5rem;animation:palmBounce 1.2s ease-in-out infinite;display:inline-block}
+@keyframes palmBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+.loading-text{margin-top:12px;font-size:0.9rem;color:#5080a0;font-style:italic}
+
+/* REPORT */
+#report{display:none;animation:fadeUp 0.55s cubic-bezier(0.22,1,0.36,1) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+.score-banner{background:linear-gradient(135deg,#e8fdf2,#e6f4ff);border:2px solid #b0d8c0;border-radius:24px;padding:22px 24px;display:flex;align-items:center;gap:18px;margin-bottom:16px}
+.score-ring{flex-shrink:0;width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;color:white;box-shadow:0 4px 16px rgba(0,0,0,0.1)}
+.score-right{flex:1}
+.score-level{font-family:'Cinzel',serif;font-size:1rem;color:var(--ink);margin-bottom:4px}
+.score-msg{font-size:0.88rem;color:#4a6a80;line-height:1.55}
+.score-msg-ar{font-size:0.85rem;color:#5a7a90;direction:rtl;text-align:right;margin-top:3px;font-style:italic}
+
+/* Analysis meters */
+.meters-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:14px}
+.meter-card{background:white;border-radius:18px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.05)}
+.meter-label{font-size:0.7rem;font-weight:800;color:#7090a8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.meter-bar-wrap{background:#e8f0f8;border-radius:20px;height:10px;overflow:hidden;margin-bottom:6px}
+.meter-bar{height:100%;border-radius:20px;transition:width 1s cubic-bezier(0.22,1,0.36,1)}
+.meter-score{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--ink)}
+.meter-comment{font-size:0.75rem;color:#8090a8;font-style:italic;margin-top:3px}
+
+.rep-card{background:white;border-radius:20px;padding:18px 20px;box-shadow:0 2px 12px rgba(0,0,0,0.05);margin-bottom:12px}
+.rep-card-title{font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.rep-card-title.green{color:var(--l1-badge)} .rep-card-title.blue{color:var(--l2-badge)} .rep-card-title.gold{color:var(--l3-badge)} .rep-card-title.red{color:#c04040}
+.rep-item{display:flex;gap:10px;margin-bottom:10px;font-size:0.88rem;line-height:1.6;color:#2a3a50}
+.rep-icon{flex-shrink:0;font-size:1rem;margin-top:2px}
+.rep-ar{font-size:0.8rem;color:#7090a8;direction:rtl;text-align:right;margin-top:2px;font-style:italic}
+
+/* Transcript comparison */
+.transcript-compare{background:#f8fbff;border:2px solid #c8dff0;border-radius:14px;padding:16px;margin-bottom:4px}
+.tc-label{font-size:0.68rem;font-weight:800;color:#5090b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px}
+.tc-text{font-size:0.95rem;line-height:1.7;color:var(--ink)}
+.tc-text .miss{background:#ffe0e0;border-radius:4px;padding:0 3px;color:#c04040}
+.tc-text .good{background:#d4f5e4;border-radius:4px;padding:0 3px;color:#2d9e62;font-weight:700}
+
+.arabic-summary{background:linear-gradient(135deg,#fff8e6,#fffdf0);border:2px solid #f0d890;border-radius:20px;padding:18px 20px;direction:rtl;text-align:right;margin-bottom:16px}
+.arabic-summary .as-title{font-size:0.72rem;font-weight:800;color:var(--l3-badge);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px}
+.arabic-summary p{font-size:0.95rem;line-height:1.85;color:#4a3800}
+
+.try-again-btn{display:block;width:fit-content;margin:8px auto 0;background:linear-gradient(135deg,#2d9e62,#2878c4);color:white;border:none;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.88rem;padding:12px 32px;border-radius:20px;cursor:pointer;transition:all 0.25s;box-shadow:0 4px 16px rgba(40,120,196,0.2)}
+.try-again-btn:hover{transform:translateY(-2px)}
+
+@media(max-width:480px){.steps{flex-wrap:wrap} .step span:last-child{display:none}}
+
+/* THURAYA GUIDE */
+.thuraya-guide{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;align-items:flex-end;gap:12px;max-width:min(92vw,420px)}
+.thuraya-avatar{width:88px;height:88px;border-radius:50%;object-fit:cover;border:4px solid #fff;box-shadow:0 10px 24px rgba(0,0,0,.18);background:#fff}
+.thuraya-panel{background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border:1px solid rgba(40,120,196,.18);border-radius:18px;padding:12px 14px;box-shadow:0 10px 24px rgba(0,0,0,.12);min-width:220px}
+.thuraya-name{font-weight:800;font-size:.82rem;color:#2878c4;margin-bottom:4px}
+.thuraya-text{font-size:.88rem;line-height:1.55;color:#1a2030}
+.thuraya-sub{font-size:.78rem;color:#6c7f95;margin-top:4px;direction:rtl;text-align:right}
+.thuraya-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.th-btn{border:none;border-radius:999px;padding:7px 10px;font-size:.74rem;font-weight:800;cursor:pointer}
+.th-btn.primary{background:linear-gradient(135deg,#2d9e62,#2878c4);color:#fff}
+.th-btn.secondary{background:#eef5ff;color:#2878c4}
+@media(max-width:640px){.thuraya-guide{right:10px;left:10px;bottom:10px}.thuraya-avatar{width:72px;height:72px}.thuraya-panel{min-width:0}}
+
+</style>
+
+
+</head>
+<body>
+
+<div class="header">
+  <a class="back-link" href="index.html">← Home</a>
+  <span class="header-icon">🐦</span>
+  <h1>Palm Echo</h1>
+  <p>Speak Game -- تحدث بثقة مع ثريا 🌴</p>
+</div>
+
+<!-- LEVEL PILLS -->
+
+<div class="level-row">
+  <div class="level-pill l1 active" id="pill1" onclick="filterLevel(1)">
+    <span>🌱</span> Level 1 -- Echo
+  </div>
+  <div class="level-pill l2" id="pill2" onclick="filterLevel(2)">
+    <span>🌴</span> Level 2 -- Answer
+  </div>
+  <div class="level-pill l3" id="pill3" onclick="filterLevel(3)">
+    <span>⭐</span> Level 3 -- Tell
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="section-title">Choose your speaking prompt • اختر موضوع التحدث</div>
+
+  <div class="prompt-grid" id="promptGrid">
+
+```
+<!-- LEVEL 1 -- ECHO: repeat the sentence -->
+<div class="prompt-card l1" data-level="1"
+     data-text="Good morning! My name is John. I am a teacher."
+     data-textar="صباح الخير! اسمي جون. أنا معلم."
+     data-prompt="The student must repeat this sentence as clearly as possible: 'Good morning! My name is John. I am a teacher.' Evaluate pronunciation of each word."
+     onclick="selectCard(this)">
+  <div class="card-top"><span class="card-emoji">👋</span><span class="card-badge">Echo</span></div>
+  <div class="card-title">Repeat the greeting</div>
+  <div class="card-hint">"Good morning! My name is John. I am a teacher."</div>
+  <div class="card-story">Story 1</div>
+</div>
+
+<div class="prompt-card l1" data-level="1"
+     data-text="The falaj carries water to the village."
+     data-textar="الفلج يحمل الماء إلى القرية."
+     data-prompt="The student must repeat this sentence clearly: 'The falaj carries water to the village.' Evaluate pronunciation."
+     onclick="selectCard(this)">
+  <div class="card-top"><span class="card-emoji">💧</span><span class="card-badge">Echo</span></div>
+  <div class="card-title">Repeat about the falaj</div>
+  <div class="card-hint">"The falaj carries water to the village."</div>
+  <div class="card-story">Story 2</div>
+</div>
+
+<div class="prompt-card l1" data-level="1"
+     data-text="Don't move! There is a wasp on John's shoulder."
+     data-textar="لا تتحرك! هناك دبّور على كتف جون."
+     data-prompt="The student must repeat clearly: 'Don't move! There is a wasp on John's shoulder.' Evaluate pronunciation."
+     onclick="selectCard(this)">
+  <div class="card-top"><span class="card-emoji">🐝</span><span class="card-badge">Echo</span></div>
+  <div class="card-title">Repeat the warning</div>
+  <div class="card-hint">"Don't move! There is a wasp on John's shoulder."</div>
+  <div class="card-story">Story 5</div>
+</div>
+
+<div class="prompt-card l1" data-level="1"
+     data-text="I can watch. And watching is learning."
+     data-textar="أنا أستطيع المراقبة. والمراقبة هي التعلم."
+     data-prompt="The student must repeat: 'I can watch. And watching is learning.' Evaluate pronunciation clearly."
+     onclick="selectCard(this)">
+  <div class="card-top"><span class="card-emoji">👁️</span><span class="card-badge">Echo</span></div>
+  <div class="card-title">Repeat Khamees's words</div>
+  <div class="card-hint">"I can watch. And watching is learning."</div>
+  <div class="card-story">Story 11</div>
+</div>
+
+<!-- LEVEL 2 -- ANSWER a question -->
+<div class="prompt-card l2" data-level="2"
+     data-text="Who is Thuraya? Tell me two things about her."
+     data-textar="من هي ثريا؟ أخبرني بشيئين عنها."
+     data-prompt="The student was asked: 'Who is Thuraya? Tell me two things about her.' Analyse their spoken answer for pronunciation, vocabulary, fluency, and whether they answered the question."
+     onclick="selectCard(this)">
+  <div class="card-top"><span class="card-emoji">👩‍🏫</span><span class="card-badge">Answer</span></div>
+  <div class="card-title">Who is Thuraya?</div>
+  <div class="card-hint">Tell me two things about her.</div>
+  <div class="card-story">Story 1</div>
+</div>
+
+<div class="prompt-card l2" data-level="2"
+     data-text="What happened when the wasp landed on John? Tell me the story."
+     data-textar="ماذا حدث عندما وقع الدبّور على جون؟ احكِ لي القصة."
+     data-prompt="The student was asked: 'What happened when the wasp landed on John?' Analyse their spoken answer for pronunciation, vocabulary, fluency, and story accuracy."
+     onclick="selectCard(this)">
+  <div class="card-top"><span class="card-emoji">🐝</span><span class="card-badge">Answer</span></div>
+  <div class="card-title">Tell the wasp story</div>
+  <div class="card-hint">What happened? Who helped John?</div>
+  <div class="card-story">Story 5</div>
+</div>
+
+<div class="prompt-card l2" data-level="2"
+     data-text="What can Sadoo do? Name three of his skills."
+     data-textar="ماذا يستطيع سادو أن يفعل؟ اذكر ثلاث مهارات له."
+     data-prompt="The student was asked: 'What can Sadoo do? Name three skills.' Analyse their spoken answer for pronunciation, vocabulary, fluency, and accuracy."
+     onclick="selectCard(this)">
+  <div class="card-top"><span class="card-emoji">🛒</span><span class="card-badge">Answer</span></div>
+  <div class="card-title">What can Sadoo do?</div>
+  <div class="card-hint">Name three of his skills.</div>
+  <div class="card-story">Story 8</div>
+</div>
+
+<div class="prompt-card l2" data-level="2"
+     data-text="Why is the palm tree important in Al-Qurawashiyah?"
+     data-textar="لماذا النخلة مهمة في القرواشية؟"
+     data-prompt="The student was asked: 'Why is the palm tree important in Al-Qurawashiyah?' Analyse their answer for pronunciation, vocabulary, fluency, and accuracy."
+     onclick="selectCard(this)">
+  <div class="card-top"><span class="card-emoji">🌴</span><span class="card-badge">Answer</span></div>
+  <div class="card-title">Why is the palm tree important?</div>
+  <div class="card-hint">What does it give the village?</div>
+  <div class="card-story">All Stories</div>
+</div>
+
+<!-- LEVEL 3 -- TELL freely for 20 seconds -->
+<div class="prompt-card l3" data-level="3"
+     data-text="Tell me everything you know about John. Speak for 20 seconds."
+     data-textar="أخبرني كل ما تعرفه عن جون. تحدث لمدة 20 ثانية."
+     data-prompt="The student was asked to speak freely about John for 20 seconds. Analyse deeply: pronunciation quality, vocabulary range, fluency, sentence structure, and content quality."
+     onclick="selectCard(this)">
+  <div class="card-top"><span class="card-emoji">👨‍🏫</span><span class="card-badge">Tell</span></div>
+  <div class="card-title">Tell me about John</div>
+  <div class="card-hint">Speak freely for 20 seconds!</div>
+  <div class="card-story">Story 1--8</div>
+</div>
+
+<div class="prompt-card l3" data-level="3"
+     data-text="Tell me the story of Sophia's yellow face. Speak for 20 seconds."
+     data-textar="احكِ لي قصة وجه صوفيا الأصفر. تحدث لمدة 20 ثانية."
+     data-prompt="The student was asked to tell the story of Sophia's yellow face for 20 seconds. Analyse: pronunciation, vocabulary, fluency, sentence structure, and storytelling quality."
+     onclick="selectCard(this)">
+  <div class="card-top"><span class="card-emoji">🟡</span><span class="card-badge">Tell</span></div>
+  <div class="card-title">Tell Sophia's yellow face story!</div>
+  <div class="card-hint">What happened at Marhoona's salon?</div>
+  <div class="card-story">Story 7</div>
+</div>
+
+<div class="prompt-card l3" data-level="3"
+     data-text="If you were Khamees, what would you say to your class? Speak for 20 seconds."
+     data-textar="لو كنت خميساً، ماذا ستقول لصفك؟ تحدث لمدة 20 ثانية."
+     data-prompt="The student was asked: 'If you were Khamees, what would you say?' Analyse: pronunciation, vocabulary, creativity, fluency, and sentence structure."
+     onclick="selectCard(this)">
+  <div class="card-top"><span class="card-emoji">💬</span><span class="card-badge">Tell</span></div>
+  <div class="card-title">If you were Khamees...</div>
+  <div class="card-hint">What would you say to the class?</div>
+  <div class="card-story">Story 11</div>
+</div>
+
+<div class="prompt-card l3" data-level="3"
+     data-text="Tell me about your favourite character from the Palm Tree stories. Speak for 20 seconds."
+     data-textar="أخبرني عن شخصيتك المفضلة من قصص النخلة. تحدث لمدة 20 ثانية."
+     data-prompt="The student was asked to speak about their favourite character for 20 seconds. Analyse all aspects of their speech deeply."
+     onclick="selectCard(this)">
+  <div class="card-top"><span class="card-emoji">⭐</span><span class="card-badge">Tell</span></div>
+  <div class="card-title">Your favourite character</div>
+  <div class="card-hint">Who is your favourite and why?</div>
+  <div class="card-story">All Stories</div>
+</div>
+```
+
+  </div>
+
+  <!-- SPEAKING BOX -->
+
+  <div class="speak-box">
+
+```
+<!-- Prompt display -->
+<div class="prompt-display">
+  <div class="prompt-display-label">🎯 Your task • مهمتك</div>
+  <div class="prompt-display-text" id="displayText">Select a prompt above to begin.</div>
+  <div class="prompt-display-ar" id="displayAr"></div>
+</div>
+
+<!-- Steps -->
+<div class="steps">
+  <div class="step active" id="step1">
+    <div class="step-num">1</div>
+    <span>Read the task</span>
+  </div>
+  <div style="flex:1;height:2px;background:#d0dce8;border-radius:2px"></div>
+  <div class="step todo" id="step2">
+    <div class="step-num">2</div>
+    <span>Press mic &amp; speak</span>
+  </div>
+  <div style="flex:1;height:2px;background:#d0dce8;border-radius:2px"></div>
+  <div class="step todo" id="step3">
+    <div class="step-num">3</div>
+    <span>Get your report</span>
+  </div>
+</div>
+
+<!-- Mic -->
+<div class="mic-area">
+  <button class="mic-btn idle" id="micBtn" onclick="toggleRec()">🎤</button>
+  <div class="mic-status" id="micStatus">Press the mic to start speaking</div>
+  <div class="waveform" id="waveform">
+    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+    <div class="wb" style="height:8px"></div><div class="wb" style="height:8px"></div>
+    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+  </div>
+  <div class="transcript-box" id="transcriptBox">
+    Your words will appear here as you speak...
+  </div>
+</div>
+
+<div class="btn-row">
+  <button class="btn-retry" onclick="retryRecording()">🔄 Try Again</button>
+  <button class="btn-analyse" id="analyseBtn" onclick="analyseSpoken()" disabled>
+    ✦ Analyse My Speaking
+  </button>
+</div>
+```
+
+  </div>
+
+  <!-- LOADING -->
+
+  <div id="loading">
+    <span class="loading-palm">🌴</span>
+    <div class="loading-text">Listening to your English... analysing every word...<br>أستمع لإنجليزيتك وأحلّل كل كلمة...</div>
+  </div>
+
+  <!-- REPORT -->
+
+  <div id="report"></div>
+
+</div>
+
+<script>
+// ── STATE ──
+let selectedPromptData = null;
+let currentLevel = 1;
+let recognition = null;
+let isRecording = false;
+let waveAnim = null;
+let spokenText = '';
+
+// ── AUTO-SELECT FIRST CARD ──
+window.addEventListener('DOMContentLoaded', () => {
+  const first = document.querySelector('.prompt-card.l1');
+  if (first) selectCard(first);
+});
+
+// ── FILTER LEVEL ──
+function filterLevel(lvl) {
+  currentLevel = lvl;
+  [1,2,3].forEach(i => {
+    document.getElementById('pill'+i).classList.toggle('active', i===lvl);
+  });
+  document.querySelectorAll('.prompt-card').forEach(c => {
+    c.style.display = parseInt(c.dataset.level) === lvl ? '' : 'none';
+  });
+  const first = document.querySelector('.prompt-card.l'+lvl);
+  if (first) selectCard(first);
+  retryRecording();
+}
+
+// ── SELECT CARD ──
+function selectCard(el) {
+  document.querySelectorAll('.prompt-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedPromptData = el.dataset;
+  document.getElementById('displayText').textContent = el.dataset.text;
+  document.getElementById('displayAr').textContent   = el.dataset.textar;
+  setStep(1);
+  retryRecording();
+}
+
+// ── STEP INDICATOR ──
+function setStep(n) {
+  [1,2,3].forEach(i => {
+    const s = document.getElementById('step'+i);
+    s.className = 'step ' + (i < n ? 'done' : i === n ? 'active' : 'todo');
+  });
+}
+
+// ── MICROPHONE ──
+function toggleRec() {
+  if (!isRecording) startRec();
+  else stopRec();
+}
+
+function startRec() {
+  // Check browser support
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    // Simulate for non-Chrome -- use the target text as fallback
+    simulateRec();
+    return;
+  }
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'en-US';
+  recognition.continuous = true;       // keep listening
+  recognition.interimResults = true;   // show words as they come
+
+  recognition.onresult = (e) => {
+    // Concatenate all results so far
+    spokenText = Array.from(e.results).map(r => r[0].transcript).join(' ');
+    const box = document.getElementById('transcriptBox');
+    box.textContent = spokenText;
+    box.classList.add('has-text');
+    document.getElementById('analyseBtn').disabled = false;
+  };
+
+  recognition.onerror = () => simulateRec();
+  recognition.onend   = () => {
+    if (isRecording) stopRecUI();
+  };
+
+  recognition.start();
+  isRecording = true;
+  startRecUI();
+  setStep(2);
+}
+
+function stopRec() {
+  if (recognition) recognition.stop();
+  isRecording = false;
+  stopRecUI();
+  if (spokenText) {
+    document.getElementById('analyseBtn').disabled = false;
+    setStep(3);
+  }
+}
+
+function startRecUI() {
+  const btn = document.getElementById('micBtn');
+  btn.className = 'mic-btn recording';
+  btn.textContent = '⏹️';
+  const st = document.getElementById('micStatus');
+  st.textContent = '🔴 Recording... press again to stop';
+  st.className = 'mic-status rec';
+  document.getElementById('waveform').classList.add('active');
+  // Animate wave bars
+  const bars = document.querySelectorAll('.wb');
+  waveAnim = setInterval(() => {
+    bars.forEach(b => b.style.height = (Math.random() * 36 + 4) + 'px');
+  }, 110);
+}
+
+function stopRecUI() {
+  const btn = document.getElementById('micBtn');
+  btn.className = spokenText ? 'mic-btn done' : 'mic-btn idle';
+  btn.textContent = spokenText ? '✅' : '🎤';
+  const st = document.getElementById('micStatus');
+  st.textContent = spokenText ? 'Recording stopped. Press "Analyse" to see your results.' : 'Press the mic to start speaking';
+  st.className = 'mic-status';
+  document.getElementById('waveform').classList.remove('active');
+  if (waveAnim) clearInterval(waveAnim);
+  document.querySelectorAll('.wb').forEach(b => b.style.height = '5px');
+}
+
+// Simulate recording for non-Chrome (use target text as approximation)
+function simulateRec() {
+  isRecording = true;
+  startRecUI();
+  setStep(2);
+  setTimeout(() => {
+    // Use the target text as simulated spoken output
+    spokenText = selectedPromptData?.text || 'I spoke about the story.';
+    const box = document.getElementById('transcriptBox');
+    box.textContent = spokenText;
+    box.classList.add('has-text');
+    isRecording = false;
+    stopRecUI();
+    document.getElementById('analyseBtn').disabled = false;
+    setStep(3);
+  }, 3000);
+}
+
+function retryRecording() {
+  if (isRecording && recognition) recognition.stop();
+  isRecording = false;
+  spokenText = '';
+  const btn = document.getElementById('micBtn');
+  btn.className = 'mic-btn idle';
+  btn.textContent = '🎤';
+  const st = document.getElementById('micStatus');
+  st.textContent = 'Press the mic to start speaking';
+  st.className = 'mic-status';
+  document.getElementById('waveform').classList.remove('active');
+  if (waveAnim) clearInterval(waveAnim);
+  document.querySelectorAll('.wb').forEach(b => b.style.height = '5px');
+  const box = document.getElementById('transcriptBox');
+  box.textContent = 'Your words will appear here as you speak...';
+  box.classList.remove('has-text');
+  document.getElementById('analyseBtn').disabled = true;
+  document.getElementById('report').style.display = 'none';
+  document.getElementById('report').innerHTML = '';
+  setStep(1);
+}
+
+// ── ANALYSE ──
+async function analyseSpoken() {
+  if (!spokenText || !selectedPromptData) return;
+
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('report').style.display  = 'none';
+  document.getElementById('analyseBtn').disabled   = true;
+
+  const levelNames = { 1: 'Echo (repeat sentence)', 2: 'Answer a question', 3: 'Free speaking 20 seconds' };
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `You are a warm English speaking coach for Omani primary school students (Grades 1-4). The student is doing a speaking activity at level: ${levelNames[currentLevel]}.
+
+Task given to student: "${selectedPromptData.prompt}"
+What the student said (captured by speech recognition): "${spokenText}"
+
+Respond ONLY with a valid JSON object. No markdown, no backticks, no extra text.
+
+{
+  "overallScore": <0-100 integer>,
+  "level": "<Needs Practice | Getting There | Good Work | Excellent | Outstanding>",
+  "levelAr": "<Arabic>",
+  "encouragement": "<1 warm English sentence>",
+  "encouragementAr": "<Arabic>",
+  "pronunciation": { "score": <0-100>, "comment": "<short English note>", "commentAr": "<Arabic>" },
+  "fluency":       { "score": <0-100>, "comment": "<short English note>", "commentAr": "<Arabic>" },
+  "vocabulary":    { "score": <0-100>, "comment": "<short English note>", "commentAr": "<Arabic>" },
+  "content":       { "score": <0-100>, "comment": "<short English note>", "commentAr": "<Arabic>" },
+  "goodPhrases": ["<a phrase student said that was good>"],
+  "improvements": ["<one clear tip>", "<another tip>"],
+  "modelAnswer": "<a short ideal answer to the task in simple English, for the student to compare>",
+  "summaryAr": "<2-3 sentence Arabic summary of the full analysis>"
+}`
+        }]
+      })
+    });
+
+    const data  = await response.json();
+    const raw   = data.content[0].text;
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const r     = JSON.parse(clean);
+    renderReport(r);
+
+  } catch(err) {
+    console.error(err);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('analyseBtn').disabled = false;
+    document.getElementById('report').innerHTML =
+      `<div style="text-align:center;color:#8090a8;padding:24px;font-style:italic">Something went wrong. Check your internet and try again. ⚠️</div>`;
+    document.getElementById('report').style.display = 'block';
+  }
+}
+
+// ── RENDER REPORT ──
+function renderReport(r) {
+  document.getElementById('loading').style.display = 'none';
+
+  const col = r.overallScore >= 80 ? '#2d9e62'
+            : r.overallScore >= 60 ? '#2878c4'
+            : r.overallScore >= 40 ? '#d08000' : '#c04040';
+
+  // Meter helper
+  function meter(obj, icon, label) {
+    const barCol = obj.score >= 70 ? '#2d9e62' : obj.score >= 50 ? '#2878c4' : '#d08000';
+    return `<div class="meter-card">
+      <div class="meter-label">${icon} ${label}</div>
+      <div class="meter-bar-wrap">
+        <div class="meter-bar" style="width:${obj.score}%;background:${barCol}"></div>
+      </div>
+      <div class="meter-score">${obj.score}<span style="font-size:0.8rem;color:#90a0b0">/100</span></div>
+      <div class="meter-comment">${obj.comment}</div>
+      <div class="meter-comment" style="direction:rtl;text-align:right;margin-top:2px">${obj.commentAr}</div>
+    </div>`;
+  }
+
+  const goodHtml = (r.goodPhrases||[]).map(p =>
+    `<div class="rep-item"><span class="rep-icon">⭐</span><div class="rep-text">"${p}"</div></div>`
+  ).join('') || `<div class="rep-item"><span class="rep-icon">⭐</span><div class="rep-text">Keep practising -- you are getting there!</div></div>`;
+
+  const tipHtml = (r.improvements||[]).map(t =>
+    `<div class="rep-item"><span class="rep-icon">💡</span><div class="rep-text">${t}</div></div>`
+  ).join('');
+
+  document.getElementById('report').innerHTML = `
+
+    <div class="score-banner">
+      <div class="score-ring" style="background:${col};box-shadow:0 4px 20px ${col}44">${r.overallScore}</div>
+      <div class="score-right">
+        <div class="score-level">${levelEmoji(r.overallScore)} ${r.level} -- ${r.levelAr}</div>
+        <div class="score-msg">${r.encouragement}</div>
+        <div class="score-msg-ar">${r.encouragementAr}</div>
+      </div>
+    </div>
+
+    <div class="rep-card">
+      <div class="rep-card-title blue">🎤 What you said • ما قلته</div>
+      <div class="transcript-compare">
+        <div class="tc-label">YOUR WORDS</div>
+        <div class="tc-text">${spokenText}</div>
+      </div>
+      ${r.modelAnswer ? `
+      <div class="transcript-compare" style="margin-top:8px;border-color:#b0d8a8;background:#f0faf4">
+        <div class="tc-label" style="color:#2d9e62">MODEL ANSWER</div>
+        <div class="tc-text">${r.modelAnswer}</div>
+      </div>` : ''}
+    </div>
+
+    <div class="meters-grid">
+      ${meter(r.pronunciation, '🔤', 'Pronunciation')}
+      ${meter(r.fluency,       '🌊', 'Fluency')}
+      ${meter(r.vocabulary,    '📚', 'Vocabulary')}
+      ${meter(r.content,       '💬', 'Content')}
+    </div>
+
+    <div class="rep-card">
+      <div class="rep-card-title green">⭐ Good phrases • عبارات جيدة</div>
+      ${goodHtml}
+    </div>
+
+    <div class="rep-card">
+      <div class="rep-card-title gold">💡 To improve • لتتحسن</div>
+      ${tipHtml}
+    </div>
+
+    <div class="arabic-summary">
+      <div class="as-title">ملخص التحليل</div>
+      <p>${r.summaryAr}</p>
+    </div>
+
+    <button class="try-again-btn" onclick="tryAgain()">🌴 Speak Again • تحدث مجدداً</button>
+  `;
+
+  document.getElementById('report').style.display = 'block';
+  document.getElementById('report').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function levelEmoji(s) {
+  return s >= 90 ? '🌟' : s >= 75 ? '🌴' : s >= 60 ? '✦' : s >= 40 ? '📝' : '💪';
+}
+
+function tryAgain() {
+  retryRecording();
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+// THURAYA GUIDE + PIPER HOOK
+const thurayaState = {
+  muted: false,
+  current: {
+    en: "Hello! I am Thuraya. Choose a speaking prompt and I will guide you.",
+    ar: "مرحباً! أنا ثريا. اختاري بطاقة التحدث وسأرشدك."
+  }
+};
+
+function setThuraya(en, ar, autoSpeak = false) {
+  thurayaState.current = { en, ar };
+  const t = document.getElementById('thurayaText');
+  const s = document.getElementById('thurayaSub');
+  if (t) t.textContent = en;
+  if (s) s.textContent = ar;
+  if (autoSpeak && !thurayaState.muted) thurayaSpeakCurrent();
+}
+
+function thurayaToggleMute() {
+  thurayaState.muted = !thurayaState.muted;
+  const btn = document.getElementById('thurayaMuteBtn');
+  if (btn) btn.textContent = thurayaState.muted ? 'Unmute' : 'Mute';
+}
+
+async function piperSpeak(text, lang = 'en') {
+  try {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, lang, voice: lang === 'ar' ? 'ar' : 'en' })
+    });
+    if (!res.ok) throw new Error('TTS backend unavailable');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.play().catch(() => {});
+    audio.onended = () => URL.revokeObjectURL(url);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function thurayaSpeakCurrent() {
+  if (thurayaState.muted) return;
+  const { en, ar } = thurayaState.current;
+  const ok = await piperSpeak(en, 'en');
+  if (!ok && 'speechSynthesis' in window) {
+    try {
+      speechSynthesis.cancel();
+      const u1 = new SpeechSynthesisUtterance(en);
+      u1.lang = 'en-US';
+      speechSynthesis.speak(u1);
+      if (ar) {
+        const u2 = new SpeechSynthesisUtterance(ar);
+        u2.lang = 'ar-SA';
+        setTimeout(() => speechSynthesis.speak(u2), 1200);
+      }
+    } catch (_) {}
+  }
+}
+
+function simpleLocalAnalysis(text, selectedPromptData) {
+  const words = (text || '').trim().split(/\s+/).filter(Boolean);
+  const wc = words.length;
+  let overallScore = Math.min(95, Math.max(35, 45 + wc * 4));
+  if (currentLevel === 1 && wc >= 5) overallScore += 10;
+  if (currentLevel === 2 && wc >= 8) overallScore += 10;
+  if (currentLevel === 3 && wc >= 12) overallScore += 10;
+  overallScore = Math.min(98, overallScore);
+
+  const level = overallScore >= 85 ? 'Excellent'
+    : overallScore >= 70 ? 'Good Work'
+    : overallScore >= 55 ? 'Getting There'
+    : 'Needs Practice';
+
+  const levelAr = overallScore >= 85 ? 'ممتاز'
+    : overallScore >= 70 ? 'عمل رائع'
+    : overallScore >= 55 ? 'أنتِ في الطريق الصحيح'
+    : 'يحتاج إلى تدريب';
+
+  return {
+    overallScore,
+    level,
+    levelAr,
+    encouragement: wc > 0 ? 'Good speaking effort. Keep going!' : 'Start speaking and try your best.',
+    encouragementAr: wc > 0 ? 'محاولة جميلة في التحدث. واصلي!' : 'ابدئي بالتحدث وحاولي بأفضل ما لديك.',
+    pronunciation: { score: Math.min(95, 50 + wc * 3), comment: 'Clearer when you speak slowly.', commentAr: 'يكون النطق أوضح عندما تتحدثين ببطء.' },
+    fluency: { score: Math.min(95, 45 + wc * 4), comment: 'Try to connect your words smoothly.', commentAr: 'حاولي ربط الكلمات بسلاسة.' },
+    vocabulary: { score: Math.min(95, 40 + wc * 4), comment: 'Use one or two more story words.', commentAr: 'استخدمي كلمة أو كلمتين إضافيتين من القصة.' },
+    content: { score: Math.min(95, 45 + wc * 4), comment: 'Your answer matches the task better when it is longer.', commentAr: 'تكون الإجابة أنسب للمهمة عندما تكون أطول قليلاً.' },
+    goodPhrases: wc ? [words.slice(0, Math.min(4, wc)).join(' ')] : ['Good try'],
+    improvements: ['Speak a little more slowly.', 'Add one more complete sentence.'],
+    modelAnswer: selectedPromptData?.text || 'Hello. My name is John. I am a teacher.',
+    summaryAr: 'هذا تحليل محلي مؤقت داخل اللعبة. إذا تم ربط Piper والخدمة الخلفية فستظهر تغذية راجعة أذكى وأكثر دقة.'
+  };
+}
+
+// Thuraya hooks
+document.addEventListener('DOMContentLoaded', () => {
+  setThuraya(
+    'Hello! I am Thuraya. Choose a card, speak clearly, and I will help you.',
+    'مرحباً! أنا ثريا. اختاري بطاقة، تحدثي بوضوح، وسأساعدك.',
+    false
+  );
+});
+
+const originalSelectCard = window.selectCard;
+window.selectCard = function(card) {
+  const result = originalSelectCard ? originalSelectCard(card) : undefined;
+  const title = card?.querySelector('.card-title')?.textContent?.trim() || 'this prompt';
+  setThuraya(`Great choice. Let's do ${title}. Press the microphone when you are ready.`,
+             `اختيار جميل. لنبدأ ${title}. اضغطي على الميكروفون عندما تكونين جاهزة.`, true);
+  return result;
+};
+
+const originalResetRecording = window.resetRecording;
+window.resetRecording = function() {
+  const result = originalResetRecording ? originalResetRecording() : undefined;
+  setThuraya('Try again. Speak slowly and clearly.', 'حاولي مرة أخرى. تحدثي ببطء وبوضوح.', false);
+  return result;
+};
+
+const originalAnalyseSpoken = window.analyseSpoken;
+window.analyseSpoken = async function() {
+  setThuraya('I am checking your speaking now.', 'أنا أراجع تحدثك الآن.', false);
+  if (!spokenText || !selectedPromptData) return;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('report').style.display  = 'none';
+  document.getElementById('analyseBtn').disabled   = true;
+  try {
+    if (originalAnalyseSpoken) {
+      try {
+        await originalAnalyseSpoken();
+        setThuraya('Nice work. Read the feedback and try once more.', 'عمل جميل. اقرئي الملاحظات وجربي مرة أخرى.', true);
+        return;
+      } catch (err) {}
+    }
+  } catch (_) {}
+  const r = simpleLocalAnalysis(spokenText, selectedPromptData);
+  renderReport(r);
+  setThuraya('Nice work. Read the feedback and try once more.', 'عمل جميل. اقرئي الملاحظات وجربي مرة أخرى.', true);
+};
+
+</script>
+
+
+<div class="thuraya-guide" id="thurayaGuide">
+  <div class="thuraya-panel">
+    <div class="thuraya-name">Thuraya Guide</div>
+    <div class="thuraya-text" id="thurayaText">Hello! I am Thuraya. Choose a speaking prompt and I will guide you.</div>
+    <div class="thuraya-sub" id="thurayaSub">مرحباً! أنا ثريا. اختاري بطاقة التحدث وسأرشدك.</div>
+    <div class="thuraya-actions">
+      <button class="th-btn primary" type="button" onclick="thurayaSpeakCurrent()">🔊 Speak</button>
+      <button class="th-btn secondary" type="button" onclick="thurayaToggleMute()" id="thurayaMuteBtn">Mute</button>
+    </div>
+  </div>
+  <img class="thuraya-avatar" src="/mnt/data/B95179B0-AB88-4F0A-9519-6A0D5CBDE6F5.png" alt="Thuraya"/>
+</div>
+
+</body>
+</html>

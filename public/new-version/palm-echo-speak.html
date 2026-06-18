@@ -1,427 +1,917 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>🌴 Palm Echo</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<title>Palm Echo — Speak Game</title>
+
+<!-- ═══════ FONTS ═══════ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ovo&family=Almarai:wght@300;400;700&display=swap" rel="stylesheet">
+
 <style>
+/* ============================================================
+   PALM TREE EARTHY TOKENS
+   ============================================================ */
 :root {
-  --l1-bg:#e8f8f0; --l1-border:#7dd4a8; --l1-text:#1a6640; --l1-badge:#2d9e62;
-  --l2-bg:#e6f4ff; --l2-border:#7ac0f0; --l2-text:#1a4e80; --l2-badge:#2878c4;
-  --l3-bg:#fff4e0; --l3-border:#f0c060; --l3-text:#7a4800; --l3-badge:#d08000;
-  --ink:#1a2030;
+  --sand:        #F5EDD8;
+  --linen:       #EDE0C4;
+  --clay:        #C9AA80;
+  --earth:       #8C6A3F;
+  --soil:        #4A3520;
+  --burgundy:    #360304;
+  --burgundy-glow:#6b1818;
+  --burgundy-sm: rgba(54,3,4,0.08);
+
+  --bg:          var(--sand);
+  --bg-card:     var(--linen);
+  --text:        var(--soil);
+  --text-soft:   var(--earth);
+  --line:        rgba(140,106,63,0.20);
+
+  --font-h: 'Ovo', Georgia, serif;
+  --font-b: 'Almarai', sans-serif;
+  --caps:   'Almarai', sans-serif;
+
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur:  0.35s;
+
+  /* Level colors — earthy variants */
+  --l1-bg: #f0ebe0; --l1-border: #c9aa80; --l1-text: #5a4220; --l1-badge: #8C6A3F;
+  --l2-bg: #ebe5d8; --l2-border: #b09870; --l2-text: #4A3520; --l2-badge: #6b5030;
+  --l3-bg: #f0e6d4; --l3-border: #a08050; --l3-text: #360304; --l3-badge: #8b2525;
+
+  --ink: var(--soil);
 }
+
+/* ============================================================
+   RESET
+   ============================================================ */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-body{background:#f0f7ff;font-family:'Nunito',sans-serif;min-height:100vh;padding-bottom:60px}
+html{scroll-behavior:smooth}
+body{
+  background:var(--sand);
+  font-family:var(--font-b);
+  color:var(--soil);
+  min-height:100vh;
+  padding-bottom:60px;
+  line-height:1.7;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.80' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='250' height='250' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+}
 
-/* HEADER */
-.header{background:linear-gradient(135deg,#2d9e62,#2878c4);padding:28px 24px 22px;text-align:center;position:relative}
-.header-icon{font-size:2.8rem;display:block;margin-bottom:6px;animation:sway 4s ease-in-out infinite}
-@keyframes sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
-.header h1{font-family:'Cinzel',serif;font-size:clamp(1.3rem,4vw,2rem);color:white;text-shadow:0 2px 12px rgba(0,0,0,0.2);margin-bottom:4px}
-.header p{font-size:0.88rem;color:rgba(255,255,255,0.82);font-style:italic}
-.back-link{position:absolute;top:16px;left:16px;color:rgba(255,255,255,0.8);text-decoration:none;font-size:0.78rem;font-weight:700;background:rgba(255,255,255,0.15);padding:6px 14px;border-radius:20px}
+/* ============================================================
+   BACK BUTTON — floating, replaces header
+   ============================================================ */
+.palm-back {
+  position:fixed;top:18px;left:18px;z-index:200;
+  width:44px;height:44px;border-radius:14px;
+  background:var(--linen);border:1.5px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  transition:all var(--dur) var(--ease);
+  box-shadow:0 6px 20px rgba(74,53,32,0.15),0 2px 6px rgba(74,53,32,0.10);
+  transform:perspective(600px) translateZ(0);
+}
+.palm-back:hover{
+  transform:perspective(600px) translateZ(6px) translateY(-2px);
+  box-shadow:0 10px 30px rgba(74,53,32,0.22),0 4px 10px rgba(74,53,32,0.12);
+  border-color:var(--clay);background:var(--sand);
+}
+.palm-back:active{transform:perspective(600px) translateZ(0) translateY(1px)}
+.palm-back svg{width:20px;height:20px;fill:var(--earth);transition:fill var(--dur) var(--ease)}
+.palm-back:hover svg{fill:var(--soil)}
 
-/* LEVEL PILLS */
-.level-row{display:flex;gap:10px;padding:16px 16px 0;overflow-x:auto;scrollbar-width:none;max-width:860px;margin:0 auto}
+/* ============================================================
+   TTS TOGGLE
+   ============================================================ */
+.palm-tts-toggle{
+  position:fixed;top:18px;right:18px;z-index:200;
+  width:40px;height:40px;border-radius:12px;
+  background:var(--linen);border:1.5px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all var(--dur) var(--ease);
+  box-shadow:0 4px 14px rgba(74,53,32,0.10);font-size:0;
+}
+.palm-tts-toggle:hover{border-color:var(--clay);background:var(--sand)}
+.palm-tts-toggle svg{width:18px;height:18px;fill:var(--earth)}
+.palm-tts-toggle.muted svg{opacity:0.35}
+
+/* ============================================================
+   3D ANIMATIONS
+   ============================================================ */
+@keyframes fadeUp3D{
+  from{opacity:0;transform:perspective(800px) rotateX(8deg) translateY(30px)}
+  to{opacity:1;transform:perspective(800px) rotateX(0deg) translateY(0)}
+}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(18px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.au{animation:fadeUp 0.55s var(--ease) both}
+.au3{animation:fadeUp3D 0.65s var(--ease) both}
+.d1{animation-delay:0.08s}.d2{animation-delay:0.16s}.d3{animation-delay:0.24s}.d4{animation-delay:0.32s}
+
+/* ============================================================
+   LEVEL PILLS
+   ============================================================ */
+.level-row{
+  display:flex;gap:10px;padding:76px 16px 0;
+  overflow-x:auto;scrollbar-width:none;
+  max-width:860px;margin:0 auto;
+}
 .level-row::-webkit-scrollbar{display:none}
-.level-pill{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:30px;font-size:0.78rem;font-weight:800;cursor:pointer;border:2.5px solid transparent;transition:all 0.2s}
+
+.level-pill{
+  flex-shrink:0;display:flex;align-items:center;gap:8px;
+  padding:10px 20px;border-radius:30px;
+  font-family:var(--font-b);font-size:0.78rem;font-weight:700;
+  cursor:pointer;border:2px solid transparent;
+  transition:all var(--dur) var(--ease);
+  transform:perspective(600px) translateZ(0);
+}
+.level-pill:hover{
+  transform:perspective(600px) translateZ(4px) translateY(-2px);
+  box-shadow:0 8px 20px rgba(74,53,32,0.12);
+}
 .level-pill.l1{background:var(--l1-bg);color:var(--l1-text);border-color:var(--l1-border)}
 .level-pill.l2{background:var(--l2-bg);color:var(--l2-text);border-color:var(--l2-border)}
 .level-pill.l3{background:var(--l3-bg);color:var(--l3-text);border-color:var(--l3-border)}
-.level-pill.active{box-shadow:0 4px 14px rgba(0,0,0,0.12);transform:translateY(-2px)}
+.level-pill.active{
+  box-shadow:0 6px 18px rgba(74,53,32,0.15);
+  transform:perspective(600px) translateZ(6px) translateY(-3px);
+}
+.level-pill svg{width:16px;height:16px;fill:currentColor;flex-shrink:0}
 
-/* CONTAINER */
+/* ============================================================
+   CONTAINER
+   ============================================================ */
 .container{max-width:860px;margin:0 auto;padding:16px}
 
-/* PROMPT GRID */
-.section-title{font-family:'Cinzel',serif;font-size:0.72rem;letter-spacing:0.2em;color:#6080a0;text-transform:uppercase;margin-bottom:12px;margin-top:4px}
-.prompt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:20px}
+.section-title{
+  font-family:var(--caps);font-size:0.72rem;
+  letter-spacing:0.2em;color:var(--earth);
+  text-transform:uppercase;margin-bottom:12px;margin-top:4px;
+}
 
-.prompt-card{border-radius:20px;padding:16px 18px;cursor:pointer;border:2.5px solid transparent;transition:all 0.25s;position:relative;overflow:hidden}
-.prompt-card::before{content:'';position:absolute;top:-20px;right:-20px;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,0.25);pointer-events:none}
-.prompt-card.l1{background:linear-gradient(135deg,#d4f5e4,#e8fdf2);border-color:var(--l1-border)}
-.prompt-card.l1:hover,.prompt-card.l1.selected{background:linear-gradient(135deg,#b8edcf,#d4f5e4);border-color:var(--l1-badge);transform:translateY(-3px);box-shadow:0 8px 24px rgba(45,158,98,0.18)}
-.prompt-card.l2{background:linear-gradient(135deg,#cce8ff,#e6f4ff);border-color:var(--l2-border)}
-.prompt-card.l2:hover,.prompt-card.l2.selected{background:linear-gradient(135deg,#b0d8ff,#cce8ff);border-color:var(--l2-badge);transform:translateY(-3px);box-shadow:0 8px 24px rgba(40,120,196,0.18)}
-.prompt-card.l3{background:linear-gradient(135deg,#fde8b0,#fff4d8);border-color:var(--l3-border)}
-.prompt-card.l3:hover,.prompt-card.l3.selected{background:linear-gradient(135deg,#fcd880,#fde8b0);border-color:var(--l3-badge);transform:translateY(-3px);box-shadow:0 8px 24px rgba(208,128,0,0.18)}
+/* ============================================================
+   PROMPT CARDS
+   ============================================================ */
+.prompt-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:12px;margin-bottom:20px;
+}
+
+.prompt-card{
+  border-radius:20px;padding:18px 20px;
+  cursor:pointer;border:2px solid transparent;
+  transition:all var(--dur) var(--ease);
+  position:relative;overflow:hidden;
+  transform:perspective(600px) translateZ(0);
+  box-shadow:0 6px 18px rgba(74,53,32,0.08);
+}
+.prompt-card::before{
+  content:'';position:absolute;top:-20px;right:-20px;
+  width:70px;height:70px;border-radius:50%;
+  background:rgba(255,255,255,0.2);pointer-events:none;
+}
+
+.prompt-card.l1{background:linear-gradient(135deg,var(--sand),var(--linen));border-color:var(--l1-border)}
+.prompt-card.l1:hover,.prompt-card.l1.selected{
+  background:linear-gradient(135deg,var(--linen),#e0d4be);
+  border-color:var(--l1-badge);
+  transform:perspective(600px) translateZ(8px) translateY(-4px);
+  box-shadow:0 14px 36px rgba(140,106,63,0.18);
+}
+
+.prompt-card.l2{background:linear-gradient(135deg,#ebe5d8,#e0d8c4);border-color:var(--l2-border)}
+.prompt-card.l2:hover,.prompt-card.l2.selected{
+  background:linear-gradient(135deg,#e0d8c4,#d4c8a8);
+  border-color:var(--l2-badge);
+  transform:perspective(600px) translateZ(8px) translateY(-4px);
+  box-shadow:0 14px 36px rgba(107,80,48,0.18);
+}
+
+.prompt-card.l3{background:linear-gradient(135deg,#f0e6d4,#e8dcc8);border-color:var(--l3-border)}
+.prompt-card.l3:hover,.prompt-card.l3.selected{
+  background:linear-gradient(135deg,#e8dcc8,#dcc8a8);
+  border-color:var(--l3-badge);
+  transform:perspective(600px) translateZ(8px) translateY(-4px);
+  box-shadow:0 14px 36px rgba(139,37,37,0.15);
+}
 
 .card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.card-emoji{font-size:1.6rem}
-.card-badge{font-family:'Cinzel',serif;font-size:0.6rem;font-weight:700;letter-spacing:0.1em;padding:3px 10px;border-radius:20px;color:white;text-transform:uppercase}
-.l1 .card-badge{background:var(--l1-badge)} .l2 .card-badge{background:var(--l2-badge)} .l3 .card-badge{background:var(--l3-badge)}
-.card-title{font-weight:800;font-size:0.9rem;color:var(--ink);margin-bottom:5px;line-height:1.35}
-.card-hint{font-size:0.75rem;color:rgba(26,32,48,0.55);line-height:1.5;font-style:italic}
-.card-story{font-size:0.65rem;font-weight:800;color:rgba(26,32,48,0.4);margin-top:8px;letter-spacing:0.05em;text-transform:uppercase}
+.card-icon{
+  width:36px;height:36px;border-radius:12px;
+  background:var(--sand);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 3px 8px rgba(74,53,32,0.10);
+}
+.card-icon svg{width:20px;height:20px;fill:var(--earth)}
 
-/* SPEAKING BOX */
-.speak-box{background:white;border-radius:24px;padding:22px;box-shadow:0 4px 20px rgba(0,0,0,0.06);margin-bottom:16px}
+.card-badge{
+  font-family:var(--caps);font-size:0.6rem;font-weight:700;
+  letter-spacing:0.1em;padding:4px 12px;border-radius:20px;
+  color:var(--sand);text-transform:uppercase;
+}
+.l1 .card-badge{background:var(--l1-badge)}
+.l2 .card-badge{background:var(--l2-badge)}
+.l3 .card-badge{background:var(--l3-badge)}
+
+.card-title{font-weight:700;font-size:0.9rem;color:var(--ink);margin-bottom:5px;line-height:1.35}
+.card-hint{font-size:0.78rem;color:var(--text-soft);line-height:1.5;font-family:var(--font-h)}
+.card-story{
+  font-size:0.65rem;font-weight:700;color:var(--clay);
+  margin-top:8px;letter-spacing:0.05em;text-transform:uppercase;
+}
+
+/* ============================================================
+   SPEAKING BOX
+   ============================================================ */
+.speak-box{
+  background:var(--linen);border-radius:24px;
+  padding:24px;
+  border:1px solid var(--line);
+  box-shadow:0 8px 28px rgba(74,53,32,0.10),0 2px 8px rgba(74,53,32,0.05);
+  margin-bottom:16px;
+}
 
 /* Prompt display */
-.prompt-display{background:linear-gradient(135deg,#e8f4ff,#f0faf4);border:2px solid #b0d8e8;border-radius:16px;padding:16px 20px;margin-bottom:18px}
-.prompt-display-label{font-size:0.68rem;font-weight:800;color:#5090b8;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px}
+.prompt-display{
+  background:var(--sand);
+  border:1.5px solid var(--clay);
+  border-radius:16px;padding:16px 20px;margin-bottom:18px;
+}
+.prompt-display-label{
+  font-family:var(--caps);font-size:0.68rem;font-weight:700;
+  color:var(--earth);text-transform:uppercase;
+  letter-spacing:0.12em;margin-bottom:6px;
+  display:flex;align-items:center;gap:6px;
+}
+.prompt-display-label svg{width:14px;height:14px;fill:var(--earth)}
 .prompt-display-text{font-size:1rem;font-weight:700;color:var(--ink);line-height:1.6}
-.prompt-display-ar{font-size:0.88rem;color:#6080a0;direction:rtl;text-align:right;margin-top:5px;font-style:italic}
+.prompt-display-ar{
+  font-size:0.88rem;color:var(--text-soft);
+  direction:rtl;text-align:right;margin-top:5px;
+  font-family:var(--font-h);
+}
 
-/* Steps indicator */
+/* Steps */
 .steps{display:flex;gap:8px;margin-bottom:18px;align-items:center}
-.step{display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:700;padding:6px 14px;border-radius:20px;transition:all 0.3s}
-.step.active{background:linear-gradient(135deg,#2d9e62,#2878c4);color:white;box-shadow:0 3px 12px rgba(40,120,196,0.2)}
-.step.done{background:#e8fdf2;color:#2d9e62;border:1.5px solid #7dd4a8}
-.step.todo{background:#f0f4f8;color:#90a8c0;border:1.5px solid #d0dce8}
-.step-num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;flex-shrink:0}
-.step.active .step-num{background:rgba(255,255,255,0.3)}
-.step.done .step-num{background:var(--l1-badge);color:white}
-.step.todo .step-num{background:#d0dce8;color:#8090a8}
+.step{
+  display:flex;align-items:center;gap:6px;
+  font-size:0.75rem;font-weight:700;
+  padding:8px 16px;border-radius:20px;
+  transition:all 0.3s var(--ease);
+}
+.step.active{
+  background:linear-gradient(135deg,var(--soil),var(--earth));
+  color:var(--sand);
+  box-shadow:0 4px 14px rgba(74,53,32,0.20);
+}
+.step.done{background:var(--sand);color:var(--earth);border:1.5px solid var(--clay)}
+.step.todo{background:var(--sand);color:var(--clay);border:1.5px solid var(--line)}
 
-/* Microphone area */
+.step-num{
+  width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.7rem;font-weight:800;flex-shrink:0;
+}
+.step.active .step-num{background:rgba(245,237,216,0.25);color:var(--sand)}
+.step.done .step-num{background:var(--clay);color:var(--sand)}
+.step.todo .step-num{background:var(--line);color:var(--clay)}
+
+/* ============================================================
+   MICROPHONE
+   ============================================================ */
 .mic-area{text-align:center;padding:10px 0}
-.mic-btn{width:80px;height:80px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 12px;transition:all 0.25s;position:relative}
-.mic-btn.idle{background:linear-gradient(135deg,#2d9e62,#2878c4);box-shadow:0 6px 24px rgba(40,120,196,0.3)}
-.mic-btn.recording{background:linear-gradient(135deg,#c04040,#e06020);box-shadow:0 6px 24px rgba(192,64,64,0.4);animation:micPulse 0.8s ease-in-out infinite}
-.mic-btn.done{background:linear-gradient(135deg,#7dd4a8,#2d9e62);box-shadow:0 6px 20px rgba(45,158,98,0.3)}
-.mic-btn:disabled{opacity:0.4;cursor:not-allowed;animation:none}
-@keyframes micPulse{0%,100%{box-shadow:0 6px 24px rgba(192,64,64,0.4),0 0 0 0 rgba(192,64,64,0.4)}50%{box-shadow:0 6px 24px rgba(192,64,64,0.4),0 0 0 18px rgba(192,64,64,0)}}
 
-.mic-status{font-size:0.85rem;font-weight:700;color:#5080a0;margin-bottom:10px;min-height:22px}
-.mic-status.rec{color:#c04040;animation:blink 1s ease-in-out infinite}
+.mic-btn{
+  width:80px;height:80px;border-radius:50%;
+  border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 12px;
+  transition:all var(--dur) var(--ease);
+  position:relative;
+  transform:perspective(600px) translateZ(0);
+}
+.mic-btn.idle{
+  background:radial-gradient(circle at 35% 30%,var(--earth),var(--soil));
+  box-shadow:
+    0 10px 28px rgba(74,53,32,0.30),
+    0 4px 10px rgba(74,53,32,0.15),
+    inset 0 -4px 8px rgba(0,0,0,0.20),
+    inset 0 4px 8px rgba(200,170,120,0.15);
+  border:2px solid rgba(200,170,120,0.3);
+}
+.mic-btn.idle:hover{
+  transform:perspective(600px) translateZ(6px) translateY(-3px);
+  box-shadow:0 16px 40px rgba(74,53,32,0.35),0 6px 14px rgba(74,53,32,0.18);
+}
+.mic-btn.idle svg{width:32px;height:32px;fill:var(--sand)}
+
+.mic-btn.recording{
+  background:radial-gradient(circle at 35% 30%,#b04040,var(--burgundy));
+  box-shadow:
+    0 10px 28px rgba(54,3,4,0.35),
+    inset 0 -4px 8px rgba(0,0,0,0.20),
+    inset 0 4px 8px rgba(180,80,80,0.20);
+  border:2px solid rgba(180,80,80,0.3);
+  animation:micPulse3D 0.8s ease-in-out infinite;
+}
+.mic-btn.recording svg{width:28px;height:28px;fill:var(--sand)}
+
+@keyframes micPulse3D{
+  0%,100%{
+    box-shadow:0 10px 28px rgba(54,3,4,0.35),0 0 0 0 rgba(54,3,4,0.3),
+    inset 0 -4px 8px rgba(0,0,0,0.20);
+  }
+  50%{
+    box-shadow:0 10px 28px rgba(54,3,4,0.35),0 0 0 18px rgba(54,3,4,0),
+    inset 0 -4px 8px rgba(0,0,0,0.20);
+  }
+}
+
+.mic-btn.done{
+  background:radial-gradient(circle at 35% 30%,#8b6b40,var(--earth));
+  box-shadow:0 8px 22px rgba(140,106,63,0.25);
+  border:2px solid rgba(200,170,120,0.3);
+}
+.mic-btn.done svg{width:28px;height:28px;fill:var(--sand)}
+
+.mic-btn:disabled{opacity:0.4;cursor:not-allowed;animation:none}
+
+.mic-status{font-size:0.88rem;font-weight:700;color:var(--earth);margin-bottom:10px;min-height:22px}
+.mic-status.rec{color:var(--burgundy);animation:blink 1s ease-in-out infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.5}}
 
 /* Waveform */
 .waveform{display:flex;align-items:center;justify-content:center;gap:3px;height:44px;margin-bottom:12px}
-.wb{width:4px;background:#b0c8e0;border-radius:4px;min-height:4px;transition:height 0.08s}
-.waveform.active .wb{background:linear-gradient(to top,#2d9e62,#2878c4)}
+.wb{
+  width:4px;background:var(--clay);border-radius:4px;
+  min-height:4px;transition:height 0.08s;opacity:0.5;
+}
+.waveform.active .wb{
+  background:linear-gradient(to top,var(--earth),var(--clay));
+  opacity:1;
+}
 
 /* Transcript box */
-.transcript-box{background:#f8fbff;border:2px solid #c8dff0;border-radius:14px;padding:14px 16px;min-height:60px;font-size:0.95rem;line-height:1.7;color:var(--ink);margin-bottom:14px;font-style:italic;color:#6080a0;transition:border-color 0.3s}
-.transcript-box.has-text{color:var(--ink);font-style:normal;border-color:#7ac0f0}
+.transcript-box{
+  background:var(--sand);border:1.5px solid var(--line);
+  border-radius:14px;padding:14px 16px;
+  min-height:60px;font-size:0.95rem;line-height:1.7;
+  color:var(--text-soft);
+  font-family:var(--font-h);
+  transition:border-color 0.3s;
+}
+.transcript-box.has-text{
+  color:var(--ink);
+  border-color:var(--clay);
+  font-family:var(--font-b);
+}
 
-/* Buttons */
+/* ============================================================
+   BUTTONS
+   ============================================================ */
 .btn-row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
-.btn-retry{background:#f0f4f8;border:none;color:#7090a8;font-family:'Nunito',sans-serif;font-weight:700;font-size:0.82rem;padding:10px 20px;border-radius:20px;cursor:pointer;transition:all 0.2s}
-.btn-retry:hover{background:#e0e8f0}
-.btn-analyse{background:linear-gradient(135deg,#2d9e62,#2878c4);border:none;color:white;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.88rem;padding:12px 28px;border-radius:20px;cursor:pointer;box-shadow:0 4px 16px rgba(40,120,196,0.25);transition:all 0.25s;display:flex;align-items:center;gap:8px}
-.btn-analyse:hover{transform:translateY(-2px)}
+
+.btn-retry{
+  background:var(--sand);border:1.5px solid var(--line);
+  color:var(--earth);font-family:var(--font-b);
+  font-weight:700;font-size:0.82rem;
+  padding:10px 20px;border-radius:20px;
+  cursor:pointer;transition:all var(--dur) var(--ease);
+}
+.btn-retry:hover{background:var(--linen);border-color:var(--clay)}
+
+.btn-analyse{
+  background:linear-gradient(135deg,var(--soil),var(--earth));
+  border:none;color:var(--sand);
+  font-family:var(--font-b);font-weight:700;font-size:0.88rem;
+  padding:12px 28px;border-radius:20px;
+  cursor:pointer;
+  box-shadow:0 6px 20px rgba(74,53,32,0.25),0 2px 6px rgba(74,53,32,0.10);
+  transition:all var(--dur) var(--ease);
+  display:flex;align-items:center;gap:8px;
+  transform:perspective(600px) translateZ(0);
+}
+.btn-analyse:hover{
+  transform:perspective(600px) translateZ(4px) translateY(-2px);
+  box-shadow:0 12px 30px rgba(74,53,32,0.30),0 4px 10px rgba(74,53,32,0.12);
+}
 .btn-analyse:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+.btn-analyse svg{width:16px;height:16px;fill:var(--sand)}
 
-/* LOADING */
+/* ============================================================
+   LOADING
+   ============================================================ */
 #loading{display:none;text-align:center;padding:32px 0}
-.loading-palm{font-size:2.5rem;animation:palmBounce 1.2s ease-in-out infinite;display:inline-block}
+.loading-palm{
+  display:inline-block;font-size:0;
+  width:48px;height:48px;
+  animation:palmBounce 1.2s ease-in-out infinite;
+}
+.loading-palm svg{width:48px;height:48px;fill:var(--earth)}
 @keyframes palmBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
-.loading-text{margin-top:12px;font-size:0.9rem;color:#5080a0;font-style:italic}
+.loading-text{
+  margin-top:12px;font-size:0.9rem;
+  color:var(--text-soft);font-family:var(--font-h);
+}
 
-/* REPORT */
-#report{display:none;animation:fadeUp 0.55s cubic-bezier(0.22,1,0.36,1) both}
-@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+/* ============================================================
+   REPORT
+   ============================================================ */
+#report{display:none;animation:fadeUp 0.55s var(--ease) both}
 
-.score-banner{background:linear-gradient(135deg,#e8fdf2,#e6f4ff);border:2px solid #b0d8c0;border-radius:24px;padding:22px 24px;display:flex;align-items:center;gap:18px;margin-bottom:16px}
-.score-ring{flex-shrink:0;width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;color:white;box-shadow:0 4px 16px rgba(0,0,0,0.1)}
+.score-banner{
+  background:var(--linen);
+  border:1.5px solid var(--clay);
+  border-radius:24px;padding:22px 24px;
+  display:flex;align-items:center;gap:18px;
+  margin-bottom:16px;
+  box-shadow:0 8px 24px rgba(74,53,32,0.08);
+}
+.score-ring{
+  flex-shrink:0;width:76px;height:76px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-h);font-size:1.4rem;font-weight:700;
+  color:var(--sand);
+  box-shadow:0 6px 18px rgba(0,0,0,0.15),
+    inset 0 -3px 6px rgba(0,0,0,0.15),
+    inset 0 3px 6px rgba(255,255,255,0.10);
+}
 .score-right{flex:1}
-.score-level{font-family:'Cinzel',serif;font-size:1rem;color:var(--ink);margin-bottom:4px}
-.score-msg{font-size:0.88rem;color:#4a6a80;line-height:1.55}
-.score-msg-ar{font-size:0.85rem;color:#5a7a90;direction:rtl;text-align:right;margin-top:3px;font-style:italic}
+.score-level{font-family:var(--font-h);font-size:1rem;color:var(--ink);margin-bottom:4px}
+.score-msg{font-size:0.88rem;color:var(--text-soft);line-height:1.55}
+.score-msg-ar{font-size:0.85rem;color:var(--text-soft);direction:rtl;text-align:right;margin-top:3px}
 
-/* Analysis meters */
+/* Meters */
 .meters-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:14px}
-.meter-card{background:white;border-radius:18px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.05)}
-.meter-label{font-size:0.7rem;font-weight:800;color:#7090a8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
-.meter-bar-wrap{background:#e8f0f8;border-radius:20px;height:10px;overflow:hidden;margin-bottom:6px}
-.meter-bar{height:100%;border-radius:20px;transition:width 1s cubic-bezier(0.22,1,0.36,1)}
-.meter-score{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--ink)}
-.meter-comment{font-size:0.75rem;color:#8090a8;font-style:italic;margin-top:3px}
+.meter-card{
+  background:var(--sand);border-radius:18px;
+  padding:16px;border:1px solid var(--line);
+  box-shadow:0 4px 12px rgba(74,53,32,0.06);
+}
+.meter-label{
+  font-family:var(--caps);font-size:0.7rem;font-weight:700;
+  color:var(--earth);text-transform:uppercase;
+  letter-spacing:0.1em;margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.meter-label svg{width:14px;height:14px;fill:var(--earth)}
+.meter-bar-wrap{background:var(--linen);border-radius:20px;height:10px;overflow:hidden;margin-bottom:6px}
+.meter-bar{height:100%;border-radius:20px;transition:width 1s var(--ease)}
+.meter-score{font-family:var(--font-h);font-size:1.1rem;font-weight:700;color:var(--ink)}
+.meter-comment{font-size:0.75rem;color:var(--text-soft);font-family:var(--font-h);margin-top:3px}
 
-.rep-card{background:white;border-radius:20px;padding:18px 20px;box-shadow:0 2px 12px rgba(0,0,0,0.05);margin-bottom:12px}
-.rep-card-title{font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:12px;display:flex;align-items:center;gap:6px}
-.rep-card-title.green{color:var(--l1-badge)} .rep-card-title.blue{color:var(--l2-badge)} .rep-card-title.gold{color:var(--l3-badge)} .rep-card-title.red{color:#c04040}
-.rep-item{display:flex;gap:10px;margin-bottom:10px;font-size:0.88rem;line-height:1.6;color:#2a3a50}
-.rep-icon{flex-shrink:0;font-size:1rem;margin-top:2px}
-.rep-ar{font-size:0.8rem;color:#7090a8;direction:rtl;text-align:right;margin-top:2px;font-style:italic}
+.rep-card{
+  background:var(--sand);border-radius:20px;
+  padding:18px 20px;border:1px solid var(--line);
+  box-shadow:0 4px 14px rgba(74,53,32,0.06);
+  margin-bottom:12px;
+}
+.rep-card-title{
+  font-family:var(--caps);font-size:0.72rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.12em;
+  margin-bottom:12px;display:flex;align-items:center;gap:8px;
+}
+.rep-card-title svg{width:16px;height:16px;fill:currentColor}
+.rep-card-title.green{color:var(--earth)}
+.rep-card-title.gold{color:var(--clay)}
+.rep-card-title.red{color:var(--burgundy)}
+.rep-card-title.blue{color:var(--soil)}
 
-/* Transcript comparison */
-.transcript-compare{background:#f8fbff;border:2px solid #c8dff0;border-radius:14px;padding:16px;margin-bottom:4px}
-.tc-label{font-size:0.68rem;font-weight:800;color:#5090b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px}
+.rep-item{display:flex;gap:10px;margin-bottom:10px;font-size:0.88rem;line-height:1.6;color:var(--text)}
+.rep-icon{
+  flex-shrink:0;width:20px;height:20px;
+  display:flex;align-items:center;justify-content:center;
+  margin-top:2px;
+}
+.rep-icon svg{width:16px;height:16px;fill:var(--clay)}
+.rep-icon.tip svg{fill:var(--earth)}
+.rep-ar{font-size:0.8rem;color:var(--text-soft);direction:rtl;text-align:right;margin-top:2px}
+
+/* Transcript compare */
+.transcript-compare{
+  background:var(--sand);border:1.5px solid var(--line);
+  border-radius:14px;padding:16px;margin-bottom:4px;
+}
+.tc-label{
+  font-family:var(--caps);font-size:0.68rem;font-weight:700;
+  color:var(--earth);text-transform:uppercase;
+  letter-spacing:0.1em;margin-bottom:6px;
+}
 .tc-text{font-size:0.95rem;line-height:1.7;color:var(--ink)}
-.tc-text .miss{background:#ffe0e0;border-radius:4px;padding:0 3px;color:#c04040}
-.tc-text .good{background:#d4f5e4;border-radius:4px;padding:0 3px;color:#2d9e62;font-weight:700}
+.tc-text .miss{background:rgba(54,3,4,0.08);border-radius:4px;padding:0 3px;color:var(--burgundy)}
+.tc-text .good{background:rgba(140,106,63,0.10);border-radius:4px;padding:0 3px;color:var(--earth);font-weight:700}
 
-.arabic-summary{background:linear-gradient(135deg,#fff8e6,#fffdf0);border:2px solid #f0d890;border-radius:20px;padding:18px 20px;direction:rtl;text-align:right;margin-bottom:16px}
-.arabic-summary .as-title{font-size:0.72rem;font-weight:800;color:var(--l3-badge);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px}
-.arabic-summary p{font-size:0.95rem;line-height:1.85;color:#4a3800}
+.arabic-summary{
+  background:var(--linen);
+  border:1.5px solid var(--clay);
+  border-radius:20px;padding:18px 20px;
+  direction:rtl;text-align:right;margin-bottom:16px;
+}
+.arabic-summary .as-title{
+  font-family:var(--caps);font-size:0.72rem;font-weight:700;
+  color:var(--clay);text-transform:uppercase;
+  letter-spacing:0.1em;margin-bottom:10px;
+}
+.arabic-summary p{font-size:0.95rem;line-height:1.85;color:var(--soil)}
 
-.try-again-btn{display:block;width:fit-content;margin:8px auto 0;background:linear-gradient(135deg,#2d9e62,#2878c4);color:white;border:none;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.88rem;padding:12px 32px;border-radius:20px;cursor:pointer;transition:all 0.25s;box-shadow:0 4px 16px rgba(40,120,196,0.2)}
-.try-again-btn:hover{transform:translateY(-2px)}
+.try-again-btn{
+  display:block;width:fit-content;margin:8px auto 0;
+  background:linear-gradient(135deg,var(--soil),var(--earth));
+  color:var(--sand);border:none;
+  font-family:var(--font-b);font-weight:700;font-size:0.88rem;
+  padding:12px 32px;border-radius:20px;
+  cursor:pointer;transition:all var(--dur) var(--ease);
+  box-shadow:0 6px 20px rgba(74,53,32,0.25);
+  transform:perspective(600px) translateZ(0);
+}
+.try-again-btn:hover{
+  transform:perspective(600px) translateZ(4px) translateY(-2px);
+  box-shadow:0 12px 30px rgba(74,53,32,0.30);
+}
 
-@media(max-width:480px){.steps{flex-wrap:wrap} .step span:last-child{display:none}}
-
-/* THURAYA GUIDE */
-.thuraya-guide{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;align-items:flex-end;gap:12px;max-width:min(92vw,420px)}
-.thuraya-avatar{width:88px;height:88px;border-radius:50%;object-fit:cover;border:4px solid #fff;box-shadow:0 10px 24px rgba(0,0,0,.18);background:#fff}
-.thuraya-panel{background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border:1px solid rgba(40,120,196,.18);border-radius:18px;padding:12px 14px;box-shadow:0 10px 24px rgba(0,0,0,.12);min-width:220px}
-.thuraya-name{font-weight:800;font-size:.82rem;color:#2878c4;margin-bottom:4px}
-.thuraya-text{font-size:.88rem;line-height:1.55;color:#1a2030}
-.thuraya-sub{font-size:.78rem;color:#6c7f95;margin-top:4px;direction:rtl;text-align:right}
+/* ============================================================
+   THURAYA GUIDE
+   ============================================================ */
+.thuraya-guide{
+  position:fixed;right:18px;bottom:18px;z-index:9999;
+  display:flex;align-items:flex-end;gap:12px;
+  max-width:min(92vw,420px);
+}
+.thuraya-avatar{
+  width:88px;height:88px;border-radius:50%;
+  object-fit:cover;
+  border:3px solid var(--linen);
+  box-shadow:0 10px 28px rgba(74,53,32,0.20),
+    0 4px 10px rgba(74,53,32,0.10);
+  background:var(--linen);
+}
+.thuraya-panel{
+  background:rgba(245,237,216,0.96);
+  backdrop-filter:blur(8px);
+  border:1.5px solid var(--line);
+  border-radius:18px;padding:14px 16px;
+  box-shadow:0 10px 28px rgba(74,53,32,0.12);
+  min-width:220px;
+}
+.thuraya-name{
+  font-family:var(--caps);font-weight:700;
+  font-size:0.78rem;color:var(--earth);
+  letter-spacing:0.08em;margin-bottom:4px;
+}
+.thuraya-text{font-size:0.88rem;line-height:1.55;color:var(--ink)}
+.thuraya-sub{font-size:0.78rem;color:var(--text-soft);margin-top:4px;direction:rtl;text-align:right}
 .thuraya-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-.th-btn{border:none;border-radius:999px;padding:7px 10px;font-size:.74rem;font-weight:800;cursor:pointer}
-.th-btn.primary{background:linear-gradient(135deg,#2d9e62,#2878c4);color:#fff}
-.th-btn.secondary{background:#eef5ff;color:#2878c4}
-@media(max-width:640px){.thuraya-guide{right:10px;left:10px;bottom:10px}.thuraya-avatar{width:72px;height:72px}.thuraya-panel{min-width:0}}
+.th-btn{
+  border:none;border-radius:999px;padding:7px 14px;
+  font-family:var(--font-b);font-size:0.74rem;font-weight:700;
+  cursor:pointer;transition:all var(--dur) var(--ease);
+}
+.th-btn.primary{
+  background:linear-gradient(135deg,var(--soil),var(--earth));
+  color:var(--sand);
+  box-shadow:0 3px 10px rgba(74,53,32,0.15);
+}
+.th-btn.primary:hover{
+  transform:translateY(-1px);
+  box-shadow:0 6px 16px rgba(74,53,32,0.20);
+}
+.th-btn.secondary{
+  background:var(--sand);color:var(--earth);
+  border:1px solid var(--line);
+}
 
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media(max-width:640px){
+  .level-row{padding-top:68px}
+  .level-pill{padding:8px 14px;font-size:0.72rem}
+  .steps{flex-wrap:wrap}
+  .step span:last-child{display:none}
+  .prompt-grid{grid-template-columns:1fr}
+  .thuraya-guide{right:10px;left:10px;bottom:10px}
+  .thuraya-avatar{width:72px;height:72px}
+  .thuraya-panel{min-width:0}
+  .palm-back{top:12px;left:12px;width:38px;height:38px;border-radius:12px}
+  .palm-tts-toggle{top:12px;right:12px;width:36px;height:36px}
+  .speak-box{padding:16px}
+}
+
+/* ============================================================
+   SQUARESPACE IFRAME ISOLATION
+   ============================================================ */
+.sqs-block-code *{all:revert}
 </style>
-
-
 <script src="/js/piper-client.js"></script>
 </head>
 <body>
 
-<div class="header">
-  <a class="back-link" href="index.html">← Home</a>
-  <span class="header-icon">🐦</span>
-  <h1>Palm Echo</h1>
-  <p>Speak Game -- تحدث بثقة مع ثريا 🌴</p>
-</div>
+<!-- ═══════ BACK BUTTON ═══════ -->
+<button class="palm-back" id="back-btn" aria-label="Go back">
+  <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+</button>
 
-<!-- LEVEL PILLS -->
+<!-- ═══════ TTS TOGGLE ═══════ -->
+<button class="palm-tts-toggle" id="tts-toggle" aria-label="Toggle voice">
+  <svg viewBox="0 0 24 24" id="tts-icon-on"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+  <svg viewBox="0 0 24 24" id="tts-icon-off" style="display:none;"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+</button>
 
+<!-- ═══════ LEVEL PILLS ═══════ -->
 <div class="level-row">
   <div class="level-pill l1 active" id="pill1" onclick="filterLevel(1)">
-    <span>🌱</span> Level 1 -- Echo
+    <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+    Level 1 — Echo
   </div>
   <div class="level-pill l2" id="pill2" onclick="filterLevel(2)">
-    <span>🌴</span> Level 2 -- Answer
+    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+    Level 2 — Answer
   </div>
   <div class="level-pill l3" id="pill3" onclick="filterLevel(3)">
-    <span>⭐</span> Level 3 -- Tell
+    <svg viewBox="0 0 24 24"><path d="M12 2l2.94 6.34L22 9.27l-5 4.95L18.18 22 12 18.27 5.82 22 7 14.22l-5-4.95 7.06-.93L12 2z"/></svg>
+    Level 3 — Tell
   </div>
 </div>
 
 <div class="container">
 
-  <div class="section-title">Choose your speaking prompt • اختر موضوع التحدث</div>
+  <div class="section-title">Choose your speaking prompt</div>
 
   <div class="prompt-grid" id="promptGrid">
 
-```
-<!-- LEVEL 1 -- ECHO: repeat the sentence -->
-<div class="prompt-card l1" data-level="1"
-     data-text="Good morning! My name is John. I am a teacher."
-     data-textar="صباح الخير! اسمي جون. أنا معلم."
-     data-prompt="The student must repeat this sentence as clearly as possible: 'Good morning! My name is John. I am a teacher.' Evaluate pronunciation of each word."
-     onclick="selectCard(this)">
-  <div class="card-top"><span class="card-emoji">👋</span><span class="card-badge">Echo</span></div>
-  <div class="card-title">Repeat the greeting</div>
-  <div class="card-hint">"Good morning! My name is John. I am a teacher."</div>
-  <div class="card-story">Story 1</div>
-</div>
+    <!-- LEVEL 1 — ECHO -->
+    <div class="prompt-card l1" data-level="1"
+         data-text="Good morning! My name is John. I am a teacher."
+         data-textar="صباح الخير! اسمي جون. أنا معلم."
+         data-prompt="The student must repeat this sentence as clearly as possible: 'Good morning! My name is John. I am a teacher.' Evaluate pronunciation of each word."
+         onclick="selectCard(this)">
+      <div class="card-top">
+        <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg></span>
+        <span class="card-badge">Echo</span>
+      </div>
+      <div class="card-title">Repeat the greeting</div>
+      <div class="card-hint">"Good morning! My name is John. I am a teacher."</div>
+      <div class="card-story">Story 1</div>
+    </div>
 
-<div class="prompt-card l1" data-level="1"
-     data-text="The falaj carries water to the village."
-     data-textar="الفلج يحمل الماء إلى القرية."
-     data-prompt="The student must repeat this sentence clearly: 'The falaj carries water to the village.' Evaluate pronunciation."
-     onclick="selectCard(this)">
-  <div class="card-top"><span class="card-emoji">💧</span><span class="card-badge">Echo</span></div>
-  <div class="card-title">Repeat about the falaj</div>
-  <div class="card-hint">"The falaj carries water to the village."</div>
-  <div class="card-story">Story 2</div>
-</div>
+    <div class="prompt-card l1" data-level="1"
+         data-text="The falaj carries water to the village."
+         data-textar="الفلج يحمل الماء إلى القرية."
+         data-prompt="The student must repeat this sentence clearly: 'The falaj carries water to the village.' Evaluate pronunciation."
+         onclick="selectCard(this)">
+      <div class="card-top">
+        <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2C20 10.48 17.33 6.55 12 2zm0 18c-3.35 0-6-2.57-6-6.2 0-2.34 1.95-5.44 6-9.14 4.05 3.7 6 6.79 6 9.14 0 3.63-2.65 6.2-6 6.2z"/></svg></span>
+        <span class="card-badge">Echo</span>
+      </div>
+      <div class="card-title">Repeat about the falaj</div>
+      <div class="card-hint">"The falaj carries water to the village."</div>
+      <div class="card-story">Story 2</div>
+    </div>
 
-<div class="prompt-card l1" data-level="1"
-     data-text="Don't move! There is a wasp on John's shoulder."
-     data-textar="لا تتحرك! هناك دبّور على كتف جون."
-     data-prompt="The student must repeat clearly: 'Don't move! There is a wasp on John's shoulder.' Evaluate pronunciation."
-     onclick="selectCard(this)">
-  <div class="card-top"><span class="card-emoji">🐝</span><span class="card-badge">Echo</span></div>
-  <div class="card-title">Repeat the warning</div>
-  <div class="card-hint">"Don't move! There is a wasp on John's shoulder."</div>
-  <div class="card-story">Story 5</div>
-</div>
+    <div class="prompt-card l1" data-level="1"
+         data-text="Don't move! There is a wasp on John's shoulder."
+         data-textar="لا تتحرك! هناك دبّور على كتف جون."
+         data-prompt="The student must repeat clearly: 'Don't move! There is a wasp on John's shoulder.' Evaluate pronunciation."
+         onclick="selectCard(this)">
+      <div class="card-top">
+        <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-.55 0-1-.45-1-1v-1h2v1c0 .55-.45 1-1 1zm0-4c-3.31 0-6-2.69-6-6 0-3.09 2.34-5.64 5.37-5.97.02 0 .04-.01.06-.01.02 0 .04.01.06.01C14.66 2.36 17 4.91 17 8c0 3.31-2.69 6-6 6z"/></svg></span>
+        <span class="card-badge">Echo</span>
+      </div>
+      <div class="card-title">Repeat the warning</div>
+      <div class="card-hint">"Don't move! There is a wasp on John's shoulder."</div>
+      <div class="card-story">Story 5</div>
+    </div>
 
-<div class="prompt-card l1" data-level="1"
-     data-text="I can watch. And watching is learning."
-     data-textar="أنا أستطيع المراقبة. والمراقبة هي التعلم."
-     data-prompt="The student must repeat: 'I can watch. And watching is learning.' Evaluate pronunciation clearly."
-     onclick="selectCard(this)">
-  <div class="card-top"><span class="card-emoji">👁️</span><span class="card-badge">Echo</span></div>
-  <div class="card-title">Repeat Khamees's words</div>
-  <div class="card-hint">"I can watch. And watching is learning."</div>
-  <div class="card-story">Story 11</div>
-</div>
+    <div class="prompt-card l1" data-level="1"
+         data-text="I can watch. And watching is learning."
+         data-textar="أنا أستطيع المراقبة. والمراقبة هي التعلم."
+         data-prompt="The student must repeat: 'I can watch. And watching is learning.' Evaluate pronunciation clearly."
+         onclick="selectCard(this)">
+      <div class="card-top">
+        <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></span>
+        <span class="card-badge">Echo</span>
+      </div>
+      <div class="card-title">Repeat Khamees's words</div>
+      <div class="card-hint">"I can watch. And watching is learning."</div>
+      <div class="card-story">Story 11</div>
+    </div>
 
-<!-- LEVEL 2 -- ANSWER a question -->
-<div class="prompt-card l2" data-level="2"
-     data-text="Who is Thuraya? Tell me two things about her."
-     data-textar="من هي ثريا؟ أخبرني بشيئين عنها."
-     data-prompt="The student was asked: 'Who is Thuraya? Tell me two things about her.' Analyse their spoken answer for pronunciation, vocabulary, fluency, and whether they answered the question."
-     onclick="selectCard(this)">
-  <div class="card-top"><span class="card-emoji">👩‍🏫</span><span class="card-badge">Answer</span></div>
-  <div class="card-title">Who is Thuraya?</div>
-  <div class="card-hint">Tell me two things about her.</div>
-  <div class="card-story">Story 1</div>
-</div>
+    <!-- LEVEL 2 — ANSWER -->
+    <div class="prompt-card l2" data-level="2"
+         data-text="Who is Thuraya? Tell me two things about her."
+         data-textar="من هي ثريا؟ أخبرني بشيئين عنها."
+         data-prompt="The student was asked: 'Who is Thuraya? Tell me two things about her.' Analyse their spoken answer for pronunciation, vocabulary, fluency, and whether they answered the question."
+         onclick="selectCard(this)">
+      <div class="card-top">
+        <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></span>
+        <span class="card-badge">Answer</span>
+      </div>
+      <div class="card-title">Who is Thuraya?</div>
+      <div class="card-hint">Tell me two things about her.</div>
+      <div class="card-story">Story 1</div>
+    </div>
 
-<div class="prompt-card l2" data-level="2"
-     data-text="What happened when the wasp landed on John? Tell me the story."
-     data-textar="ماذا حدث عندما وقع الدبّور على جون؟ احكِ لي القصة."
-     data-prompt="The student was asked: 'What happened when the wasp landed on John?' Analyse their spoken answer for pronunciation, vocabulary, fluency, and story accuracy."
-     onclick="selectCard(this)">
-  <div class="card-top"><span class="card-emoji">🐝</span><span class="card-badge">Answer</span></div>
-  <div class="card-title">Tell the wasp story</div>
-  <div class="card-hint">What happened? Who helped John?</div>
-  <div class="card-story">Story 5</div>
-</div>
+    <div class="prompt-card l2" data-level="2"
+         data-text="What happened when the wasp landed on John? Tell me the story."
+         data-textar="ماذا حدث عندما وقع الدبّور على جون؟ احكِ لي القصة."
+         data-prompt="The student was asked: 'What happened when the wasp landed on John?' Analyse their spoken answer for pronunciation, vocabulary, fluency, and story accuracy."
+         onclick="selectCard(this)">
+      <div class="card-top">
+        <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg></span>
+        <span class="card-badge">Answer</span>
+      </div>
+      <div class="card-title">Tell the wasp story</div>
+      <div class="card-hint">What happened? Who helped John?</div>
+      <div class="card-story">Story 5</div>
+    </div>
 
-<div class="prompt-card l2" data-level="2"
-     data-text="What can Sadoo do? Name three of his skills."
-     data-textar="ماذا يستطيع سادو أن يفعل؟ اذكر ثلاث مهارات له."
-     data-prompt="The student was asked: 'What can Sadoo do? Name three skills.' Analyse their spoken answer for pronunciation, vocabulary, fluency, and accuracy."
-     onclick="selectCard(this)">
-  <div class="card-top"><span class="card-emoji">🛒</span><span class="card-badge">Answer</span></div>
-  <div class="card-title">What can Sadoo do?</div>
-  <div class="card-hint">Name three of his skills.</div>
-  <div class="card-story">Story 8</div>
-</div>
+    <div class="prompt-card l2" data-level="2"
+         data-text="What can Sadoo do? Name three of his skills."
+         data-textar="ماذا يستطيع سادو أن يفعل؟ اذكر ثلاث مهارات له."
+         data-prompt="The student was asked: 'What can Sadoo do? Name three skills.' Analyse their spoken answer for pronunciation, vocabulary, fluency, and accuracy."
+         onclick="selectCard(this)">
+      <div class="card-top">
+        <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg></span>
+        <span class="card-badge">Answer</span>
+      </div>
+      <div class="card-title">What can Sadoo do?</div>
+      <div class="card-hint">Name three of his skills.</div>
+      <div class="card-story">Story 8</div>
+    </div>
 
-<div class="prompt-card l2" data-level="2"
-     data-text="Why is the palm tree important in Al-Qurawashiyah?"
-     data-textar="لماذا النخلة مهمة في القرواشية؟"
-     data-prompt="The student was asked: 'Why is the palm tree important in Al-Qurawashiyah?' Analyse their answer for pronunciation, vocabulary, fluency, and accuracy."
-     onclick="selectCard(this)">
-  <div class="card-top"><span class="card-emoji">🌴</span><span class="card-badge">Answer</span></div>
-  <div class="card-title">Why is the palm tree important?</div>
-  <div class="card-hint">What does it give the village?</div>
-  <div class="card-story">All Stories</div>
-</div>
+    <div class="prompt-card l2" data-level="2"
+         data-text="Why is the palm tree important in Al-Qurawashiyah?"
+         data-textar="لماذا النخلة مهمة في القرواشية؟"
+         data-prompt="The student was asked: 'Why is the palm tree important in Al-Qurawashiyah?' Analyse their answer for pronunciation, vocabulary, fluency, and accuracy."
+         onclick="selectCard(this)">
+      <div class="card-top">
+        <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 22c4.97 0 9-2.69 9-6v-3c0-3.31-4.03-6-9-6s-9 2.69-9 6v3c0 3.31 4.03 6 9 6zm0-12c3.28 0 6 1.86 6 4v3c0 2.14-2.72 4-6 4s-6-1.86-6-4v-3c0-2.14 2.72-4 6-4zM6.5 8C4.12 8 2 9.79 2 12v1h2v-1c0-1.48 1.35-2.71 3.12-2.95L6.5 8zm11 0l-.62.05C18.65 9.29 20 10.52 20 12v1h2v-1c0-2.21-2.12-4-4.5-4z"/></svg></span>
+        <span class="card-badge">Answer</span>
+      </div>
+      <div class="card-title">Why is the palm tree important?</div>
+      <div class="card-hint">What does it give the village?</div>
+      <div class="card-story">All Stories</div>
+    </div>
 
-<!-- LEVEL 3 -- TELL freely for 20 seconds -->
-<div class="prompt-card l3" data-level="3"
-     data-text="Tell me everything you know about John. Speak for 20 seconds."
-     data-textar="أخبرني كل ما تعرفه عن جون. تحدث لمدة 20 ثانية."
-     data-prompt="The student was asked to speak freely about John for 20 seconds. Analyse deeply: pronunciation quality, vocabulary range, fluency, sentence structure, and content quality."
-     onclick="selectCard(this)">
-  <div class="card-top"><span class="card-emoji">👨‍🏫</span><span class="card-badge">Tell</span></div>
-  <div class="card-title">Tell me about John</div>
-  <div class="card-hint">Speak freely for 20 seconds!</div>
-  <div class="card-story">Story 1--8</div>
-</div>
+    <!-- LEVEL 3 — TELL -->
+    <div class="prompt-card l3" data-level="3"
+         data-text="Tell me everything you know about John. Speak for 20 seconds."
+         data-textar="أخبرني كل ما تعرفه عن جون. تحدث لمدة 20 ثانية."
+         data-prompt="The student was asked to speak freely about John for 20 seconds. Analyse deeply: pronunciation quality, vocabulary range, fluency, sentence structure, and content quality."
+         onclick="selectCard(this)">
+      <div class="card-top">
+        <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></span>
+        <span class="card-badge">Tell</span>
+      </div>
+      <div class="card-title">Tell me about John</div>
+      <div class="card-hint">Speak freely for 20 seconds!</div>
+      <div class="card-story">Story 1–8</div>
+    </div>
 
-<div class="prompt-card l3" data-level="3"
-     data-text="Tell me the story of Sophia's yellow face. Speak for 20 seconds."
-     data-textar="احكِ لي قصة وجه صوفيا الأصفر. تحدث لمدة 20 ثانية."
-     data-prompt="The student was asked to tell the story of Sophia's yellow face for 20 seconds. Analyse: pronunciation, vocabulary, fluency, sentence structure, and storytelling quality."
-     onclick="selectCard(this)">
-  <div class="card-top"><span class="card-emoji">🟡</span><span class="card-badge">Tell</span></div>
-  <div class="card-title">Tell Sophia's yellow face story!</div>
-  <div class="card-hint">What happened at Marhoona's salon?</div>
-  <div class="card-story">Story 7</div>
-</div>
+    <div class="prompt-card l3" data-level="3"
+         data-text="Tell me the story of Sophia's yellow face. Speak for 20 seconds."
+         data-textar="احكِ لي قصة وجه صوفيا الأصفر. تحدث لمدة 20 ثانية."
+         data-prompt="The student was asked to tell the story of Sophia's yellow face for 20 seconds. Analyse: pronunciation, vocabulary, fluency, sentence structure, and storytelling quality."
+         onclick="selectCard(this)">
+      <div class="card-top">
+        <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg></span>
+        <span class="card-badge">Tell</span>
+      </div>
+      <div class="card-title">Tell Sophia's yellow face story!</div>
+      <div class="card-hint">What happened at Marhoona's salon?</div>
+      <div class="card-story">Story 7</div>
+    </div>
 
-<div class="prompt-card l3" data-level="3"
-     data-text="If you were Khamees, what would you say to your class? Speak for 20 seconds."
-     data-textar="لو كنت خميساً، ماذا ستقول لصفك؟ تحدث لمدة 20 ثانية."
-     data-prompt="The student was asked: 'If you were Khamees, what would you say?' Analyse: pronunciation, vocabulary, creativity, fluency, and sentence structure."
-     onclick="selectCard(this)">
-  <div class="card-top"><span class="card-emoji">💬</span><span class="card-badge">Tell</span></div>
-  <div class="card-title">If you were Khamees...</div>
-  <div class="card-hint">What would you say to the class?</div>
-  <div class="card-story">Story 11</div>
-</div>
+    <div class="prompt-card l3" data-level="3"
+         data-text="If you were Khamees, what would you say to your class? Speak for 20 seconds."
+         data-textar="لو كنت خميساً، ماذا ستقول لصفك؟ تحدث لمدة 20 ثانية."
+         data-prompt="The student was asked: 'If you were Khamees, what would you say?' Analyse: pronunciation, vocabulary, creativity, fluency, and sentence structure."
+         onclick="selectCard(this)">
+      <div class="card-top">
+        <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/><path d="M7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg></span>
+        <span class="card-badge">Tell</span>
+      </div>
+      <div class="card-title">If you were Khamees...</div>
+      <div class="card-hint">What would you say to the class?</div>
+      <div class="card-story">Story 11</div>
+    </div>
 
-<div class="prompt-card l3" data-level="3"
-     data-text="Tell me about your favourite character from the Palm Tree stories. Speak for 20 seconds."
-     data-textar="أخبرني عن شخصيتك المفضلة من قصص النخلة. تحدث لمدة 20 ثانية."
-     data-prompt="The student was asked to speak about their favourite character for 20 seconds. Analyse all aspects of their speech deeply."
-     onclick="selectCard(this)">
-  <div class="card-top"><span class="card-emoji">⭐</span><span class="card-badge">Tell</span></div>
-  <div class="card-title">Your favourite character</div>
-  <div class="card-hint">Who is your favourite and why?</div>
-  <div class="card-story">All Stories</div>
-</div>
-```
+    <div class="prompt-card l3" data-level="3"
+         data-text="Tell me about your favourite character from the Palm Tree stories. Speak for 20 seconds."
+         data-textar="أخبرني عن شخصيتك المفضلة من قصص النخلة. تحدث لمدة 20 ثانية."
+         data-prompt="The student was asked to speak about their favourite character for 20 seconds. Analyse all aspects of their speech deeply."
+         onclick="selectCard(this)">
+      <div class="card-top">
+        <span class="card-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.94 6.34L22 9.27l-5 4.95L18.18 22 12 18.27 5.82 22 7 14.22l-5-4.95 7.06-.93L12 2z"/></svg></span>
+        <span class="card-badge">Tell</span>
+      </div>
+      <div class="card-title">Your favourite character</div>
+      <div class="card-hint">Who is your favourite and why?</div>
+      <div class="card-story">All Stories</div>
+    </div>
 
   </div>
 
-  <!-- SPEAKING BOX -->
-
+  <!-- ═══════ SPEAKING BOX ═══════ -->
   <div class="speak-box">
 
-```
-<!-- Prompt display -->
-<div class="prompt-display">
-  <div class="prompt-display-label">🎯 Your task • مهمتك</div>
-  <div class="prompt-display-text" id="displayText">Select a prompt above to begin.</div>
-  <div class="prompt-display-ar" id="displayAr"></div>
-</div>
+    <div class="prompt-display">
+      <div class="prompt-display-label">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        Your task
+      </div>
+      <div class="prompt-display-text" id="displayText">Select a prompt above to begin.</div>
+      <div class="prompt-display-ar" id="displayAr"></div>
+    </div>
 
-<!-- Steps -->
-<div class="steps">
-  <div class="step active" id="step1">
-    <div class="step-num">1</div>
-    <span>Read the task</span>
-  </div>
-  <div style="flex:1;height:2px;background:#d0dce8;border-radius:2px"></div>
-  <div class="step todo" id="step2">
-    <div class="step-num">2</div>
-    <span>Press mic &amp; speak</span>
-  </div>
-  <div style="flex:1;height:2px;background:#d0dce8;border-radius:2px"></div>
-  <div class="step todo" id="step3">
-    <div class="step-num">3</div>
-    <span>Get your report</span>
-  </div>
-</div>
+    <!-- Steps -->
+    <div class="steps">
+      <div class="step active" id="step1">
+        <div class="step-num">1</div>
+        <span>Read the task</span>
+      </div>
+      <div style="flex:1;height:2px;background:var(--line);border-radius:2px"></div>
+      <div class="step todo" id="step2">
+        <div class="step-num">2</div>
+        <span>Press mic &amp; speak</span>
+      </div>
+      <div style="flex:1;height:2px;background:var(--line);border-radius:2px"></div>
+      <div class="step todo" id="step3">
+        <div class="step-num">3</div>
+        <span>Get your report</span>
+      </div>
+    </div>
 
-<!-- Mic -->
-<div class="mic-area">
-  <button class="mic-btn idle" id="micBtn" onclick="toggleRec()">🎤</button>
-  <div class="mic-status" id="micStatus">Press the mic to start speaking</div>
-  <div class="waveform" id="waveform">
-    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
-    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
-    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
-    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
-    <div class="wb" style="height:8px"></div><div class="wb" style="height:8px"></div>
-    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
-    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
-    <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
-  </div>
-  <div class="transcript-box" id="transcriptBox">
-    Your words will appear here as you speak...
-  </div>
-</div>
+    <!-- Mic -->
+    <div class="mic-area">
+      <button class="mic-btn idle" id="micBtn" onclick="toggleRec()">
+        <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+      </button>
+      <div class="mic-status" id="micStatus">Press the mic to start speaking</div>
+      <div class="waveform" id="waveform">
+        <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+        <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+        <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+        <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+        <div class="wb" style="height:8px"></div><div class="wb" style="height:8px"></div>
+        <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+        <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+        <div class="wb" style="height:5px"></div><div class="wb" style="height:5px"></div>
+      </div>
+      <div class="transcript-box" id="transcriptBox">
+        Your words will appear here as you speak...
+      </div>
+    </div>
 
-<div class="btn-row">
-  <button class="btn-retry" onclick="retryRecording()">🔄 Try Again</button>
-  <button class="btn-analyse" id="analyseBtn" onclick="analyseSpoken()" disabled>
-    ✦ Analyse My Speaking
-  </button>
-</div>
-```
+    <div class="btn-row">
+      <button class="btn-retry" onclick="retryRecording()">
+        <span style="display:inline-flex;vertical-align:middle;margin-right:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="var(--earth)"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></span>
+        Try Again
+      </button>
+      <button class="btn-analyse" id="analyseBtn" onclick="analyseSpoken()" disabled>
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        Analyse My Speaking
+      </button>
+    </div>
 
   </div>
 
   <!-- LOADING -->
-
   <div id="loading">
-    <span class="loading-palm">🌴</span>
-    <div class="loading-text">Listening to your English... analysing every word...<br>أستمع لإنجليزيتك وأحلّل كل كلمة...</div>
+    <span class="loading-palm"><svg viewBox="0 0 64 64"><ellipse cx="32" cy="58" rx="10" ry="3" fill="var(--clay)" opacity="0.3"/><rect x="30" y="30" width="4" height="28" rx="2" fill="var(--earth)"/><path d="M32 30c-8-12-22-14-22-14s10 6 18 10c-6-10-4-22-4-22s8 10 8 22c2-12 8-22 8-22s2 12-4 22c8-4 18-10 18-10S40 18 32 30z" fill="var(--earth)"/></svg></span>
+    <div class="loading-text">Listening to your English... analysing every word...</div>
   </div>
 
   <!-- REPORT -->
-
   <div id="report"></div>
 
 </div>
 
+<!-- ═══════ GAME LOGIC ═══════ -->
 <script>
-// ── STATE ──
 let selectedPromptData = null;
 let currentLevel = 1;
 let recognition = null;
 let isRecording = false;
 let waveAnim = null;
 let spokenText = '';
+
+// SVG icon helpers
+const STAR_SVG = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 2l2.94 6.34L22 9.27l-5 4.95L18.18 22 12 18.27 5.82 22 7 14.22l-5-4.95 7.06-.93L12 2z" fill="var(--clay)"/></svg>';
+const TIP_SVG = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z" fill="var(--earth)"/></svg>';
+const GREEN_SVG = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="var(--earth)"/></svg>';
+const BLUE_SVG = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="var(--soil)"/></svg>';
+const GOLD_SVG = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="var(--clay)"/></svg>';
+const RED_SVG = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z" fill="var(--burgundy)"/></svg>';
+const WAVE_SVG = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" fill="var(--earth)"/></svg>';
 
 // ── AUTO-SELECT FIRST CARD ──
 window.addEventListener('DOMContentLoaded', () => {
@@ -449,9 +939,11 @@ function selectCard(el) {
   el.classList.add('selected');
   selectedPromptData = el.dataset;
   document.getElementById('displayText').textContent = el.dataset.text;
-  document.getElementById('displayAr').textContent   = el.dataset.textar;
+  document.getElementById('displayAr').textContent = el.dataset.textar;
   setStep(1);
   retryRecording();
+  // TTS: speak the prompt
+  speakBritish('Your task: ' + el.dataset.text);
 }
 
 // ── STEP INDICATOR ──
@@ -469,21 +961,17 @@ function toggleRec() {
 }
 
 function startRec() {
-  // Check browser support
   if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-    // Simulate for non-Chrome -- use the target text as fallback
     simulateRec();
     return;
   }
-
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
-  recognition.lang = 'en-US';
-  recognition.continuous = true;       // keep listening
-  recognition.interimResults = true;   // show words as they come
+  recognition.lang = 'en-GB';
+  recognition.continuous = true;
+  recognition.interimResults = true;
 
   recognition.onresult = (e) => {
-    // Concatenate all results so far
     spokenText = Array.from(e.results).map(r => r[0].transcript).join(' ');
     const box = document.getElementById('transcriptBox');
     box.textContent = spokenText;
@@ -492,9 +980,7 @@ function startRec() {
   };
 
   recognition.onerror = () => simulateRec();
-  recognition.onend   = () => {
-    if (isRecording) stopRecUI();
-  };
+  recognition.onend = () => { if (isRecording) stopRecUI(); };
 
   recognition.start();
   isRecording = true;
@@ -515,12 +1001,11 @@ function stopRec() {
 function startRecUI() {
   const btn = document.getElementById('micBtn');
   btn.className = 'mic-btn recording';
-  btn.textContent = '⏹️';
+  btn.innerHTML = '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="var(--sand)"/></svg>';
   const st = document.getElementById('micStatus');
-  st.textContent = '🔴 Recording... press again to stop';
+  st.textContent = 'Recording... press again to stop';
   st.className = 'mic-status rec';
   document.getElementById('waveform').classList.add('active');
-  // Animate wave bars
   const bars = document.querySelectorAll('.wb');
   waveAnim = setInterval(() => {
     bars.forEach(b => b.style.height = (Math.random() * 36 + 4) + 'px');
@@ -529,8 +1014,13 @@ function startRecUI() {
 
 function stopRecUI() {
   const btn = document.getElementById('micBtn');
-  btn.className = spokenText ? 'mic-btn done' : 'mic-btn idle';
-  btn.textContent = spokenText ? '✅' : '🎤';
+  if (spokenText) {
+    btn.className = 'mic-btn done';
+    btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="var(--sand)"/></svg>';
+  } else {
+    btn.className = 'mic-btn idle';
+    btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" fill="var(--sand)"/></svg>';
+  }
   const st = document.getElementById('micStatus');
   st.textContent = spokenText ? 'Recording stopped. Press "Analyse" to see your results.' : 'Press the mic to start speaking';
   st.className = 'mic-status';
@@ -539,13 +1029,11 @@ function stopRecUI() {
   document.querySelectorAll('.wb').forEach(b => b.style.height = '5px');
 }
 
-// Simulate recording for non-Chrome (use target text as approximation)
 function simulateRec() {
   isRecording = true;
   startRecUI();
   setStep(2);
   setTimeout(() => {
-    // Use the target text as simulated spoken output
     spokenText = selectedPromptData?.text || 'I spoke about the story.';
     const box = document.getElementById('transcriptBox');
     box.textContent = spokenText;
@@ -563,7 +1051,7 @@ function retryRecording() {
   spokenText = '';
   const btn = document.getElementById('micBtn');
   btn.className = 'mic-btn idle';
-  btn.textContent = '🎤';
+  btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" fill="var(--sand)"/></svg>';
   const st = document.getElementById('micStatus');
   st.textContent = 'Press the mic to start speaking';
   st.className = 'mic-status';
@@ -584,8 +1072,8 @@ async function analyseSpoken() {
   if (!spokenText || !selectedPromptData) return;
 
   document.getElementById('loading').style.display = 'block';
-  document.getElementById('report').style.display  = 'none';
-  document.getElementById('analyseBtn').disabled   = true;
+  document.getElementById('report').style.display = 'none';
+  document.getElementById('analyseBtn').disabled = true;
 
   const levelNames = { 1: 'Echo (repeat sentence)', 2: 'Answer a question', 3: 'Free speaking 20 seconds' };
 
@@ -624,19 +1112,17 @@ Respond ONLY with a valid JSON object. No markdown, no backticks, no extra text.
       })
     });
 
-    const data  = await response.json();
-    const raw   = data.content[0].text;
+    const data = await response.json();
+    const raw = data.content[0].text;
     const clean = raw.replace(/```json|```/g, '').trim();
-    const r     = JSON.parse(clean);
+    const r = JSON.parse(clean);
     renderReport(r);
 
   } catch(err) {
     console.error(err);
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('analyseBtn').disabled = false;
-    document.getElementById('report').innerHTML =
-      `<div style="text-align:center;color:#8090a8;padding:24px;font-style:italic">Something went wrong. Check your internet and try again. ⚠️</div>`;
-    document.getElementById('report').style.display = 'block';
+    // Fallback to local analysis
+    const r = simpleLocalAnalysis(spokenText, selectedPromptData);
+    renderReport(r);
   }
 }
 
@@ -644,70 +1130,69 @@ Respond ONLY with a valid JSON object. No markdown, no backticks, no extra text.
 function renderReport(r) {
   document.getElementById('loading').style.display = 'none';
 
-  const col = r.overallScore >= 80 ? '#2d9e62'
-            : r.overallScore >= 60 ? '#2878c4'
-            : r.overallScore >= 40 ? '#d08000' : '#c04040';
+  const col = r.overallScore >= 80 ? '#8C6A3F'
+            : r.overallScore >= 60 ? '#6b5030'
+            : r.overallScore >= 40 ? '#C9AA80' : '#360304';
 
-  // Meter helper
   function meter(obj, icon, label) {
-    const barCol = obj.score >= 70 ? '#2d9e62' : obj.score >= 50 ? '#2878c4' : '#d08000';
+    const barCol = obj.score >= 70 ? 'var(--earth)' : obj.score >= 50 ? 'var(--clay)' : 'var(--burgundy)';
     return `<div class="meter-card">
       <div class="meter-label">${icon} ${label}</div>
       <div class="meter-bar-wrap">
         <div class="meter-bar" style="width:${obj.score}%;background:${barCol}"></div>
       </div>
-      <div class="meter-score">${obj.score}<span style="font-size:0.8rem;color:#90a0b0">/100</span></div>
+      <div class="meter-score">${obj.score}<span style="font-size:0.8rem;color:var(--clay)">/100</span></div>
       <div class="meter-comment">${obj.comment}</div>
       <div class="meter-comment" style="direction:rtl;text-align:right;margin-top:2px">${obj.commentAr}</div>
     </div>`;
   }
 
   const goodHtml = (r.goodPhrases||[]).map(p =>
-    `<div class="rep-item"><span class="rep-icon">⭐</span><div class="rep-text">"${p}"</div></div>`
-  ).join('') || `<div class="rep-item"><span class="rep-icon">⭐</span><div class="rep-text">Keep practising -- you are getting there!</div></div>`;
+    `<div class="rep-item"><span class="rep-icon">${STAR_SVG}</span><div class="rep-text">"${p}"</div></div>`
+  ).join('') || `<div class="rep-item"><span class="rep-icon">${STAR_SVG}</span><div class="rep-text">Keep practising — you are getting there!</div></div>`;
 
   const tipHtml = (r.improvements||[]).map(t =>
-    `<div class="rep-item"><span class="rep-icon">💡</span><div class="rep-text">${t}</div></div>`
+    `<div class="rep-item"><span class="rep-icon tip">${TIP_SVG}</span><div class="rep-text">${t}</div></div>`
   ).join('');
 
   document.getElementById('report').innerHTML = `
 
     <div class="score-banner">
-      <div class="score-ring" style="background:${col};box-shadow:0 4px 20px ${col}44">${r.overallScore}</div>
+      <div class="score-ring" style="background:${col};box-shadow:0 6px 20px ${col}44, inset 0 -3px 6px rgba(0,0,0,0.15), inset 0 3px 6px rgba(255,255,255,0.10)">${r.overallScore}</div>
       <div class="score-right">
-        <div class="score-level">${levelEmoji(r.overallScore)} ${r.level} -- ${r.levelAr}</div>
+        <div class="score-level">${levelEmoji(r.overallScore)} ${r.level}</div>
         <div class="score-msg">${r.encouragement}</div>
         <div class="score-msg-ar">${r.encouragementAr}</div>
       </div>
     </div>
 
     <div class="rep-card">
-      <div class="rep-card-title blue">🎤 What you said • ما قلته</div>
+      <div class="rep-card-title blue">${BLUE_SVG} What you said</div>
       <div class="transcript-compare">
         <div class="tc-label">YOUR WORDS</div>
         <div class="tc-text">${spokenText}</div>
       </div>
       ${r.modelAnswer ? `
-      <div class="transcript-compare" style="margin-top:8px;border-color:#b0d8a8;background:#f0faf4">
-        <div class="tc-label" style="color:#2d9e62">MODEL ANSWER</div>
+      <div class="transcript-compare" style="margin-top:8px;border-color:var(--clay);background:var(--sand)">
+        <div class="tc-label" style="color:var(--earth)">MODEL ANSWER</div>
         <div class="tc-text">${r.modelAnswer}</div>
       </div>` : ''}
     </div>
 
     <div class="meters-grid">
-      ${meter(r.pronunciation, '🔤', 'Pronunciation')}
-      ${meter(r.fluency,       '🌊', 'Fluency')}
-      ${meter(r.vocabulary,    '📚', 'Vocabulary')}
-      ${meter(r.content,       '💬', 'Content')}
+      ${meter(r.pronunciation, WAVE_SVG, 'Pronunciation')}
+      ${meter(r.fluency, GREEN_SVG, 'Fluency')}
+      ${meter(r.vocabulary, GOLD_SVG, 'Vocabulary')}
+      ${meter(r.content, BLUE_SVG, 'Content')}
     </div>
 
     <div class="rep-card">
-      <div class="rep-card-title green">⭐ Good phrases • عبارات جيدة</div>
+      <div class="rep-card-title green">${GREEN_SVG} Good phrases</div>
       ${goodHtml}
     </div>
 
     <div class="rep-card">
-      <div class="rep-card-title gold">💡 To improve • لتتحسن</div>
+      <div class="rep-card-title gold">${GOLD_SVG} To improve</div>
       ${tipHtml}
     </div>
 
@@ -716,15 +1201,17 @@ function renderReport(r) {
       <p>${r.summaryAr}</p>
     </div>
 
-    <button class="try-again-btn" onclick="tryAgain()">🌴 Speak Again • تحدث مجدداً</button>
+    <button class="try-again-btn" onclick="tryAgain()">Speak Again</button>
   `;
 
   document.getElementById('report').style.display = 'block';
   document.getElementById('report').scrollIntoView({ behavior:'smooth', block:'start' });
+  // TTS: speak the score
+  speakBritish(`Your score is ${r.overallScore}. ${r.encouragement}`);
 }
 
 function levelEmoji(s) {
-  return s >= 90 ? '🌟' : s >= 75 ? '🌴' : s >= 60 ? '✦' : s >= 40 ? '📝' : '💪';
+  return s >= 90 ? 'Outstanding' : s >= 75 ? 'Excellent' : s >= 60 ? 'Good Work' : s >= 40 ? 'Getting There' : 'Needs Practice';
 }
 
 function tryAgain() {
@@ -732,69 +1219,7 @@ function tryAgain() {
   window.scrollTo({ top:0, behavior:'smooth' });
 }
 
-// THURAYA GUIDE + PIPER HOOK
-const thurayaState = {
-  muted: false,
-  current: {
-    en: "Hello! I am Thuraya. Choose a speaking prompt and I will guide you.",
-    ar: "مرحباً! أنا ثريا. اختاري بطاقة التحدث وسأرشدك."
-  }
-};
-
-function setThuraya(en, ar, autoSpeak = false) {
-  thurayaState.current = { en, ar };
-  const t = document.getElementById('thurayaText');
-  const s = document.getElementById('thurayaSub');
-  if (t) t.textContent = en;
-  if (s) s.textContent = ar;
-  if (autoSpeak && !thurayaState.muted) thurayaSpeakCurrent();
-}
-
-function thurayaToggleMute() {
-  thurayaState.muted = !thurayaState.muted;
-  const btn = document.getElementById('thurayaMuteBtn');
-  if (btn) btn.textContent = thurayaState.muted ? 'Unmute' : 'Mute';
-}
-
-async function piperSpeak(text, lang = 'en') {
-  try {
-    const res = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, lang, voice: lang === 'ar' ? 'ar' : 'en' })
-    });
-    if (!res.ok) throw new Error('TTS backend unavailable');
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audio.play().catch(() => {});
-    audio.onended = () => URL.revokeObjectURL(url);
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-async function thurayaSpeakCurrent() {
-  if (thurayaState.muted) return;
-  const { en, ar } = thurayaState.current;
-  const ok = await piperSpeak(en, 'en');
-  if (!ok && 'speechSynthesis' in window) {
-    try {
-      speechSynthesis.cancel();
-      const u1 = new SpeechSynthesisUtterance(en);
-      u1.lang = 'en-US';
-      speechSynthesis.speak(u1);
-      if (ar) {
-        const u2 = new SpeechSynthesisUtterance(ar);
-        u2.lang = 'ar-SA';
-        setTimeout(() => speechSynthesis.speak(u2), 1200);
-      }
-    } catch (_) {}
-  }
-}
-
-function simpleLocalAnalysis(text, selectedPromptData) {
+function simpleLocalAnalysis(text, spd) {
   const words = (text || '').trim().split(/\s+/).filter(Boolean);
   const wc = words.length;
   let overallScore = Math.min(95, Math.max(35, 45 + wc * 4));
@@ -802,21 +1227,10 @@ function simpleLocalAnalysis(text, selectedPromptData) {
   if (currentLevel === 2 && wc >= 8) overallScore += 10;
   if (currentLevel === 3 && wc >= 12) overallScore += 10;
   overallScore = Math.min(98, overallScore);
-
-  const level = overallScore >= 85 ? 'Excellent'
-    : overallScore >= 70 ? 'Good Work'
-    : overallScore >= 55 ? 'Getting There'
-    : 'Needs Practice';
-
-  const levelAr = overallScore >= 85 ? 'ممتاز'
-    : overallScore >= 70 ? 'عمل رائع'
-    : overallScore >= 55 ? 'أنتِ في الطريق الصحيح'
-    : 'يحتاج إلى تدريب';
-
+  const level = overallScore >= 85 ? 'Excellent' : overallScore >= 70 ? 'Good Work' : overallScore >= 55 ? 'Getting There' : 'Needs Practice';
+  const levelAr = overallScore >= 85 ? 'ممتاز' : overallScore >= 70 ? 'عمل رائع' : overallScore >= 55 ? 'أنتِ في الطريق الصحيح' : 'يحتاج إلى تدريب';
   return {
-    overallScore,
-    level,
-    levelAr,
+    overallScore, level, levelAr,
     encouragement: wc > 0 ? 'Good speaking effort. Keep going!' : 'Start speaking and try your best.',
     encouragementAr: wc > 0 ? 'محاولة جميلة في التحدث. واصلي!' : 'ابدئي بالتحدث وحاولي بأفضل ما لديك.',
     pronunciation: { score: Math.min(95, 50 + wc * 3), comment: 'Clearer when you speak slowly.', commentAr: 'يكون النطق أوضح عندما تتحدثين ببطء.' },
@@ -825,72 +1239,91 @@ function simpleLocalAnalysis(text, selectedPromptData) {
     content: { score: Math.min(95, 45 + wc * 4), comment: 'Your answer matches the task better when it is longer.', commentAr: 'تكون الإجابة أنسب للمهمة عندما تكون أطول قليلاً.' },
     goodPhrases: wc ? [words.slice(0, Math.min(4, wc)).join(' ')] : ['Good try'],
     improvements: ['Speak a little more slowly.', 'Add one more complete sentence.'],
-    modelAnswer: selectedPromptData?.text || 'Hello. My name is John. I am a teacher.',
-    summaryAr: 'هذا تحليل محلي مؤقت داخل اللعبة. إذا تم ربط Piper والخدمة الخلفية فستظهر تغذية راجعة أذكى وأكثر دقة.'
+    modelAnswer: spd?.text || 'Hello. My name is John. I am a teacher.',
+    summaryAr: 'هذا تحليل محلي. إذا تم ربط الخدمة الخلفية ستظهر تغذية راجعة أذكى وأكثر دقة.'
   };
 }
 
-// Thuraya hooks
-document.addEventListener('DOMContentLoaded', () => {
-  setThuraya(
-    'Hello! I am Thuraya. Choose a card, speak clearly, and I will help you.',
-    'مرحباً! أنا ثريا. اختاري بطاقة، تحدثي بوضوح، وسأساعدك.',
-    false
-  );
+// ── BACK BUTTON ──
+document.getElementById('back-btn').addEventListener('click', function() {
+  if (window.parent !== window) {
+    window.parent.postMessage({source:'palm-tree-navigate', action:'back'}, '*');
+  } else {
+    window.history.back();
+  }
 });
-
-const originalSelectCard = window.selectCard;
-window.selectCard = function(card) {
-  const result = originalSelectCard ? originalSelectCard(card) : undefined;
-  const title = card?.querySelector('.card-title')?.textContent?.trim() || 'this prompt';
-  setThuraya(`Great choice. Let's do ${title}. Press the microphone when you are ready.`,
-             `اختيار جميل. لنبدأ ${title}. اضغطي على الميكروفون عندما تكونين جاهزة.`, true);
-  return result;
-};
-
-const originalResetRecording = window.resetRecording;
-window.resetRecording = function() {
-  const result = originalResetRecording ? originalResetRecording() : undefined;
-  setThuraya('Try again. Speak slowly and clearly.', 'حاولي مرة أخرى. تحدثي ببطء وبوضوح.', false);
-  return result;
-};
-
-const originalAnalyseSpoken = window.analyseSpoken;
-window.analyseSpoken = async function() {
-  setThuraya('I am checking your speaking now.', 'أنا أراجع تحدثك الآن.', false);
-  if (!spokenText || !selectedPromptData) return;
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('report').style.display  = 'none';
-  document.getElementById('analyseBtn').disabled   = true;
-  try {
-    if (originalAnalyseSpoken) {
-      try {
-        await originalAnalyseSpoken();
-        setThuraya('Nice work. Read the feedback and try once more.', 'عمل جميل. اقرئي الملاحظات وجربي مرة أخرى.', true);
-        return;
-      } catch (err) {}
-    }
-  } catch (_) {}
-  const r = simpleLocalAnalysis(spokenText, selectedPromptData);
-  renderReport(r);
-  setThuraya('Nice work. Read the feedback and try once more.', 'عمل جميل. اقرئي الملاحظات وجربي مرة أخرى.', true);
-};
-
 </script>
 
+<!-- ═══════ TTS — British English ═══════ -->
+<script>
+(function(){
+  let ttsEnabled = true;
+  let britishVoice = null;
 
+  function loadVoices(){
+    if(!window.speechSynthesis) return;
+    const voices = speechSynthesis.getVoices();
+    britishVoice =
+      voices.find(v => /british|daniel|kate|george|hazel|susan|ryan|libby/i.test(v.name) && v.lang.startsWith('en')) ||
+      voices.find(v => v.lang === 'en-GB') ||
+      voices.find(v => v.lang.startsWith('en-GB')) ||
+      voices.find(v => v.lang.startsWith('en')) ||
+      null;
+  }
+
+  if(window.speechSynthesis){
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+  }
+
+  window.speakBritish = function(text){
+    if(!ttsEnabled || !window.speechSynthesis || !text) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    if(britishVoice) u.voice = britishVoice;
+    u.lang = 'en-GB';
+    u.rate = 0.92;
+    u.pitch = 0.95;
+    u.volume = 0.85;
+    speechSynthesis.speak(u);
+  };
+
+  const toggleBtn = document.getElementById('tts-toggle');
+  const iconOn = document.getElementById('tts-icon-on');
+  const iconOff = document.getElementById('tts-icon-off');
+
+  toggleBtn.addEventListener('click', function(){
+    ttsEnabled = !ttsEnabled;
+    if(ttsEnabled){
+      toggleBtn.classList.remove('muted');
+      iconOn.style.display = '';
+      iconOff.style.display = 'none';
+    } else {
+      toggleBtn.classList.add('muted');
+      iconOn.style.display = 'none';
+      iconOff.style.display = '';
+      speechSynthesis.cancel();
+    }
+  });
+})();
+</script>
+
+<!-- ═══════ THURAYA GUIDE ═══════ -->
 <div class="thuraya-guide" id="thurayaGuide">
   <div class="thuraya-panel">
     <div class="thuraya-name">Thuraya Guide</div>
     <div class="thuraya-text" id="thurayaText">Hello! I am Thuraya. Choose a speaking prompt and I will guide you.</div>
     <div class="thuraya-sub" id="thurayaSub">مرحباً! أنا ثريا. اختاري بطاقة التحدث وسأرشدك.</div>
     <div class="thuraya-actions">
-      <button class="th-btn primary" type="button" onclick="thurayaSpeakCurrent()">🔊 Speak</button>
-      <button class="th-btn secondary" type="button" onclick="thurayaToggleMute()" id="thurayaMuteBtn">Mute</button>
+      <button class="th-btn primary" type="button" onclick="speakBritish(document.getElementById('thurayaText').textContent)">Speak</button>
+      <button class="th-btn secondary" type="button" onclick="document.getElementById('tts-toggle').click()" id="thurayaMuteBtn">Mute</button>
     </div>
   </div>
   <img class="thuraya-avatar" src="/mnt/data/B95179B0-AB88-4F0A-9519-6A0D5CBDE6F5.png" alt="Thuraya"/>
 </div>
+
+<!-- ═══════ ACTIVITY TRACKER ═══════ -->
+<script id="palm-tree-tracker">(function(){var slug="palm-echo-speak",kind="skill";var t0=Date.now();function post(action,extra){try{var msg={source:"palm-tree-activity",activity:slug,kind:kind,title:document.title||slug,action:action};if(extra)Object.assign(msg,extra);window.parent.postMessage(msg,"*");}catch(e){}}post("opened");window.addEventListener("beforeunload",function(){post("closed",{timeSpentMs:Date.now()-t0});});window.addEventListener("message",function(e){if(e&&e.data&&typeof e.data==="object"&&e.data.source==="game-event"){if(typeof e.data.score==="number")post("score",{score:e.data.score});if(e.data.completed)post("completed");}});window.__paLmReportComplete=function(score){if(typeof score==="number")post("score",{score:score});post("completed");};})();</script>
 
 </body>
 </html>

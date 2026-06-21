@@ -11,11 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates espeak-ng \
     && rm -rf /var/lib/apt/lists/*
 
-# Piper Phonemize + Piper TTS Python bindings.
 RUN pip install --no-cache-dir \
-    "piper-tts==1.2.0" \
-    "fastapi==0.111.0" \
-    "uvicorn[standard]==0.30.1"
+    "piper-tts" \
+    "fastapi" \
+    "uvicorn[standard]"
 
 WORKDIR /app
 COPY app.py /app/app.py

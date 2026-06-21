@@ -64,67 +64,11 @@
   }
 
   function synth(text, voice) {
-    // Gradio v4 API — POST to /call/tts returns event_id, then stream the
-    // result as Server-Sent Events. The Space exposes its synth function as
-    // api_name="tts" taking (text, lang) and returning a wav file path.
     var lang = (voice === VOICE_AR || /ar/i.test(voice || "")) ? "ar" : "en";
-    return new Promise(function (resolve) {
-      nativeFetch(BASE + "/call/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: [text, lang] }),
-      }).then(function (r) {
-        if (!r.ok) return resolve(r);
-        return r.json();
-      }).then(function (j) {
-        if (!j || !j.event_id) return resolve(new Response("no event_id", { status: 502 }));
-        return nativeFetch(BASE + "/call/tts/" + j.event_id);
-      }).then(function (sse) {
-        if (!sse) return;
-        if (!sse.ok) return resolve(sse);
-        // Read SSE stream and extract the file URL from the "complete" event.
-        var reader = sse.body.getReader();
-        var dec = new TextDecoder();
-        var buf = "";
-        function pump() {
-          return reader.read().then(function (s) {
-            if (s.done) return resolve(new Response("done-no-audio", { status: 502 }));
-            buf += dec.decode(s.value, { stream: true });
-            var lines = buf.split("\n");
-            buf = lines.pop();
-            for (var i = 0; i < lines.length; i++) {
-              var line = lines[i].trim();
-              if (!line || !line.indexOf("event:") === 0) {} // no-op
-              if (line.indexOf("data:") === 0) {
-                var raw = line.slice(5).trim();
-                try {
-                  var payload = JSON.parse(raw);
-                  // payload is usually [{path, url, ...}] for an Audio output
-                  var url = null;
-                  if (Array.isArray(payload) && payload.length) {
-                    var first = payload[0];
-                    if (typeof first === "string") url = first;
-                    else if (first && (first.url || first.path)) url = first.url || first.path;
-                  } else if (payload && payload.url) {
-                    url = payload.url;
-                  }
-                  if (url) {
-                    // Resolve relative file refs against the Space host.
-                    if (url.indexOf("http") !== 0) {
-                      url = BASE + "/file=" + url.replace(/^\/+/, "");
-                    }
-                    return resolve(nativeFetch(url));
-                  }
-                } catch (e) { /* keep streaming */ }
-              }
-            }
-            return pump();
-          });
-        }
-        return pump();
-      }).catch(function (e) {
-        resolve(new Response("error: " + e, { status: 500 }));
-      });
+    return nativeFetch(BASE + "/synthesize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text, voice: voice, lang: lang }),
     });
   }
 

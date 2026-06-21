@@ -1,9 +1,15 @@
 """Piper TTS HTTP server for the Under-The-Palm-Tree games.
 
+Exposes a tiny REST API that the games' piper-client.js can call directly
+from the browser. CORS is wide open so any origin (Vercel, GitHub Pages,
+Squarespace iframes) can use it.
+
 POST /synthesize  {"text": "...", "voice": "en_GB-alan-low" | "ar_JO-kareem-medium"}
-                  -> audio/wav (16-bit PCM)
+POST /tts         {"text": "...", "lang": "en" | "ar"}
 GET  /healthz     -> "ok"
 GET  /            -> {"status": "ready", "voices": [...]}
+
+Each POST returns audio/wav (16-bit PCM).
 """
 import io
 import os
@@ -19,7 +25,12 @@ from piper import PiperVoice
 VOICES_DIR = Path(os.environ.get("VOICES_DIR", "/voices"))
 DEFAULT_VOICE = "en_GB-alan-low"
 
-app = FastAPI(title="Piper TTS — Under The Palm Tree")
+LANG_VOICE_MAP = {
+    "ar": "ar_JO-kareem-medium",
+    "en": "en_GB-alan-low",
+}
+
+app = FastAPI(title="Palm Tree TTS — Piper")
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,10 +39,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_voice_cache: dict[str, PiperVoice] = {}
+_voice_cache: dict = {}
 
 
-def load_voice(name: str) -> PiperVoice:
+def load_voice(name: str):
     if name in _voice_cache:
         return _voice_cache[name]
     onnx = VOICES_DIR / f"{name}.onnx"
@@ -42,13 +53,24 @@ def load_voice(name: str) -> PiperVoice:
     return _voice_cache[name]
 
 
-def available_voices() -> list[str]:
+def available_voices():
     return sorted(p.stem for p in VOICES_DIR.glob("*.onnx"))
+
+
+def synth_wav(text: str, voice_name: str) -> bytes:
+    voice = load_voice(voice_name)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        # Newer piper-tts uses synthesize_wav; fall back to synthesize for older builds.
+        synth = getattr(voice, "synthesize_wav", None) or voice.synthesize
+        synth(text, wf)
+    return buf.getvalue()
 
 
 class SynthRequest(BaseModel):
     text: str
     voice: str | None = None
+    lang: str | None = None
 
 
 @app.get("/")
@@ -61,15 +83,23 @@ def healthz():
     return Response("ok", media_type="text/plain")
 
 
+def resolve_voice(req: SynthRequest) -> str:
+    if req.voice:
+        return req.voice
+    if req.lang:
+        return LANG_VOICE_MAP.get(req.lang.lower(), DEFAULT_VOICE)
+    return DEFAULT_VOICE
+
+
 @app.post("/synthesize")
 def synthesize(req: SynthRequest):
     text = (req.text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
-    voice_name = req.voice or DEFAULT_VOICE
-    voice = load_voice(voice_name)
+    audio = synth_wav(text, resolve_voice(req))
+    return Response(audio, media_type="audio/wav")
 
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as wav:
-        voice.synthesize(text, wav)
-    return Response(buf.getvalue(), media_type="audio/wav")
+
+@app.post("/tts")
+def tts(req: SynthRequest):
+    return synthesize(req)

@@ -28,7 +28,7 @@
   window.__piperShimInstalled = true;
   if (window.PIPER_DISABLED) return;
 
-  var DEFAULT_BASE = "https://thursday88-palm-tree-tts.hf.space";
+  var DEFAULT_BASE = "https://thursday88-palmtts.hf.space";
   var BASE = (window.PIPER_BASE || DEFAULT_BASE).replace(/\/+$/, "");
   var VOICE_EN = "en_GB-alan-low";
   var VOICE_AR = "ar_JO-kareem-medium";

@@ -30,7 +30,7 @@
 
   var DEFAULT_BASE = "https://thursday88-palmtts.hf.space";
   var BASE = (window.PIPER_BASE || DEFAULT_BASE).replace(/\/+$/, "");
-  var VOICE_EN = "en_GB-alan-low";
+  var VOICE_EN = "en_GB-alan-medium";
   var VOICE_AR = "ar_JO-kareem-medium";
 
   if (!window.PIPER_TTS_ENDPOINT) window.PIPER_TTS_ENDPOINT = BASE + "/synthesize";

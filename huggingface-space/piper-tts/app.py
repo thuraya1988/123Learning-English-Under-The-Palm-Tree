@@ -23,11 +23,11 @@ from pydantic import BaseModel
 from piper import PiperVoice
 
 VOICES_DIR = Path(os.environ.get("VOICES_DIR", "/voices"))
-DEFAULT_VOICE = "en_GB-alan-low"
+DEFAULT_VOICE = "en_GB-alan-medium"
 
 LANG_VOICE_MAP = {
     "ar": "ar_JO-kareem-medium",
-    "en": "en_GB-alan-low",
+    "en": "en_GB-alan-medium",
 }
 
 app = FastAPI(title="Palm Tree TTS — Piper")

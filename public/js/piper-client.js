@@ -65,10 +65,15 @@
 
   function synth(text, voice) {
     var lang = (voice === VOICE_AR || /ar/i.test(voice || "")) ? "ar" : "en";
+    // Send lang only — the Space maps it to its installed voice, so the
+    // client never 404s when the Space's voice files change quality tier.
+    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    if (ctrl) setTimeout(function () { ctrl.abort(); }, 45000);
     return nativeFetch(BASE + "/synthesize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text, voice: voice, lang: lang }),
+      body: JSON.stringify({ text: text, lang: lang }),
+      signal: ctrl ? ctrl.signal : undefined,
     });
   }
 

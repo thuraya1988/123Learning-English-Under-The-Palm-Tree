@@ -1,5 +1,5 @@
 ---
-title: Piper TTS - Under The Palm Tree
+title: Palm Tree TTS
 emoji: 🌴
 colorFrom: yellow
 colorTo: red
@@ -8,46 +8,45 @@ app_port: 7860
 pinned: true
 ---
 
-# 🌴 Piper TTS — Under The Palm Tree
+# 🌴 Palm Tree TTS
 
-Professional bilingual text-to-speech for Thuraya's English-learning games.
+Bilingual Piper text-to-speech for the **Under The Palm Tree** games.
 
-Two voices:
-- **`en_GB-alan-low`** — British English (Alan)
-- **`ar_JO-kareem-medium`** — Jordanian Arabic (Kareem)
+- 🇬🇧 English voice: `en_GB-alan-low` (Alan, British)
+- 🇯🇴 Arabic voice: `ar_JO-kareem-medium` (Kareem, Jordanian)
 
 ## API
 
 ```
 POST /synthesize
 Content-Type: application/json
-{ "text": "Welcome to Samail.", "voice": "en_GB-alan-low" }
+{ "text": "Welcome to Samail.", "lang": "en" }
 ```
 
 Returns `audio/wav` (16-bit PCM).
 
+You can also pass `"voice": "en_GB-alan-low"` instead of `lang`.
+
 ```
-GET /healthz   →  "ok"
-GET /          →  {"voices": [...], "status": "ready"}
+GET /        -> {"status": "ready", "voices": [...]}
+GET /healthz -> "ok"
+POST /tts    -> alias for /synthesize
 ```
 
-CORS is wide open so the games can call this Space directly from any origin
-(Vercel, GitHub Pages, Squarespace iframes).
+CORS is open so the games can call this Space from any origin.
 
-## How the voice files get loaded
+## How the voices load
 
 At container start, `start.sh` downloads the two `.onnx` voice models and
 their `.onnx.json` configs from the GitHub raw URLs at
 `thuraya1988/123Learning-English-Under-The-Palm-Tree/main/public/tts-voices/`.
+
 That keeps the Space in sync with whatever Thuraya last uploaded to the repo.
 
-## Deploying to Hugging Face Spaces
+## Deploying
 
-1. Create a new Space named `piper-tts` under owner `Thursday88`
-   with **SDK = Docker**.
-2. Upload all the files in this folder to the Space (or push via `git`).
-3. The Space will build the Docker image, run `start.sh`, and become
-   available at `https://thursday88-piper-tts.hf.space`.
-
-That URL is the default `PIPER_BASE` in `public/js/piper-client.js`,
-so the games will automatically use this Space once it is live.
+1. Create a Hugging Face Space named `palm-tree-tts` under owner `Thursday88`.
+2. **SDK: Docker** — required.
+3. Upload `Dockerfile`, `app.py`, `start.sh`, and this `README.md`.
+4. Wait 3–5 minutes for the build.
+5. The Space serves on `https://thursday88-palm-tree-tts.hf.space`.

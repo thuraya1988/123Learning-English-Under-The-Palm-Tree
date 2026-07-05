@@ -81,8 +81,13 @@ function ContentCard({ item, index, onContinueLearning }: {
           <img
             src={item.thumbnail}
             alt={item.title}
-            className="w-full aspect-video object-cover"
+            className="w-full aspect-video object-cover cursor-pointer"
             loading="lazy"
+            onClick={() => {
+              if (item.streamUrl && item.streamUrl !== '#') {
+                window.open(item.streamUrl, '_blank', 'noopener');
+              }
+            }}
           />
           <div className="absolute top-3 left-3 flex gap-2">
             <PlatformBadge platform={item.platform} />
@@ -190,8 +195,13 @@ function ContentCard({ item, index, onContinueLearning }: {
           <img
             src={item.thumbnail}
             alt={item.title}
-            className="w-full aspect-video object-cover"
+            className="w-full aspect-video object-cover cursor-pointer"
             loading="lazy"
+            onClick={() => {
+              if (item.streamUrl && item.streamUrl !== '#') {
+                window.open(item.streamUrl, '_blank', 'noopener');
+              }
+            }}
           />
           {item.duration && (
             <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">

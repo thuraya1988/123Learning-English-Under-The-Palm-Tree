@@ -21,6 +21,13 @@
     if (document.querySelector('.palm-globe-fab')) return;
 
     var onMuseum = !!document.getElementById('joy');
+    // Stack above the sound buttons when they exist (they own bottom:14px right).
+    var hasSfx = !!window.__palmSfxInstalled;
+    var pos = onMuseum
+      ? 'bottom:16px;right:16px;'
+      : hasSfx
+        ? 'bottom:66px;right:14px;'
+        : 'bottom:16px;right:16px;';
 
     var btn = document.createElement('a');
     btn.className = 'palm-globe-fab';
@@ -29,13 +36,13 @@
     btn.rel = 'noopener';
     btn.setAttribute('aria-label', 'Story World Globe');
     btn.innerHTML =
-      '<span class="pgf-emoji">🌍</span>' +
-      '<span class="pgf-label">Story World · عالم القصة</span>';
+      '<span class="pgf-label">Story World · عالم القصة</span>' +
+      '<span class="pgf-emoji">🌍</span>';
 
     var css = document.createElement('style');
     css.textContent =
       '.palm-globe-fab{position:fixed;' +
-      (onMuseum ? 'top:64px;left:14px;' : 'bottom:16px;left:16px;') +
+      pos +
       'z-index:99998;display:flex;align-items:center;gap:0;height:44px;' +
       'background:rgba(74,53,32,.92);border:1px solid rgba(201,170,128,.55);' +
       'border-radius:999px;padding:0 10px;text-decoration:none;cursor:pointer;' +
@@ -48,7 +55,7 @@
       '.pgf-label{max-width:0;overflow:hidden;white-space:nowrap;color:#F5EDD8;' +
       'font-size:12px;font-weight:700;letter-spacing:.02em;' +
       'transition:max-width .35s ease,padding .35s ease;padding:0;}' +
-      '.palm-globe-fab:hover .pgf-label{max-width:220px;padding:0 6px 0 8px;}' +
+      '.palm-globe-fab:hover .pgf-label{max-width:220px;padding:0 8px 0 6px;}' +
       '@media(max-width:600px){.pgf-emoji{font-size:20px}.palm-globe-fab{height:40px}}';
 
     document.head.appendChild(css);

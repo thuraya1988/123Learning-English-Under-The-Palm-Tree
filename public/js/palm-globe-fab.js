@@ -41,28 +41,37 @@
 
     var css = document.createElement('style');
     css.textContent =
+      // Bare floating planet — no pill, no background.
       '.palm-globe-fab{position:fixed;' +
       pos +
-      'z-index:99998;display:flex;align-items:center;gap:0;height:44px;' +
-      'background:rgba(74,53,32,.92);border:1px solid rgba(201,170,128,.55);' +
-      'border-radius:999px;padding:0 10px;text-decoration:none;cursor:pointer;' +
-      'box-shadow:0 6px 18px rgba(0,0,0,.28);backdrop-filter:blur(8px);' +
-      '-webkit-backdrop-filter:blur(8px);transition:box-shadow .3s,transform .3s;' +
+      'z-index:99998;display:flex;align-items:center;gap:0;' +
+      'background:none;border:none;padding:0;text-decoration:none;cursor:pointer;' +
+      'transition:transform .3s;' +
       'font-family:"Almarai",system-ui,-apple-system,sans-serif;}' +
-      '.palm-globe-fab:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.36);}' +
-      '.pgf-earth{width:32px;height:32px;border-radius:50%;flex-shrink:0;' +
+      '.palm-globe-fab:hover{transform:translateY(-3px) scale(1.06);}' +
+      // Big shaded sphere with the earth texture panning around it.
+      '.pgf-earth{width:56px;height:56px;border-radius:50%;flex-shrink:0;' +
       'background:#1c4e8a url(https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg) repeat-x;' +
       'background-size:auto 100%;' +
-      'animation:pgfRotate 16s linear infinite;' +
-      'box-shadow:inset -8px -5px 10px rgba(0,0,0,.6),' +
-      'inset 5px 4px 8px rgba(255,255,255,.28),' +
-      '0 0 10px rgba(120,180,255,.45);}' +
-      '@keyframes pgfRotate{from{background-position-x:0}to{background-position-x:-64px}}' +
+      'animation:pgfRotate 18s linear infinite,pgfGlow 3.2s ease-in-out infinite;}' +
+      '@keyframes pgfRotate{from{background-position-x:0}to{background-position-x:-112px}}' +
+      // Breathing atmosphere glow + sphere shading.
+      '@keyframes pgfGlow{' +
+      '0%,100%{box-shadow:inset -12px -8px 16px rgba(0,0,0,.62),' +
+      'inset 7px 6px 12px rgba(255,255,255,.3),' +
+      '0 0 14px rgba(110,180,255,.55),0 0 34px rgba(90,160,255,.32);}' +
+      '50%{box-shadow:inset -12px -8px 16px rgba(0,0,0,.62),' +
+      'inset 7px 6px 12px rgba(255,255,255,.3),' +
+      '0 0 22px rgba(130,195,255,.85),0 0 52px rgba(100,170,255,.5);}}' +
+      // Hover label: its own little pill to the left of the planet.
       '.pgf-label{max-width:0;overflow:hidden;white-space:nowrap;color:#F5EDD8;' +
       'font-size:12px;font-weight:700;letter-spacing:.02em;' +
-      'transition:max-width .35s ease,padding .35s ease;padding:0;}' +
-      '.palm-globe-fab:hover .pgf-label{max-width:220px;padding:0 8px 0 6px;}' +
-      '@media(max-width:600px){.palm-globe-fab{height:42px}}';
+      'background:rgba(74,53,32,.92);border:1px solid rgba(201,170,128,.55);' +
+      'border-radius:999px;height:34px;line-height:32px;' +
+      'transition:max-width .35s ease,padding .35s ease,margin .35s ease;padding:0;margin:0;}' +
+      '.palm-globe-fab:hover .pgf-label{max-width:230px;padding:0 14px;margin-right:10px;}' +
+      '@media(max-width:600px){.pgf-earth{width:48px;height:48px;animation:pgfRotateM 18s linear infinite,pgfGlow 3.2s ease-in-out infinite;}}' +
+      '@keyframes pgfRotateM{from{background-position-x:0}to{background-position-x:-96px}}';
 
     document.head.appendChild(css);
     document.body.appendChild(btn);

@@ -514,7 +514,7 @@ export class GlobeScene {
       gsap.to(mat, { opacity: 1, duration: 0.15 });
       gsap.to(m.position, {
         x: sx + dx, y: sy + dy, duration: 1.1, ease: 'power1.in',
-        onUpdate: () => { m.scale.x = m.scale.y * (1.6 + 2.4 * gsap.getProperty(mat, 'opacity') as number); },
+        onUpdate: () => { m.scale.x = m.scale.y * (1.6 + 2.4 * mat.opacity); },
       });
       gsap.to(mat, {
         opacity: 0, duration: 0.5, delay: 0.65,

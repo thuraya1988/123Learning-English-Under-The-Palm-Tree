@@ -443,7 +443,7 @@ function makeDiorama(data, x, z, ry, s, rm) {
     side: THREE.DoubleSide
   });
   var bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(fw - 0.05, fh - 0.05), bgMat);
-  bgMesh.position.z = -bd/2 + 0.06;
+  bgMesh.position.z = -bd/2 + 0.04;
   g.add(bgMesh);
 
   // Layer 2: Midground vignette
@@ -485,8 +485,19 @@ function makeDiorama(data, x, z, ry, s, rm) {
     pos: new THREE.Vector3(x - s*off, CFG.eye, z),
     norm: new THREE.Vector3(Math.sin(ry), 0, Math.cos(ry)),
     data: data, rm: rm, imgMat: imgMat, bgMat: bgMat,
-    url: url, loaded: false,
+    url: url, loaded: true,
     group: g, innerLight: innerLight
+  });
+  tLoad.load(url, function(tex){
+    tex.encoding = THREE.sRGBEncoding;
+    imgMat.map = tex;
+    imgMat.color.setHex(0xffffff);
+    imgMat.emissive = new THREE.Color(0x1a0e07);
+    imgMat.emissiveIntensity = 0.2;
+    imgMat.needsUpdate = true;
+  }, undefined, function(){
+    createFallbackTexture(data, imgMat);
+    imgMat.color.setHex(0xffffff);
   });
 }
 
@@ -682,23 +693,6 @@ function update(dt){
   for(var i=0; i<frameList.length; i++){
     var f = frameList[i], d = cp.distanceTo(f.pos);
 
-    // Load texture when nearby
-    if(!f.loaded && d < 60){
-      f.loaded = true;
-      (function(fr){
-        var tl = new THREE.TextureLoader();
-        tl.load(fr.url, function(tex){
-          tex.encoding = THREE.sRGBEncoding;
-          fr.imgMat.map = tex;
-          fr.imgMat.needsUpdate = true;
-          // Enhance brightness for diorama effect
-          fr.imgMat.emissive = new THREE.Color(0x1a0e07);
-          fr.imgMat.emissiveIntensity = 0.2;
-        }, undefined, function(){
-          createFallbackTexture(fr.data, fr.imgMat);
-        });
-      })(f);
-    }
 
     // Parallax effect: move background layer based on camera angle
     if(f.group && d < 15){

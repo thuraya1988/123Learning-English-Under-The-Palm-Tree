@@ -27,7 +27,7 @@ const SUBSECTIONS = [
   {
     key: "statement",
     title: "Author Statement",
-    body: "Created by Thuraya Mohammed bin Ali Al Naabi, with love, patience, and a deep belief in the power of language.",
+    body: "Created by Thuraya Mohammed Ali Al-Naabia, with love, patience, and a deep belief in the power of language.",
   },
 ];
 
@@ -86,7 +86,7 @@ export default function AboutPage() {
               [Author Statement Audio Placeholder]
             </p>
             <p className="text-[var(--gold-pale)]/70 text-xs italic mt-3">
-              Voice recording by Thuraya Mohammed bin Ali Al Naabi.
+              Voice recording by Thuraya Mohammed Ali Al-Naabia.
             </p>
           </GlassCard>
           <GlassCard variant="dark" className="p-8">

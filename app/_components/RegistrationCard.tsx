@@ -87,7 +87,7 @@ export default function RegistrationCard() {
         }}
       >
         All content is the intellectual property of{" "}
-        <strong>Thuraya Mohammed bin Ali Al Naabi</strong>.
+        <strong>Thuraya Mohammed Ali Al-Naabia</strong>.
       </p>
     </form>
   );

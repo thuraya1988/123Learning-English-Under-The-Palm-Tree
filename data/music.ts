@@ -12,7 +12,7 @@ export type Track = {
 const SONG = (file: string) => `/Songs-section/${file}`;
 
 /**
- * Songs composed by Thuraya Mohammed bin Ali Al Naabi.
+ * Songs composed by Thuraya Mohammed Ali Al-Naabia.
  * 19 of the planned 22 songs are wired to the actual MP4 files in
  * /public/Songs-section/. Real lyrics and chapter mapping will replace
  * the placeholder descriptions when the user provides them.

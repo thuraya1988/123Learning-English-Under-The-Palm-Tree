@@ -76,8 +76,9 @@ export class GlobeScene {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.05;
     this.controls.rotateSpeed = 0.5;
-    this.controls.minDistance = 1.8;
-    this.controls.maxDistance = 5.0;
+    this.controls.minDistance = 1.4;
+    this.controls.maxDistance = 14.0;
+    this.controls.zoomSpeed = 0.65;
     this.controls.enablePan = false;
 
     // Groups
@@ -386,8 +387,8 @@ export class GlobeScene {
 
   private createStarfield() {
     const isMobile = window.innerWidth < 768;
-    const count = isMobile ? 1000 : 3000;
-    const geometry = new THREE.SphereGeometry(0.015, 4, 4);
+    const count = isMobile ? 1600 : 4200;
+    const geometry = new THREE.SphereGeometry(0.028, 4, 4);
     const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const instancedMesh = new THREE.InstancedMesh(geometry, material, count);
 
@@ -416,6 +417,112 @@ export class GlobeScene {
     this.starGroup.add(instancedMesh);
     instancedMesh.visible = false;
     gsap.delayedCall(0.1, () => { instancedMesh.visible = true; });
+    this.createCosmos();
+  }
+
+  private moonPivot: THREE.Group | null = null;
+  private galaxySprite: THREE.Sprite | null = null;
+  private cosmosBuilt = false;
+
+  private radialSprite(stops: [number, string][], size = 256): THREE.Texture {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = size;
+    const ctx = cv.getContext('2d')!;
+    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    stops.forEach(([o, c]) => g.addColorStop(o, c));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, size, size);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  private createCosmos() {
+    if (this.cosmosBuilt) return;
+    this.cosmosBuilt = true;
+
+    // ---- Sun: warm glowing sprite far to the upper right ----
+    const sunTex = this.radialSprite([
+      [0, 'rgba(255,255,240,1)'],
+      [0.18, 'rgba(255,238,170,0.95)'],
+      [0.42, 'rgba(255,190,90,0.5)'],
+      [0.7, 'rgba(255,150,50,0.16)'],
+      [1, 'rgba(255,140,40,0)'],
+    ], 512);
+    const sun = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: sunTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true,
+    }));
+    sun.position.set(30, 12, -34);
+    sun.scale.setScalar(14);
+    this.starGroup.add(sun);
+
+    // ---- Galaxy: soft violet nebula far to the left ----
+    const galTex = this.radialSprite([
+      [0, 'rgba(240,230,255,0.9)'],
+      [0.2, 'rgba(190,150,255,0.5)'],
+      [0.5, 'rgba(120,90,220,0.22)'],
+      [0.8, 'rgba(70,60,160,0.08)'],
+      [1, 'rgba(40,30,90,0)'],
+    ], 512);
+    const galaxy = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: galTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true,
+      rotation: 0.6,
+    }));
+    galaxy.position.set(-34, 16, -40);
+    galaxy.scale.set(30, 14, 1);
+    this.starGroup.add(galaxy);
+    this.galaxySprite = galaxy;
+
+    // ---- Moon: textured sphere slowly orbiting the earth ----
+    const moonTex = new THREE.TextureLoader().load(
+      'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/moon_1024.jpg'
+    );
+    moonTex.colorSpace = THREE.SRGBColorSpace;
+    const moon = new THREE.Mesh(
+      new THREE.SphereGeometry(0.27, 24, 24),
+      new THREE.MeshStandardMaterial({ map: moonTex, roughness: 1 })
+    );
+    moon.position.set(3.6, 0, 0);
+    const pivot = new THREE.Group();
+    pivot.rotation.x = 0.18;
+    pivot.add(moon);
+    this.scene.add(pivot);
+    this.moonPivot = pivot;
+    const moonLight = new THREE.DirectionalLight(0xfff2d0, 1.2);
+    moonLight.position.set(30, 12, -34);
+    this.scene.add(moonLight);
+
+    // ---- Shooting stars: streaks that cross the sky every few seconds ----
+    const meteorTex = this.radialSprite([
+      [0, 'rgba(255,255,255,1)'],
+      [0.25, 'rgba(200,225,255,0.8)'],
+      [1, 'rgba(150,190,255,0)'],
+    ], 128);
+    const spawnMeteor = () => {
+      const mat = new THREE.SpriteMaterial({
+        map: meteorTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0,
+      });
+      const m = new THREE.Sprite(mat);
+      const sx = -20 + Math.random() * 40;
+      const sy = 10 + Math.random() * 14;
+      const sz = -18 - Math.random() * 14;
+      m.position.set(sx, sy, sz);
+      m.scale.setScalar(0.9 + Math.random() * 0.8);
+      this.starGroup.add(m);
+      const dx = 8 + Math.random() * 10;
+      const dy = -(6 + Math.random() * 6);
+      gsap.to(mat, { opacity: 1, duration: 0.15 });
+      gsap.to(m.position, {
+        x: sx + dx, y: sy + dy, duration: 1.1, ease: 'power1.in',
+        onUpdate: () => { m.scale.x = m.scale.y * (1.6 + 2.4 * mat.opacity); },
+      });
+      gsap.to(mat, {
+        opacity: 0, duration: 0.5, delay: 0.65,
+        onComplete: () => { this.starGroup.remove(m); mat.dispose(); },
+      });
+      gsap.delayedCall(2.5 + Math.random() * 4.5, spawnMeteor);
+    };
+    gsap.delayedCall(2, spawnMeteor);
   }
 
   private createCountryMarkers() {
@@ -723,6 +830,8 @@ export class GlobeScene {
     }
 
     this.animateStars(time);
+    if (this.moonPivot) this.moonPivot.rotation.y += 0.0009;
+    if (this.galaxySprite) this.galaxySprite.material.rotation += 0.0004;
     this.checkHover();
     this.controls.update();
     this.renderer.render(this.scene, this.camera);

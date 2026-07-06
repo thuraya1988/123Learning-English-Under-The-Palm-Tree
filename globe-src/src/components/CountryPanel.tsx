@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, ArrowLeft, Clock, Users, Play, Calendar, Trophy, BookOpen, Globe, MapPin, Languages, Coins, Sun, Radio, Store, Handshake, GraduationCap } from 'lucide-react';
+import { X, ArrowLeft, Clock, Users, Play, Calendar, Trophy, BookOpen, Globe, MapPin, Languages, Coins, Sun, Radio, Store, Handshake } from 'lucide-react';
 import gsap from 'gsap';
 import type { Country, ContentItem, PartnerCategory } from '@/types';
 import PartnerCard from './PartnerCard';
@@ -81,8 +81,13 @@ function ContentCard({ item, index, onContinueLearning }: {
           <img
             src={item.thumbnail}
             alt={item.title}
-            className="w-full aspect-video object-cover"
+            className="w-full aspect-video object-cover cursor-pointer"
             loading="lazy"
+            onClick={() => {
+              if (item.streamUrl && item.streamUrl !== '#') {
+                window.open(item.streamUrl, '_blank', 'noopener');
+              }
+            }}
           />
           <div className="absolute top-3 left-3 flex gap-2">
             <PlatformBadge platform={item.platform} />
@@ -154,22 +159,10 @@ function ContentCard({ item, index, onContinueLearning }: {
             className="btn-primary w-full mt-3 flex items-center justify-center gap-2"
           >
             <Play className="w-4 h-4" />
-            Open · افتح
+            {item.platform === 'youtube' ? 'شاهدوا الفيديو · Watch' : 'افتحوا المصدر · Source'}
           </button>
 
-          {/* Continue Learning CTA */}
-          <button
-            onClick={() => onContinueLearning?.(item.title)}
-            className="w-full mt-2 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all"
-            style={{
-              background: 'linear-gradient(135deg, rgba(212, 168, 67, 0.12), rgba(42, 157, 143, 0.08))',
-              border: '1px solid rgba(212, 168, 67, 0.2)',
-              color: 'var(--accent)',
-            }}
-          >
-            <GraduationCap className="w-4 h-4" />
-            Continue Learning on Under the Palm Tree
-          </button>
+          {void onContinueLearning}
         </div>
       </div>
     );
@@ -190,8 +183,13 @@ function ContentCard({ item, index, onContinueLearning }: {
           <img
             src={item.thumbnail}
             alt={item.title}
-            className="w-full aspect-video object-cover"
+            className="w-full aspect-video object-cover cursor-pointer"
             loading="lazy"
+            onClick={() => {
+              if (item.streamUrl && item.streamUrl !== '#') {
+                window.open(item.streamUrl, '_blank', 'noopener');
+              }
+            }}
           />
           {item.duration && (
             <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">

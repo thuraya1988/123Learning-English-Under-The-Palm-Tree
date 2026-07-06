@@ -108,7 +108,7 @@ export default function Footer() {
           letterSpacing: "0.04em",
         }}
       >
-        All content © {year} <strong style={{ color: "var(--gold-light)", fontWeight: 500 }}>Thuraya Mohammed bin Ali Al Naabi</strong> — English Teacher, Samail Al-Qurawashiyah · All rights reserved.
+        All content © {year} <strong style={{ color: "var(--gold-light)", fontWeight: 500 }}>Thuraya Mohammed Ali Al-Naabia</strong> — English Teacher, Samail Al-Qurawashiyah · All rights reserved.
       </div>
     </footer>
   );

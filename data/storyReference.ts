@@ -19,7 +19,7 @@
 
 export const STORY_REFERENCE = {
   title: "123 Let's Learn English Under the Palm Tree",
-  author: "Thuraya Mohammed bin Ali Al Naabi",
+  author: "Thuraya Mohammed Ali Al-Naabia",
   village: "Sumail Al Qurooshiyah",
   era: "1970s Oman",
   totalChapters: 36,
@@ -27,5 +27,5 @@ export const STORY_REFERENCE = {
     "There was once a village that taught children how to dream in two languages…",
   storyFilePathPlaceholder: "[Story File Reference Required]",
   copyrightStatement:
-    "This platform and all educational materials, stories, games, activities, systems, and concepts are intellectual property owned by Thuraya Mohammed bin Ali Al Naabi, English Teacher – Sumail Al Qurooshiyah. Copying, recording, redistributing, screenshotting, or reproducing any content, games, concepts, or educational systems from this website is strictly prohibited and may result in legal action.",
+    "This platform and all educational materials, stories, games, activities, systems, and concepts are intellectual property owned by Thuraya Mohammed Ali Al-Naabia, English Teacher – Sumail Al Qurooshiyah. Copying, recording, redistributing, screenshotting, or reproducing any content, games, concepts, or educational systems from this website is strictly prohibited and may result in legal action.",
 };

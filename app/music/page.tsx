@@ -45,7 +45,7 @@ export default function MusicPage() {
               Palm Tree <em>Music</em>
             </>
           }
-          subtitle="22 tracks composed by Thuraya Mohammed bin Ali Al Naabi — songs, soundtrack, and educational music linked to the chapters."
+          subtitle="22 tracks composed by Thuraya Mohammed Ali Al-Naabia — songs, soundtrack, and educational music linked to the chapters."
         />
 
         {/* Curved category cards */}

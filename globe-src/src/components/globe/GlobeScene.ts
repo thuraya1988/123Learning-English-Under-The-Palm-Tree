@@ -39,6 +39,8 @@ export class GlobeScene {
   private mouse: THREE.Vector2;
   private callbacks: GlobeCallbacks;
   private isDragging = false;
+  private touchStartX = 0;
+  private touchStartY = 0;
   private _isLoaded = false;
   private animationId: number | null = null;
   private hoveredCountry: string | null = null;
@@ -77,7 +79,7 @@ export class GlobeScene {
     this.controls.dampingFactor = 0.05;
     this.controls.rotateSpeed = 0.5;
     this.controls.minDistance = 1.4;
-    this.controls.maxDistance = 14.0;
+    this.controls.maxDistance = 7.5;
     this.controls.zoomSpeed = 0.65;
     this.controls.enablePan = false;
 
@@ -663,13 +665,23 @@ export class GlobeScene {
     this.renderer.domElement.style.cursor = 'grab';
   }
 
-  private onTouchStart() {
+  private onTouchStart(event: TouchEvent) {
     this.isDragging = false;
+    if (event.touches.length > 0) {
+      this.touchStartX = event.touches[0].clientX;
+      this.touchStartY = event.touches[0].clientY;
+    }
   }
 
   private onTouchMove(event: TouchEvent) {
-    this.isDragging = true;
     if (event.touches.length > 0) {
+      const dx = event.touches[0].clientX - this.touchStartX;
+      const dy = event.touches[0].clientY - this.touchStartY;
+      // Only count it as a drag once the finger has actually moved —
+      // a tap always has a whisper of jitter and must still register as a click.
+      if (Math.sqrt(dx * dx + dy * dy) > 8) {
+        this.isDragging = true;
+      }
       const rect = this.renderer.domElement.getBoundingClientRect();
       this.mouse.x = ((event.touches[0].clientX - rect.left) / rect.width) * 2 - 1;
       this.mouse.y = -((event.touches[0].clientY - rect.top) / rect.height) * 2 + 1;

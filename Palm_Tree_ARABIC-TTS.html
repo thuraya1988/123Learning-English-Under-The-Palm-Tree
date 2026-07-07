@@ -9795,6 +9795,42 @@ document.addEventListener('click', () => {
   function curText(){var pg=document.getElementById('pgA');if(!pg)return '';
     var c=pg.cloneNode(true);var f=c.querySelector('.pagenum');if(f)f.remove();
     return (c.textContent||'').replace(/\s+/g,' ').trim();}
+  // Most TTS voices (this one included) silently skip or garble raw digits —
+  // spelling numbers out as words is the standard fix so dates/counts get read.
+  function digitsToWords(str){
+    var AR_INDIC='٠١٢٣٤٥٦٧٨٩';
+    var norm=str.replace(/[٠-٩]/g,function(ch){return String(AR_INDIC.indexOf(ch));});
+    var ones_en=['zero','one','two','three','four','five','six','seven','eight','nine','ten',
+      'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+    var tens_en=['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+    function enWords(n){
+      if(n<20)return ones_en[n];
+      if(n<100)return tens_en[Math.floor(n/10)]+(n%10?'-'+ones_en[n%10]:'');
+      if(n<1000)return ones_en[Math.floor(n/100)]+' hundred'+(n%100?' and '+enWords(n%100):'');
+      if(n<1000000)return enWords(Math.floor(n/1000))+' thousand'+(n%1000?' '+enWords(n%1000):'');
+      return String(n);
+    }
+    var ones_ar=['صفر','واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة','عشرة',
+      'أحد عشر','اثنا عشر','ثلاثة عشر','أربعة عشر','خمسة عشر','ستة عشر','سبعة عشر','ثمانية عشر','تسعة عشر'];
+    var tens_ar=['','','عشرون','ثلاثون','أربعون','خمسون','ستون','سبعون','ثمانون','تسعون'];
+    var hundreds_ar=['','مئة','مئتان','ثلاثمئة','أربعمئة','خمسمئة','ستمئة','سبعمئة','ثمانمئة','تسعمئة'];
+    function arWords(n){
+      if(n<20)return ones_ar[n];
+      if(n<100){var t=Math.floor(n/10),o=n%10;return o?ones_ar[o]+' و'+tens_ar[t]:tens_ar[t];}
+      if(n<1000){var h=Math.floor(n/100),r=n%100;return hundreds_ar[h]+(r?' و'+arWords(r):'');}
+      if(n<1000000){
+        var th=Math.floor(n/1000),r2=n%1000;
+        var thWord=th===1?'ألف':th===2?'ألفان':(th<=10?arWords(th)+' آلاف':arWords(th)+' ألف');
+        return thWord+(r2?' و'+arWords(r2):'');
+      }
+      return String(n);
+    }
+    return norm.replace(/\d+/g,function(m){
+      if(m.length>7)return m;
+      var n=parseInt(m,10);
+      return LANG==='ar'?arWords(n):enWords(n);
+    });
+  }
   function lbl(t){if(btn)btn.textContent=t;}
   function stop(){if(audio){try{audio.pause();}catch(e){}audio=null;}playing=false;token++;lbl("🔊 استماع");btn.classList.remove('on');}
   function fetchAudio(text){
@@ -9806,6 +9842,7 @@ document.addEventListener('click', () => {
   }
   function speak(){
     var text=curText(); if(!text||text.length<2)return;
+    text=digitsToWords(text);
     if(text.length>1200)text=text.slice(0,1200);
     var my=++token; playing=true; btn.classList.add('on'); lbl("جارٍ التحضير…");
     var tries=0;

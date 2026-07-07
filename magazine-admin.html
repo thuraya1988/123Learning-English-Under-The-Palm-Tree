@@ -8,17 +8,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#200A0A;
-    --panel:#3D0F0F;
-    --line:#5C1F1F;
-    --beige:#D9C6A0;
-    --beige-dim:#A6906A;
+    --bg:#1B1613;
+    --panel:#33191D;
+    --line:#4A2A30;
+    --beige:#E7D9BE;
+    --beige-dim:#A8927A;
+    --accent:#7C2334;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
   body{
     font-family:'Karla', sans-serif;
-    background:#0F0505;
+    background:#100D0B;
     display:flex;
     justify-content:center;
     color:var(--beige);
@@ -120,7 +121,7 @@
     cursor:pointer;
     flex-shrink:0;
   }
-  .art-row .del{ color:#C97B6B; border-color:#5C1F1F; }
+  .art-row .del{ color:#C97B6B; border-color:#4A2A30; }
 
   #emptyList{ font-size:12.5px; color:var(--beige-dim); padding:12px 0; }
 
@@ -146,6 +147,17 @@
 </head>
 <body>
 <div id="shell">
+  <div id="adminGate" style="position:fixed;inset:0;background:#100D0B;display:flex;align-items:center;justify-content:center;z-index:50;padding:24px;">
+    <div style="max-width:320px;width:100%;text-align:center;">
+      <div style="font-size:32px;margin-bottom:10px;">🌴</div>
+      <h2 style="font-family:'Zilla Slab',serif;color:var(--beige);margin-bottom:8px;">Magazine Admin</h2>
+      <p style="font-size:12.5px;color:var(--beige-dim);margin-bottom:16px;line-height:1.6;">This page can add, edit, or delete articles. Enter your admin passphrase to continue.</p>
+      <input id="adminPass" type="password" placeholder="Passphrase" style="width:100%;background:var(--panel);border:1px solid var(--line);color:var(--beige);border-radius:8px;padding:10px 12px;font-size:14px;outline:none;margin-bottom:10px;" />
+      <button id="adminUnlock" style="width:100%;background:var(--beige);color:var(--bg);border:none;border-radius:8px;padding:12px;font-weight:700;font-size:14px;cursor:pointer;">Unlock</button>
+      <div id="adminGateMsg" style="font-size:11.5px;color:#C97B6B;min-height:16px;margin-top:8px;"></div>
+    </div>
+  </div>
+
   <header>
     <h1>Magazine Admin</h1>
     <span>Under the Palm Tree — add, edit, or remove articles</span>
@@ -216,6 +228,24 @@
 </div>
 
 <script>
+  // Client-side gate only — see the note above the form for the real fix needed.
+  const ADMIN_PASSPHRASE = "palmtree1973"; // change this, then tell Thuraya's future self the new one
+  (function gate(){
+    const gateEl = document.getElementById("adminGate");
+    if (sessionStorage.getItem("magazine-admin-ok") === "1") { gateEl.style.display = "none"; return; }
+    document.getElementById("adminUnlock").addEventListener("click", tryUnlock);
+    document.getElementById("adminPass").addEventListener("keydown", (e) => { if (e.key === "Enter") tryUnlock(); });
+    function tryUnlock(){
+      const val = document.getElementById("adminPass").value;
+      if (val === ADMIN_PASSPHRASE) {
+        sessionStorage.setItem("magazine-admin-ok", "1");
+        gateEl.style.display = "none";
+      } else {
+        document.getElementById("adminGateMsg").textContent = "Wrong passphrase — try again.";
+      }
+    }
+  })();
+
   const DB_URL = "https://under-palm-tree-default-rtdb.europe-west1.firebasedatabase.app";
   const ARTICLES_URL = DB_URL + "/articles.json";
 

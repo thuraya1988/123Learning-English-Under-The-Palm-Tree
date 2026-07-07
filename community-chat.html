@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>غرفة الطلاب | Under the Palm Tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=Aref+Ruqaa:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F7F1E1;
+    --sand:#EDE0C4;
+    --gold:#D4B483;
+    --brown:#A67C42;
+    --dark:#4A3520;
+    --burgundy:#3D0C0C;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Tajawal', sans-serif;
+    background:var(--dark);
+    display:flex;
+    justify-content:center;
+    color:var(--dark);
+  }
+  #shell{
+    width:100%;
+    max-width:480px;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    background:var(--cream);
+    position:relative;
+    overflow:hidden;
+  }
+  @media (min-width:520px){
+    body{ align-items:center; }
+    #shell{
+      height:calc(100vh - 48px);
+      border-radius:22px;
+      box-shadow:0 24px 60px rgba(61,12,12,.35);
+    }
+  }
+
+  header{
+    background:var(--burgundy);
+    color:var(--cream);
+    padding:16px 18px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,.2);
+    z-index:5;
+    flex-shrink:0;
+  }
+  header .palm{ font-size:22px; }
+  header .titles{ display:flex; flex-direction:column; }
+  header .titles h1{ font-family:'Aref Ruqaa', serif; font-size:19px; font-weight:700; line-height:1.3; }
+  header .titles span{ font-size:11px; opacity:.75; letter-spacing:.5px; }
+
+  #messages{
+    flex:1;
+    overflow-y:auto;
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+
+  .day-divider{
+    display:flex; align-items:center; gap:8px;
+    margin:10px 0;
+    color:var(--brown);
+    font-size:11px;
+  }
+  .day-divider span{ flex:1; height:1px; background:var(--brown); opacity:.35; }
+  .day-divider em{ font-style:normal; white-space:nowrap; }
+
+  .msg-row{ display:flex; width:100%; }
+  .msg-row.mine{ justify-content:flex-start; }
+  .msg-row.other{ justify-content:flex-end; }
+  .msg-row.system{ justify-content:center; }
+
+  .msg{
+    max-width:78%;
+    padding:9px 13px;
+    border-radius:14px;
+    font-size:14.5px;
+    line-height:1.55;
+    word-wrap:break-word;
+  }
+  .msg .sender{
+    font-size:11.5px;
+    font-weight:700;
+    color:var(--burgundy);
+    margin-bottom:2px;
+    display:block;
+  }
+  .msg .time{
+    font-size:10px;
+    opacity:.55;
+    margin-top:3px;
+    display:block;
+  }
+  .msg.other{ background:#fff; border:1px solid var(--sand); }
+  .msg.mine{ background:var(--gold); color:var(--dark); }
+  .msg.system{
+    background:transparent;
+    color:var(--brown);
+    font-size:12.5px;
+    text-align:center;
+    padding:6px 10px;
+  }
+
+  #hint{
+    font-size:10.5px;
+    color:var(--brown);
+    text-align:center;
+    padding:0 16px 8px;
+    opacity:.85;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+  }
+  #notifBtn{
+    border:1px solid var(--brown);
+    background:#fff;
+    color:var(--brown);
+    font-size:10.5px;
+    padding:3px 9px;
+    border-radius:12px;
+    cursor:pointer;
+  }
+  #notifBtn.on{ background:var(--gold); color:var(--dark); border-color:var(--gold); font-weight:700; }
+
+  #storageWarning{
+    display:none;
+    background:#FCEFC7;
+    color:var(--dark);
+    font-size:11.5px;
+    text-align:center;
+    padding:8px 14px;
+    border-bottom:1px solid var(--brown);
+    flex-shrink:0;
+    line-height:1.5;
+  }
+
+  #composer{
+    display:flex;
+    gap:8px;
+    padding:10px;
+    background:var(--sand);
+    border-top:1px solid var(--brown);
+    flex-shrink:0;
+  }
+  #composer input{
+    flex:1;
+    border:1px solid var(--brown);
+    border-radius:20px;
+    padding:10px 16px;
+    font-family:'Tajawal', sans-serif;
+    font-size:14px;
+    outline:none;
+    background:#fff;
+    color:var(--dark);
+  }
+  #composer input:focus{ outline:2px solid var(--burgundy); outline-offset:1px; }
+  #composer button{
+    background:var(--burgundy);
+    color:var(--cream);
+    border:none;
+    width:42px; height:42px;
+    border-radius:50%;
+    font-size:16px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  #composer button:active{ transform:scale(.94); }
+  #composer button:focus{ outline:2px solid var(--dark); outline-offset:2px; }
+
+  #gate{
+    position:absolute;
+    inset:0;
+    background:rgba(74,53,32,.92);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:20;
+    padding:24px;
+  }
+  #gate .card{
+    background:var(--cream);
+    border-radius:16px;
+    padding:28px 22px;
+    width:100%;
+    max-width:320px;
+    text-align:center;
+    box-shadow:0 10px 30px rgba(0,0,0,.3);
+  }
+  #gate .palm-big{ font-size:34px; margin-bottom:6px; }
+  #gate h2{ font-family:'Aref Ruqaa', serif; color:var(--burgundy); font-size:22px; margin-bottom:6px; }
+  #gate p{ font-size:13px; color:var(--brown); margin-bottom:16px; line-height:1.5; }
+  #gate input{
+    width:100%;
+    padding:11px 14px;
+    border-radius:10px;
+    border:1px solid var(--brown);
+    font-family:'Tajawal', sans-serif;
+    font-size:14px;
+    margin-bottom:12px;
+    text-align:center;
+    outline:none;
+    color:var(--dark);
+  }
+  #gate input:focus{ outline:2px solid var(--burgundy); }
+  #gate button{
+    width:100%;
+    padding:11px;
+    border:none;
+    border-radius:10px;
+    background:var(--burgundy);
+    color:var(--cream);
+    font-family:'Tajawal', sans-serif;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+  }
+  #gate button:focus{ outline:2px solid var(--dark); outline-offset:2px; }
+
+  #loading{
+    position:absolute; inset:0;
+    background:var(--cream);
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+    gap:10px;
+    z-index:15;
+  }
+  .spinner{
+    width:28px; height:28px;
+    border:3px solid var(--sand);
+    border-top-color:var(--burgundy);
+    border-radius:50%;
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="shell">
+  <div id="loading"><div class="spinner"></div><div style="font-size:12px;color:var(--brown)">...جاري تحميل الغرفة</div></div>
+
+  <div id="storageWarning">⚠️ ما قدرنا نتوصل بقاعدة البيانات. تأكدي إن رابط Firebase صحيح وإن Realtime Database Rules بوضع Test mode.</div>
+
+  <div id="gate">
+    <div class="card">
+      <div class="palm-big">🌴</div>
+      <h2>غرفة الطلاب</h2>
+      <p>اكتب اسمك عشان تنضم للدردشة مع باقي الطلاب. هذي غرفة عامة يشوفها الكل.</p>
+      <input id="nameInput" maxlength="20" placeholder="مثال: سعيد" aria-label="اسمك" />
+      <button id="joinBtn">دخول للغرفة</button>
+    </div>
+  </div>
+
+  <header>
+    <span class="palm">🌴</span>
+    <div class="titles">
+      <h1>غرفة الطلاب</h1>
+      <span>Under the Palm Tree</span>
+    </div>
+  </header>
+
+  <div id="messages"></div>
+  <div id="hint">
+    <span>غرفة عامة لكل الطلاب — خلنا نحافظ على الاحترام 🌱</span>
+    <button id="notifBtn">🔔 فعّل التنبيهات</button>
+  </div>
+
+  <div id="composer">
+    <input id="msgInput" placeholder="اكتب رسالتك..." maxlength="300" aria-label="رسالتك" />
+    <button id="sendBtn" aria-label="إرسال">➤</button>
+  </div>
+</div>
+
+<script>
+  const DB_URL = "https://under-palm-tree-default-rtdb.europe-west1.firebasedatabase.app";
+  const MESSAGES_URL = DB_URL + "/messages.json";
+
+  let me = null;
+  let notifOn = false;
+  let lastSeenCount = 0;
+  let firstLoadDone = false;
+  let dbErrorShown = false;
+  const storageOk = (typeof window.storage !== 'undefined' && window.storage !== null);
+
+  const $ = (sel) => document.querySelector(sel);
+
+  function uid(){
+    return 'u_' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // Basic respectful-language check. Not exhaustive — Thuraya can extend this list anytime.
+  const BLOCKED_WORDS = ['كلبة', 'حقير', 'غبي تافه', 'حمار عليك'];
+  function containsBlocked(text){
+    const lower = text.toLowerCase();
+    return BLOCKED_WORDS.some(w => lower.includes(w));
+  }
+
+  function dayLabel(ts){
+    const d = new Date(ts);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    const sameDay = (a, b) => a.toDateString() === b.toDateString();
+    if(sameDay(d, today)) return 'اليوم';
+    if(sameDay(d, yesterday)) return 'أمس';
+    return d.toLocaleDateString('ar', { day:'numeric', month:'long' });
+  }
+
+  async function init(){
+    try{
+      const saved = storageOk ? await window.storage.get('my-profile', false) : null;
+      if(saved && saved.value){
+        me = JSON.parse(saved.value);
+      }
+    }catch(e){ /* no saved profile yet, that's fine */ }
+
+    $('#loading').style.display = 'none';
+
+    if(me && me.name){
+      startChat();
+    }else{
+      $('#gate').style.display = 'flex';
+    }
+
+    if('Notification' in window && Notification.permission === 'granted'){
+      notifOn = true;
+      $('#notifBtn').classList.add('on');
+      $('#notifBtn').textContent = '🔔 التنبيهات شغالة';
+    }
+
+    $('#joinBtn').addEventListener('click', joinRoom);
+    $('#nameInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') joinRoom(); });
+    $('#sendBtn').addEventListener('click', sendMessage);
+    $('#msgInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') sendMessage(); });
+    $('#notifBtn').addEventListener('click', enableNotifications);
+  }
+
+  async function enableNotifications(){
+    if(!('Notification' in window)){
+      alert('المتصفح ما يدعم التنبيهات. جربي بعد ما ترفعين الصفحة على موقعك.');
+      return;
+    }
+    try{
+      const perm = await Notification.requestPermission();
+      if(perm === 'granted'){
+        notifOn = true;
+        $('#notifBtn').classList.add('on');
+        $('#notifBtn').textContent = '🔔 التنبيهات شغالة';
+        new Notification('غرفة الطلاب 🌴', { body: 'بتوصلك تنبيهات لما حد يرسل رسالة جديدة' });
+      }else{
+        alert('لازم توافقين على إذن التنبيهات من المتصفح عشان تشتغل. ملاحظة: داخل معاينة Claude نفسها قد ما يشتغل الإذن بسبب قيود الأمان، بس لازم يشتغل بعد ما ترفعين الملف على موقعك.');
+      }
+    }catch(e){
+      console.error('notification permission error', e);
+      alert('ما قدرنا نفعل التنبيهات هنا. جربي بعد رفع الصفحة على موقعك الحقيقي.');
+    }
+  }
+
+  async function joinRoom(){
+    const val = $('#nameInput').value.trim();
+    if(!val) return;
+    if(containsBlocked(val)){
+      alert('اختر اسم ثاني، خلنا نحافظ على أدب الكلام بالغرفة 🙂');
+      return;
+    }
+    me = { id: uid(), name: val.slice(0, 20) };
+    try{
+      if(storageOk) await window.storage.set('my-profile', JSON.stringify(me), false);
+    }catch(e){ console.error('could not save profile', e); }
+    $('#gate').style.display = 'none';
+    startChat();
+  }
+
+  function startChat(){
+    fetchAndRenderMessages();
+    startListening();
+  }
+
+  function startListening(){
+    try{
+      const es = new EventSource(MESSAGES_URL);
+      es.addEventListener('put', fetchAndRenderMessages);
+      es.addEventListener('patch', fetchAndRenderMessages);
+      es.onerror = () => {
+        console.error('انقطع اتصال Firebase مؤقتاً، المتصفح بيعيد المحاولة تلقائياً');
+      };
+    }catch(e){
+      console.error('EventSource not available, falling back to periodic refresh', e);
+      setInterval(fetchAndRenderMessages, 4000);
+    }
+  }
+
+  async function fetchAndRenderMessages(){
+    try{
+      const res = await fetch(MESSAGES_URL);
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const list = data ? Object.keys(data).map(k => data[k]) : [];
+      list.sort((a, b) => a.ts - b.ts);
+
+      if(firstLoadDone && list.length > lastSeenCount){
+        const newOnes = list.slice(lastSeenCount);
+        const fromOthers = newOnes.filter(m => !me || m.senderId !== me.id);
+        if(fromOthers.length && notifOn && 'Notification' in window && Notification.permission === 'granted'){
+          const last = fromOthers[fromOthers.length - 1];
+          new Notification('غرفة الطلاب 🌴', { body: last.name + ': ' + last.text });
+        }
+      }
+      lastSeenCount = list.length;
+
+      $('#storageWarning').style.display = 'none';
+      render(list, !firstLoadDone);
+      firstLoadDone = true;
+    }catch(e){
+      console.error('fetch messages failed', e);
+      if(!dbErrorShown){
+        $('#storageWarning').style.display = 'block';
+        dbErrorShown = true;
+      }
+      render([], !firstLoadDone);
+      firstLoadDone = true;
+    }
+  }
+
+  function render(list, isFirst){
+    const container = $('#messages');
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+    container.innerHTML = '';
+
+    if(list.length === 0){
+      const row = document.createElement('div');
+      row.className = 'msg-row system';
+      row.innerHTML = '<div class="msg system">لسه ما فيه رسائل. افتح الدردشة وسلّم على الجماعة 👋</div>';
+      container.appendChild(row);
+    }
+
+    let lastDay = null;
+    list.forEach(m => {
+      const label = dayLabel(m.ts);
+      if(label !== lastDay){
+        const divider = document.createElement('div');
+        divider.className = 'day-divider';
+        divider.innerHTML = `<span></span><em>🌴 ${label}</em><span></span>`;
+        container.appendChild(divider);
+        lastDay = label;
+      }
+
+      const mine = me && m.senderId === me.id;
+      const row = document.createElement('div');
+      row.className = 'msg-row ' + (mine ? 'mine' : 'other');
+
+      const bubble = document.createElement('div');
+      bubble.className = 'msg ' + (mine ? 'mine' : 'other');
+      const time = new Date(m.ts).toLocaleTimeString('ar', { hour:'2-digit', minute:'2-digit' });
+      bubble.innerHTML =
+        (mine ? '' : `<span class="sender">${escapeHtml(m.name)}</span>`) +
+        `<span class="text">${escapeHtml(m.text)}</span>` +
+        `<span class="time">${time}</span>`;
+
+      row.appendChild(bubble);
+      container.appendChild(row);
+    });
+
+    if(isFirst || nearBottom){
+      container.scrollTop = container.scrollHeight;
+    }
+  }
+
+  async function sendMessage(){
+    const input = $('#msgInput');
+    const text = input.value.trim();
+    if(!text) return;
+
+    if(!me){
+      alert('لازم تدخلين باسمك أول. رجعنا لك صفحة الدخول.');
+      $('#gate').style.display = 'flex';
+      return;
+    }
+
+    if(containsBlocked(text)){
+      alert('خلنا نحافظ على أدب الكلام بالغرفة 🙂');
+      return;
+    }
+
+    input.value = '';
+
+    const payload = {
+      senderId: me.id,
+      name: me.name,
+      text: text.slice(0, 300),
+      ts: Date.now()
+    };
+
+    try{
+      const res = await fetch(MESSAGES_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if(!res.ok) throw new Error('Firebase write failed: ' + res.status);
+      // the EventSource listener picks up the change and re-renders automatically
+    }catch(e){
+      console.error('send failed', e);
+      alert('في مشكلة بالإرسال — تأكدي إن رابط قاعدة البيانات صحيح وقواعد الأمان بوضع Test mode');
+      input.value = text;
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

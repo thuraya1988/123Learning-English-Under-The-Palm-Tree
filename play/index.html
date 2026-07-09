@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Under Palm Tree - قرية النخلة المتقدمة</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+        html, body { width:100%; height:100%; overflow:hidden; background:#0a0a0a; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; touch-action:none; }
+        #game-container { position:relative; width:100%; height:100%; }
+        canvas { display:block; width:100%; height:100%; }
+
+        /* Top Bar */
+        #top-bar { position:absolute; top:6px; left:50%; transform:translateX(-50%); z-index:15; display:flex; gap:6px; align-items:center; }
+        #title-msg { color:#f5e6d3; font-size:11px; font-weight:700; background:rgba(0,0,0,0.6); padding:5px 10px; border-radius:14px; backdrop-filter:blur(4px); white-space:nowrap; }
+        #time-toggle { display:flex; align-items:center; gap:4px; background:rgba(0,0,0,0.5); padding:5px 10px; border-radius:12px; color:#f5e6d3; font-size:11px; font-weight:700; cursor:pointer; z-index:20; }
+        #weather-badge { display:flex; align-items:center; gap:4px; background:rgba(0,0,0,0.5); padding:5px 10px; border-radius:12px; color:#f5e6d3; font-size:11px; font-weight:700; cursor:pointer; z-index:20; }
+        #season-badge { display:flex; align-items:center; gap:4px; background:rgba(0,0,0,0.5); padding:5px 10px; border-radius:12px; color:#ffd700; font-size:11px; font-weight:700; cursor:pointer; z-index:20; }
+
+        #map-btn { position:absolute; top:6px; left:6px; z-index:20; background:rgba(0,0,0,0.5); padding:6px 10px; border-radius:10px; color:#ffd700; font-size:11px; font-weight:700; cursor:pointer; }
+        #sound-btn { position:absolute; top:6px; right:6px; z-index:20; background:rgba(0,0,0,0.5); padding:6px 10px; border-radius:10px; color:#4A90E2; font-size:11px; font-weight:700; cursor:pointer; }
+
+        #map-overlay { position:absolute; top:0; left:0; width:100%; height:100%; z-index:40; background:rgba(0,0,0,0.85); display:none; flex-direction:column; align-items:center; justify-content:center; }
+        #map-canvas-container { width:85%; max-width:350px; aspect-ratio:1; background:#1a0f0a; border-radius:16px; border:2px solid rgba(196,168,130,0.4); overflow:hidden; }
+        #map-canvas { width:100%; height:100%; }
+        #map-close { margin-top:12px; background:linear-gradient(135deg,#8b6914,#5c4a0a); color:#f5e6d3; border:none; padding:8px 28px; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; }
+        #map-label { color:#f5e6d3; font-size:14px; font-weight:700; margin-bottom:8px; }
+
+        #level-panel { position:absolute; top:40px; right:8px; z-index:15; background:rgba(0,0,0,0.6); padding:8px 12px; border-radius:12px; backdrop-filter:blur(6px); border:1px solid rgba(245,230,211,0.1); min-width:150px; max-width:200px; }
+        #level-title { color:#ffd700; font-size:11px; font-weight:700; margin-bottom:3px; }
+        #level-mission { color:#c4a882; font-size:10px; margin-bottom:5px; line-height:1.3; }
+        #level-progress-bg { width:100%; height:5px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden; }
+        #level-progress-fill { height:100%; background:linear-gradient(90deg,#c4a882,#ffd700); border-radius:3px; transition:width 0.3s ease; width:0%; }
+
+        #score-panel { position:absolute; top:40px; left:8px; z-index:15; display:flex; flex-direction:column; gap:4px; }
+        .score-item { display:flex; align-items:center; gap:4px; background:rgba(0,0,0,0.5); padding:5px 10px; border-radius:10px; color:#f5e6d3; font-size:11px; font-weight:600; }
+
+        /* Dialogs */
+        #dialog-box { position:absolute; bottom:160px; left:50%; transform:translateX(-50%); z-index:25; background:rgba(26,15,10,0.95); padding:12px 16px; border-radius:14px; border:1px solid rgba(196,168,130,0.4); max-width:300px; width:90%; text-align:center; display:none; }
+        #dialog-speaker { color:#ffd700; font-size:12px; font-weight:700; margin-bottom:4px; }
+        #dialog-text { color:#f5e6d3; font-size:12px; line-height:1.4; margin-bottom:8px; }
+        #dialog-btn { background:linear-gradient(135deg,#8b6914,#5c4a0a); color:#f5e6d3; border:none; padding:6px 20px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; }
+
+        #treasure-popup { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:30; background:rgba(26,15,10,0.97); padding:20px 24px; border-radius:16px; border:2px solid #ffd700; max-width:280px; width:90%; text-align:center; display:none; }
+        #treasure-popup h2 { color:#ffd700; font-size:18px; margin-bottom:6px; }
+        #treasure-en { color:#4A90E2; font-size:16px; font-weight:700; margin-bottom:3px; }
+        #treasure-ar { color:#c4a882; font-size:13px; margin-bottom:10px; }
+        #treasure-context { color:#aaa; font-size:11px; margin-bottom:10px; font-style:italic; }
+        #treasure-points { color:#ffd700; font-size:13px; font-weight:600; margin-bottom:12px; }
+        #treasure-close { background:linear-gradient(135deg,#c45c50,#8b3a30); color:#fff; border:none; padding:6px 20px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; }
+
+        #puzzle-popup { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:30; background:rgba(26,15,10,0.97); padding:20px 24px; border-radius:16px; border:2px solid #4A90E2; max-width:300px; width:90%; text-align:center; display:none; }
+        #puzzle-popup h2 { color:#4A90E2; font-size:18px; margin-bottom:8px; }
+        #puzzle-question { color:#f5e6d3; font-size:13px; margin-bottom:12px; line-height:1.5; }
+        .puzzle-option { display:block; width:100%; background:rgba(74,55,40,0.6); border:1px solid rgba(196,168,130,0.3); color:#f5e6d3; padding:8px; margin-bottom:6px; border-radius:8px; font-size:12px; cursor:pointer; }
+        .puzzle-option:active { background:rgba(196,168,130,0.3); }
+        #puzzle-result { color:#ffd700; font-size:13px; margin-top:8px; font-weight:700; }
+
+        #level-complete { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:30; background:rgba(26,15,10,0.97); padding:20px 28px; border-radius:16px; border:2px solid rgba(196,168,130,0.4); text-align:center; display:none; min-width:240px; }
+        #level-complete h2 { color:#ffd700; font-size:20px; margin-bottom:6px; }
+        #level-complete p { color:#c4a882; font-size:13px; margin-bottom:14px; }
+        #btn-next-level { background:linear-gradient(135deg,#8b6914,#5c4a0a); color:#f5e6d3; border:none; padding:8px 24px; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; }
+
+        #farming-panel { position:absolute; bottom:160px; right:10px; z-index:20; background:rgba(0,0,0,0.7); padding:10px 14px; border-radius:12px; backdrop-filter:blur(6px); border:1px solid rgba(245,230,211,0.15); display:none; }
+        #farming-title { color:#ffd700; font-size:12px; font-weight:700; margin-bottom:6px; }
+        #farming-status { color:#c4a882; font-size:11px; margin-bottom:8px; }
+        #btn-water { background:linear-gradient(135deg,#4A90E2,#2d5a8a); color:#fff; border:none; padding:6px 16px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; margin-right:4px; }
+        #btn-harvest { background:linear-gradient(135deg,#4a7c2a,#2d5a1a); color:#fff; border:none; padding:6px 16px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; }
+
+        #crosshair { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:20px; height:20px; pointer-events:none; z-index:10; opacity:0.7; }
+        #crosshair::before, #crosshair::after { content:''; position:absolute; background:rgba(245,230,211,0.8); }
+        #crosshair::before { width:2px; height:20px; left:9px; top:0; }
+        #crosshair::after { width:20px; height:2px; left:0; top:9px; }
+        #press-indicator { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:40px; height:40px; border-radius:50%; border:2px solid rgba(245,230,211,0.3); pointer-events:none; z-index:10; display:none; }
+        #press-fill { width:100%; height:100%; border-radius:50%; background:rgba(196,168,130,0.3); transform:scale(0); transition:transform 0.1s linear; }
+        #freelook-hint { position:absolute; top:45%; left:50%; transform:translateX(-50%); z-index:12; color:rgba(245,230,211,0.5); font-size:12px; font-weight:600; pointer-events:none; background:rgba(0,0,0,0.4); padding:6px 12px; border-radius:10px; display:none; }
+
+        #controls { position:absolute; bottom:14px; left:14px; z-index:20; display:flex; flex-direction:column; align-items:center; gap:6px; }
+        .dpad { display:grid; grid-template-columns:48px 48px 48px; grid-template-rows:48px 48px; gap:3px; }
+        .btn { width:48px; height:48px; background:rgba(74,55,40,0.6); border:1px solid rgba(196,168,130,0.25); border-radius:12px; color:#f5e6d3; font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(6px); transition:all 0.08s; -webkit-tap-highlight-color:transparent; }
+        .btn:active, .btn.pressed { background:rgba(196,168,130,0.25); transform:scale(0.92); }
+        .btn-up { grid-column:2; grid-row:1; }
+        .btn-left { grid-column:1; grid-row:2; }
+        .btn-down { grid-column:2; grid-row:2; }
+        .btn-right { grid-column:3; grid-row:2; }
+        #btn-jump { width:64px; height:40px; font-size:12px; font-weight:700; background:rgba(139,69,19,0.4); border-color:rgba(196,168,130,0.3); }
+
+        #block-selector { position:absolute; bottom:14px; right:14px; z-index:20; display:flex; gap:5px; background:rgba(0,0,0,0.4); padding:8px; border-radius:14px; backdrop-filter:blur(6px); }
+        .block-btn { width:36px; height:36px; border-radius:8px; border:2px solid rgba(245,230,211,0.12); cursor:pointer; transition:all 0.15s; }
+        .block-btn.selected { border-color:#f5e6d3; box-shadow:0 0 0 2px rgba(245,230,211,0.1); transform:translateY(-3px) scale(1.05); }
+        .block-btn:active { transform:scale(0.9); }
+
+        .floating-text { position:absolute; color:#f5e6d3; font-weight:700; font-size:13px; pointer-events:none; z-index:30; text-shadow:0 2px 4px rgba(0,0,0,0.8); animation:floatUp 1s ease-out forwards; }
+        @keyframes floatUp { 0%{opacity:1;transform:translateY(0);} 100%{opacity:0;transform:translateY(-40px);} }
+
+        /* Weather overlay */
+        #weather-overlay { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:5; display:none; }
+        .rain-drop { position:absolute; width:1px; height:8px; background:rgba(200,200,255,0.6); animation:rainFall 0.5s linear infinite; }
+        @keyframes rainFall { 0%{transform:translateY(-10px);} 100%{transform:translateY(100vh);} }
+        .dust-particle { position:absolute; width:3px; height:3px; background:rgba(196,168,130,0.3); border-radius:50%; animation:dustFloat 3s linear infinite; }
+        @keyframes dustFloat { 0%{transform:translate(0,0);opacity:0;} 50%{opacity:0.6;} 100%{transform:translate(20px,-10px);opacity:0;} }
+
+        /* Ramadan Lanterns */
+        .lantern { position:absolute; font-size:20px; animation:sway 2s ease-in-out infinite; pointer-events:none; z-index:6; }
+        @keyframes sway { 0%,100%{transform:rotate(-5deg);} 50%{transform:rotate(5deg);} }
+
+        @media (max-width:480px) {
+            .btn { width:44px; height:44px; font-size:16px; }
+            .dpad { grid-template-columns:44px 44px 44px; grid-template-rows:44px 44px; }
+            #btn-jump { width:58px; height:36px; font-size:10px; }
+            .block-btn { width:32px; height:32px; }
+            #level-panel { top:36px; right:6px; min-width:130px; }
+            #score-panel { top:36px; left:6px; }
+        }
+    </style>
+<link rel="icon" type="image/png" href="../public/favicon.png">
+<link rel="apple-touch-icon" href="../public/apple-touch-icon.png">
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="weather-overlay"></div>
+
+    <div id="top-bar">
+        <div id="title-msg">🌴 Under Palm Tree</div>
+        <div id="time-toggle"><span id="time-toggle-icon">☀️</span><span id="time-toggle-text">نهار</span></div>
+        <div id="weather-badge"><span id="weather-icon">🌤️</span><span id="weather-text">صافٍ</span></div>
+        <div id="season-badge"><span id="season-icon">🌴</span><span id="season-text">عادي</span></div>
+    </div>
+
+    <button id="map-btn">🗺️</button>
+    <button id="sound-btn">🔊</button>
+
+    <div id="level-panel">
+        <div id="level-title">المستوى 1: قرية النخلة</div>
+        <div id="level-mission">🎯 تحدث مع صوفيا</div>
+        <div id="level-progress-bg"><div id="level-progress-fill"></div></div>
+    </div>
+
+    <div id="score-panel">
+        <div class="score-item">🌴 <span id="heritage-score">0</span></div>
+        <div class="score-item">📚 <span id="words-count">0</span></div>
+        <div class="score-item">💧 <span id="water-score">0</span></div>
+    </div>
+
+    <div id="dialog-box">
+        <div id="dialog-speaker">صوفيا</div>
+        <div id="dialog-text">مرحباً!</div>
+        <button id="dialog-btn">متابعة</button>
+    </div>
+
+    <div id="treasure-popup">
+        <h2>🎉 وجدت كنزاً!</h2>
+        <div id="treasure-en">-</div>
+        <div id="treasure-ar">-</div>
+        <div id="treasure-context">-</div>
+        <div id="treasure-points">+0</div>
+        <button id="treasure-close">حسناً</button>
+    </div>
+
+    <div id="puzzle-popup">
+        <h2>🧩 لغز تعليمي!</h2>
+        <div id="puzzle-question">-</div>
+        <div id="puzzle-options"></div>
+        <div id="puzzle-result"></div>
+    </div>
+
+    <div id="level-complete">
+        <h2>🏆 مبروك!</h2>
+        <p id="level-complete-text">أكملت المستوى!</p>
+        <button id="btn-next-level">التالي ➡️</button>
+    </div>
+
+    <div id="farming-panel">
+        <div id="farming-title">🌴 نخلة صغيرة</div>
+        <div id="farming-status">تحتاج للسقي!</div>
+        <button id="btn-water">💧 سقي</button>
+        <button id="btn-harvest">🌴 حصد</button>
+    </div>
+
+    <div id="map-overlay">
+        <div id="map-label">🗺️ خريطة القرية</div>
+        <div id="map-canvas-container">
+            <canvas id="mapCanvas"></canvas>
+        </div>
+        <button id="map-close">إغلاق</button>
+    </div>
+
+    <div id="freelook-hint">👆 اسحب للنظر حولك</div>
+
+    <div id="crosshair"></div>
+    <div id="press-indicator"><div id="press-fill"></div></div>
+
+    <div id="controls">
+        <div class="dpad">
+            <div class="btn btn-up" data-dir="up">▲</div>
+            <div class="btn btn-left" data-dir="left">◀</div>
+            <div class="btn btn-down" data-dir="down">▼</div>
+            <div class="btn btn-right" data-dir="right">▶</div>
+        </div>
+        <div class="btn" id="btn-jump">قفز</div>
+    </div>
+
+    <div id="block-selector">
+        <div class="block-btn selected" data-block="brick" style="background:linear-gradient(135deg,#c45c50,#8b3a30);"></div>
+        <div class="block-btn" data-block="palmwood" style="background:linear-gradient(135deg,#8b6914,#5c4a0a);"></div>
+        <div class="block-btn" data-block="stone" style="background:linear-gradient(135deg,#8b7d6b,#5c5346);"></div>
+        <div class="block-btn" data-block="sand" style="background:linear-gradient(135deg,#e6c288,#c4a060);"></div>
+        <div class="block-btn" data-block="grass" style="background:linear-gradient(135deg,#4a7c2a,#2d5a1a);"></div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ==================== AUDIO SYSTEM (Web Audio API) ====================
+class AudioController {
+    constructor() {
+        this.ctx = null;
+        this.enabled = false;
+        this.currentAmbience = null;
+    }
+
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            this.enabled = true;
+        }
+    }
+
+    playAdhan() {
+        if (!this.enabled || !this.ctx) return;
+        const notes = [293.66, 329.63, 392.00, 440.00, 392.00, 329.63, 293.66, 261.63];
+        const durations = [0.8, 0.6, 1.0, 0.8, 0.6, 0.6, 0.8, 1.2];
+        let time = this.ctx.currentTime;
+        notes.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.1, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + durations[i]);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(time);
+            osc.stop(time + durations[i]);
+            time += durations[i] + 0.1;
+        });
+    }
+
+    playStep() {
+        if (!this.enabled || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = 80 + Math.random() * 40;
+        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.1);
+    }
+
+    playTreasure() {
+        if (!this.enabled || !this.ctx) return;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        let time = this.ctx.currentTime;
+        notes.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.1, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(time);
+            osc.stop(time + 0.2);
+            time += 0.15;
+        });
+    }
+
+    playBuild() {
+        if (!this.enabled || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = 200;
+        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+    }
+
+    playRain() {
+        if (!this.enabled || !this.ctx) return;
+        if (this.currentAmbience) { this.currentAmbience.stop(); this.currentAmbience = null; }
+        const bufferSize = 2 * this.ctx.sampleRate;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 400;
+        const gain = this.ctx.createGain();
+        gain.gain.value = 0.03;
+        source.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        source.start();
+        this.currentAmbience = source;
+        return source;
+    }
+
+    stopAmbience() {
+        if (this.currentAmbience) { this.currentAmbience.stop(); this.currentAmbience = null; }
+    }
+
+    toggle() {
+        this.enabled = !this.enabled;
+        if (this.enabled && !this.ctx) this.init();
+        return this.enabled;
+    }
+}
+
+const audio = new AudioController();
+
+// ==================== WEATHER SYSTEM ====================
+class WeatherController {
+    constructor() {
+        this.type = 'clear'; // clear, rain, dust, wind
+        this.overlay = document.getElementById('weather-overlay');
+    }
+
+    setWeather(type) {
+        this.type = type;
+        this.overlay.innerHTML = '';
+        this.overlay.style.display = type === 'clear' ? 'none' : 'block';
+
+        const icon = document.getElementById('weather-icon');
+        const text = document.getElementById('weather-text');
+
+        if (type === 'rain') {
+            icon.textContent = '🌧️'; text.textContent = 'ممطر';
+            audio.playRain();
+            for (let i = 0; i < 50; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'rain-drop';
+                drop.style.left = Math.random() * 100 + '%';
+                drop.style.animationDuration = (0.3 + Math.random() * 0.4) + 's';
+                drop.style.animationDelay = Math.random() * 2 + 's';
+                this.overlay.appendChild(drop);
+            }
+        } else if (type === 'dust') {
+            icon.textContent = '🌫️'; text.textContent = 'غبار';
+            audio.stopAmbience();
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'dust-particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDuration = (2 + Math.random() * 3) + 's';
+                particle.style.animationDelay = Math.random() * 2 + 's';
+                this.overlay.appendChild(particle);
+            }
+        } else if (type === 'wind') {
+            icon.textContent = '💨'; text.textContent = 'رياح';
+            audio.stopAmbience();
+        } else {
+            icon.textContent = '🌤️'; text.textContent = 'صافٍ';
+            audio.stopAmbience();
+        }
+    }
+
+    cycle() {
+        const types = ['clear', 'rain', 'dust', 'wind'];
+        const idx = types.indexOf(this.type);
+        this.setWeather(types[(idx + 1) % types.length]);
+    }
+}
+
+const weather = new WeatherController();
+
+// ==================== SEASON SYSTEM ====================
+class SeasonController {
+    constructor() {
+        this.season = 'normal'; // normal, ramadan, eid
+        this.lanterns = [];
+    }
+
+    setSeason(season) {
+        this.season = season;
+        const icon = document.getElementById('season-icon');
+        const text = document.getElementById('season-text');
+
+        // Remove old lanterns
+        document.querySelectorAll('.lantern').forEach(l => l.remove());
+
+        if (season === 'ramadan') {
+            icon.textContent = '🌙'; text.textContent = 'رمضان';
+            // Add lanterns
+            for (let i = 0; i < 8; i++) {
+                const lantern = document.createElement('div');
+                lantern.className = 'lantern';
+                lantern.textContent = '🏮';
+                lantern.style.left = (10 + i * 12) + '%';
+                lantern.style.top = (5 + Math.random() * 10) + '%';
+                lantern.style.animationDelay = (Math.random() * 2) + 's';
+                document.getElementById('game-container').appendChild(lantern);
+            }
+        } else if (season === 'eid') {
+            icon.textContent = '🎉'; text.textContent = 'العيد';
+        } else {
+            icon.textContent = '🌴'; text.textContent = 'عادي';
+        }
+    }
+
+    cycle() {
+        const seasons = ['normal', 'ramadan', 'eid'];
+        const idx = seasons.indexOf(this.season);
+        this.setSeason(seasons[(idx + 1) % seasons.length]);
+    }
+}
+
+const season = new SeasonController();
+
+// ==================== FARMING SYSTEM ====================
+class FarmingController {
+    constructor() {
+        this.trees = new Map(); // key: "x,y,z", value: {stage: 0-3, water: 0-3, planted: timestamp}
+        this.panel = document.getElementById('farming-panel');
+        this.currentTree = null;
+    }
+
+    plant(x, y, z) {
+        const key = `${x},${y},${z}`;
+        if (this.trees.has(key)) return false;
+        this.trees.set(key, { stage: 0, water: 0, planted: Date.now() });
+        updateBlock(x, y, z, BLOCKS.PALMWOOD.id);
+        showFloatingText('🌱 زُرعت!', x + 0.5, y + 1, z + 0.5);
+        return true;
+    }
+
+    water(x, y, z) {
+        const key = `${x},${y},${z}`;
+        const tree = this.trees.get(key);
+        if (!tree) return;
+        if (tree.water >= 3) {
+            showFloatingText('💧 مروية!', x + 0.5, y + 1, z + 0.5);
+            return;
+        }
+        tree.water++;
+        if (tree.water >= 3 && tree.stage < 3) {
+            tree.stage++;
+            tree.water = 0;
+            // Grow: add leaves
+            if (tree.stage === 1) {
+                updateBlock(x, y + 1, z, BLOCKS.PALMWOOD.id);
+            } else if (tree.stage === 2) {
+                updateBlock(x, y + 2, z, BLOCKS.PALMWOOD.id);
+                updateBlock(x + 1, y + 2, z, BLOCKS.GRASS.id);
+                updateBlock(x - 1, y + 2, z, BLOCKS.GRASS.id);
+            } else if (tree.stage === 3) {
+                updateBlock(x, y + 3, z, BLOCKS.GRASS.id);
+                updateBlock(x + 1, y + 3, z, BLOCKS.DATES.id);
+                updateBlock(x - 1, y + 3, z, BLOCKS.DATES.id);
+            }
+            showFloatingText('🌴 نمت!', x + 0.5, y + 2, z + 0.5);
+            audio.playBuild();
+        } else {
+            showFloatingText('💧 سُقيت!', x + 0.5, y + 1, z + 0.5);
+        }
+        inventory.water++;
+        updateScoreUI();
+        saveGame();
+    }
+
+    harvest(x, y, z) {
+        const key = `${x},${y},${z}`;
+        const tree = this.trees.get(key);
+        if (!tree || tree.stage < 3) {
+            showFloatingText('❌ لم تنضج!', x + 0.5, y + 1, z + 0.5);
+            return;
+        }
+        inventory.dates += 3;
+        showFloatingText('+3 تمور!', x + 0.5, y + 2, z + 0.5);
+        // Reset tree
+        tree.stage = 1;
+        tree.water = 0;
+        // Remove dates
+        updateBlock(x + 1, y + 3, z, 0);
+        updateBlock(x - 1, y + 3, z, 0);
+        updateBlock(x, y + 3, z, 0);
+        updateBlock(x + 1, y + 2, z, 0);
+        updateBlock(x - 1, y + 2, z, 0);
+        updateBlock(x, y + 2, z, BLOCKS.PALMWOOD.id);
+        updateBlock(x, y + 1, z, BLOCKS.PALMWOOD.id);
+        updateBlock(x, y, z, BLOCKS.PALMWOOD.id);
+        checkLevelProgress('collect', BLOCKS.DATES.id);
+        updateScoreUI();
+        saveGame();
+    }
+
+    showPanel(x, y, z) {
+        const key = `${x},${y},${z}`;
+        const tree = this.trees.get(key);
+        if (!tree) return false;
+        this.currentTree = { x, y, z };
+        const titles = ['🌱 بذرة', '🌴 نخلة صغيرة', '🌴 نخلة متوسطة', '🌴 نخلة مثمرة'];
+        const statuses = ['تحتاج للسقي!', 'سقيها لتنمو!', 'سقيها لتثمر!', 'انقر حصد للجميع!'];
+        document.getElementById('farming-title').textContent = titles[tree.stage];
+        document.getElementById('farming-status').textContent = statuses[tree.stage] + ' (ماء: ' + tree.water + '/3)';
+        this.panel.style.display = 'block';
+        return true;
+    }
+
+    hidePanel() {
+        this.panel.style.display = 'none';
+        this.currentTree = null;
+    }
+}
+
+const farming = new FarmingController();
+
+// ==================== PUZZLE SYSTEM ====================
+const PUZZLES = [
+    { question: "كم عدد أركان الإسلام؟", options: ["3", "4", "5", "6"], correct: 2, reward: 15, context: "Five Pillars of Islam" },
+    { question: "ما هي عاصمة عمان؟", options: ["نزوى", "مسقط", "صلالة", "صحار"], correct: 1, reward: 10, context: "Muscat is the capital" },
+    { question: "ما معنى 'Peace' بالعربية؟", options: ["حرب", "سلام", "حب", "صداقة"], correct: 1, reward: 10, context: "Peace = Salam" },
+    { question: "من هو بطل رواية Under Palm Tree؟", options: ["ثريا", "صوفيا", "جون جريفيث", "الإسكندر"], correct: 2, reward: 20, context: "John Griffith" },
+    { question: "ما هو الشهر الذي يصوم فيه المسلمون؟", options: ["شوال", "رمضان", "محرم", "رجب"], correct: 1, reward: 15, context: "Ramadan" },
+    { question: "ما معنى 'Heritage' بالعربية؟", options: ["تراث", "تاريخ", "ثقافة", "حضارة"], correct: 0, reward: 10, context: "Heritage = Turath" },
+    { question: "كم عدد سور القرآن الكريم؟", options: ["100", "110", "114", "120"], correct: 2, reward: 20, context: "114 Surahs" },
+    { question: "ما هي لغة التراث العماني؟", options: ["الإنجليزية", "الفرنسية", "العربية", "الفارسية"], correct: 2, reward: 10, context: "Arabic" }
+];
+
+function showPuzzle() {
+    const puzzle = PUZZLES[Math.floor(Math.random() * PUZZLES.length)];
+    document.getElementById('puzzle-question').textContent = puzzle.question;
+    const optionsDiv = document.getElementById('puzzle-options');
+    optionsDiv.innerHTML = '';
+    document.getElementById('puzzle-result').textContent = '';
+
+    puzzle.options.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'puzzle-option';
+        btn.textContent = opt;
+        btn.addEventListener('click', () => {
+            if (idx === puzzle.correct) {
+                document.getElementById('puzzle-result').textContent = '✅ صحيح! +' + puzzle.reward + ' نقاط';
+                inventory.heritage += puzzle.reward;
+                inventory.words++;
+                updateScoreUI();
+                saveGame();
+                setTimeout(() => {
+                    document.getElementById('puzzle-popup').style.display = 'none';
+                }, 1500);
+            } else {
+                document.getElementById('puzzle-result').textContent = '❌ حاول مرة أخرى!';
+            }
+        });
+        optionsDiv.appendChild(btn);
+    });
+
+    document.getElementById('puzzle-popup').style.display = 'block';
+}
+
+// ==================== CONFIG ====================
+const WORLD_SIZE = 16, WORLD_HEIGHT = 12;
+const PLAYER_HEIGHT = 0.8, PLAYER_WIDTH = 0.3;
+const GRAVITY = 28, JUMP_FORCE = 10, MOVE_SPEED = 8.5, STEP_HEIGHT = 1.2, REACH = 5;
+
+const BLOCKS = {
+    BRICK:{id:1,color:0xB85450}, PALMWOOD:{id:2,color:0x8B6914}, STONE:{id:3,color:0x7a6f5b},
+    SAND:{id:4,color:0xE6C288}, GRASS:{id:5,color:0x4a7c2a}, DIRT:{id:6,color:0x8B6914},
+    WATER:{id:7,color:0x4A90E2}, DATES:{id:8,color:0xD4A574}, WHITE:{id:10,color:0xF5F5DC}
+};
+const BLOCK_BY_ID = {1:BLOCKS.BRICK,2:BLOCKS.PALMWOOD,3:BLOCKS.STONE,4:BLOCKS.SAND,5:BLOCKS.GRASS,6:BLOCKS.DIRT,7:BLOCKS.WATER,8:BLOCKS.DATES,10:BLOCKS.WHITE};
+
+const TREASURE_WORDS = [
+    {en:'John Griffith',ar:'جون جريفيث',points:25,context:'بطل الرواية'},{en:'Sophia',ar:'صوفيا',points:25,context:'شخصية الرواية'},
+    {en:'Thuria',ar:'ثريا',points:25,context:'قائدة القرية'},{en:'Alexander',ar:'الإسكندر',points:25,context:'صديق جون'},
+    {en:'Under Palm Tree',ar:'تحت ظل النخلة',points:30,context:'اسم الرواية'},{en:'Oman',ar:'عُمان',points:20,context:'بلد التراث'},
+    {en:'Muscat',ar:'مسقط',points:20,context:'العاصمة'},{en:'Nizwa',ar:'نزوى',points:20,context:'قلعة تاريخية'},
+    {en:'Heritage',ar:'تراث',points:15,context:'التراث العماني'},{en:'Culture',ar:'ثقافة',points:15,context:'ثقافة عمان'},
+    {en:'Peace',ar:'سلام',points:15,context:'دين السلام'},{en:'Mercy',ar:'رحمة',points:15,context:'الرحمن الرحيم'},
+    {en:'Unity',ar:'وحدة',points:15,context:'وحدة المسلمين'},{en:'Prayer',ar:'صلاة',points:20,context:'أركان الإسلام'},
+    {en:'Quran',ar:'قرآن',points:25,context:'كتاب الله'},{en:'Adhan',ar:'أذان',points:20,context:'نداء الصلاة'},
+    {en:'Mosque',ar:'مسجد',points:15,context:'بيت الله'},{en:'Palm Tree',ar:'نخلة',points:10,context:'رمز عمان'},
+    {en:'Dates',ar:'تمور',points:10,context:'أفضل التمور'},{en:'Desert',ar:'صحراء',points:10,context:'الصحراء العمانية'},
+    {en:'Camel',ar:'جمل',points:10,context:'سفينة الصحراء'},{en:'Frankincense',ar:'لبان',points:20,context:'اللبان العماني'},
+    {en:'Friendship',ar:'صداقة',points:15,context:'صداقة الأبطال'},{en:'Adventure',ar:'مغامرة',points:15,context:'مغامرات الرواية'},
+    {en:'Courage',ar:'شجاعة',points:15,context:'شجاعة الأبطال'},{en:'Knowledge',ar:'علم',points:15,context:'طلب العلم'},
+    {en:'Respect',ar:'احترام',points:15,context:'احترام الكبير'},{en:'Patience',ar:'صبر',points:15,context:'الصبر مفتاح الفرج'},
+    {en:'History',ar:'تاريخ',points:15,context:'تاريخ عمان'},{en:'Civilization',ar:'حضارة',points:15,context:'حضارة عمان العريقة'}
+];
+
+const LEVELS = [
+    {title:"المستوى 1: مرحباً",mission:"🎯 تحدث مع صوفيا",target:{type:'talk',npc:'sophia',count:1}},
+    {title:"المستوى 2: التمور",mission:"🎯 اجمع 5 تمرات",target:{type:'collect',block:BLOCKS.DATES.id,count:5}},
+    {title:"المستوى 3: البناء",mission:"🎯 ابنِ 8 طوب",target:{type:'place',block:BLOCKS.BRICK.id,count:8}},
+    {title:"المستوى 4: الكنوز",mission:"🎯 اكتشف 4 كنوز",target:{type:'treasure',count:4}},
+    {title:"المستوى 5: النخيل",mission:"🎯 زرع 5 نخيل",target:{type:'place',block:BLOCKS.PALMWOOD.id,count:5}},
+    {title:"المستوى 6: المسجد",mission:"🎯 ابنِ 6 جص",target:{type:'place',block:BLOCKS.WHITE.id,count:6}},
+    {title:"المستوى 7: الحجارة",mission:"🎯 اجمع 10 حجر",target:{type:'collect',block:BLOCKS.STONE.id,count:10}},
+    {title:"المستوى 8: السوق",mission:"🎯 ابنِ 12 طوب",target:{type:'place',block:BLOCKS.BRICK.id,count:12}},
+    {title:"المستوى 9: التراث",mission:"🎯 اكتشف 6 كنوز",target:{type:'treasure',count:6}},
+    {title:"المستوى 10: السيد",mission:"🎯 أكمل القرية",target:{type:'explore',count:1}}
+];
+
+// ==================== STATE ====================
+let scene, camera, renderer, worldData=new Map(), blockMeshes=new Map();
+let playerMesh, highlightMesh, raycaster=new THREE.Raycaster(), clock=new THREE.Clock();
+let sunLight, ambientLight, starsMesh, sunMesh;
+let selectedBlock=BLOCKS.BRICK;
+let moveState={up:false,down:false,left:false,right:false,jump:false};
+let velocityY=0, isGrounded=false;
+let touchTimer=null, isLongPress=false, LONG_PRESS_MS=500;
+let currentLevel=0, levelProgress=0;
+let inventory={dates:0,stones:0,heritage:0,words:0,water:0};
+let animals=[], npcs=[], treasureBlocks=new Set();
+let isDay=true;
+let birds=[], airplane;
+let cameraYaw=0, cameraPitch=0.5, cameraDistance=10;
+let isDragging=false, lastTouchX=0, lastTouchY=0, freelookHintShown=false;
+
+// ==================== SAVE/LOAD ====================
+function saveGame() {
+    const data={currentLevel,levelProgress,inventory,wordsFound:Array.from(treasureBlocks),isDay,weather:weather.type,season:season.season,cameraYaw,cameraPitch,farmingTrees:Array.from(farming.trees.entries())};
+    localStorage.setItem('upt_village_advanced',JSON.stringify(data));
+}
+function loadGame() {
+    try {
+        const data=JSON.parse(localStorage.getItem('upt_village_advanced'));
+        if(data){
+            currentLevel=data.currentLevel||0;
+            inventory=data.inventory||{dates:0,stones:0,heritage:0,words:0,water:0};
+            isDay=data.isDay!==undefined?data.isDay:true;
+            cameraYaw=data.cameraYaw||0;
+            cameraPitch=data.cameraPitch||0.5;
+            if(data.weather) weather.setWeather(data.weather);
+            if(data.season) season.setSeason(data.season);
+            if(data.farmingTrees) data.farmingTrees.forEach(([k,v])=>farming.trees.set(k,v));
+        }
+    }catch(e){}
+}
+
+// ==================== INIT ====================
+function init() {
+    const canvas=document.getElementById('gameCanvas');
+    scene=new THREE.Scene();
+    camera=new THREE.PerspectiveCamera(70,window.innerWidth/window.innerHeight,0.1,80);
+    camera.position.set(0,10,12);
+    renderer=new THREE.WebGLRenderer({canvas,antialias:false,alpha:false});
+    renderer.setSize(window.innerWidth,window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+    renderer.shadowMap.enabled=false;
+
+    ambientLight=new THREE.AmbientLight(0xffffff,0.6);
+    scene.add(ambientLight);
+    sunLight=new THREE.DirectionalLight(0xffd4a3,0.9);
+    sunLight.position.set(15,25,10);
+    scene.add(sunLight);
+
+    const sunGeo=new THREE.SphereGeometry(2,16,16);
+    const sunMat=new THREE.MeshBasicMaterial({color:0xFFD700});
+    sunMesh=new THREE.Mesh(sunGeo,sunMat);
+    sunMesh.position.set(25,35,15);
+    scene.add(sunMesh);
+
+    const starGeo=new THREE.BufferGeometry();
+    const positions=new Float32Array(300*3);
+    for(let i=0;i<300*3;i+=3){positions[i]=(Math.random()-0.5)*100;positions[i+1]=Math.random()*40+10;positions[i+2]=(Math.random()-0.5)*100;}
+    starGeo.setAttribute('position',new THREE.BufferAttribute(positions,3));
+    starsMesh=new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:0.15,transparent:true,opacity:0}));
+    scene.add(starsMesh);
+
+    generateWorld();
+    createAnimals();
+    createNPCs();
+    createPlayer();
+    createBirds();
+    createAirplane();
+
+    const hlGeo=new THREE.BoxGeometry(1.02,1.02,1.02);
+    const hlMat=new THREE.MeshBasicMaterial({color:0xf5e6d3,wireframe:true,transparent:true,opacity:0.5});
+    highlightMesh=new THREE.Mesh(hlGeo,hlMat);
+    highlightMesh.visible=false;
+    scene.add(highlightMesh);
+
+    loadGame();
+    updateLevelUI();
+    updateScoreUI();
+    updateTimeOfDay();
+
+    window.addEventListener('resize',onResize);
+    setupControls();
+    setupTouchInteraction();
+    setupFreeLook();
+    setupDialogs();
+    setupMap();
+    setupTimeToggle();
+    setupWeatherToggle();
+    setupSeasonToggle();
+    setupSoundToggle();
+    setupFarmingPanel();
+
+    animate();
+}
+
+// ==================== FREE LOOK ====================
+function setupFreeLook() {
+    const container=document.getElementById('game-container');
+    const hint=document.getElementById('freelook-hint');
+    container.addEventListener('mousedown',(e)=>{
+        if(e.target.closest('.btn')||e.target.closest('#block-selector')||e.target.closest('#time-toggle')||e.target.closest('#weather-badge')||e.target.closest('#season-badge')||e.target.closest('#map-btn')||e.target.closest('#sound-btn'))return;
+        isDragging=true;lastTouchX=e.clientX;lastTouchY=e.clientY;
+    });
+    window.addEventListener('mousemove',(e)=>{
+        if(!isDragging)return;
+        cameraYaw-=(e.clientX-lastTouchX)*0.006;
+        cameraPitch-=(e.clientY-lastTouchY)*0.006;
+        cameraPitch=Math.max(0.1,Math.min(1.0,cameraPitch));
+        lastTouchX=e.clientX;lastTouchY=e.clientY;
+        if(!freelookHintShown){freelookHintShown=true;hint.style.display='block';setTimeout(()=>hint.style.display='none',2500);}
+    });
+    window.addEventListener('mouseup',()=>{isDragging=false;});
+    container.addEventListener('touchstart',(e)=>{
+        if(e.touches.length!==1)return;
+        if(e.target.closest('.btn')||e.target.closest('#block-selector')||e.target.closest('#time-toggle')||e.target.closest('#weather-badge')||e.target.closest('#season-badge')||e.target.closest('#map-btn')||e.target.closest('#sound-btn'))return;
+        isDragging=true;lastTouchX=e.touches[0].clientX;lastTouchY=e.touches[0].clientY;
+    },{passive:false});
+    container.addEventListener('touchmove',(e)=>{
+        if(!isDragging||e.touches.length!==1)return;
+        e.preventDefault();
+        cameraYaw-=(e.touches[0].clientX-lastTouchX)*0.008;
+        cameraPitch-=(e.touches[0].clientY-lastTouchY)*0.008;
+        cameraPitch=Math.max(0.1,Math.min(1.0,cameraPitch));
+        lastTouchX=e.touches[0].clientX;lastTouchY=e.touches[0].clientY;
+        if(!freelookHintShown){freelookHintShown=true;hint.style.display='block';setTimeout(()=>hint.style.display='none',2500);}
+    },{passive:false});
+    container.addEventListener('touchend',()=>{isDragging=false;});
+}
+
+// ==================== BIRDS ====================
+function createBirds() {
+    for(let i=0;i<3;i++){
+        const group=new THREE.Group();
+        const body=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.06,0.25),new THREE.MeshBasicMaterial({color:0x8B7355}));
+        group.add(body);
+        const wingGeo=new THREE.BoxGeometry(0.3,0.01,0.1);
+        const wingMat=new THREE.MeshBasicMaterial({color:0xA08060});
+        const lw=new THREE.Mesh(wingGeo,wingMat);lw.position.set(-0.2,0.03,0);group.add(lw);
+        const rw=new THREE.Mesh(wingGeo,wingMat);rw.position.set(0.2,0.03,0);group.add(rw);
+        group.position.set((Math.random()-0.5)*20,8+Math.random()*5,(Math.random()-0.5)*20);
+        group.userData={lw,rw,angle:Math.random()*Math.PI*2,speed:1.2+Math.random()*0.5,baseY:group.position.y};
+        scene.add(group);birds.push(group);
+    }
+}
+function updateBirds(delta) {
+    birds.forEach(b=>{
+        b.userData.angle+=b.userData.speed*delta;
+        b.position.x=Math.sin(b.userData.angle)*12;
+        b.position.z=Math.cos(b.userData.angle)*12;
+        b.position.y=b.userData.baseY+Math.sin(b.userData.angle*3)*0.8;
+        b.rotation.y=-b.userData.angle+Math.PI/2;
+        const flap=Math.sin(Date.now()*0.01)*0.3;
+        b.userData.lw.rotation.z=flap;b.userData.rw.rotation.z=-flap;
+    });
+}
+
+// ==================== AIRPLANE ====================
+function createAirplane() {
+    const group=new THREE.Group();
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.3,0.2,1.2),new THREE.MeshBasicMaterial({color:0xE8E0D0})));
+    const wings=new THREE.Mesh(new THREE.BoxGeometry(2,0.03,0.4),new THREE.MeshBasicMaterial({color:0xCCCCCC}));
+    wings.position.set(0,0.05,0.15);group.add(wings);
+    const tail=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.3,0.08),new THREE.MeshBasicMaterial({color:0xCCCCCC}));
+    tail.position.set(0,0.15,-0.6);group.add(tail);
+    group.position.set(-15,18,0);
+    group.userData={angle:0,speed:0.3};
+    scene.add(group);airplane=group;
+}
+function updateAirplane(delta) {
+    if(!airplane)return;
+    airplane.userData.angle+=airplane.userData.speed*delta;
+    airplane.position.x=Math.sin(airplane.userData.angle)*25;
+    airplane.position.z=Math.cos(airplane.userData.angle*0.5)*15;
+    airplane.rotation.y=-airplane.userData.angle+Math.PI/2;
+}
+
+// ==================== PLAYER ====================
+function createPlayer() {
+    const group=new THREE.Group();
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.5,0.45,0.25),new THREE.MeshLambertMaterial({color:0x2d5a8a})));
+    const head=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.3),new THREE.MeshLambertMaterial({color:0xf5c6a0}));
+    head.position.y=0.45;group.add(head);
+    const legGeo=new THREE.BoxGeometry(0.12,0.3,0.12);
+    const legMat=new THREE.MeshLambertMaterial({color:0x5c3a1e});
+    const ll=new THREE.Mesh(legGeo,legMat);ll.position.set(-0.1,-0.25,0);group.add(ll);
+    const rl=new THREE.Mesh(legGeo,legMat);rl.position.set(0.1,-0.25,0);group.add(rl);
+    playerMesh=group;
+    playerMesh.position.set(0,getGroundHeight(0,0)+PLAYER_HEIGHT/2,0);
+    scene.add(playerMesh);
+}
+
+// ==================== NPCs ====================
+function createNPCs() {
+    createNPC('sophia','صوفيا',0xFF69B4,-2,3,2,["مرحباً! أنا صوفيا. استكشف قرية النخلة!","هل قرأت رواية Under Palm Tree؟","جون والإسكندر يستكشفان عمان معاً!"]);
+    createNPC('thuria','ثريا',0x228B22,5,3,-3,["أهلاً! أنا ثريا. ساعدنا في بناء القرية!","التراث العماني غني بالقيم الإسلامية.","تعلم الإنجليزية معنا أثناء اللعب!"]);
+    createNPC('john','جون جريفيث',0xFF8C00,-5,3,-4,["مرحباً! أنا جون جريفيث، بطل الرواية!","اكتشف الكنوز المخفية لتتعلم كلمات!","عمان بلد جميل. استمتع باستكشافه!"]);
+    createNPC('alexander','الإسكندر',0x4169E1,3,3,5,["أنا الإسكندر! صديق جون في الرواية!","كل كنز تجده يعلمك كلمة إنجليزية!","الإسلام دين السلام والرحمة."]);
+}
+function createNPC(id,name,color,x,y,z,dialogs) {
+    const group=new THREE.Group();
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(0.45,0.55,0.25),new THREE.MeshLambertMaterial({color})));
+    const head=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.25,0.25),new THREE.MeshLambertMaterial({color:0xf5c6a0}));
+    head.position.y=0.5;group.add(head);
+    const legGeo=new THREE.BoxGeometry(0.1,0.25,0.1);
+    const legMat=new THREE.MeshLambertMaterial({color:0x3a3a3a});
+    const ll=new THREE.Mesh(legGeo,legMat);ll.position.set(-0.08,-0.25,0);group.add(ll);
+    const rl=new THREE.Mesh(legGeo,legMat);rl.position.set(0.08,-0.25,0);group.add(rl);
+    group.position.set(x+0.5,y+0.5,z+0.5);
+    scene.add(group);
+    npcs.push({id,name,mesh:group,dialogs,basePos:new THREE.Vector3(x+0.5,y+0.5,z+0.5),angle:Math.random()*Math.PI*2,speed:0.3+Math.random()*0.2,range:1.5+Math.random(),talked:false});
+}
+function updateNPCs(delta) {
+    npcs.forEach(npc=>{
+        npc.angle+=npc.speed*delta*0.3;
+        const offset=Math.sin(npc.angle)*npc.range;
+        const offsetZ=Math.cos(npc.angle*0.7)*npc.range;
+        npc.mesh.position.x=npc.basePos.x+offset;
+        npc.mesh.position.z=npc.basePos.z+offsetZ;
+        npc.mesh.rotation.y=Math.atan2(offset,offsetZ);
+        const dist=playerMesh.position.distanceTo(npc.mesh.position);
+        if(dist<2.5&&!npc.talked&&currentLevel===0){
+            showDialog(npc.name,npc.dialogs[0]);
+            npc.talked=true;
+            checkLevelProgress('talk',npc.id);
+        }
+    });
+}
+
+// ==================== ANIMALS ====================
+function createAnimals() {
+    createAnimal('camel',0xC4A060,-7,3,7,1,0.7,1.5,4,0.2);
+    createAnimal('camel',0xA08040,8,3,-6,1,0.7,1.5,3,0.15);
+    createAnimal('goat',0xE8E0D0,-4,3,8,0.4,0.4,0.7,3,0.5);
+}
+function createAnimal(type,color,x,y,z,w,h,d,range,speed) {
+    const group=new THREE.Group();
+    if(type==='camel') {
+        group.add(new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color})));
+        const hump=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.3,0.4),new THREE.MeshLambertMaterial({color:0xB8954A}));
+        hump.position.set(0,1.4,-0.15);group.add(hump);
+        const neck=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.5,0.15),new THREE.MeshLambertMaterial({color}));
+        neck.position.set(0,1.4,0.7);group.add(neck);
+        const head=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,0.3),new THREE.MeshLambertMaterial({color}));
+        head.position.set(0,1.7,0.85);group.add(head);
+    } else {
+        group.add(new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color})));
+        const head=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,0.25),new THREE.MeshLambertMaterial({color}));
+        head.position.set(0,0.75,0.45);group.add(head);
+    }
+    group.position.set(x+0.5,y+0.5,z+0.5);
+    scene.add(group);
+    animals.push({mesh:group,type,basePos:new THREE.Vector3(x+0.5,y+0.5,z+0.5),speed,range,angle:Math.random()*Math.PI*2});
+}
+function updateAnimals(delta) {
+    animals.forEach(a=>{
+        a.angle+=a.speed*delta*0.3;
+        a.mesh.position.x=a.basePos.x+Math.sin(a.angle)*a.range;
+        a.mesh.position.z=a.basePos.z+Math.cos(a.angle*0.7)*a.range;
+        a.mesh.rotation.y=Math.atan2(Math.cos(a.angle),Math.cos(a.angle*0.7)*-0.7);
+    });
+}
+
+// ==================== DAY/NIGHT ====================
+function setupTimeToggle() {
+    document.getElementById('time-toggle').addEventListener('click',()=>{
+        isDay=!isDay;updateTimeOfDay();saveGame();
+    });
+}
+function updateTimeOfDay() {
+    const icon=document.getElementById('time-toggle-icon');
+    const text=document.getElementById('time-toggle-text');
+    if(isDay) {
+        icon.textContent='☀️';text.textContent='نهار';
+        renderer.setClearColor(new THREE.Color(0x87CEEB));
+        sunLight.intensity=0.9;ambientLight.intensity=0.6;
+        starsMesh.material.opacity=0;sunMesh.visible=true;
+    } else {
+        icon.textContent='🌙';text.textContent='ليل';
+        renderer.setClearColor(new THREE.Color(0x0a0a2e));
+        sunLight.intensity=0;ambientLight.intensity=0.15;
+        starsMesh.material.opacity=1;sunMesh.visible=false;
+    }
+}
+
+// ==================== WEATHER TOGGLE ====================
+function setupWeatherToggle() {
+    document.getElementById('weather-badge').addEventListener('click',()=>{
+        weather.cycle();
+        saveGame();
+    });
+}
+
+// ==================== SEASON TOGGLE ====================
+function setupSeasonToggle() {
+    document.getElementById('season-badge').addEventListener('click',()=>{
+        season.cycle();
+        saveGame();
+    });
+}
+
+// ==================== SOUND TOGGLE ====================
+function setupSoundToggle() {
+    document.getElementById('sound-btn').addEventListener('click',()=>{
+        const enabled=audio.toggle();
+        document.getElementById('sound-btn').textContent=enabled?'🔊':'🔇';
+        if(enabled) audio.playAdhan();
+    });
+}
+
+// ==================== WORLD ====================
+function getBlock(x,y,z){return worldData.get(`${x},${y},${z}`)||0;}
+function setBlock(x,y,z,id){const key=`${x},${y},${z}`;if(id===0)worldData.delete(key);else worldData.set(key,id);}
+
+function createBlockMesh(x,y,z,blockId){
+    const block=BLOCK_BY_ID[blockId];
+    if(!block)return null;
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshLambertMaterial({color:block.color}));
+    mesh.position.set(x+0.5,y+0.5,z+0.5);
+    scene.add(mesh);
+    return mesh;
+}
+
+function updateBlock(x,y,z,blockId){
+    const key=`${x},${y},${z}`;
+    if(blockMeshes.has(key)){const old=blockMeshes.get(key);scene.remove(old);old.geometry.dispose();old.material.dispose();blockMeshes.delete(key);}
+    setBlock(x,y,z,blockId);
+    if(blockId!==0){const mesh=createBlockMesh(x,y,z,blockId);if(mesh)blockMeshes.set(key,mesh);}
+}
+
+function generateWorld() {
+    const size=WORLD_SIZE;
+    for(let x=-size;x<=size;x++){
+        for(let z=-size;z<=size;z++){
+            const dist=Math.sqrt(x*x+z*z);
+            let height=2;
+            if(dist<14)height=3+Math.floor(Math.sin(x*0.25)*Math.cos(z*0.25));
+            for(let y=0;y<height;y++)updateBlock(x,y,z,y<2?BLOCKS.STONE.id:BLOCKS.SAND.id);
+            updateBlock(x,height,z,BLOCKS.SAND.id);
+        }
+    }
+
+    buildHouse(-5,3,-5,5,4,5);
+    buildHouse(6,3,-3,4,3,4);
+    buildHouse(-3,3,6,4,3,4);
+    buildHouse(7,3,5,3,3,3);
+    buildHouse(-8,3,1,3,3,3);
+    buildHouse(2,3,-8,3,3,3);
+    buildMosque(0,3,-10);
+    buildSchool(-10,3,7);
+    buildWall(-12,3,-12,12,3,12);
+    buildWell(0,3,0);
+    buildMarket(4,3,4);
+    buildFort(-8,3,8);
+    buildGarden(8,3,-8);
+
+    const palmPos=[[-8,3,4],[9,3,6],[-7,3,-8],[10,3,-6],[0,3,10],[-4,3,9],[6,3,-10],[-10,3,-4],[7,3,8],[-2,3,-6],[5,3,9],[-6,3,8]];
+    palmPos.forEach(p=>createPalmTree(p[0],p[1],p[2]));
+
+    createDateCluster(-5,4,4);createDateCluster(7,4,5);createDateCluster(-5,4,-7);
+
+    for(let i=0;i<12;i++){
+        const tx=Math.floor(Math.random()*16)-8;
+        const tz=Math.floor(Math.random()*16)-8;
+        const ty=3;
+        if(getBlock(tx,ty,tz)===BLOCKS.SAND.id)treasureBlocks.add(`${tx},${ty},${tz}`);
+    }
+}
+
+function buildHouse(cx,baseY,cz,w,h,d){
+    for(let x=cx;x<cx+w;x++){
+        for(let z=cz;z<cz+d;z++){
+            for(let y=baseY;y<baseY+h;y++){
+                if(x===cx||x===cx+w-1||z===cz||z===cz+d-1)updateBlock(x,y,z,BLOCKS.BRICK.id);
+            }
+        }
+    }
+    updateBlock(cx+Math.floor(w/2),baseY,cz,0);
+    updateBlock(cx+Math.floor(w/2),baseY+1,cz,0);
+    for(let x=cx-1;x<=cx+w;x++){
+        for(let z=cz-1;z<=cz+d;z++)updateBlock(x,baseY+h,z,BLOCKS.BRICK.id);
+    }
+}
+
+function buildMosque(cx,baseY,cz) {
+    for(let x=cx;x<cx+6;x++){
+        for(let z=cz;z<cz+6;z++){
+            for(let y=baseY;y<baseY+3;y++){
+                if(x===cx||x===cx+5||z===cz||z===cz+5)updateBlock(x,y,z,BLOCKS.WHITE.id);
+            }
+        }
+    }
+    for(let x=cx+2;x<cx+4;x++){
+        for(let z=cz+2;z<cz+4;z++)updateBlock(x,baseY+3,z,BLOCKS.WHITE.id);
+    }
+    updateBlock(cx+3,baseY+4,cz+3,BLOCKS.WHITE.id);
+    for(let y=baseY;y<baseY+6;y++)updateBlock(cx+6,y,cz+3,BLOCKS.WHITE.id);
+    updateBlock(cx+3,baseY,cz,0);
+    updateBlock(cx+3,baseY+1,cz,0);
+}
+
+function buildSchool(cx,baseY,cz) {
+    for(let x=cx;x<cx+5;x++){
+        for(let z=cz;z<cz+4;z++){
+            for(let y=baseY;y<baseY+3;y++){
+                if(x===cx||x===cx+4||z===cz||z===cz+3)updateBlock(x,y,z,BLOCKS.BRICK.id);
+            }
+        }
+    }
+    updateBlock(cx+2,baseY,cz,0);
+    for(let x=cx;x<cx+5;x++){
+        for(let z=cz;z<cz+4;z++)updateBlock(x,baseY+3,z,BLOCKS.BRICK.id);
+    }
+}
+
+function buildWall(minX,baseY,minZ,maxX,maxY,maxZ){
+    for(let y=baseY;y<baseY+2;y++){
+        updateBlock(minX,y,minZ,BLOCKS.STONE.id);updateBlock(maxX,y,minZ,BLOCKS.STONE.id);
+        updateBlock(minX,y,maxZ,BLOCKS.STONE.id);updateBlock(maxX,y,maxZ,BLOCKS.STONE.id);
+    }
+    for(let x=minX+1;x<maxX;x++){updateBlock(x,baseY,minZ,BLOCKS.STONE.id);updateBlock(x,baseY,maxZ,BLOCKS.STONE.id);}
+    for(let z=minZ+1;z<maxZ;z++){updateBlock(minX,baseY,z,BLOCKS.STONE.id);updateBlock(maxX,baseY,z,BLOCKS.STONE.id);}
+}
+
+function buildWell(cx,baseY,cz){
+    for(let x=cx-1;x<=cx+1;x++){
+        for(let z=cz-1;z<=cz+1;z++){
+            if(Math.abs(x-cx)===1||Math.abs(z-cz)===1){
+                updateBlock(x,baseY,z,BLOCKS.STONE.id);
+                updateBlock(x,baseY+1,z,BLOCKS.STONE.id);
+            }else updateBlock(x,baseY,z,BLOCKS.WATER.id);
+        }
+    }
+    updateBlock(cx,baseY+2,cz,BLOCKS.PALMWOOD.id);
+}
+
+function buildMarket(cx,baseY,cz){
+    for(let i=0;i<3;i++){
+        const sx=cx+i*2;
+        updateBlock(sx,baseY,cz,BLOCKS.PALMWOOD.id);
+        updateBlock(sx,baseY+1,cz,BLOCKS.PALMWOOD.id);
+        updateBlock(sx,baseY+2,cz,BLOCKS.PALMWOOD.id);
+        updateBlock(sx-1,baseY+2,cz,BLOCKS.PALMWOOD.id);
+        updateBlock(sx+1,baseY+2,cz,BLOCKS.PALMWOOD.id);
+    }
+}
+
+function buildFort(cx,baseY,cz){
+    for(let x=cx;x<cx+4;x++){
+        for(let z=cz;z<cz+4;z++){
+            for(let y=baseY;y<baseY+5;y++){
+                if(x===cx||x===cx+3||z===cz||z===cz+3)updateBlock(x,y,z,BLOCKS.STONE.id);
+            }
+        }
+    }
+    updateBlock(cx+1,baseY,cz,0);updateBlock(cx+2,baseY,cz,0);
+}
+
+function buildGarden(cx,baseY,cz){
+    for(let x=cx;x<cx+3;x++){
+        for(let z=cz;z<cz+3;z++)updateBlock(x,baseY,z,BLOCKS.GRASS.id);
+    }
+    createPalmTree(cx+1,baseY+1,cz+1);
+}
+
+function createPalmTree(x,y,z){
+    const height=3+Math.floor(Math.random()*2);
+    for(let i=0;i<height;i++)updateBlock(x,y+i,z,BLOCKS.PALMWOOD.id);
+    const topY=y+height;
+    for(let lx=-1;lx<=1;lx++){
+        for(let lz=-1;lz<=1;lz++){
+            if(Math.abs(lx)+Math.abs(lz)<=2&&!(lx===0&&lz===0))updateBlock(x+lx,topY,z+lz,BLOCKS.GRASS.id);
+        }
+    }
+    updateBlock(x,topY+1,z,BLOCKS.GRASS.id);
+    if(Math.random()<0.6)updateBlock(x+1,topY-1,z,BLOCKS.DATES.id);
+}
+
+function createDateCluster(x,y,z){
+    updateBlock(x,y,z,BLOCKS.DATES.id);
+    if(Math.random()<0.5)updateBlock(x+1,y,z,BLOCKS.DATES.id);
+}
+
+function getColumnGroundHeight(x,z){
+    for(let y=WORLD_HEIGHT;y>=0;y--){if(getBlock(x,y,z)!==0)return y+1;}
+    return 0;
+}
+function getGroundHeight(px,pz){
+    const minX=Math.floor(px-PLAYER_WIDTH),maxX=Math.floor(px+PLAYER_WIDTH);
+    const minZ=Math.floor(pz-PLAYER_WIDTH),maxZ=Math.floor(pz+PLAYER_WIDTH);
+    let maxH=0;
+    for(let x=minX;x<=maxX;x++){
+        for(let z=minZ;z<=maxZ;z++){
+            const h=getColumnGroundHeight(x,z);
+            if(h>maxH)maxH=h;
+        }
+    }
+    return maxH;
+}
+
+// ==================== MAP ====================
+function setupMap() {
+    document.getElementById('map-btn').addEventListener('click',()=>{document.getElementById('map-overlay').style.display='flex';drawMap();});
+    document.getElementById('map-close').addEventListener('click',()=>{document.getElementById('map-overlay').style.display='none';});
+}
+function drawMap() {
+    const canvas=document.getElementById('mapCanvas');
+    const ctx=canvas.getContext('2d');
+    const size=canvas.width=canvas.offsetWidth;
+    const scale=size/(WORLD_SIZE*2+2);
+    ctx.fillStyle='#1a0f0a';ctx.fillRect(0,0,size,size);
+    worldData.forEach((blockId,key)=>{
+        const [x,y,z]=key.split(',').map(Number);
+        const px=(x+WORLD_SIZE+1)*scale,pz=(z+WORLD_SIZE+1)*scale;
+        const colors={1:'#B85450',2:'#8B6914',3:'#7a6f5b',4:'#E6C288',5:'#4a7c2a',7:'#4A90E2',8:'#D4A574',10:'#F5F5DC'};
+        ctx.fillStyle=colors[blockId]||'#8B6914';ctx.fillRect(px,pz,scale,scale);
+    });
+    npcs.forEach(npc=>{
+        const px=(npc.mesh.position.x+WORLD_SIZE+1)*scale,pz=(npc.mesh.position.z+WORLD_SIZE+1)*scale;
+        ctx.fillStyle='#FF69B4';ctx.beginPath();ctx.arc(px,pz,3,0,Math.PI*2);ctx.fill();
+    });
+    const px=(playerMesh.position.x+WORLD_SIZE+1)*scale,pz=(playerMesh.position.z+WORLD_SIZE+1)*scale;
+    ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(px,pz,5,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='#f5e6d3';ctx.font='bold 10px sans-serif';
+    ctx.fillText('N',size/2,12);ctx.fillText('S',size/2,size-2);ctx.fillText('E',size-10,size/2);ctx.fillText('W',2,size/2);
+}
+
+// ==================== LEVELS ====================
+function updateLevelUI(){
+    const level=LEVELS[currentLevel];
+    document.getElementById('level-title').textContent=level.title;
+    document.getElementById('level-mission').textContent=level.mission;
+    updateProgressBar();
+}
+function updateProgressBar(){
+    const level=LEVELS[currentLevel];
+    const target=level.target;
+    let progress=0;
+    if(target.type==='collect'){
+        if(target.block===BLOCKS.DATES.id)progress=Math.min(inventory.dates/target.count,1);
+        else if(target.block===BLOCKS.STONE.id)progress=Math.min(inventory.stones/target.count,1);
+    }else if(target.type==='place'){
+        progress=Math.min(levelProgress/target.count,1);
+    }else if(target.type==='treasure'){
+        progress=Math.min(levelProgress/target.count,1);
+    }else if(target.type==='explore'){
+        progress=Math.min(levelProgress/target.count,1);
+    }
+    document.getElementById('level-progress-fill').style.width=(progress*100)+'%';
+    if(progress>=1)completeLevel();
+}
+function completeLevel(){
+    document.getElementById('level-complete').style.display='block';
+    document.getElementById('level-complete-text').textContent=`أكملت ${LEVELS[currentLevel].title} بنجاح!`;
+    saveGame();
+}
+function nextLevel(){
+    document.getElementById('level-complete').style.display='none';
+    currentLevel++;levelProgress=0;
+    if(currentLevel>=LEVELS.length){
+        document.getElementById('level-title').textContent='🏆 تهانينا!';
+        document.getElementById('level-mission').textContent='أنت سيد قرية النخلة!';
+        document.getElementById('level-progress-fill').style.width='100%';
+        return;
+    }
+    updateLevelUI();saveGame();
+}
+function checkLevelProgress(action,id){
+    const level=LEVELS[currentLevel];
+    if(!level)return;
+    const target=level.target;
+    if(target.type===action&&(target.block===id||target.npc===id||target.type==='treasure'||target.type==='explore')){
+        levelProgress++;updateProgressBar();
+    }
+}
+function updateScoreUI(){
+    document.getElementById('heritage-score').textContent=inventory.heritage;
+    document.getElementById('words-count').textContent=inventory.words;
+    document.getElementById('water-score').textContent=inventory.water;
+}
+
+// ==================== DIALOGS ====================
+function setupDialogs(){
+    document.getElementById('dialog-btn').addEventListener('click',()=>{document.getElementById('dialog-box').style.display='none';});
+    document.getElementById('treasure-close').addEventListener('click',()=>{document.getElementById('treasure-popup').style.display='none';});
+    document.getElementById('btn-next-level').addEventListener('click',nextLevel);
+}
+function showDialog(speaker,text){
+    document.getElementById('dialog-speaker').textContent=speaker;
+    document.getElementById('dialog-text').textContent=text;
+    document.getElementById('dialog-box').style.display='block';
+}
+function showTreasure(wordData){
+    document.getElementById('treasure-en').textContent=wordData.en;
+    document.getElementById('treasure-ar').textContent=wordData.ar;
+    document.getElementById('treasure-context').textContent=wordData.context;
+    document.getElementById('treasure-points').textContent='+'+wordData.points+' نقاط تراث';
+    document.getElementById('treasure-popup').style.display='block';
+    inventory.heritage+=wordData.points;inventory.words++;
+    updateScoreUI();saveGame();
+}
+
+// ==================== FARMING PANEL ====================
+function setupFarmingPanel() {
+    document.getElementById('btn-water').addEventListener('click',()=>{
+        if(farming.currentTree){
+            farming.water(farming.currentTree.x,farming.currentTree.y,farming.currentTree.z);
+            farming.showPanel(farming.currentTree.x,farming.currentTree.y,farming.currentTree.z);
+        }
+    });
+    document.getElementById('btn-harvest').addEventListener('click',()=>{
+        if(farming.currentTree){
+            farming.harvest(farming.currentTree.x,farming.currentTree.y,farming.currentTree.z);
+            farming.hidePanel();
+        }
+    });
+}
+
+// ==================== GAME LOOP ====================
+function animate(){
+    requestAnimationFrame(animate);
+    const delta=Math.min(clock.getDelta(),0.05);
+    updateBirds(delta);updateAirplane(delta);updateAnimals(delta);updateNPCs(delta);
+    updatePlayer(delta);updateCamera();updateHighlight();
+    renderer.render(scene,camera);
+}
+
+function updatePlayer(delta){
+    const forward=new THREE.Vector3(Math.sin(cameraYaw),0,Math.cos(cameraYaw));
+    const right=new THREE.Vector3(Math.sin(cameraYaw+Math.PI/2),0,Math.cos(cameraYaw+Math.PI/2));
+    const move=new THREE.Vector3();
+    if(moveState.up)move.add(forward);
+    if(moveState.down)move.sub(forward);
+    if(moveState.right)move.add(right);
+    if(moveState.left)move.sub(right);
+    if(move.length()>0){
+        move.normalize().multiplyScalar(MOVE_SPEED*delta);
+        if(Math.random()<0.1)audio.playStep();
+    }
+
+    const currentGround=getGroundHeight(playerMesh.position.x,playerMesh.position.z);
+    const currentY=playerMesh.position.y;
+
+    if(move.x!==0){
+        const newX=playerMesh.position.x+move.x;
+        const newGround=getGroundHeight(newX,playerMesh.position.z);
+        const diff=newGround-currentGround;
+        if(Math.abs(diff)<=STEP_HEIGHT){
+            playerMesh.position.x=newX;
+            if(diff>0&&currentY<=currentGround+PLAYER_HEIGHT/2+0.1)playerMesh.position.y=newGround+PLAYER_HEIGHT/2;
+        }
+    }
+    if(move.z!==0){
+        const newZ=playerMesh.position.z+move.z;
+        const newGround=getGroundHeight(playerMesh.position.x,newZ);
+        const diff=newGround-currentGround;
+        if(Math.abs(diff)<=STEP_HEIGHT){
+            playerMesh.position.z=newZ;
+            if(diff>0&&currentY<=currentGround+PLAYER_HEIGHT/2+0.1)playerMesh.position.y=newGround+PLAYER_HEIGHT/2;
+        }
+    }
+
+    if(moveState.jump&&isGrounded){velocityY=JUMP_FORCE;isGrounded=false;}
+    velocityY-=GRAVITY*delta;
+    playerMesh.position.y+=velocityY*delta;
+
+    const ground=getGroundHeight(playerMesh.position.x,playerMesh.position.z);
+    if(playerMesh.position.y-PLAYER_HEIGHT/2<=ground){
+        playerMesh.position.y=ground+PLAYER_HEIGHT/2;
+        velocityY=0;isGrounded=true;
+    }
+
+    const bound=WORLD_SIZE+2;
+    if(playerMesh.position.x<-bound)playerMesh.position.x=-bound;
+    if(playerMesh.position.x>bound)playerMesh.position.x=bound;
+    if(playerMesh.position.z<-bound)playerMesh.position.z=-bound;
+    if(playerMesh.position.z>bound)playerMesh.position.z=bound;
+}
+
+function updateCamera(){
+    const yOffset=Math.sin(cameraPitch)*cameraDistance;
+    const horizontalDist=Math.cos(cameraPitch)*cameraDistance;
+    const xOffset=Math.sin(cameraYaw)*horizontalDist;
+    const zOffset=Math.cos(cameraYaw)*horizontalDist;
+    camera.position.x=playerMesh.position.x+xOffset;
+    camera.position.y=playerMesh.position.y+yOffset+2;
+    camera.position.z=playerMesh.position.z+zOffset;
+    camera.lookAt(playerMesh.position.x,playerMesh.position.y+1,playerMesh.position.z);
+}
+
+function updateHighlight(){
+    raycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+    const meshes=Array.from(blockMeshes.values());
+    const intersects=raycaster.intersectObjects(meshes);
+    if(intersects.length>0){
+        const hit=intersects[0];
+        const obj=hit.object;
+        const bx=Math.floor(obj.position.x);
+        const by=Math.floor(obj.position.y);
+        const bz=Math.floor(obj.position.z);
+        highlightMesh.position.set(bx+0.5,by+0.5,bz+0.5);
+        highlightMesh.visible=true;
+    }else{
+        highlightMesh.visible=false;
+    }
+}
+
+// ==================== CONTROLS ====================
+function setupControls(){
+    const dirs=['up','down','left','right'];
+    dirs.forEach(dir=>{
+        const btn=document.querySelector(`.btn[data-dir="${dir}"]`);
+        if(!btn)return;
+        const start=(e)=>{e.preventDefault();moveState[dir]=true;btn.classList.add('pressed');};
+        const end=(e)=>{e.preventDefault();moveState[dir]=false;btn.classList.remove('pressed');};
+        btn.addEventListener('mousedown',start);btn.addEventListener('mouseup',end);btn.addEventListener('mouseleave',end);
+        btn.addEventListener('touchstart',start);btn.addEventListener('touchend',end);btn.addEventListener('touchcancel',end);
+    });
+    const jumpBtn=document.getElementById('btn-jump');
+    const jumpStart=(e)=>{e.preventDefault();moveState.jump=true;jumpBtn.classList.add('pressed');};
+    const jumpEnd=(e)=>{e.preventDefault();moveState.jump=false;jumpBtn.classList.remove('pressed');};
+    jumpBtn.addEventListener('mousedown',jumpStart);jumpBtn.addEventListener('mouseup',jumpEnd);jumpBtn.addEventListener('mouseleave',jumpEnd);
+    jumpBtn.addEventListener('touchstart',jumpStart);jumpBtn.addEventListener('touchend',jumpEnd);jumpBtn.addEventListener('touchcancel',jumpEnd);
+    document.querySelectorAll('.block-btn').forEach(btn=>{
+        btn.addEventListener('click',(e)=>{
+            e.stopPropagation();
+            document.querySelectorAll('.block-btn').forEach(b=>b.classList.remove('selected'));
+            btn.classList.add('selected');
+            const type=btn.getAttribute('data-block');
+            const map={'brick':BLOCKS.BRICK,'palmwood':BLOCKS.PALMWOOD,'stone':BLOCKS.STONE,'sand':BLOCKS.SAND,'grass':BLOCKS.GRASS};
+            selectedBlock=map[type]||BLOCKS.BRICK;
+        });
+    });
+}
+
+// ==================== MINING / PLACING ====================
+function setupTouchInteraction(){
+    const container=document.getElementById('game-container');
+    const indicator=document.getElementById('press-indicator');
+    const fill=document.getElementById('press-fill');
+
+    function isControlElement(el){
+        return el.closest('.btn')||el.closest('#block-selector')||el.closest('#crosshair')||el.closest('#dialog-box')||el.closest('#treasure-popup')||el.closest('#level-complete')||el.closest('#time-toggle')||el.closest('#weather-badge')||el.closest('#season-badge')||el.closest('#map-btn')||el.closest('#sound-btn')||el.closest('#map-overlay')||el.closest('#puzzle-popup')||el.closest('#farming-panel');
+    }
+
+    function onStart(e){
+        if(e.target&&isControlElement(e.target))return;
+        isLongPress=false;
+        indicator.style.display='block';
+        fill.style.transition='none';
+        fill.style.transform='scale(0)';
+        void fill.offsetWidth;
+        fill.style.transition=`transform ${LONG_PRESS_MS}ms linear`;
+        fill.style.transform='scale(1)';
+        touchTimer=setTimeout(()=>{
+            isLongPress=true;
+            indicator.style.display='none';
+            placeBlock();
+        },LONG_PRESS_MS);
+    }
+
+    function onEnd(e){
+        if(e.target&&isControlElement(e.target))return;
+        clearTimeout(touchTimer);
+        indicator.style.display='none';
+        fill.style.transition='none';
+        if(!isLongPress)mineBlock();
+    }
+
+    container.addEventListener('mousedown',onStart);
+    container.addEventListener('mouseup',onEnd);
+    container.addEventListener('touchstart',onStart,{passive:false});
+    container.addEventListener('touchend',onEnd,{passive:false});
+}
+
+function getTargetBlock(){
+    raycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+    const meshes=Array.from(blockMeshes.values());
+    const intersects=raycaster.intersectObjects(meshes);
+    if(intersects.length===0)return null;
+    const hit=intersects[0];
+    const obj=hit.object;
+    const bx=Math.floor(obj.position.x);
+    const by=Math.floor(obj.position.y);
+    const bz=Math.floor(obj.position.z);
+    const p=hit.point;
+    const c=obj.position;
+    const dx=p.x-c.x,dy=p.y-c.y,dz=p.z-c.z;
+    const adx=Math.abs(dx),ady=Math.abs(dy),adz=Math.abs(dz);
+    let nx=0,ny=0,nz=0;
+    if(adx>=ady&&adx>=adz)nx=Math.sign(dx);
+    else if(ady>=adx&&ady>=adz)ny=Math.sign(dy);
+    else nz=Math.sign(dz);
+    return{bx,by,bz,nx,ny,nz,distance:hit.distance};
+}
+
+function showFloatingText(text,x,y,z){
+    const el=document.createElement('div');
+    el.className='floating-text';
+    el.textContent=text;
+    const vec=new THREE.Vector3(x,y,z);
+    vec.project(camera);
+    const sx=(vec.x*0.5+0.5)*window.innerWidth;
+    const sy=(-vec.y*0.5+0.5)*window.innerHeight;
+    el.style.left=sx+'px';
+    el.style.top=sy+'px';
+    document.getElementById('game-container').appendChild(el);
+    setTimeout(()=>el.remove(),1000);
+}
+
+function mineBlock(){
+    const target=getTargetBlock();
+    if(!target||target.distance>REACH)return;
+    if(target.by<=0)return;
+
+    const blockId=getBlock(target.bx,target.by,target.bz);
+    const key=`${target.bx},${target.by},${target.bz}`;
+
+    // Check if it's a palm tree for farming
+    if(blockId===BLOCKS.PALMWOOD.id){
+        if(farming.showPanel(target.bx,target.by,target.bz)){
+            audio.playBuild();
+            return;
+        }
+    }
+
+    // Check for puzzle (near mosque door)
+    if(blockId===BLOCKS.WHITE.id && target.by===3 && Math.abs(target.bx)<3 && target.bz===-10){
+        showPuzzle();
+        return;
+    }
+
+    if(treasureBlocks.has(key)){
+        const word=TREASURE_WORDS[Math.floor(Math.random()*TREASURE_WORDS.length)];
+        showTreasure(word);
+        treasureBlocks.delete(key);
+        showFloatingText('💎 كنز تراثي!',target.bx+0.5,target.by+0.5,target.bz+0.5);
+        audio.playTreasure();
+        checkLevelProgress('treasure',null);
+    }
+
+    if(blockId===BLOCKS.DATES.id){
+        inventory.dates++;
+        showFloatingText('+1 تمر!',target.bx+0.5,target.by+0.5,target.bz+0.5);
+        checkLevelProgress('collect',BLOCKS.DATES.id);
+    }else if(blockId===BLOCKS.STONE.id){
+        inventory.stones++;
+        showFloatingText('+1 حجر',target.bx+0.5,target.by+0.5,target.bz+0.5);
+        checkLevelProgress('collect',BLOCKS.STONE.id);
+    }else if(blockId===BLOCKS.WATER.id){
+        showFloatingText('💧 بئر!',target.bx+0.5,target.by+0.5,target.bz+0.5);
+    }
+
+    updateBlock(target.bx,target.by,target.bz,0);
+    audio.playBuild();
+    saveGame();
+}
+
+function placeBlock(){
+    const target=getTargetBlock();
+    if(!target||target.distance>REACH)return;
+    const px=target.bx+target.nx;
+    const py=target.by+target.ny;
+    const pz=target.bz+target.nz;
+    if(getBlock(px,py,pz)!==0)return;
+
+    const playerMinX=playerMesh.position.x-PLAYER_WIDTH;
+    const playerMaxX=playerMesh.position.x+PLAYER_WIDTH;
+    const playerMinY=playerMesh.position.y-PLAYER_HEIGHT/2;
+    const playerMaxY=playerMesh.position.y+PLAYER_HEIGHT/2;
+    const playerMinZ=playerMesh.position.z-PLAYER_WIDTH;
+    const playerMaxZ=playerMesh.position.z+PLAYER_WIDTH;
+
+    if(px+1>playerMinX&&px<playerMaxX&&py+1>playerMinY&&py<playerMaxY&&pz+1>playerMinZ&&pz<playerMaxZ)return;
+
+    // Plant palm tree if selected
+    if(selectedBlock.id===BLOCKS.PALMWOOD.id){
+        farming.plant(px,py,pz);
+    }else{
+        updateBlock(px,py,pz,selectedBlock.id);
+    }
+    showFloatingText('تم البناء!',px+0.5,py+1.2,pz+0.5);
+    audio.playBuild();
+    checkLevelProgress('place',selectedBlock.id);
+    saveGame();
+}
+
+function onResize(){
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth,window.innerHeight);
+}
+
+init();
+</script>
+</body>
+</html>

@@ -6,10 +6,10 @@ Drop the final approved story file in this folder as one of:
   story.docx      — Word document
   story.md        — Markdown version
 
-After upload, tell Claude:
+After upload, request:
   "Story file uploaded — please link it into the chapters"
 
-Claude will then:
+This will:
   - Extract the 36 chapter titles
   - Extract chapter summaries
   - Extract character bios

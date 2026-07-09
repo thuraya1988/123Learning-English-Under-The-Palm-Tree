@@ -155,7 +155,3 @@ localStorage.setItem('upt_progress', JSON.stringify(progress));
 | **متصدرين** | جدول أفضل اللاعبين في كل تجربة |
 | **تحدي** | "من يجمع 20 كلمة في أقل وقت؟" |
 | **مشاركة** | زر "شارك إنجازي" على Twitter/X |
-
----
-
-**صنع بـ ❤️ لـ Under Palm Tree**

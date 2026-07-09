@@ -8,9 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#1B1613;
-    --panel:#33191D;
-    --line:#4A2A30;
+    --bg:#1B1B1B;
+    --panel:#262626;
+    --line:#3D3D3D;
     --beige:#E7D9BE;
     --beige-dim:#A8927A;
     --accent:#7C2334;
@@ -19,7 +19,7 @@
   html,body{height:100%;}
   body{
     font-family:'Karla', sans-serif;
-    background:#100D0B;
+    background:#121212;
     display:flex;
     justify-content:center;
     color:var(--beige);
@@ -66,6 +66,8 @@
   .header-spacer{ flex:1; }
 
   #homeScroll{ flex:1; overflow-y:auto; padding:18px; }
+  #profileScroll{ flex:1; overflow-y:auto; padding:18px; }
+  .empty-note{ font-size:12.5px; color:var(--beige-dim); padding:6px 0 4px; }
 
   .ph-block{
     background:var(--panel);
@@ -346,7 +348,7 @@
     <img id="splashImg" src="public/gallery/magazine/cover-official.png" alt="Under the Palm Tree" />
     <div class="splash-overlay"></div>
     <div class="splash-content">
-      <button id="enterMagazineBtn">Explore Magazine · اكتشفي المجلة</button>
+      <button id="enterMagazineBtn">Explore Magazine · اكتشفوا المجلة</button>
     </div>
   </div>
 
@@ -386,6 +388,13 @@
 
       <div class="section-head" id="allAnchor"><h3>All Articles</h3></div>
       <div id="allList"></div>
+    </div>
+
+    <div id="profileScroll" style="display:none;">
+      <div class="section-head"><h3>❤️ Liked Articles</h3></div>
+      <div id="likedList"></div>
+      <div class="section-head"><h3>🔖 Saved Articles</h3></div>
+      <div id="savedList"></div>
     </div>
 
     <nav id="bottomNav">
@@ -561,9 +570,17 @@
   let reader = null;
   let likedSet = new Set();
   let savedSet = new Set();
-  const storageOk = (typeof window.storage !== "undefined" && window.storage !== null);
 
   const $ = sel => document.querySelector(sel);
+
+  // Real browser storage (the site runs on GitHub Pages, not inside a
+  // Claude artifact preview, so persistence has to use localStorage).
+  function storageGet(key){
+    try{ return localStorage.getItem(key); }catch(e){ return null; }
+  }
+  function storageSet(key, value){
+    try{ localStorage.setItem(key, value); }catch(e){ /* private mode / quota */ }
+  }
 
   async function loadArticles(){
     try{
@@ -675,13 +692,50 @@
     bindOpenHandlers($("#allList"));
   }
 
+  function showHomeTab(){
+    $("#homeScroll").style.display = "block";
+    $("#profileScroll").style.display = "none";
+    $("#navHome").classList.add("current");
+    $("#navProfile").classList.remove("current");
+  }
+  function showProfileTab(){
+    $("#homeScroll").style.display = "none";
+    $("#profileScroll").style.display = "block";
+    $("#navHome").classList.remove("current");
+    $("#navProfile").classList.add("current");
+    renderProfile();
+  }
+
+  function profileRowHTML(a){
+    return (
+      '<div class="list-row" data-open="' + ARTICLES.indexOf(a) + '">' +
+      phBlockHTML(a) +
+      '<div class="lr-info">' +
+      '<div class="lr-title">' + a.title + '</div>' +
+      '<div class="lr-meta">' + a.tag + ' · ' + a.date + '</div>' +
+      '</div></div>'
+    );
+  }
+  function renderProfile(){
+    const liked = ARTICLES.filter(a => likedSet.has(a.id));
+    const saved = ARTICLES.filter(a => savedSet.has(a.id));
+    $("#likedList").innerHTML = liked.length
+      ? liked.map(profileRowHTML).join("")
+      : '<div class="empty-note">No liked articles yet — tap Like while reading one.</div>';
+    $("#savedList").innerHTML = saved.length
+      ? saved.map(profileRowHTML).join("")
+      : '<div class="empty-note">No saved articles yet — tap Save while reading one.</div>';
+    bindOpenHandlers($("#likedList"));
+    bindOpenHandlers($("#savedList"));
+  }
+
   function bindHomeChrome(){
     $("#menuBtn").addEventListener("click", () => showToast("Menu coming soon"));
-    $("#navHome").addEventListener("click", () => { $("#homeScroll").scrollTo({ top: 0, behavior: "smooth" }); });
-    $("#navArticles").addEventListener("click", () => { $("#allAnchor").scrollIntoView({ behavior: "smooth" }); });
-    $("#viewAllBtn").addEventListener("click", () => { $("#allAnchor").scrollIntoView({ behavior: "smooth" }); });
+    $("#navHome").addEventListener("click", () => { showHomeTab(); $("#homeScroll").scrollTo({ top: 0, behavior: "smooth" }); });
+    $("#navArticles").addEventListener("click", () => { showHomeTab(); $("#allAnchor").scrollIntoView({ behavior: "smooth" }); });
+    $("#viewAllBtn").addEventListener("click", () => { showHomeTab(); $("#allAnchor").scrollIntoView({ behavior: "smooth" }); });
     $("#navCommunity").addEventListener("click", () => { location.href = "community-chat.html"; });
-    $("#navProfile").addEventListener("click", () => showToast("Profile page coming soon"));
+    $("#navProfile").addEventListener("click", showProfileTab);
     $("#qChat").addEventListener("click", () => { location.href = "community-chat.html"; });
     $("#qPhoto").addEventListener("click", () => showToast("Coming soon"));
     $("#qCafes").addEventListener("click", () => showToast("Coming soon"));
@@ -763,12 +817,10 @@
     persistPersonal();
     $("#saveBtn").classList.toggle("active", savedSet.has(id));
   }
-  async function persistPersonal(){
-    if(!storageOk) return;
-    try{
-      await window.storage.set("reader-liked", JSON.stringify([...likedSet]), false);
-      await window.storage.set("reader-saved", JSON.stringify([...savedSet]), false);
-    }catch(e){ console.error("could not save reader state", e); }
+  function persistPersonal(){
+    storageSet("reader-liked", JSON.stringify([...likedSet]));
+    storageSet("reader-saved", JSON.stringify([...savedSet]));
+    if($("#profileScroll").style.display !== "none") renderProfile();
   }
 
   async function shareArticle(a){
@@ -842,9 +894,7 @@
     const name = ($("#commentName").value.trim() || "A reader").slice(0, 25);
     if(reader){
       reader.name = name;
-      if(storageOk){
-        try{ await window.storage.set("reader-profile", JSON.stringify(reader), false); }catch(e){}
-      }
+      storageSet("reader-profile", JSON.stringify(reader));
     }
     textInput.value = "";
 
@@ -864,27 +914,22 @@
   }
 
   async function init(){
-    if(storageOk){
-      try{
-        const p = await window.storage.get("reader-profile", false);
-        reader = p && p.value ? JSON.parse(p.value) : null;
-      }catch(e){ reader = null; }
-      if(!reader){
-        reader = { id: uid(), name: "" };
-        try{ await window.storage.set("reader-profile", JSON.stringify(reader), false); }catch(e){}
-      }
-      try{
-        const l = await window.storage.get("reader-liked", false);
-        likedSet = new Set(l && l.value ? JSON.parse(l.value) : []);
-      }catch(e){ likedSet = new Set(); }
-      try{
-        const s = await window.storage.get("reader-saved", false);
-        savedSet = new Set(s && s.value ? JSON.parse(s.value) : []);
-      }catch(e){ savedSet = new Set(); }
-    }else{
+    try{
+      const p = storageGet("reader-profile");
+      reader = p ? JSON.parse(p) : null;
+    }catch(e){ reader = null; }
+    if(!reader){
       reader = { id: uid(), name: "" };
-      console.error("window.storage is not available — likes, saves, and comments need this file open inside a Claude artifact preview.");
+      storageSet("reader-profile", JSON.stringify(reader));
     }
+    try{
+      const l = storageGet("reader-liked");
+      likedSet = new Set(l ? JSON.parse(l) : []);
+    }catch(e){ likedSet = new Set(); }
+    try{
+      const s = storageGet("reader-saved");
+      savedSet = new Set(s ? JSON.parse(s) : []);
+    }catch(e){ savedSet = new Set(); }
 
     await loadArticles();
     $("#homeLoading").style.display = "none";

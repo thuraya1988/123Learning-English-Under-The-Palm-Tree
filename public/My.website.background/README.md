@@ -20,10 +20,10 @@ Expected filenames (drop them into this folder via GitHub web upload):
   reading.jpeg
   speaking.jpeg
 
-Once uploaded, tell Claude:
+Once uploaded, request:
   "Background images uploaded — please wire them in"
 
-Then Claude will:
+This will:
   - main.jpeg          → hero background
   - background-1..16   → distributed across the 16 main sections/cards
   - grammar / listening / reading / speaking / progress / improvment / puzzle-shape

@@ -128,7 +128,7 @@
     justify-content:center;
     gap:8px;
   }
-  #notifBtn{
+  #notifBtn, #gameToggleBtn{
     border:1px solid var(--brown);
     background:var(--sand);
     color:var(--dark);
@@ -136,6 +136,50 @@
     padding:3px 9px;
     border-radius:12px;
     cursor:pointer;
+  }
+
+  #gamePanel{
+    background:var(--sand);
+    border-bottom:1px solid var(--brown);
+    padding:14px 16px 16px;
+    flex-shrink:0;
+  }
+  .game-head{
+    display:flex; align-items:center; justify-content:space-between;
+    font-weight:700; color:var(--dark); font-size:.9rem; margin-bottom:8px;
+  }
+  #closeGame{
+    background:none; border:none; color:var(--brown); font-size:14px; cursor:pointer;
+  }
+  .game-hint{ font-size:.78rem; color:var(--brown); margin-bottom:10px; text-align:center; }
+  .game-blanks{
+    display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-bottom:14px;
+    direction:ltr;
+  }
+  .blank-letter{
+    width:26px; height:32px;
+    border-bottom:2px solid var(--brown);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.05rem; font-weight:700; color:var(--dark);
+    font-family:monospace; text-transform:uppercase;
+  }
+  .game-keyboard{ display:flex; flex-wrap:wrap; gap:5px; justify-content:center; direction:ltr; }
+  .key-btn{
+    width:27px; height:31px;
+    border-radius:6px;
+    border:1px solid var(--brown);
+    background:#2A2A2A;
+    color:var(--dark);
+    font-weight:700;
+    font-size:.8rem;
+    cursor:pointer;
+  }
+  .key-btn:disabled{ cursor:default; }
+  .key-btn.wrong{ opacity:.3; }
+  .key-btn.correct{ background:var(--gold); color:#2A211D; border-color:var(--gold); }
+  .game-status{
+    text-align:center; margin-top:10px; font-size:.85rem; font-weight:700; color:var(--gold);
+    min-height:18px;
   }
   #notifBtn.on{ background:var(--gold); color:#2A211D; border-color:var(--gold); font-weight:700; }
 
@@ -282,9 +326,21 @@
     </div>
   </header>
 
+  <div id="gamePanel" style="display:none;">
+    <div class="game-head">
+      <span>🎮 خمّنوا الكلمة · Guess the Word</span>
+      <button id="closeGame" aria-label="إغلاق اللعبة">✕</button>
+    </div>
+    <div id="gameHint" class="game-hint"></div>
+    <div id="gameBlanks" class="game-blanks"></div>
+    <div id="gameKeyboard" class="game-keyboard"></div>
+    <div id="gameStatus" class="game-status"></div>
+  </div>
+
   <div id="messages"></div>
   <div id="hint">
     <span>غرفة عامة لكل الطلاب — خلنا نحافظ على الاحترام 🌱</span>
+    <button id="gameToggleBtn">🎮 لعبة الكلمة</button>
     <button id="notifBtn">🔔 فعّلوا التنبيهات</button>
   </div>
 
@@ -303,9 +359,17 @@
   let lastSeenCount = 0;
   let firstLoadDone = false;
   let dbErrorShown = false;
-  const storageOk = (typeof window.storage !== 'undefined' && window.storage !== null);
 
   const $ = (sel) => document.querySelector(sel);
+
+  // Real browser storage (this runs on GitHub Pages, not inside a Claude
+  // artifact preview, so persistence has to use localStorage).
+  function storageGet(key){
+    try{ return localStorage.getItem(key); }catch(e){ return null; }
+  }
+  function storageSet(key, value){
+    try{ localStorage.setItem(key, value); }catch(e){ /* private mode / quota */ }
+  }
 
   function uid(){
     return 'u_' + Math.random().toString(36).slice(2, 10);
@@ -337,10 +401,8 @@
 
   async function init(){
     try{
-      const saved = storageOk ? await window.storage.get('my-profile', false) : null;
-      if(saved && saved.value){
-        me = JSON.parse(saved.value);
-      }
+      const saved = storageGet('my-profile');
+      if(saved) me = JSON.parse(saved);
     }catch(e){ /* no saved profile yet, that's fine */ }
 
     $('#loading').style.display = 'none';
@@ -362,6 +424,8 @@
     $('#sendBtn').addEventListener('click', sendMessage);
     $('#msgInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') sendMessage(); });
     $('#notifBtn').addEventListener('click', enableNotifications);
+    $('#gameToggleBtn').addEventListener('click', toggleGamePanel);
+    $('#closeGame').addEventListener('click', () => { $('#gamePanel').style.display = 'none'; });
   }
 
   async function enableNotifications(){
@@ -393,9 +457,7 @@
       return;
     }
     me = { id: uid(), name: val.slice(0, 20) };
-    try{
-      if(storageOk) await window.storage.set('my-profile', JSON.stringify(me), false);
-    }catch(e){ console.error('could not save profile', e); }
+    storageSet('my-profile', JSON.stringify(me));
     $('#gate').style.display = 'none';
     startChat();
   }
@@ -492,6 +554,157 @@
 
     if(isFirst || nearBottom){
       container.scrollTop = container.scrollHeight;
+    }
+  }
+
+  /* ================= WORD GAME ================= */
+  // Simple collaborative Hangman-style game — everyone in the room shares
+  // one puzzle and taps letters together. Uses the same Firebase REST +
+  // EventSource pattern as the chat itself, so it needed no new backend.
+  const GAME_URL = DB_URL + '/game/current.json';
+  const WORD_BANK = [
+    { word: 'PALM', hint: 'The tree that shades the whole village · الشجرة التي تظلّل القرية' },
+    { word: 'FALAJ', hint: 'The channel that carries mountain water · القناة التي تحمل ماء الجبال' },
+    { word: 'DATES', hint: 'Sweet fruit of the palm tree · ثمرة النخلة الحلوة' },
+    { word: 'VILLAGE', hint: 'Where Thuraya grew up · حيث كبرت ثريا' },
+    { word: 'TEACHER', hint: 'John and Sophia\'s job · مهنة جون وصوفيا' },
+    { word: 'SCHOOL', hint: 'Where the children learn English · حيث يتعلم الأطفال الإنجليزية' },
+    { word: 'LANTERN', hint: 'Lights the room before electricity · تنير الغرفة قبل الكهرباء' },
+    { word: 'JOURNEY', hint: 'What the story is all about · ما تدور حوله القصة' },
+    { word: 'FRIEND', hint: 'What John and Thuraya became · ما أصبحه جون وثريا' },
+    { word: 'HARVEST', hint: 'Season of gathering the dates · موسم جمع التمر' },
+  ];
+
+  let currentGame = null;
+  let gameES = null;
+  let gameOpened = false;
+
+  function pickWord(excludeWord){
+    let choice = WORD_BANK[Math.floor(Math.random() * WORD_BANK.length)];
+    if(WORD_BANK.length > 1){
+      let tries = 0;
+      while(choice.word === excludeWord && tries < 10){
+        choice = WORD_BANK[Math.floor(Math.random() * WORD_BANK.length)];
+        tries++;
+      }
+    }
+    return choice;
+  }
+
+  async function newWord(excludeWord){
+    const picked = pickWord(excludeWord);
+    const fresh = {
+      word: picked.word,
+      hint: picked.hint,
+      guessed: [],
+      revealed: picked.word.split('').map(() => false),
+      winnerName: null,
+      startedAt: Date.now(),
+    };
+    try{
+      await fetch(GAME_URL, { method: 'PUT', body: JSON.stringify(fresh) });
+    }catch(e){ console.error('could not start a new word', e); }
+  }
+
+  async function fetchAndRenderGame(){
+    try{
+      const res = await fetch(GAME_URL);
+      const data = await res.json();
+      if(!data || !data.word){
+        await newWord(null);
+        return;
+      }
+      currentGame = data;
+      renderGame();
+    }catch(e){
+      console.error('could not load the word game', e);
+    }
+  }
+
+  function startGameListening(){
+    try{
+      gameES = new EventSource(GAME_URL);
+      gameES.addEventListener('put', fetchAndRenderGame);
+      gameES.addEventListener('patch', fetchAndRenderGame);
+    }catch(e){
+      console.error('game live-update not available, falling back to periodic refresh', e);
+      setInterval(fetchAndRenderGame, 4000);
+    }
+  }
+
+  function renderGame(){
+    if(!currentGame) return;
+    const g = currentGame;
+    $('#gameHint').textContent = g.hint;
+
+    $('#gameBlanks').innerHTML = g.word.split('').map((ch, i) =>
+      '<span class="blank-letter">' + (g.revealed[i] ? ch : '_') + '</span>'
+    ).join('');
+
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    $('#gameKeyboard').innerHTML = alphabet.map(letter => {
+      const tried = g.guessed.includes(letter);
+      const isCorrect = tried && g.word.includes(letter);
+      const cls = tried ? (isCorrect ? 'correct' : 'wrong') : '';
+      return '<button class="key-btn ' + cls + '" data-letter="' + letter + '"' + (tried ? ' disabled' : '') + '>' + letter + '</button>';
+    }).join('');
+    $('#gameKeyboard').querySelectorAll('[data-letter]').forEach(btn => {
+      btn.addEventListener('click', () => guessLetter(btn.dataset.letter));
+    });
+
+    if(g.winnerName){
+      $('#gameStatus').textContent = '🎉 ' + g.winnerName + ' خمّن الكلمة: ' + g.word + '!';
+    }else{
+      $('#gameStatus').textContent = '';
+    }
+  }
+
+  async function guessLetter(letter){
+    if(!currentGame) return;
+    if(!me){
+      alert('لازم تدخلوا بأسمائكم أول عشان تلعبوا.');
+      $('#gate').style.display = 'flex';
+      return;
+    }
+    if(currentGame.guessed.includes(letter)) return;
+
+    const guessed = [...currentGame.guessed, letter];
+    const revealed = currentGame.word.split('').map((ch, i) => currentGame.revealed[i] || ch === letter);
+    const allRevealed = revealed.every(Boolean);
+    const payload = { guessed, revealed };
+    if(allRevealed) payload.winnerName = me.name;
+
+    try{
+      await fetch(GAME_URL, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      if(allRevealed){
+        // Announce the win in the chat feed itself, then start a fresh word.
+        await fetch(MESSAGES_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            senderId: 'system',
+            name: '🎮 لعبة الكلمة',
+            text: me.name + ' خمّن الكلمة "' + currentGame.word + '"! 🎉 كلمة جديدة بعد شوي...',
+            ts: Date.now(),
+          }),
+        });
+        setTimeout(() => newWord(currentGame.word), 3000);
+      }
+    }catch(e){
+      console.error('guess failed', e);
+    }
+  }
+
+  function toggleGamePanel(){
+    const panel = $('#gamePanel');
+    const opening = panel.style.display === 'none';
+    panel.style.display = opening ? 'block' : 'none';
+    if(opening && !gameOpened){
+      gameOpened = true;
+      fetchAndRenderGame();
+      startGameListening();
     }
   }
 

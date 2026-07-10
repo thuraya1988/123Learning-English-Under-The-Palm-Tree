@@ -238,6 +238,69 @@ p  { font-family:var(--font-b); font-size:clamp(0.85rem,2.2vw,1rem); line-height
 .level-btn.completed { border-color:var(--earth); background:rgba(140,106,63,0.10); }
 .level-btn.completed .check { color:var(--earth); font-size:0.72rem; }
 
+/* ---- VILLAGE MAP ---- */
+.map-canvas {
+  position: relative;
+  width: 100%; max-width: 480px;
+  aspect-ratio: 4/3;
+  margin: 0.5rem auto 1rem;
+  border-radius: 12px;
+  background: linear-gradient(160deg, var(--linen) 0%, var(--sand) 60%, var(--linen) 100%);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.map-canvas svg { position:absolute; inset:0; width:100%; height:100%; }
+.map-path-line { fill:none; stroke:var(--clay); stroke-width:0.6; stroke-dasharray:2.2 2; opacity:0.75; }
+.map-node {
+  position: absolute;
+  transform: translate(-50%,-50%);
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 2px solid var(--line);
+  display: flex; align-items:center; justify-content:center;
+  font-size: 1.15rem;
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+  z-index: 3;
+}
+.map-node:hover { transform:translate(-50%,-50%) scale(1.08); border-color:var(--earth); }
+.map-node.riddle { border-color:var(--earth); background:var(--sand); box-shadow:0 0 0 3px rgba(140,106,63,0.12); }
+.map-node.riddle.done { border-color:var(--burgundy); background:rgba(54,3,4,0.06); }
+.map-node.locked { opacity:0.45; cursor:default; font-size:0.95rem; }
+.map-node.locked:hover { transform:translate(-50%,-50%); }
+.map-node.start { border-color:var(--soil); }
+.map-node-label {
+  position:absolute; top:100%; left:50%; transform:translateX(-50%);
+  margin-top:4px; font-size:0.52rem; letter-spacing:0.02em; color:var(--earth);
+  white-space:nowrap; text-align:center; font-family:var(--font-b); opacity:0.85;
+}
+.map-player {
+  position:absolute; width:16px; height:16px; border-radius:50%;
+  background:var(--burgundy); z-index:5;
+  transition: left 0.45s var(--ease), top 0.45s var(--ease);
+  box-shadow:0 0 0 4px rgba(54,3,4,0.15), 0 2px 6px rgba(0,0,0,0.25);
+  transform:translate(-50%,-50%);
+}
+.map-controls { display:flex; align-items:center; justify-content:center; gap:14px; margin:0.6rem 0 1rem; }
+.map-arrow-btn {
+  width:52px; height:52px; border-radius:50%;
+  border:1.5px solid var(--line); background:var(--bg-card); color:var(--soil);
+  font-size:1.3rem; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:all var(--dur) var(--ease); user-select:none;
+  -webkit-tap-highlight-color: transparent;
+}
+.map-arrow-btn:active { background:var(--clay); transform:scale(0.92); }
+.map-arrow-btn:disabled { opacity:0.3; pointer-events:none; }
+.map-info-panel {
+  background:var(--bg-card); border:1px solid var(--line); border-radius:8px;
+  padding:1rem 1.2rem; text-align:center; min-height:64px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+}
+.map-info-title { font-family:var(--font-h); font-size:1rem; color:var(--soil); }
+.map-info-sub { font-size:0.72rem; color:var(--earth); opacity:0.8; }
+.map-view-toggle { font-size:0.62rem; letter-spacing:0.08em; color:var(--earth); opacity:0.7; text-decoration:underline; cursor:pointer; margin-top:0.6rem; }
+
 /* ---- RIDDLE CARD ---- */
 .riddle-card {
   background:var(--bg-card);
@@ -441,7 +504,7 @@ p  { font-family:var(--font-b); font-size:clamp(0.85rem,2.2vw,1rem); line-height
     </div>
 
     <div class="au d3" style="display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:1rem;">
-      <button class="btn btn-main" onclick="showScreen('riddleMenu')" style="min-width:220px;justify-content:center;">
+      <button class="btn btn-main" onclick="showScreen('riddleMap')" style="min-width:220px;justify-content:center;">
         Enter the Village
       </button>
     </div>
@@ -449,6 +512,41 @@ p  { font-family:var(--font-b); font-size:clamp(0.85rem,2.2vw,1rem); line-height
     <p class="au d4" style="margin-top:1.8rem;font-size:0.62rem;opacity:0.35;letter-spacing:0.1em;">
       Prepared for Thuraya Mohammed Ali Al-Naabia
     </p>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     VILLAGE MAP (walk between locations)
+══════════════════════════════════════════ -->
+<div id="riddleMap" class="screen hidden" style="padding-top:44px;">
+  <div class="palm-wrap" style="max-height:100vh;overflow-y:auto;">
+
+    <button class="btn" onclick="showScreen('mainMenu')" style="margin-bottom:1rem;font-size:0.72rem;padding:0.5em 1.2em;">
+      Back
+    </button>
+
+    <div class="part-badge">Tier 1 — Apprentice · Walk the Village</div>
+
+    <div class="map-canvas" id="mapCanvas">
+      <svg viewBox="0 0 100 75" preserveAspectRatio="none">
+        <polyline id="mapPathLine" class="map-path-line" points=""></polyline>
+      </svg>
+      <div class="map-player" id="mapPlayer"></div>
+      <!-- nodes injected by renderRiddleMap() -->
+    </div>
+
+    <div class="map-controls">
+      <button class="map-arrow-btn" id="mapPrevBtn" onclick="movePlayer(-1)" aria-label="Previous location">←</button>
+      <button class="map-arrow-btn" id="mapEnterBtn" onclick="enterCurrentNode()" aria-label="Enter">✓</button>
+      <button class="map-arrow-btn" id="mapNextBtn" onclick="movePlayer(1)" aria-label="Next location">→</button>
+    </div>
+
+    <div class="map-info-panel" id="mapInfoPanel"></div>
+
+    <div style="text-align:center;">
+      <span class="map-view-toggle" onclick="showScreen('riddleMenu')">View as list instead</span>
+    </div>
 
   </div>
 </div>
@@ -470,6 +568,7 @@ p  { font-family:var(--font-b); font-size:clamp(0.85rem,2.2vw,1rem); line-height
     <div style="text-align:center;margin-top:1.2rem;">
       <div class="stars" id="riddleTotalStars"></div>
       <p style="font-size:0.68rem;opacity:0.5;letter-spacing:0.08em;" id="riddleProgress">0 / 36 Complete</p>
+      <span class="map-view-toggle" onclick="showScreen('riddleMap')">Walk the village map instead</span>
     </div>
 
   </div>
@@ -577,6 +676,7 @@ function showScreen(id) {
     setTimeout(() => target.classList.remove('in'), 500);
   }, 200);
   if (id === 'riddleMenu') renderRiddleMenu();
+  if (id === 'riddleMap') renderRiddleMap();
 }
 
 // ═══════════════════════════════════════════════════
@@ -619,6 +719,114 @@ function renderRiddleMenu() {
   renderStars(document.getElementById('riddleTotalStars'),Math.min(3,Math.round(totalStars/Math.max(1,Object.keys(riddleProgress).length))));
   document.getElementById('riddleProgress').textContent=`${Object.keys(riddleProgress).length} / 36 Complete · ${totalStars} Stars`;
 }
+
+// ═══════════════════════════════════════════════════
+// VILLAGE MAP — walk between locations with arrows/tap
+// ═══════════════════════════════════════════════════
+// Coordinates are percentages of the map-canvas (viewBox 0-100 x, 0-75 y).
+// riddleIdx points into riddleLevels[]; nodes without it are 'soon' or 'start'.
+const mapNodes = [
+  {x:10, y:60, icon:'🚪', label:'Village Gate',        type:'start'},
+  {x:23, y:38, icon:'📖', label:"Abu Salem's School",   type:'riddle', riddleIdx:0},
+  {x:37, y:58, icon:'🌴', label:'Palm Walk',            type:'soon'},
+  {x:50, y:30, icon:'🧕', label:"Fatima's Corner",      type:'riddle', riddleIdx:1},
+  {x:63, y:55, icon:'🏘️', label:'Village Square',       type:'soon'},
+  {x:75, y:28, icon:'💧', label:'The Falaj',            type:'riddle', riddleIdx:2},
+  {x:85, y:52, icon:'🧱', label:'The Old Wall',          type:'soon'},
+  {x:90, y:24, icon:'👳', label:"Elder's Majlis",        type:'soon'},
+  {x:88, y:66, icon:'✨', label:'+27 more paths soon',   type:'soon'}
+];
+let mapCurrentIdx = 0;
+
+function renderRiddleMap() {
+  const canvas = document.getElementById('mapCanvas');
+  canvas.querySelectorAll('.map-node').forEach(n => n.remove());
+  const line = document.getElementById('mapPathLine');
+  line.setAttribute('points', mapNodes.map(n => `${n.x},${n.y}`).join(' '));
+
+  mapNodes.forEach((node, i) => {
+    const div = document.createElement('div');
+    let cls = 'map-node';
+    if (node.type === 'start') cls += ' start';
+    if (node.type === 'riddle') {
+      cls += ' riddle';
+      const lv = riddleLevels[node.riddleIdx];
+      if (riddleProgress[lv.id]) cls += ' done';
+    }
+    if (node.type === 'soon') cls += ' locked';
+    div.className = cls;
+    div.style.left = node.x + '%';
+    div.style.top = (node.y / 75 * 100) + '%';
+    div.innerHTML = node.icon + `<span class="map-node-label">${node.label}</span>`;
+    div.onclick = () => { mapCurrentIdx = i; updateMapView(); };
+    canvas.appendChild(div);
+  });
+
+  updateMapView();
+}
+
+function updateMapView() {
+  const node = mapNodes[mapCurrentIdx];
+  const player = document.getElementById('mapPlayer');
+  player.style.left = node.x + '%';
+  player.style.top = (node.y / 75 * 100) + '%';
+
+  document.getElementById('mapPrevBtn').disabled = mapCurrentIdx === 0;
+  document.getElementById('mapNextBtn').disabled = mapCurrentIdx === mapNodes.length - 1;
+
+  const panel = document.getElementById('mapInfoPanel');
+  const enterBtn = document.getElementById('mapEnterBtn');
+  if (node.type === 'start') {
+    panel.innerHTML = `<div class="map-info-title">🚪 ${node.label}</div><div class="map-info-sub">Walk right to find Abu Salem's school.</div>`;
+    enterBtn.disabled = true;
+  } else if (node.type === 'riddle') {
+    const lv = riddleLevels[node.riddleIdx];
+    const done = riddleProgress[lv.id];
+    panel.innerHTML = `<div class="map-info-title">${lv.villagerIcon} ${lv.villager}</div>`
+      + `<div class="map-info-sub">${done ? `Solved — ★ ${done}. Tap ✓ to play again.` : 'Tap ✓ to hear their riddle.'}</div>`;
+    enterBtn.disabled = false;
+  } else {
+    panel.innerHTML = `<div class="map-info-title">${node.icon} ${node.label}</div><div class="map-info-sub">🔒 Coming soon</div>`;
+    enterBtn.disabled = true;
+  }
+}
+
+function movePlayer(dir) {
+  const next = mapCurrentIdx + dir;
+  if (next < 0 || next >= mapNodes.length) return;
+  mapCurrentIdx = next;
+  updateMapView();
+}
+
+function enterCurrentNode() {
+  const node = mapNodes[mapCurrentIdx];
+  if (node.type === 'riddle') startRiddleLevel(riddleLevels[node.riddleIdx]);
+}
+
+document.addEventListener('keydown', (e) => {
+  const mapScreen = document.getElementById('riddleMap');
+  if (mapScreen.classList.contains('hidden')) return;
+  if (e.key === 'ArrowRight') movePlayer(1);
+  else if (e.key === 'ArrowLeft') movePlayer(-1);
+  else if (e.key === 'Enter' || e.key === ' ') enterCurrentNode();
+});
+
+// touch swipe left/right on the map canvas
+(function initMapSwipe(){
+  let touchStartX = null;
+  document.addEventListener('touchstart', (e) => {
+    const mapScreen = document.getElementById('riddleMap');
+    if (mapScreen.classList.contains('hidden')) return;
+    touchStartX = e.changedTouches[0].clientX;
+  }, {passive:true});
+  document.addEventListener('touchend', (e) => {
+    if (touchStartX === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    touchStartX = null;
+    if (Math.abs(dx) < 40) return;
+    movePlayer(dx < 0 ? 1 : -1);
+  }, {passive:true});
+})();
 
 // ═══════════════════════════════════════════════════
 // GAMEPLAY

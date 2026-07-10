@@ -110,7 +110,7 @@ var CFG = {
   eye: 1.7, spd: 6.5, sprint: 1.8, sens: 0.0035,
   fW: 2.6, fH: 1.8, fB: 0.13, prox: 5.5, fogD: 0.012,
   boxD: 2.5,  // عمق صندوق الزجاج
-  base: 'https://raw.githubusercontent.com/thuraya1988/123Learning-English-Under-The-Palm-Tree/main/public/gallery/heritage/heritage-'
+  base: 'public/gallery/heritage/heritage-'
 };
 
 // ==================== SCENES DATA ====================
@@ -186,9 +186,9 @@ var camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 200);
 camera.position.set(0, CFG.eye, 3);
 camera.rotation.order = 'YXZ';
 
-var renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+var renderer = new THREE.WebGLRenderer({antialias:!isMobile, alpha:false, powerPreference:'high-performance'});
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(isMobile ? 1 : Math.min(devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.65;
 renderer.outputEncoding = THREE.sRGBEncoding;
@@ -203,19 +203,24 @@ var carpetMat = new THREE.MeshStandardMaterial({color:0x3a0a12, roughness:0.92})
 var carpetBorderMat = new THREE.MeshStandardMaterial({color:0xc9a84c, roughness:0.6, metalness:0.2});
 
 // Glass material for diorama boxes
-var glassMat = new THREE.MeshPhysicalMaterial({
-  color: 0xffffff,
-  metalness: 0,
-  roughness: 0.05,
-  transmission: 0.9,
-  thickness: 0.5,
-  transparent: true,
-  opacity: 0.15,
-  side: THREE.DoubleSide,
-  envMapIntensity: 1,
-  clearcoat: 1,
-  clearcoatRoughness: 0.1
-});
+// Real-time transmission (MeshPhysicalMaterial) triggers an extra offscreen render
+// pass per transmissive draw call — with ~34 dioramas x 5 glass panes that tanks
+// mobile GPUs, so mobile gets a cheap non-transmissive transparent stand-in instead.
+var glassMat = isMobile
+  ? new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:0.1, side:THREE.DoubleSide})
+  : new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      metalness: 0,
+      roughness: 0.05,
+      transmission: 0.9,
+      thickness: 0.5,
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.DoubleSide,
+      envMapIntensity: 1,
+      clearcoat: 1,
+      clearcoatRoughness: 0.1
+    });
 
 // Inner frame material
 var innerFrameMat = new THREE.MeshStandardMaterial({
@@ -414,16 +419,20 @@ function makeDiorama(data, x, z, ry, s, rm) {
   g.add(glassRight);
 
   // === INNER LIGHTING ===
-  var innerLight = new THREE.PointLight(0xffd080, 2.5, 8, 2);
+  var innerLight = new THREE.PointLight(0xffd080, isMobile ? 3.2 : 2.5, 8, 2);
   innerLight.position.set(0, fh/3, 0);
   g.add(innerLight);
 
-  // Warm glow from top
-  var topLight = new THREE.SpotLight(0xffa050, 1.5, 10, Math.PI/4, 0.5, 1);
-  topLight.position.set(0, fh/2 + 0.5, 0);
-  topLight.target.position.set(0, 0, -bd/4);
-  g.add(topLight);
-  g.add(topLight.target);
+  // Warm glow from top — skipped on mobile: every extra light adds a per-fragment
+  // shading cost across the whole scene, and with 34 dioramas the SpotLights (the
+  // most expensive light type) were a major contributor to the slow mobile framerate.
+  if(!isMobile){
+    var topLight = new THREE.SpotLight(0xffa050, 1.5, 10, Math.PI/4, 0.5, 1);
+    topLight.position.set(0, fh/2 + 0.5, 0);
+    topLight.target.position.set(0, 0, -bd/4);
+    g.add(topLight);
+    g.add(topLight.target);
+  }
 
   // === IMAGE PLANE (with parallax shader) ===
   var imgMat = new THREE.MeshStandardMaterial({

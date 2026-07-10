@@ -1,12 +1,8 @@
 # Final Story File
 
-Drop the final approved story file in this folder as one of:
+`story.md` — the full 36-chapter manuscript (221 scenes), extracted and stored here.
 
-  story.pdf       — Original PDF
-  story.docx      — Word document
-  story.md        — Markdown version
-
-After upload, request:
+To link it into the chapter pages (palm-1/ through palm-36/, currently empty), request:
   "Story file uploaded — please link it into the chapters"
 
 This will:
@@ -18,3 +14,7 @@ This will:
   - Replace all [Placeholder] tags across the platform
 
 Nothing is invented — every piece of content traces back to this file.
+
+## Storyboard
+
+`storyboard-full.md` — a scene-by-scene panel breakdown (visual description + short caption per panel) for all 36 chapters / 221 scenes / 2,208 panels, meant as a reference for an illustrator.

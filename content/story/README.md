@@ -17,4 +17,4 @@ Nothing is invented — every piece of content traces back to this file.
 
 ## Storyboard
 
-`storyboard-palm-01-05.md` — a scene-by-scene panel breakdown (visual description + short caption per panel) for Palms One through Five, meant as a reference for an illustrator. Pilot batch pending review before the remaining 31 chapters are done the same way.
+`storyboard-full.md` — a scene-by-scene panel breakdown (visual description + short caption per panel) for all 36 chapters / 221 scenes / 2,208 panels, meant as a reference for an illustrator.

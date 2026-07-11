@@ -6,8 +6,10 @@ import type { Country } from '@/types';
  * a video to watch, and references — hooked to memories from the story.
  */
 
-const HERITAGE =
-  'https://raw.githubusercontent.com/thuraya1988/123Learning-English-Under-The-Palm-Tree/main/public/gallery/heritage';
+// Hosted locally instead of hotlinked via raw.githubusercontent.com — same
+// images already exist in the repo, and hotlinking a code host as an image
+// CDN is unreliable on mobile connections (see GlobeScene.ts texture fix).
+const HERITAGE = '../public/gallery/heritage';
 
 export const countries: Country[] = [
   {

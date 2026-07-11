@@ -3,13 +3,16 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import gsap from 'gsap';
 import { countries } from '@/data/countries';
 
-// NASA / reliable texture sources
+// Hosted locally (public/textures/globe/) instead of hotlinked from
+// raw.githubusercontent.com — that's a code repo, not a CDN, and it was
+// prone to stalling/failing on flaky mobile connections, leaving the globe
+// stuck on "Loading Globe..." indefinitely.
 const TEXTURE_URLS = {
-  day: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg',
-  bump: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_normal_2048.jpg',
-  clouds: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_clouds_1024.png',
-  specular: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_specular_2048.jpg',
-  night: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_lights_2048.png',
+  day: '../public/textures/globe/earth_atmos_2048.jpg',
+  bump: '../public/textures/globe/earth_normal_2048.jpg',
+  clouds: '../public/textures/globe/earth_clouds_1024.png',
+  specular: '../public/textures/globe/earth_specular_2048.jpg',
+  night: '../public/textures/globe/earth_lights_2048.png',
 };
 
 export interface GlobeCallbacks {
@@ -477,7 +480,7 @@ export class GlobeScene {
 
     // ---- Moon: textured sphere slowly orbiting the earth ----
     const moonTex = new THREE.TextureLoader().load(
-      'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/moon_1024.jpg'
+      '../public/textures/globe/moon_1024.jpg'
     );
     moonTex.colorSpace = THREE.SRGBColorSpace;
     const moon = new THREE.Mesh(

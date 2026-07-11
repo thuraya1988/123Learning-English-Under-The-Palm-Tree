@@ -594,7 +594,7 @@ export default function CountryPanel({ country, isOpen, onClose, onContinueLearn
                 <Languages className="w-4 h-4 text-[var(--accent)] shrink-0" />
                 <div>
                   <p className="font-mono text-[10px] text-[var(--text-tertiary)] uppercase">Language</p>
-                  <p className="font-body text-xs text-[var(--text-primary)]">English</p>
+                  <p className="font-body text-xs text-[var(--text-primary)]">{country.language}</p>
                 </div>
               </div>
               <div className="glass-card p-3 flex items-center gap-3">

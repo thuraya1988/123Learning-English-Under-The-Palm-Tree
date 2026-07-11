@@ -142,22 +142,6 @@ export default function App() {
           onClick={handleClosePanel}
         />
       )}
-
-      {/* Bottom Warning Label */}
-      <div className="fixed bottom-4 right-4 z-50">
-        <div
-          className="px-4 py-2 rounded-xl"
-          style={{
-            background: 'rgba(155, 77, 94, 0.15)',
-            border: '1px solid rgba(155, 77, 94, 0.25)',
-            backdropFilter: 'blur(10px)',
-          }}
-        >
-          <span className="font-mono text-[11px] font-medium text-[#9B4D5E] tracking-wider uppercase">
-            warning
-          </span>
-        </div>
-      </div>
     </div>
   );
 }

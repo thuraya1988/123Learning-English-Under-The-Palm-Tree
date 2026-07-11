@@ -88,6 +88,7 @@ export interface Country {
   lon: number;
   region: string;
   timezone: string;
+  language: string;
   content: ContentItem[];
   partners?: Partner[];
   partnerCategories?: PartnerCategory[];

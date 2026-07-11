@@ -14,7 +14,7 @@ const HERITAGE = '../public/gallery/heritage';
 export const countries: Country[] = [
   {
     id: 'OM', name: 'عُمان — سلطنة المجد البحري', flag: '🇴🇲',
-    lat: 23.3, lon: 57.98, region: 'قلب الرحلة · Samail 1973', timezone: 'UTC+4',
+    lat: 23.3, lon: 57.98, region: 'قلب الرحلة · Samail 1973', timezone: 'UTC+4', language: 'العربية · Arabic',
     content: [
       {
         id: 'om-history', type: 'historicalExperience',
@@ -50,7 +50,7 @@ export const countries: Country[] = [
   },
   {
     id: 'TZ', name: 'زنجبار — الشقيقة السواحلية', flag: '🇹🇿',
-    lat: -6.1659, lon: 39.2026, region: 'Palm 19 · طريق التاجر', timezone: 'UTC+3',
+    lat: -6.1659, lon: 39.2026, region: 'Palm 19 · طريق التاجر', timezone: 'UTC+3', language: 'Kiswahili · Swahili',
     content: [
       {
         id: 'tz-history', type: 'historicalExperience',
@@ -86,7 +86,7 @@ export const countries: Country[] = [
   },
   {
     id: 'GB', name: 'بريطانيا — حيث بدأت الرسالة', flag: '🇬🇧',
-    lat: 51.5074, lon: -0.1278, region: 'لندن · بداية الرحلة', timezone: 'UTC+0',
+    lat: 51.5074, lon: -0.1278, region: 'لندن · بداية الرحلة', timezone: 'UTC+0', language: 'English',
     content: [
       {
         id: 'gb-history', type: 'historicalExperience',
@@ -102,7 +102,7 @@ export const countries: Country[] = [
   },
   {
     id: 'TR', name: 'تركيا — مكتب ثريّا', flag: '🇹🇷',
-    lat: 39.0, lon: 35.0, region: 'حيث تُكتب الذكريات · 2026', timezone: 'UTC+3',
+    lat: 39.0, lon: 35.0, region: 'حيث تُكتب الذكريات · 2026', timezone: 'UTC+3', language: 'Türkçe · Turkish',
     content: [
       {
         id: 'tr-istanbul', type: 'historicalExperience',
@@ -118,7 +118,7 @@ export const countries: Country[] = [
   },
   {
     id: 'BH', name: 'البحرين — أرض دلمون واللؤلؤ', flag: '🇧🇭',
-    lat: 26.0667, lon: 50.5577, region: 'Palm 33 · سرّ عبر الخليج', timezone: 'UTC+3',
+    lat: 26.0667, lon: 50.5577, region: 'Palm 33 · سرّ عبر الخليج', timezone: 'UTC+3', language: 'العربية · Arabic',
     content: [
       {
         id: 'bh-pearl', type: 'historicalExperience',
@@ -134,7 +134,7 @@ export const countries: Country[] = [
   },
   {
     id: 'IR', name: 'إيران — موطن القنوات', flag: '🇮🇷',
-    lat: 32.4279, lon: 53.688, region: 'حيث بدأت الأنهار الجوفية', timezone: 'UTC+3:30',
+    lat: 32.4279, lon: 53.688, region: 'حيث بدأت الأنهار الجوفية', timezone: 'UTC+3:30', language: 'فارسی · Persian',
     content: [
       {
         id: 'ir-qanat', type: 'historicalExperience',
@@ -150,7 +150,7 @@ export const countries: Country[] = [
   },
   {
     id: 'AE', name: 'الإمارات — واحة العين', flag: '🇦🇪',
-    lat: 24.2075, lon: 55.7447, region: 'جارة الأفلاج', timezone: 'UTC+4',
+    lat: 24.2075, lon: 55.7447, region: 'جارة الأفلاج', timezone: 'UTC+4', language: 'العربية · Arabic',
     content: [
       {
         id: 'ae-falaj', type: 'historicalExperience',
@@ -166,7 +166,7 @@ export const countries: Country[] = [
   },
   {
     id: 'SA', name: 'السعودية — عجوة المدينة', flag: '🇸🇦',
-    lat: 24.4672, lon: 39.6111, region: 'ثلاثون مليون نخلة', timezone: 'UTC+3',
+    lat: 24.4672, lon: 39.6111, region: 'ثلاثون مليون نخلة', timezone: 'UTC+3', language: 'العربية · Arabic',
     content: [
       {
         id: 'sa-palms', type: 'culturalVideo',
@@ -182,7 +182,7 @@ export const countries: Country[] = [
   },
   {
     id: 'IQ', name: 'العراق — بصرة النخيل', flag: '🇮🇶',
-    lat: 30.5085, lon: 47.7804, region: 'غابة النخيل الأولى في العالم', timezone: 'UTC+3',
+    lat: 30.5085, lon: 47.7804, region: 'غابة النخيل الأولى في العالم', timezone: 'UTC+3', language: 'العربية · Arabic',
     content: [
       {
         id: 'iq-palms', type: 'culturalVideo',
@@ -198,7 +198,7 @@ export const countries: Country[] = [
   },
   {
     id: 'EG', name: 'مصر — واحة سيوة', flag: '🇪🇬',
-    lat: 29.2032, lon: 25.5196, region: 'أكبر منتج للتمور في العالم', timezone: 'UTC+2',
+    lat: 29.2032, lon: 25.5196, region: 'أكبر منتج للتمور في العالم', timezone: 'UTC+2', language: 'العربية · Arabic',
     content: [
       {
         id: 'eg-palms', type: 'culturalVideo',
@@ -214,7 +214,7 @@ export const countries: Country[] = [
   },
   {
     id: 'MA', name: 'المغرب — خطّارات مراكش', flag: '🇲🇦',
-    lat: 31.6295, lon: -7.9811, region: 'فلج المغرب الأقصى', timezone: 'UTC+1',
+    lat: 31.6295, lon: -7.9811, region: 'فلج المغرب الأقصى', timezone: 'UTC+1', language: 'العربية · Arabic',
     content: [
       {
         id: 'ma-khettara', type: 'historicalExperience',
@@ -230,7 +230,7 @@ export const countries: Country[] = [
   },
   {
     id: 'ES', name: 'إسبانيا — ميراث الأندلس', flag: '🇪🇸',
-    lat: 37.1773, lon: -3.5986, region: 'غرناطة · كلمة عربية تسقي أوروبا', timezone: 'UTC+1',
+    lat: 37.1773, lon: -3.5986, region: 'غرناطة · كلمة عربية تسقي أوروبا', timezone: 'UTC+1', language: 'Español · Spanish',
     content: [
       {
         id: 'es-acequia', type: 'historicalExperience',
@@ -246,7 +246,7 @@ export const countries: Country[] = [
   },
   {
     id: 'TN', name: 'تونس — توزر', flag: '🇹🇳',
-    lat: 33.9197, lon: 8.1335, region: 'ملكة التمور', timezone: 'UTC+1',
+    lat: 33.9197, lon: 8.1335, region: 'ملكة التمور', timezone: 'UTC+1', language: 'العربية · Arabic',
     content: [
       {
         id: 'tn-palms', type: 'culturalVideo',
@@ -262,7 +262,7 @@ export const countries: Country[] = [
   },
   {
     id: 'CN', name: 'الصين — تربان', flag: '🇨🇳',
-    lat: 42.9513, lon: 89.1895, region: 'كاريز طريق الحرير', timezone: 'UTC+8',
+    lat: 42.9513, lon: 89.1895, region: 'كاريز طريق الحرير', timezone: 'UTC+8', language: '中文 · Mandarin Chinese',
     content: [
       {
         id: 'cn-karez', type: 'historicalExperience',

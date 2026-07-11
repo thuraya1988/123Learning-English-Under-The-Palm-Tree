@@ -531,7 +531,10 @@ export class GlobeScene {
   }
 
   private createCountryMarkers() {
-    const dotGeo = new THREE.CircleGeometry(0.025, 16);
+    // Bigger than before (0.025 -> 0.045) so the dot is both easier to see
+    // against the textured globe and easier to actually tap on mobile —
+    // it's now the real hit target (see onClick/checkHover), not decoration.
+    const dotGeo = new THREE.CircleGeometry(0.045, 16);
 
     countries.forEach((country, index) => {
       const hasLive = country.content.some((c) => c.isLive);
@@ -557,19 +560,19 @@ export class GlobeScene {
       this.markerGroup.add(marker);
       this.markers.push(marker);
 
-      gsap.to(dotMat, { opacity: 0.8, duration: 0.5, delay: 1.5 + index * 0.05 });
+      gsap.to(dotMat, { opacity: 0.85, duration: 0.5, delay: 1.5 + index * 0.05 });
 
-      if (hasLive) {
-        gsap.to(marker.scale, {
-          x: 1.5,
-          y: 1.5,
-          duration: 1.0,
-          repeat: -1,
-          yoyo: true,
-          ease: 'sine.inOut',
-          delay: 2 + index * 0.05,
-        });
-      }
+      // Every marker pulses continuously now — previously only "live" ones
+      // did, so the rest sat there as a small static, easy-to-miss dot.
+      gsap.to(marker.scale, {
+        x: hasLive ? 1.6 : 1.35,
+        y: hasLive ? 1.6 : 1.35,
+        duration: hasLive ? 1.0 : 1.4,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+        delay: 2 + index * 0.05,
+      });
     });
   }
 
@@ -628,29 +631,6 @@ export class GlobeScene {
     this.highlightMesh.visible = true;
   }
 
-  private getCountryFromUV(uv: THREE.Vector2): string | null {
-    // Convert UV to lat/lon
-    const lon = uv.x * 360 - 180;
-    const lat = 90 - uv.y * 180;
-
-    // Find closest country by distance
-    let closestId: string | null = null;
-    let closestDist = Infinity;
-
-    for (const country of countries) {
-      const d = Math.sqrt(
-        Math.pow(lat - country.lat, 2) +
-        Math.pow(lon - country.lon, 2)
-      );
-      if (d < closestDist && d < 30) {
-        closestDist = d;
-        closestId = country.id;
-      }
-    }
-
-    return closestId;
-  }
-
   private onMouseMove(event: MouseEvent) {
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -703,39 +683,31 @@ export class GlobeScene {
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObject(this.earthMesh);
-
-    if (intersects.length > 0) {
-      const uv = intersects[0].uv;
-      if (uv) {
-        const countryId = this.getCountryFromUV(uv);
-        if (countryId) {
-          this.callbacks.onCountryClick(countryId);
-        }
-      }
+    // Markers are the real hit targets, not the bare globe surface — a tap
+    // anywhere on a country's landmass used to open its card, which made
+    // the dots purely decorative. Including earthMesh in the same raycast
+    // (and requiring the closest hit to be a marker) also correctly ignores
+    // markers on the far side of the globe, since the near globe surface
+    // sits in front of them along the ray.
+    const intersects = this.raycaster.intersectObjects([...this.markers, this.earthMesh]);
+    const hit = intersects.length > 0 && intersects[0].object !== this.earthMesh ? intersects[0] : null;
+    const countryId = hit ? (hit.object.userData as { countryId?: string }).countryId : null;
+    if (countryId) {
+      this.callbacks.onCountryClick(countryId);
     }
   }
 
   private checkHover() {
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObject(this.earthMesh);
+    const intersects = this.raycaster.intersectObjects([...this.markers, this.earthMesh]);
+    const hit = intersects.length > 0 && intersects[0].object !== this.earthMesh ? intersects[0] : null;
+    const countryId = hit ? ((hit.object.userData as { countryId?: string }).countryId ?? null) : null;
 
-    if (intersects.length > 0) {
-      const uv = intersects[0].uv;
-      if (uv) {
-        const countryId = this.getCountryFromUV(uv);
-        if (countryId !== this.hoveredCountry) {
-          this.hoveredCountry = countryId;
-          this.highlightCountry(countryId);
-          this.callbacks.onCountryHover(countryId);
-          this.renderer.domElement.style.cursor = countryId ? 'pointer' : 'grab';
-        }
-      }
-    } else if (this.hoveredCountry) {
-      this.hoveredCountry = null;
-      this.highlightCountry(null);
-      this.callbacks.onCountryHover(null);
-      this.renderer.domElement.style.cursor = 'grab';
+    if (countryId !== this.hoveredCountry) {
+      this.hoveredCountry = countryId;
+      this.highlightCountry(countryId);
+      this.callbacks.onCountryHover(countryId);
+      this.renderer.domElement.style.cursor = countryId ? 'pointer' : 'grab';
     }
   }
 

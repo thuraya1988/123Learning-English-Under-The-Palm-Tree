@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, ArrowLeft, Clock, Users, Play, Calendar, Trophy, BookOpen, Globe, MapPin, Languages, Coins, Sun, Radio, Store, Handshake } from 'lucide-react';
+import { X, ArrowLeft, Clock, Users, Play, Calendar, Trophy, BookOpen, Globe, MapPin, Languages, Coins, Sun, Radio, Store, Handshake, Search } from 'lucide-react';
 import gsap from 'gsap';
 import type { Country, ContentItem, PartnerCategory } from '@/types';
 import PartnerCard from './PartnerCard';
@@ -169,38 +169,41 @@ function ContentCard({ item, index, onContinueLearning }: {
   }
 
   if (item.type === 'culturalVideo' || item.type === 'historicalExperience') {
+    // These never linked to a real playable video (no curated watch/embed
+    // links exist — only YouTube search-result pages or reference sources),
+    // so the old play-button-over-thumbnail UI implied working video
+    // playback that never happened. Replaced the (also unrelated Omani
+    // heritage-museum) thumbnail photo with an honest icon + label that
+    // matches what the click actually does.
+    const isSearchLink = item.streamUrl?.includes('youtube.com/results');
+    const ActionIcon = isSearchLink ? Search : item.type === 'historicalExperience' ? BookOpen : Play;
+    const actionLabel = isSearchLink
+      ? 'ابحثوا في يوتيوب · Search YouTube'
+      : item.type === 'historicalExperience'
+        ? 'اقرأوا المصدر · Read source'
+        : 'شاهدوا · Watch';
     return (
       <div
         ref={cardRef}
-        className="glass-card overflow-hidden shrink-0 w-[200px]"
+        className="glass-card overflow-hidden shrink-0 w-[200px] cursor-pointer"
         style={{
           animation: 'fadeInUp 0.4s ease-out',
           animationDelay: `${index * 0.05}s`,
           animationFillMode: 'backwards',
         }}
+        onClick={() => {
+          if (item.streamUrl && item.streamUrl !== '#') {
+            window.open(item.streamUrl, '_blank', 'noopener');
+          }
+        }}
       >
-        <div className="relative">
-          <img
-            src={item.thumbnail}
-            alt={item.title}
-            className="w-full aspect-video object-cover cursor-pointer"
-            loading="lazy"
-            onClick={() => {
-              if (item.streamUrl && item.streamUrl !== '#') {
-                window.open(item.streamUrl, '_blank', 'noopener');
-              }
-            }}
-          />
+        <div className="relative w-full aspect-video flex items-center justify-center bg-gradient-to-br from-[var(--accent)]/20 to-[var(--accent)]/5">
+          <ActionIcon className="w-8 h-8 text-[var(--accent)] opacity-70" />
           {item.duration && (
             <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
               {item.duration}m
             </span>
           )}
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/30">
-            <div className="w-10 h-10 rounded-full bg-[var(--accent)] flex items-center justify-center">
-              <Play className="w-5 h-5 text-[var(--bg-primary)] ml-0.5" />
-            </div>
-          </div>
         </div>
         <div className="p-3">
           <h4 className="font-display font-medium text-[13px] text-[var(--text-primary)] leading-tight line-clamp-2">
@@ -208,6 +211,10 @@ function ContentCard({ item, index, onContinueLearning }: {
           </h4>
           <p className="font-body text-[11px] text-[var(--text-tertiary)] mt-1">
             {item.teacher.name}
+          </p>
+          <p className="font-body text-[10px] text-[var(--accent)] mt-1.5 flex items-center gap-1">
+            <ActionIcon className="w-3 h-3" />
+            {actionLabel}
           </p>
         </div>
       </div>

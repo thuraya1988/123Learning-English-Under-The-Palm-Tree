@@ -34,8 +34,13 @@ body { background:var(--soil); color:var(--sand); overflow:hidden; }
 #word-ar { color:var(--soil); font-size:16px; margin-bottom:4px; }
 #word-context { color:var(--earth); font-size:12px; }
 
-#place-btn { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); background:var(--burgundy); border:1.5px solid var(--burgundy); color:var(--sand); padding:12px 40px; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; z-index:15; }
+#place-btn { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); background:var(--burgundy); border:1.5px solid var(--burgundy); color:var(--sand); padding:12px 40px; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; z-index:15; animation:place-pulse 1.4s infinite; }
 #place-btn:active { transform:translateX(-50%) scale(0.95); }
+#place-btn.calm { animation:none; }
+@keyframes place-pulse { 0%,100%{ box-shadow:0 0 0 0 rgba(201,170,128,0.55); } 50%{ box-shadow:0 0 0 10px rgba(201,170,128,0); } }
+
+#ar-hint { position:absolute; bottom:145px; left:50%; transform:translateX(-50%); background:rgba(245,237,216,0.95); color:var(--soil); padding:8px 16px; border-radius:20px; font-size:12px; font-weight:600; text-align:center; z-index:16; white-space:nowrap; transition:opacity 0.4s; box-shadow:0 4px 12px rgba(0,0,0,0.25); }
+#ar-hint.hide { opacity:0; pointer-events:none; }
 
 #start-screen { position:absolute; top:0; left:0; width:100%; height:100%; background:var(--sand); z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px; }
 #start-screen h1 { color:var(--burgundy); font-size:24px; margin-bottom:10px; }
@@ -89,7 +94,8 @@ body { background:var(--soil); color:var(--sand); overflow:hidden; }
             <div class="char-btn" data-char="palm" title="نخلة">🌴<span class="char-check">✓</span></div>
         </div>
 
-        <button id="place-btn">👆 ضع الشخصية هنا</button>
+        <div id="ar-hint">👆 اضغطي داخل الكاميرا لتحددي المكان، ثم اضغطي الزر تحت</div>
+        <button id="place-btn">👆 ضعي ثريا هنا</button>
     </div>
 </div>
 
@@ -133,12 +139,14 @@ document.getElementById('start-btn').addEventListener('click', async () => {
             const rect = canvas.getBoundingClientRect();
             tapX = (e.touches[0].clientX - rect.left) / rect.width;
             tapY = (e.touches[0].clientY - rect.top) / rect.height;
+            document.getElementById('ar-hint').classList.add('hide');
         }, {passive: true});
 
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
             tapX = (e.clientX - rect.left) / rect.width;
             tapY = (e.clientY - rect.top) / rect.height;
+            document.getElementById('ar-hint').classList.add('hide');
         });
 
         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -167,6 +175,7 @@ document.querySelectorAll('.char-btn').forEach(btn => {
         document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
         selectedChar = btn.getAttribute('data-char');
+        document.getElementById('place-btn').textContent = '👆 ضعي ' + CHARACTERS[selectedChar].ar + ' هنا';
     });
 });
 
@@ -185,6 +194,10 @@ document.getElementById('place-btn').addEventListener('click', () => {
         targetScale: 1,
         time: Date.now()
     });
+
+    // First placement understood - stop drawing extra attention to the button/hint
+    document.getElementById('place-btn').classList.add('calm');
+    document.getElementById('ar-hint').classList.add('hide');
 
     // Show word card
     document.getElementById('word-en').textContent = char.word;

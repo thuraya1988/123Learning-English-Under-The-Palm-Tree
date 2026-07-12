@@ -21,9 +21,12 @@ body { background:var(--soil); color:var(--sand); overflow:hidden; }
 #title-bar p { font-size:11px; color:var(--clay); }
 
 #character-selector { position:absolute; bottom:80px; left:50%; transform:translateX(-50%); display:flex; gap:10px; z-index:15; }
-.char-btn { width:60px; height:60px; border-radius:50%; border:3px solid rgba(245,237,216,0.35); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:28px; background:rgba(74,53,32,0.65); transition:all 0.2s; }
-.char-btn.selected { border-color:var(--clay); transform:scale(1.1); box-shadow:0 0 15px rgba(201,170,128,0.5); }
+.char-btn { position:relative; width:60px; height:60px; border-radius:50%; border:3px solid rgba(245,237,216,0.35); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:28px; background:rgba(74,53,32,0.65) center/cover; overflow:hidden; transition:all 0.2s; }
+.char-btn img { width:100%; height:100%; object-fit:cover; object-position:center 30%; pointer-events:none; }
+.char-btn.selected { border-color:var(--clay); border-width:4px; transform:scale(1.15); box-shadow:0 0 16px rgba(201,170,128,0.75); }
 .char-btn:active { transform:scale(0.9); }
+.char-btn .char-check { position:absolute; bottom:-2px; right:-2px; width:18px; height:18px; border-radius:50%; background:var(--burgundy); color:var(--sand); font-size:11px; display:none; align-items:center; justify-content:center; border:1.5px solid var(--sand); }
+.char-btn.selected .char-check { display:flex; }
 
 #word-card { position:absolute; top:60px; left:50%; transform:translateX(-50%) translateY(-100px); background:rgba(245,237,216,0.97); padding:15px 25px; border-radius:16px; border:2px solid var(--burgundy); text-align:center; transition:transform 0.5s ease; z-index:20; }
 #word-card.show { transform:translateX(-50%) translateY(0); }
@@ -79,11 +82,11 @@ body { background:var(--soil); color:var(--sand); overflow:hidden; }
         </div>
 
         <div id="character-selector">
-            <div class="char-btn selected" data-char="john" title="جون جريفيث">👨‍🦰</div>
-            <div class="char-btn" data-char="sophia" title="صوفيا">👩‍⚕️</div>
-            <div class="char-btn" data-char="thuria" title="ثريا">👩‍💼</div>
-            <div class="char-btn" data-char="alexander" title="الإسكندر">👨‍💼</div>
-            <div class="char-btn" data-char="palm" title="نخلة">🌴</div>
+            <div class="char-btn selected" data-char="thuraya" title="ثريا"><img src="../public/assets/characters/ar-thumbs/thuraya-avatar.png" alt="ثريا"><span class="char-check">✓</span></div>
+            <div class="char-btn" data-char="john" title="جون"><img src="../public/assets/characters/ar-thumbs/john-avatar.png" alt="جون"><span class="char-check">✓</span></div>
+            <div class="char-btn" data-char="sofia" title="صوفيا"><img src="../public/assets/characters/ar-thumbs/sofia-avatar.png" alt="صوفيا"><span class="char-check">✓</span></div>
+            <div class="char-btn" data-char="malood" title="ملود"><img src="../public/assets/characters/ar-thumbs/malood-avatar.png" alt="ملود"><span class="char-check">✓</span></div>
+            <div class="char-btn" data-char="palm" title="نخلة">🌴<span class="char-check">✓</span></div>
         </div>
 
         <button id="place-btn">👆 ضع الشخصية هنا</button>
@@ -93,17 +96,28 @@ body { background:var(--soil); color:var(--sand); overflow:hidden; }
 <script>
 // ==================== AR CONTROLLER ====================
 let video, canvas, ctx;
-let selectedChar = 'john';
+let selectedChar = 'thuraya';
 let placedCharacters = [];
 let cameraActive = false;
 
 const CHARACTERS = {
-    john: { emoji: '👨‍🦰', name: 'John Griffith', ar: 'جون جريفيث', word: 'Adventure', wordAr: 'مغامرة', color: '#FF8C00' },
-    sophia: { emoji: '👩‍⚕️', name: 'Sophia', ar: 'صوفيا', word: 'Nurse', wordAr: 'ممرضة', color: '#FF69B4' },
-    thuria: { emoji: '👩‍💼', name: 'Thuria', ar: 'ثريا', word: 'Leader', wordAr: 'قائدة', color: '#228B22' },
-    alexander: { emoji: '👨‍💼', name: 'Alexander', ar: 'الإسكندر', word: 'Friend', wordAr: 'صديق', color: '#4169E1' },
+    thuraya: { img: '../public/assets/characters/ar-thumbs/thuraya-full.png', name: 'Thuraya', ar: 'ثريا', word: 'Author', wordAr: 'كاتبة', color: '#8C6A3F' },
+    john: { img: '../public/assets/characters/ar-thumbs/john-full.png', name: 'John', ar: 'جون', word: 'Student', wordAr: 'طالب', color: '#FF8C00' },
+    sofia: { img: '../public/assets/characters/ar-thumbs/sofia-full.png', name: 'Sofia', ar: 'صوفيا', word: 'Teacher', wordAr: 'معلمة', color: '#FF69B4' },
+    malood: { img: '../public/assets/characters/ar-thumbs/malood-full.png', name: 'Malood', ar: 'ملود', word: 'Goat', wordAr: 'عنزة', color: '#228B22' },
     palm: { emoji: '🌴', name: 'Palm Tree', ar: 'نخلة', word: 'Heritage', wordAr: 'تراث', color: '#4a7c2a' }
 };
+
+// Preload character portrait images so the AR canvas can draw them immediately
+const CHAR_IMAGES = {};
+Object.keys(CHARACTERS).forEach(key => {
+    const c = CHARACTERS[key];
+    if (c.img) {
+        const im = new Image();
+        im.src = c.img;
+        CHAR_IMAGES[key] = im;
+    }
+});
 
 // Start camera
 document.getElementById('start-btn').addEventListener('click', async () => {
@@ -206,6 +220,7 @@ function animateAR() {
         const size = 80 * item.scale * (canvas.width / 400);
 
         const char = CHARACTERS[item.char];
+        const img = CHAR_IMAGES[item.char];
 
         // Draw shadow
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -213,11 +228,18 @@ function animateAR() {
         ctx.ellipse(x, y + size * 0.4, size * 0.5, size * 0.15, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Draw emoji
-        ctx.font = `${size}px serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(char.emoji, x, y);
+        if (img && img.complete && img.naturalWidth > 0) {
+            // Draw the real character portrait, preserving its aspect ratio
+            const imgH = size * 2.1;
+            const imgW = imgH * (img.naturalWidth / img.naturalHeight);
+            ctx.drawImage(img, x - imgW / 2, y - imgH * 0.75, imgW, imgH);
+        } else {
+            // Fallback (palm tree option, or image still loading)
+            ctx.font = `${size}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(char.emoji || '🌴', x, y);
+        }
 
         // Draw name tag
         ctx.fillStyle = 'rgba(0,0,0,0.7)';

@@ -1470,9 +1470,9 @@ class Game {
         `;
         notif.style.cssText = `
             position: fixed; top: 100px; right: 20px;
-            background: rgba(26, 26, 46, 0.95); border: 2px solid #ffd700;
+            background: rgba(74, 53, 32, 0.95); border: 2px solid #C9AA80;
             border-radius: 12px; padding: 1rem; display: flex; align-items: center; gap: 1rem;
-            box-shadow: 0 0 30px rgba(255, 215, 0, 0.3); z-index: 1000;
+            box-shadow: 0 0 30px rgba(201, 170, 128, 0.3); z-index: 1000;
             animation: slideInRight 0.5s ease-out;
         `;
         document.body.appendChild(notif);
@@ -1489,7 +1489,7 @@ class Game {
                 card.classList.remove('locked');
                 card.classList.add('unlocked');
                 card.querySelector('.achievement-status').textContent = '✅ تم الفتح';
-                card.querySelector('.achievement-status').style.color = '#ffd700';
+                card.querySelector('.achievement-status').style.color = '#C9AA80';
             }
         });
     }
@@ -1691,9 +1691,9 @@ class Game {
         const ctx = this.ui.minimapCtx;
         const width = 200, height = 200;
 
-        ctx.fillStyle = '#0a0a0f';
+        ctx.fillStyle = '#1f1710';
         ctx.fillRect(0, 0, width, height);
-        ctx.strokeStyle = 'rgba(255, 215, 0, 0.2)';
+        ctx.strokeStyle = 'rgba(201, 170, 128, 0.2)';
         ctx.strokeRect(0, 0, width, height);
 
         const scale = 2;
@@ -1705,10 +1705,10 @@ class Game {
             const ix = offsetX + obj.position.x / scale;
             const iy = offsetY + obj.position.z / scale;
             const type = obj.userData.type;
-            let color = '#00d4ff';
-            if (type === 'house') color = '#ff006e';
+            let color = '#8C6A3F';
+            if (type === 'house') color = '#B35A2A';
             if (type === 'mosque') color = '#00ff00';
-            if (type === 'shop') color = '#ffd700';
+            if (type === 'shop') color = '#C9AA80';
             ctx.fillStyle = color;
             ctx.fillRect(ix - 3, iy - 3, 6, 6);
         });
@@ -1716,13 +1716,13 @@ class Game {
         // Draw player
         const px = offsetX + this.player.position.x / scale;
         const py = offsetY + this.player.position.z / scale;
-        ctx.fillStyle = '#ffd700';
+        ctx.fillStyle = '#C9AA80';
         ctx.beginPath();
         ctx.arc(px, py, 5, 0, Math.PI * 2);
         ctx.fill();
 
         // Player direction
-        ctx.strokeStyle = '#ffd700';
+        ctx.strokeStyle = '#C9AA80';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(px, py);
@@ -1741,7 +1741,7 @@ class Game {
             particle.className = 'menu-particle';
             particle.style.cssText = `
                 position: absolute; width: ${2 + Math.random() * 4}px; height: ${2 + Math.random() * 4}px;
-                background: rgba(255, 215, 0, ${0.3 + Math.random() * 0.5}); border-radius: 50%;
+                background: rgba(201, 170, 128, ${0.3 + Math.random() * 0.5}); border-radius: 50%;
                 left: ${Math.random() * 100}%; top: ${Math.random() * 100}%;
                 animation: float ${5 + Math.random() * 10}s ease-in-out infinite;
                 animation-delay: ${Math.random() * 5}s;
@@ -1871,15 +1871,15 @@ style.textContent = `
         font-family: 'Tajawal', sans-serif;
     }
     .achievement-notif-icon { font-size: 2rem; }
-    .achievement-notif-title { color: #ffd700; font-weight: 700; font-size: 0.9rem; }
+    .achievement-notif-title { color: #C9AA80; font-weight: 700; font-size: 0.9rem; }
     .achievement-notif-name { color: #fff; font-size: 1.1rem; }
     .achievement-card.locked { opacity: 0.5; filter: grayscale(1); }
-    .achievement-card.unlocked { opacity: 1; filter: grayscale(0); border-color: #ffd700; }
+    .achievement-card.unlocked { opacity: 1; filter: grayscale(0); border-color: #C9AA80; }
     .heart.empty { opacity: 0.3; }
     .weather-indicator {
         position: absolute; top: 80px; right: 20px;
-        background: rgba(26, 26, 46, 0.8); padding: 0.5rem 1rem;
-        border-radius: 20px; border: 1px solid rgba(255, 215, 0, 0.2);
+        background: rgba(74, 53, 32, 0.8); padding: 0.5rem 1rem;
+        border-radius: 20px; border: 1px solid rgba(201, 170, 128, 0.2);
         display: flex; align-items: center; gap: 0.5rem;
         font-size: 0.9rem; color: #f0e6d3;
     }

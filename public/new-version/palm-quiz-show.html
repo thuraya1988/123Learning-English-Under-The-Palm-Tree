@@ -323,7 +323,16 @@ function goLobby(){document.getElementById('winScreen').style.display='none';doc
 (function(){
   const s={muted:false,lastText:''};
   const l={welcome:"Hello! Choose a quiz mode. هيا نبدأ.",mode:"Great choice! Read carefully. اختيار ممتاز.",question:"Read the question and choose. اقرئي واختاري.",correct:"Excellent! Correct. ممتاز، صحيحة.",wrong:"Not this one. Try the next. ليست هذه، حاولي.",timeout:"Time is up. Try again. انتهى الوقت.",win:"Wonderful work! عمل رائع!"};
-  function speak(t){s.lastText=t;const box=document.getElementById('thurayaText');if(box)box.textContent=t;if(s.muted||!window.speechSynthesis)return;try{window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang=/[\u0600-\u06FF]/.test(t)?'ar-SA':'en-US';window.speechSynthesis.speak(u);}catch(e){}}
+  function speak(t){s.lastText=t;const box=document.getElementById('thurayaText');if(box)box.textContent=t;if(s.muted||!window.speechSynthesis)return;try{window.speechSynthesis.cancel();
+    // These strings are "English sentence. Arabic sentence." mashed together \u2014 tagging
+    // the whole thing by whichever script appears anywhere sent the entire line (both
+    // languages) to a single voice. Split at the first Arabic character instead, so
+    // each half is spoken with its own correct voice.
+    const m=t.match(/^([\s\S]*?)([\u0600-\u06FF][\s\S]*)$/);
+    const en=(m?m[1]:t).trim(), ar=(m?m[2]:'').trim();
+    if(en){const u=new SpeechSynthesisUtterance(en);u.lang='en-US';window.speechSynthesis.speak(u);}
+    if(ar){const u2=new SpeechSynthesisUtterance(ar);u2.lang='ar-SA';window.speechSynthesis.speak(u2);}
+  }catch(e){}}
   window.thurayaSpeak=speak;
   document.addEventListener('click',function(e){if(e.target.id==='thurayaReplay')speak(s.lastText||l.welcome);if(e.target.id==='thurayaMute'){s.muted=!s.muted;e.target.textContent=s.muted?'Unmute':'Mute';if(s.muted)window.speechSynthesis?.cancel();}});
   const og=window.startGame;if(og)window.startGame=function(m){speak(l.mode);return og.apply(this,arguments);};

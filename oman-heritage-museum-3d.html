@@ -190,7 +190,7 @@ var renderer = new THREE.WebGLRenderer({antialias:!isMobile, alpha:false, powerP
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(isMobile ? 1 : Math.min(devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.65;
+renderer.toneMappingExposure = 0.85;
 renderer.outputEncoding = THREE.sRGBEncoding;
 document.body.prepend(renderer.domElement);
 
@@ -235,6 +235,15 @@ scene.add(new THREE.AmbientLight(0x3a2010, 1.2));
 // ==================== LOADING ====================
 var lMgr = new THREE.LoadingManager();
 var tLoad = new THREE.TextureLoader(lMgr);
+
+// Room/corridor/diorama lights are all real-time PointLights (and, on desktop,
+// per-diorama SpotLights). With 14 rooms + ~13 corridor points + 34 dioramas,
+// that's 60+ simultaneous dynamic lights, all permanently in the scene — well
+// past what weaker mobile GPUs can shade in one fragment program (some devices
+// silently render unlit/black rather than just running slow). Room and corridor
+// lights are tracked here so update() can hide ones far from the camera each
+// frame; diorama lights are culled via the existing per-frame frameList loop.
+var roomLights = [], corridorLights = [];
 
 lMgr.onProgress = function(url, loaded, total) {
   var pct = Math.round(loaded/total*100);
@@ -309,6 +318,7 @@ function buildMuseum() {
     // Room light
     var lt = new THREE.PointLight(0xffa050, 4.0, 14, 2);
     lt.position.set(mx, H - 0.35, rm.z); scene.add(lt);
+    roomLights.push({light: lt, pos: lt.position.clone()});
 
     makeNameplate(rm);
   });
@@ -317,6 +327,7 @@ function buildMuseum() {
   for(var z = cStart; z > cEnd; z -= 14){
     var clt = new THREE.PointLight(0xffa050, 0.5, 9, 2);
     clt.position.set(0, H - 0.15, z); scene.add(clt);
+    corridorLights.push({light: clt, pos: clt.position.clone()});
   }
 
   // Build diorama frames
@@ -426,8 +437,9 @@ function makeDiorama(data, x, z, ry, s, rm) {
   // Warm glow from top — skipped on mobile: every extra light adds a per-fragment
   // shading cost across the whole scene, and with 34 dioramas the SpotLights (the
   // most expensive light type) were a major contributor to the slow mobile framerate.
+  var topLight = null;
   if(!isMobile){
-    var topLight = new THREE.SpotLight(0xffa050, 1.5, 10, Math.PI/4, 0.5, 1);
+    topLight = new THREE.SpotLight(0xffa050, 1.5, 10, Math.PI/4, 0.5, 1);
     topLight.position.set(0, fh/2 + 0.5, 0);
     topLight.target.position.set(0, 0, -bd/4);
     g.add(topLight);
@@ -497,7 +509,7 @@ function makeDiorama(data, x, z, ry, s, rm) {
     norm: new THREE.Vector3(Math.sin(ry), 0, Math.cos(ry)),
     data: data, rm: rm, imgMat: imgMat, bgMat: bgMat,
     url: url, loaded: true,
-    group: g, innerLight: innerLight
+    group: g, innerLight: innerLight, spot: topLight
   });
   tLoad.load(url, function(tex){
     tex.encoding = THREE.sRGBEncoding;
@@ -719,11 +731,26 @@ function update(dt){
       if(dot > -0.3 && d < bestD){ bestD = d; best = f; }
     }
 
-    // Dynamic lighting based on distance
+    // Dynamic lighting based on distance, and hide lights once they're too
+    // far to matter so the GPU never has to shade against all 34 at once.
     if(f.innerLight){
-      var intensity = Math.max(0.5, Math.min(2.5, 3.5 - d * 0.15));
-      f.innerLight.intensity = intensity;
+      var near = d < 16;
+      f.innerLight.visible = near;
+      if(near){
+        var intensity = Math.max(0.5, Math.min(2.5, 3.5 - d * 0.15));
+        f.innerLight.intensity = intensity;
+      }
     }
+    if(f.spot) f.spot.visible = d < 16;
+  }
+
+  for(var k=0; k<roomLights.length; k++){
+    var rl = roomLights[k];
+    rl.light.visible = cp.distanceTo(rl.pos) < 28;
+  }
+  for(var m=0; m<corridorLights.length; m++){
+    var cl = corridorLights[m];
+    cl.light.visible = cp.distanceTo(cl.pos) < 22;
   }
 
   if(best){

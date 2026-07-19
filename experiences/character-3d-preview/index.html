@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Under the Palm Tree — Premium Omani Character 3D</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #C8A882;
+            overflow: hidden; width: 100vw; height: 100vh;
+        }
+        #canvas-container { width: 100%; height: 100%; position: relative; }
+        canvas { display: block; outline: none; }
+
+        .ui-overlay {
+            position: absolute; top: 22px; left: 24px;
+            z-index: 10; pointer-events: none;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .ui-title {
+            color: #3E2723; font-size: 24px; font-weight: 800;
+            letter-spacing: -0.3px; text-shadow: 0 1px 0 rgba(255,255,255,0.25);
+        }
+        .ui-subtitle {
+            color: #5D4037; font-size: 13px; font-weight: 500;
+            max-width: 300px; line-height: 1.5; opacity: 0.9;
+        }
+        .ui-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(255,248,240,0.85); backdrop-filter: blur(6px);
+            padding: 4px 10px; border-radius: 20px; font-size: 11px;
+            color: #5D4037; font-weight: 600; border: 1px solid rgba(255,255,255,0.5);
+            margin-top: 4px; width: fit-content;
+        }
+
+        .controls-panel {
+            position: absolute; bottom: 24px; left: 50%;
+            transform: translateX(-50%); z-index: 10;
+            background: rgba(255, 248, 240, 0.94);
+            backdrop-filter: blur(12px) saturate(1.2);
+            border-radius: 18px; padding: 14px 18px;
+            display: flex; gap: 8px; flex-wrap: wrap;
+            justify-content: center; align-items: center;
+            box-shadow: 0 10px 40px rgba(62, 39, 35, 0.12);
+            border: 1px solid rgba(255,255,255,0.6);
+            max-width: 92vw;
+        }
+        .ctrl-btn {
+            background: #FAF6F1; color: #3E2723;
+            border: 1px solid #E0D5C8; border-radius: 10px;
+            padding: 8px 14px; font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: all 0.18s ease;
+            pointer-events: auto; display: flex; align-items: center; gap: 5px;
+            white-space: nowrap;
+        }
+        .ctrl-btn:hover {
+            background: #F0E6D8; transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(62,39,35,0.08);
+        }
+        .ctrl-btn.active { background: #8D6E63; color: #FFF8F0; border-color: #8D6E63; }
+        .ctrl-btn.primary { background: #5D4037; color: #FFF8F0; border-color: #5D4037; }
+        .ctrl-btn.primary:hover { background: #4E342E; }
+
+        .side-info {
+            position: absolute; top: 22px; right: 24px; z-index: 10;
+            background: rgba(255, 248, 240, 0.92); backdrop-filter: blur(10px);
+            border-radius: 14px; padding: 16px 18px; width: 210px;
+            box-shadow: 0 6px 24px rgba(62,39,35,0.1);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        .side-info h3 {
+            color: #3E2723; font-size: 11px; margin-bottom: 10px;
+            text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700;
+        }
+        .info-row {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 11px; color: #5D4037; padding: 4px 0;
+            border-bottom: 1px solid rgba(93,64,55,0.06);
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+
+        #loading {
+            position: absolute; inset: 0; background: #C8A882;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; transition: opacity 0.7s ease;
+        }
+        .loader-wrap { text-align: center; }
+        .loader {
+            width: 44px; height: 44px; margin: 0 auto;
+            border: 3px solid rgba(255,255,255,0.25);
+            border-top-color: #5D4037; border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader-text { margin-top: 18px; color: #3E2723; font-size: 14px; font-weight: 600; }
+        .loader-sub { margin-top: 6px; color: #5D4037; font-size: 11px; opacity: 0.8; }
+
+        #toast {
+            position: absolute; top: 20px; left: 50%;
+            transform: translateX(-50%) translateY(-70px);
+            background: #2E7D32; color: white; padding: 10px 24px;
+            border-radius: 10px; font-size: 13px; font-weight: 600;
+            z-index: 50; transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2); pointer-events: none;
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+
+        @media (max-width: 640px) {
+            .ui-title { font-size: 17px; }
+            .side-info { display: none; }
+            .controls-panel { padding: 10px 12px; gap: 6px; border-radius: 14px; }
+            .ctrl-btn { padding: 6px 10px; font-size: 11px; border-radius: 8px; }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
+</head>
+<body>
+    <div id="loading">
+        <div class="loader-wrap">
+            <div class="loader"></div>
+            <div class="loader-text">Under the Palm Tree</div>
+            <div class="loader-sub">Sculpting Omani heritage in 3D…</div>
+        </div>
+    </div>
+    <div id="toast">GLB Exported — Ready for Download</div>
+    <div id="canvas-container"></div>
+
+    <div class="ui-overlay">
+        <div class="ui-title">Under the Palm Tree</div>
+        <div class="ui-subtitle">Premium interactive 3D character<br>Smooth, sculpted paper-craft aesthetic</div>
+        <div class="ui-badge">
+            <span class="info-dot" style="background:#C41E3A"></span>
+            <span class="info-dot" style="background:#006C35"></span>
+            <span class="info-dot" style="background:#F5F5F5"></span>
+            Omani National Identity
+        </div>
+    </div>
+
+    <div class="side-info">
+        <h3>Character Details</h3>
+        <div class="info-row"><span>Age</span><span>14 years</span></div>
+        <div class="info-row"><span>Style</span><span>Sculpted, smooth-shaded</span></div>
+        <div class="info-row"><span>Outfit</span><span>Cream Dishdasha</span></div>
+        <div class="info-row"><span>Headwear</span><span>Embroidered Kumma</span></div>
+        <div class="info-row"><span>Scarf</span><span>National Flag</span></div>
+        <div class="info-row"><span>Footwear</span><span>Traditional Sandals</span></div>
+        <div class="info-row"><span>Polygons</span><span id="poly-count">—</span></div>
+        <div class="info-row"><span>Format</span><span>Web-ready GLB</span></div>
+    </div>
+
+    <div class="controls-panel">
+        <button class="ctrl-btn" onclick="viewFront()">⬆ Front</button>
+        <button class="ctrl-btn" onclick="viewBack()">⬇ Back</button>
+        <button class="ctrl-btn" onclick="viewLeft()">⬅ Left</button>
+        <button class="ctrl-btn" onclick="viewRight()">➡ Right</button>
+        <button class="ctrl-btn" onclick="viewReset()">⟲ Reset</button>
+        <button class="ctrl-btn" id="btn-auto" onclick="toggleAutoRotate()">↻ Auto</button>
+        <button class="ctrl-btn primary" onclick="toggleFullscreen()">⛶ Full</button>
+        <button class="ctrl-btn primary" onclick="exportGLB()">⬇ Export GLB</button>
+    </div>
+
+<script>
+// ============================================================
+//  UNDER THE PALM TREE — 3D OMANI CHARACTER VIEWER
+//  Premium interactive experience with Three.js
+// ============================================================
+
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xC8A882);
+scene.fog = new THREE.Fog(0xC8A882, 9, 22);
+
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(2.5, 2.8, 6.0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+container.appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.minDistance = 2.8;
+controls.maxDistance = 11;
+controls.maxPolarAngle = Math.PI / 2 + 0.12;
+controls.minPolarAngle = 0.35;
+controls.target.set(0, 1.4, 0);
+controls.update();
+
+// ------------------- LIGHTING -------------------
+const ambient = new THREE.AmbientLight(0xFFE8D6, 0.55);
+scene.add(ambient);
+
+const key = new THREE.DirectionalLight(0xFFF5E6, 1.0);
+key.position.set(3.5, 8, 5.5);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 0.5; key.shadow.camera.far = 20;
+key.shadow.camera.left = -5; key.shadow.camera.right = 5;
+key.shadow.camera.top = 7; key.shadow.camera.bottom = -2;
+key.shadow.bias = -0.0004; key.shadow.radius = 5;
+scene.add(key);
+
+const fill = new THREE.DirectionalLight(0xE6D5C3, 0.35);
+fill.position.set(-4, 4.5, 2.5);
+scene.add(fill);
+
+const rim = new THREE.SpotLight(0xFFD8A8, 0.55, 20, Math.PI/5, 0.6);
+rim.position.set(1, 7, -5);
+rim.target.position.set(0, 2, 0);
+scene.add(rim); scene.add(rim.target);
+
+const hemi = new THREE.HemisphereLight(0xFFF8F0, 0x8D6E63, 0.28);
+scene.add(hemi);
+
+// ------------------- GROUND -------------------
+const ground = new THREE.Mesh(
+    new THREE.CircleGeometry(10, 64),
+    new THREE.MeshStandardMaterial({ color: 0xB8956A, roughness: 0.95, metalness: 0 })
+);
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
+scene.add(ground);
+
+const contactShadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.0, 2.0),
+    new THREE.MeshBasicMaterial({ color: 0x5D4037, transparent: true, opacity: 0.12 })
+);
+contactShadow.rotation.x = -Math.PI/2; contactShadow.position.y = 0.01;
+scene.add(contactShadow);
+
+// ------------------- MATERIALS -------------------
+const M = {
+    skin:      new THREE.MeshStandardMaterial({ color: 0xD4A574, roughness: 0.85, metalness: 0 }),
+    skinDark:  new THREE.MeshStandardMaterial({ color: 0xB88A5A, roughness: 0.85, metalness: 0 }),
+    dish:      new THREE.MeshStandardMaterial({ color: 0xF5F0E8, roughness: 0.92, metalness: 0 }),
+    dishDark:  new THREE.MeshStandardMaterial({ color: 0xE8E0D4, roughness: 0.92, metalness: 0 }),
+    hair:      new THREE.MeshStandardMaterial({ color: 0x3E2723, roughness: 0.82, metalness: 0 }),
+    kummaW:    new THREE.MeshStandardMaterial({ color: 0xF8F8F8, roughness: 0.85, metalness: 0 }),
+    kummaG:    new THREE.MeshStandardMaterial({ color: 0x2E7D32, roughness: 0.8,  metalness: 0 }),
+    sandal:    new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.88, metalness: 0 }),
+    scarfR:    new THREE.MeshStandardMaterial({ color: 0xC41E3A, roughness: 0.8,  metalness: 0 }),
+    scarfG:    new THREE.MeshStandardMaterial({ color: 0x006C35, roughness: 0.8,  metalness: 0 }),
+    scarfW:    new THREE.MeshStandardMaterial({ color: 0xF5F5F5, roughness: 0.8,  metalness: 0 }),
+    eyeW:      new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.3,  metalness: 0 }),
+    eyeI:      new THREE.MeshStandardMaterial({ color: 0x5D4037, roughness: 0.4,  metalness: 0.05 }),
+    eyeP:      new THREE.MeshStandardMaterial({ color: 0x1A1A1A, roughness: 0.2,  metalness: 0 }),
+    brow:      new THREE.MeshStandardMaterial({ color: 0x2C1B12, roughness: 0.9,  metalness: 0 }),
+    mouth:     new THREE.MeshStandardMaterial({ color: 0xC48A74, roughness: 0.7,  metalness: 0 }),
+    eyelid:    new THREE.MeshStandardMaterial({ color: 0xD4A574, roughness: 0.8,  metalness: 0 }),
+};
+
+// ------------------- PROCEDURAL TEXTURES -------------------
+function makeKummaTex() {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+    const x = c.getContext('2d');
+    x.fillStyle = '#F8F8F8'; x.fillRect(0,0,512,128);
+    // Green band
+    x.fillStyle = '#2E7D32'; x.fillRect(0, 36, 512, 56);
+    // White diamond pattern
+    x.fillStyle = '#FFFFFF'; x.strokeStyle = '#FFFFFF'; x.lineWidth = 2;
+    for(let i=0; i<512; i+=32) {
+        x.beginPath(); x.moveTo(i, 36); x.lineTo(i+16, 92); x.stroke();
+        x.beginPath(); x.moveTo(i+16, 36); x.lineTo(i, 92); x.stroke();
+    }
+    for(let i=16; i<512; i+=32) {
+        x.beginPath(); x.moveTo(i, 46); x.lineTo(i+8, 64); x.lineTo(i, 82); x.lineTo(i-8, 64); x.closePath(); x.fill();
+    }
+    x.fillStyle = '#4CAF50'; x.fillRect(0, 104, 512, 8);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping;
+    t.repeat.set(2,1);
+    return t;
+}
+function makeEmblemTex() {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+    const x = c.getContext('2d');
+    x.fillStyle = '#C41E3A'; x.fillRect(0,0,256,256);
+    x.strokeStyle = '#FFFFFF'; x.lineWidth = 7; x.lineCap = 'round';
+    // Crossed swords
+    x.beginPath(); x.moveTo(70, 70); x.lineTo(186, 186); x.stroke();
+    x.beginPath(); x.moveTo(186, 70); x.lineTo(70, 186); x.stroke();
+    // Dagger
+    x.beginPath(); x.moveTo(128, 55); x.lineTo(128, 190); x.stroke();
+    // Hilts
+    x.fillStyle = '#FFFFFF';
+    x.beginPath(); x.arc(128, 55, 9, 0, Math.PI*2); x.fill();
+    x.beginPath(); x.arc(128, 195, 11, 0, Math.PI*2); x.fill();
+    // Guards
+    x.beginPath(); x.moveTo(108, 75); x.lineTo(148, 75); x.stroke();
+    x.beginPath(); x.moveTo(108, 180); x.lineTo(148, 180); x.stroke();
+    return new THREE.CanvasTexture(c);
+}
+const kummaTex = makeKummaTex();
+const emblemTex = makeEmblemTex();
+M.kummaBand = new THREE.MeshStandardMaterial({ map: kummaTex, roughness: 0.8, metalness: 0 });
+M.scarfEmblem = new THREE.MeshStandardMaterial({ map: emblemTex, roughness: 0.8, metalness: 0 });
+
+// ------------------- CHARACTER -------------------
+const character = new THREE.Group();
+scene.add(character);
+
+// Helper
+function box(w,h,d,mat,seg=1) {
+    const g = new THREE.BoxGeometry(w,h,d,seg,seg,seg);
+    const m = new THREE.Mesh(g, mat);
+    m.castShadow = true; m.receiveShadow = true;
+    return m;
+}
+
+// --- SKELETON HIERARCHY ---
+const root = new THREE.Group(); character.add(root);
+const hips = new THREE.Group(); hips.position.y = 1.045; root.add(hips);
+const spine = new THREE.Group(); spine.position.y = 0.15; hips.add(spine);
+const chest = new THREE.Group(); chest.position.y = 0.35; spine.add(chest);
+const neck = new THREE.Group(); neck.position.y = 0.55; chest.add(neck);
+const head = new THREE.Group(); neck.add(head);
+
+const lSh = new THREE.Group(); lSh.position.set(0.34, 0.46, 0); chest.add(lSh);
+const lArm = new THREE.Group(); lArm.position.y = -0.18; lSh.add(lArm);
+const lFore = new THREE.Group(); lFore.position.y = -0.22; lArm.add(lFore);
+const lHand = new THREE.Group(); lHand.position.y = -0.18; lFore.add(lHand);
+
+const rSh = new THREE.Group(); rSh.position.set(-0.34, 0.46, 0); chest.add(rSh);
+const rArm = new THREE.Group(); rArm.position.y = -0.18; rSh.add(rArm);
+const rFore = new THREE.Group(); rFore.position.y = -0.22; rArm.add(rFore);
+const rHand = new THREE.Group(); rHand.position.y = -0.18; rFore.add(rHand);
+
+const lLeg = new THREE.Group(); lLeg.position.set(0.18, -0.1, 0); hips.add(lLeg);
+const lKnee = new THREE.Group(); lKnee.position.y = -0.45; lLeg.add(lKnee);
+const lFoot = new THREE.Group(); lFoot.position.y = -0.45; lKnee.add(lFoot);
+
+const rLeg = new THREE.Group(); rLeg.position.set(-0.18, -0.1, 0); hips.add(rLeg);
+const rKnee = new THREE.Group(); rKnee.position.y = -0.45; rLeg.add(rKnee);
+const rFoot = new THREE.Group(); rFoot.position.y = -0.45; rKnee.add(rFoot);
+
+// --- HEAD (smooth sphere instead of boxes) ---
+const headGeo = new THREE.SphereGeometry(0.205, 20, 16);
+const headBase = new THREE.Mesh(headGeo, M.skin);
+headBase.scale.set(1, 1.04, 0.9);
+headBase.position.y = 0.20; headBase.castShadow = true; headBase.receiveShadow = true; head.add(headBase);
+
+// Ears
+const earG = new THREE.SphereGeometry(0.05, 10, 10);
+const lEar = new THREE.Mesh(earG, M.skin); lEar.scale.set(0.55, 1, 0.7); lEar.position.set(0.20, 0.21, 0); lEar.castShadow = true; head.add(lEar);
+const rEar = new THREE.Mesh(earG, M.skin); rEar.scale.set(0.55, 1, 0.7); rEar.position.set(-0.20, 0.21, 0); rEar.castShadow = true; head.add(rEar);
+
+// Hair — a smooth partial-sphere "cap" hugging the sides/back of the head,
+// open across the face (short hairstyle, mostly covered by the kumma anyway).
+const hairCapGeo = new THREE.SphereGeometry(0.218, 20, 14, 2.44, 4.67, 0.05, 2.0);
+const hairCap = new THREE.Mesh(hairCapGeo, M.hair);
+hairCap.scale.set(1, 1.04, 0.9);
+hairCap.position.y = 0.20; hairCap.castShadow = true; head.add(hairCap);
+
+// Eyes
+function eye() {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, 0.03), M.eyeW));
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.035), M.eyeI));
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 0.04), M.eyeP));
+    return g;
+}
+const lEye = eye(); lEye.position.set(0.10, 0.26, 0.17); head.add(lEye);
+const rEye = eye(); rEye.position.set(-0.10, 0.26, 0.17); head.add(rEye);
+
+// Eyelids (blinking)
+const lidG = new THREE.BoxGeometry(0.10, 0.035, 0.04);
+const lLid = new THREE.Mesh(lidG, M.eyelid); lLid.position.set(0.10, 0.29, 0.17); head.add(lLid);
+const rLid = new THREE.Mesh(lidG, M.eyelid); rLid.position.set(-0.10, 0.29, 0.17); head.add(rLid);
+
+// Eyebrows
+const browG = new THREE.BoxGeometry(0.10, 0.022, 0.025);
+const lBrow = new THREE.Mesh(browG, M.brow); lBrow.position.set(0.10, 0.32, 0.18); head.add(lBrow);
+const rBrow = new THREE.Mesh(browG, M.brow); rBrow.position.set(-0.10, 0.32, 0.18); head.add(rBrow);
+
+// Nose & Mouth
+const nose = box(0.035, 0.055, 0.035, M.skinDark, 1); nose.position.set(0, 0.20, 0.19); head.add(nose);
+const mouth = box(0.07, 0.012, 0.018, M.mouth, 1); mouth.position.set(0, 0.10, 0.18); head.add(mouth);
+
+// --- KUMMA ---
+const kumma = new THREE.Group(); head.add(kumma);
+const kBase = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.22, 0.18, 12), M.kummaW);
+kBase.position.y = 0.52; kBase.castShadow = true; kumma.add(kBase);
+const kTop = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.035, 12), M.kummaW);
+kTop.position.y = 0.62; kTop.castShadow = true; kumma.add(kTop);
+const kBand = new THREE.Mesh(new THREE.CylinderGeometry(0.222, 0.222, 0.09, 24, 1, true), M.kummaBand);
+kBand.position.y = 0.52; kumma.add(kBand);
+
+// --- DISHDASHA ---
+// One continuous smooth robe (lathe/body-of-revolution) instead of separate torso+skirt boxes.
+// Points are (radius, absolute height) from hem to collar; root has no offset so these are world Y.
+const robeProfile = [
+    [0.335, 0.05], [0.32, 0.30], [0.30, 0.65], [0.28, 1.045],
+    [0.255, 1.35], [0.238, 1.55], [0.255, 1.85], [0.24, 2.0],
+    [0.145, 2.15], [0.115, 2.22],
+].map(([r, y]) => new THREE.Vector2(r, y));
+const robeGeo = new THREE.LatheGeometry(robeProfile, 24);
+const robe = new THREE.Mesh(robeGeo, M.dish);
+robe.castShadow = true; robe.receiveShadow = true; root.add(robe);
+// Collar
+const collar = box(0.15, 0.10, 0.035, M.dishDark, 1); collar.position.set(0, 0.66, 0.145); chest.add(collar);
+// Placket
+const placket = box(0.035, 0.50, 0.018, M.dishDark, 1); placket.position.set(0, 0.34, 0.15); chest.add(placket);
+// Tassel
+const tassel = box(0.012, 0.07, 0.012, M.dishDark, 1); tassel.position.set(0, 0.04, 0.155); chest.add(tassel);
+// Fold lines (subtle geometry)
+const foldL = box(0.01, 1.4, 0.02, M.dishDark, 1); foldL.position.set(0.12, -0.2425, 0.14); hips.add(foldL);
+const foldR = box(0.01, 1.4, 0.02, M.dishDark, 1); foldR.position.set(-0.12, -0.2425, 0.14); hips.add(foldR);
+
+// Sleeves (tapered rounded cylinder instead of a box)
+const sleeveG = new THREE.CylinderGeometry(0.075, 0.095, 0.52, 14, 3);
+const lSleeve = new THREE.Mesh(sleeveG, M.dish); lSleeve.position.y = -0.22; lSleeve.castShadow = true; lArm.add(lSleeve);
+const rSleeve = new THREE.Mesh(sleeveG, M.dish); rSleeve.position.y = -0.22; rSleeve.castShadow = true; rArm.add(rSleeve);
+const cuffG = new THREE.CylinderGeometry(0.10, 0.10, 0.045, 14);
+const lCuff = new THREE.Mesh(cuffG, M.dishDark); lCuff.position.y = -0.28; lCuff.castShadow = true; lArm.add(lCuff);
+const rCuff = new THREE.Mesh(cuffG, M.dishDark); rCuff.position.y = -0.28; rCuff.castShadow = true; rArm.add(rCuff);
+
+// --- HANDS (rounded palm + tapered fingers instead of boxes) ---
+function hand(isLeft) {
+    const g = new THREE.Group();
+    const palm = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), M.skin);
+    palm.scale.set(1, 1.1, 0.6); palm.castShadow = true; g.add(palm);
+    const fingerG = new THREE.CylinderGeometry(0.009, 0.011, 0.055, 6);
+    for(let i=0; i<4; i++) {
+        const f = new THREE.Mesh(fingerG, M.skin);
+        f.position.set((i-1.5)*0.017, -0.055, 0.01); f.castShadow = true; g.add(f);
+    }
+    const thumb = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.011, 0.035, 6), M.skin);
+    thumb.position.set(isLeft ? 0.042 : -0.042, -0.015, 0.015);
+    thumb.rotation.z = isLeft ? -0.35 : 0.35; thumb.castShadow = true; g.add(thumb);
+    return g;
+}
+const lHandMesh = hand(true); lHandMesh.position.y = -0.045; lHand.add(lHandMesh);
+const rHandMesh = hand(false); rHandMesh.position.y = -0.045; rHand.add(rHandMesh);
+
+// --- SCARF (Corrected: neck wrap only visible from back) ---
+const scarf = new THREE.Group(); neck.add(scarf);
+// White neck wrap (narrow, visible all around)
+const neckWrap = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.155, 0.07, 14), M.scarfW);
+neckWrap.position.y = 0.02; neckWrap.castShadow = true; scarf.add(neckWrap);
+
+// Front Red panel (with emblem)
+const redPanel = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.62, 0.012, 1, 4, 1), M.scarfEmblem);
+redPanel.position.set(0.075, -0.28, 0.32); redPanel.castShadow = true; scarf.add(redPanel);
+// Front Green panel
+const greenPanel = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.62, 0.012, 1, 4, 1), M.scarfG);
+greenPanel.position.set(-0.075, -0.28, 0.32); greenPanel.castShadow = true; scarf.add(greenPanel);
+// White center strip
+const wStrip = box(0.035, 0.58, 0.01, M.scarfW, 1); wStrip.position.set(0, -0.26, 0.32); scarf.add(wStrip);
+
+// Stripes near bottom
+const rStripe = box(0.095, 0.025, 0.013, M.scarfR, 1); rStripe.position.set(0.075, -0.50, 0.32); scarf.add(rStripe);
+const gStripe = box(0.095, 0.025, 0.013, M.scarfG, 1); gStripe.position.set(-0.075, -0.50, 0.32); scarf.add(gStripe);
+
+// Fringes
+for(let i=0; i<5; i++) {
+    const f1 = box(0.011, 0.035, 0.011, M.scarfW, 1); f1.position.set(0.035 + i*0.02, -0.62, 0.32); scarf.add(f1);
+    const f2 = box(0.011, 0.035, 0.011, M.scarfW, 1); f2.position.set(-0.035 - i*0.02, -0.62, 0.32); scarf.add(f2);
+}
+
+// --- SANDALS ---
+function sandal() {
+    const g = new THREE.Group();
+    g.add(box(0.13, 0.035, 0.26, M.sandal, 1)); // sole
+    const tStrap = box(0.11, 0.022, 0.035, M.sandal, 1); tStrap.position.set(0, 0.025, 0.075); g.add(tStrap);
+    const aStrap = box(0.11, 0.022, 0.035, M.sandal, 1); aStrap.position.set(0, 0.025, -0.075); g.add(aStrap);
+    const sL = box(0.013, 0.022, 0.16, M.sandal, 1); sL.position.set(0.055, 0.025, 0); g.add(sL);
+    const sR = box(0.013, 0.022, 0.16, M.sandal, 1); sR.position.set(-0.055, 0.025, 0); g.add(sR);
+    return g;
+}
+const lSandal = sandal(); lSandal.position.y = -0.045; lFoot.add(lSandal);
+const rSandal = sandal(); rSandal.position.y = -0.045; rFoot.add(rSandal);
+
+// --- LEGS (skin under dishdasha) ---
+const legGeo = new THREE.CylinderGeometry(0.055, 0.06, 0.42, 12, 2);
+const lLegMesh = new THREE.Mesh(legGeo, M.skin); lLegMesh.position.y = -0.21; lLegMesh.castShadow = true; lLeg.add(lLegMesh);
+const rLegMesh = new THREE.Mesh(legGeo, M.skin); rLegMesh.position.y = -0.21; rLegMesh.castShadow = true; rLeg.add(rLegMesh);
+
+// --- POSE ---
+lSh.rotation.z = 0.06; lArm.rotation.z = 0.04; lFore.rotation.z = 0.02; lHand.rotation.x = 0.08;
+rSh.rotation.z = -0.06; rArm.rotation.z = -0.04; rFore.rotation.z = -0.02; rHand.rotation.x = 0.08;
+
+// ------------------- ANIMATION -------------------
+let autoRotate = false;
+let t = 0;
+function animate() {
+    requestAnimationFrame(animate); t += 0.016;
+    // Breathing
+    const b = Math.sin(t * 1.6) * 0.012;
+    chest.scale.set(1 + b, 1 + b*0.6, 1 + b);
+    chest.position.y = 0.35 + b * 0.25;
+    lSh.position.y = 0.46 + b * 0.15;
+    rSh.position.y = 0.46 + b * 0.15;
+    // Blinking
+    const bc = t % 3.8;
+    if(bc > 3.65 && bc < 3.80) {
+        const blink = (bc - 3.65) / 0.15;
+        const s = 1 + Math.sin(blink * Math.PI) * 1.5;
+        lLid.scale.y = s; rLid.scale.y = s;
+        lLid.position.y = 0.29 - (s-1)*0.02;
+        rLid.position.y = 0.29 - (s-1)*0.02;
+    } else {
+        lLid.scale.y = 1; rLid.scale.y = 1;
+        lLid.position.y = 0.29; rLid.position.y = 0.29;
+    }
+    if(autoRotate) character.rotation.y += 0.0025;
+    controls.update(); renderer.render(scene, camera);
+}
+
+// ------------------- CAMERA VIEWS -------------------
+let targetPos = null, targetLook = null, lerpT = 0;
+function setView(cx, cy, cz, lx, ly, lz) {
+    autoRotate = false; document.getElementById('btn-auto').classList.remove('active');
+    targetPos = new THREE.Vector3(cx, cy, cz);
+    targetLook = new THREE.Vector3(lx, ly, lz);
+    lerpT = 0; character.rotation.y = 0;
+}
+function viewFront() { setView(0, 2.6, 6.5, 0, 1.4, 0); }
+function viewBack() { setView(0, 2.6, -6.5, 0, 1.4, 0); }
+function viewLeft() { setView(6.5, 2.6, 0, 0, 1.4, 0); }
+function viewRight() { setView(-6.5, 2.6, 0, 0, 1.4, 0); }
+function viewReset() { setView(2.5, 2.8, 6.0, 0, 1.4, 0); }
+function toggleAutoRotate() { autoRotate = !autoRotate; document.getElementById('btn-auto').classList.toggle('active'); }
+function toggleFullscreen() { if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+
+const origUpdate = controls.update;
+controls.update = function() {
+    if(targetPos && lerpT < 1) {
+        lerpT += 0.035;
+        const ease = 1 - Math.pow(1 - Math.min(lerpT,1), 3);
+        camera.position.lerp(targetPos, ease);
+        controls.target.lerp(targetLook, ease);
+        if(lerpT >= 1) { targetPos = null; targetLook = null; }
+    }
+    origUpdate.call(controls);
+};
+
+// ------------------- EXPORT GLB -------------------
+function exportGLB() {
+    const exporter = new THREE.GLTFExporter();
+    exporter.parse(character, function(glb) {
+        const blob = new Blob([glb], { type: 'model/gltf-binary' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'omani_character_under_palm_tree.glb';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        const toast = document.getElementById('toast');
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+    }, function(err) {
+        console.error('Export error:', err);
+        alert('Export failed. See console.');
+    }, { binary: true });
+}
+
+// ------------------- POLY COUNT -------------------
+let polyCount = 0;
+character.traverse(o => { if(o.isMesh && o.geometry) { polyCount += o.geometry.index ? o.geometry.index.count/3 : o.geometry.attributes.position.count/3; } });
+document.getElementById('poly-count').textContent = Math.round(polyCount).toLocaleString();
+
+// ------------------- RESIZE -------------------
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Hide loader
+setTimeout(() => { const l = document.getElementById('loading'); l.style.opacity = '0'; setTimeout(()=>l.style.display='none', 700); }, 1400);
+
+animate();
+</script>
+</body>
+</html>

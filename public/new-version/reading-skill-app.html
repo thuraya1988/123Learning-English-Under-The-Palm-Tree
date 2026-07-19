@@ -1286,33 +1286,42 @@ async function startRecording() {
   tl.textContent = 'Listening...';
   tl.classList.remove('empty');
   
-  let finalTranscript = '';
-  
+  // committedFinal holds everything already recognized in earlier
+  // recognition sessions (recognition auto-restarts periodically on some
+  // devices); each onresult rebuilds this session's text from scratch off
+  // event.results[0..length) instead of trusting event.resultIndex, whose
+  // behavior is inconsistent across browsers and previously caused already-
+  // finalized text to be re-appended on every update (a runaway duplicated-
+  // prefix transcript, e.g. "small small small leather small leather pound...").
+  let committedFinal = '';
+
   recognition.onresult = (event) => {
-    let interim = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
+    let sessionFinal = '', interim = '';
+    for (let i = 0; i < event.results.length; i++) {
       const result = event.results[i];
       const text = result[0].transcript;
-      if (result.isFinal) finalTranscript += ' ' + text;
-      else interim = text;
+      if (result.isFinal) sessionFinal += ' ' + text;
+      else interim += ' ' + text;
     }
-    state.recognized = (finalTranscript + ' ' + interim).trim();
+    state.recognized = (committedFinal + ' ' + sessionFinal + ' ' + interim).trim();
     tl.textContent = state.recognized || 'Listening...';
-    
+
     // Update word matching live
     updateWordMatching(state.recognized);
   };
-  
+
   recognition.onerror = (e) => {
     console.error('Recognition error:', e.error);
     if (e.error !== 'aborted' && e.error !== 'no-speech') {
       tl.textContent = 'Error: ' + e.error + '. Try again.';
     }
   };
-  
+
   recognition.onend = () => {
     if (state.isRecording) {
-      // Auto-restart if user hasn't stopped
+      // Commit what's been recognized so far, then start a fresh session
+      // (a fresh session resets event.results back to empty).
+      committedFinal = state.recognized;
       try { recognition.start(); } catch(e) { stopRecording(); }
     }
   };

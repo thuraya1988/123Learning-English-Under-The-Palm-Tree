@@ -1043,21 +1043,20 @@ class Game {
     initPlayer() {
         this.player = new THREE.Group();
 
-        // Shirt (قميص) - white
-        const shirtGeo = new THREE.CylinderGeometry(0.4, 0.5, 1.8, 8);
-        const shirtMat = new THREE.MeshStandardMaterial({ color: 0xf8f8f8, roughness: 0.7, metalness: 0.0 });
-        const shirt = new THREE.Mesh(shirtGeo, shirtMat);
-        shirt.position.y = 2.4;
-        shirt.castShadow = true;
-        this.player.add(shirt);
+        // Dishdasha (الدشداشة) - single ankle-length white robe, not shirt+pants
+        const dishdashaGeo = new THREE.CylinderGeometry(0.42, 0.58, 3.2, 10);
+        const dishdashaMat = new THREE.MeshStandardMaterial({ color: 0xf8f6f0, roughness: 0.75, metalness: 0.0 });
+        const dishdasha = new THREE.Mesh(dishdashaGeo, dishdashaMat);
+        dishdasha.position.y = 1.75;
+        dishdasha.castShadow = true;
+        this.player.add(dishdasha);
 
-        // Pants (بنطلون) - dark
-        const pantsGeo = new THREE.CylinderGeometry(0.35, 0.4, 1.5, 8);
-        const pantsMat = new THREE.MeshStandardMaterial({ color: 0x2c2c2c, roughness: 0.8, metalness: 0.0 });
-        const pants = new THREE.Mesh(pantsGeo, pantsMat);
-        pants.position.y = 0.75;
-        pants.castShadow = true;
-        this.player.add(pants);
+        // Collar tassel (furakha) placeholder at the neckline
+        const tasselGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.35, 6);
+        const tasselMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: 0.6 });
+        const tassel = new THREE.Mesh(tasselGeo, tasselMat);
+        tassel.position.set(0, 3.05, 0.4);
+        this.player.add(tassel);
 
         // Head
         const headGeo = new THREE.SphereGeometry(0.32, 8, 8);
@@ -1067,12 +1066,19 @@ class Game {
         head.castShadow = true;
         this.player.add(head);
 
-        // Hair
-        const hairGeo = new THREE.SphereGeometry(0.33, 8, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-        const hairMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
-        const hair = new THREE.Mesh(hairGeo, hairMat);
-        hair.position.y = 3.65;
-        this.player.add(hair);
+        // Kummah (الكمّة) - embroidered cap, replaces the old plain "hair" blob
+        const kummahGeo = new THREE.CylinderGeometry(0.3, 0.33, 0.28, 10);
+        const kummahMat = new THREE.MeshStandardMaterial({ color: 0xf0ead6, roughness: 0.8 });
+        const kummah = new THREE.Mesh(kummahGeo, kummahMat);
+        kummah.position.y = 3.85;
+        this.player.add(kummah);
+
+        // Kummah embroidered band (stand-in for the geometric pattern)
+        const kummahBandGeo = new THREE.CylinderGeometry(0.335, 0.335, 0.09, 10);
+        const kummahBandMat = new THREE.MeshStandardMaterial({ color: 0x4a6b52, roughness: 0.7 });
+        const kummahBand = new THREE.Mesh(kummahBandGeo, kummahBandMat);
+        kummahBand.position.y = 3.74;
+        this.player.add(kummahBand);
 
         // Arms
         const armGeo = new THREE.CylinderGeometry(0.1, 0.12, 1.4, 6);
@@ -1144,9 +1150,9 @@ class Game {
         greenStripe.rotation.y = Math.PI;
         this.player.add(greenStripe);
 
-        // Shoes
-        const shoeGeo = new THREE.BoxGeometry(0.25, 0.15, 0.4);
-        const shoeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+        // Sandals (نعال)
+        const shoeGeo = new THREE.BoxGeometry(0.25, 0.1, 0.4);
+        const shoeMat = new THREE.MeshStandardMaterial({ color: 0xa08056, roughness: 0.9 });
         const leftShoe = new THREE.Mesh(shoeGeo, shoeMat);
         leftShoe.position.set(-0.15, 0.075, 0.1);
         this.player.add(leftShoe);

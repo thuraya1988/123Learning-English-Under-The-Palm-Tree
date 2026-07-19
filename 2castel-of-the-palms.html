@@ -186,6 +186,22 @@ canvas#g{position:fixed;top:0;left:0;width:100vw;height:100vh}
 #ip{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);padding:8px 22px;background:rgba(26,18,8,.85);border:1px solid rgba(201,170,128,.3);color:var(--clay);font-family:var(--font-b);font-size:12px;letter-spacing:3px;text-transform:uppercase;z-index:100;display:none;animation:pu 1.5s infinite}
 
 /* ============================================================
+   TOUCH MOVEMENT ARROWS — shown only on touch devices, hidden
+   whenever a mouse/trackpad is the primary pointer
+   ============================================================ */
+#tpad{position:fixed;bottom:18px;left:18px;z-index:100;display:none;grid-template-columns:44px 44px 44px;grid-template-rows:44px 44px 44px;gap:4px}
+#tpad button{grid-column:2;background:rgba(26,18,8,.82);border:1px solid rgba(201,170,128,.4);color:var(--clay);border-radius:8px;font-size:18px;display:flex;align-items:center;justify-content:center;touch-action:none;-webkit-tap-highlight-color:transparent}
+#tpad button:active{background:rgba(201,170,128,.35)}
+#tpad .tp-up{grid-row:1;grid-column:2}
+#tpad .tp-left{grid-row:2;grid-column:1}
+#tpad .tp-down{grid-row:3;grid-column:2}
+#tpad .tp-right{grid-row:2;grid-column:3}
+@media(hover:none) and (pointer:coarse){
+  #tpad.on{display:grid}
+  #ct{display:none!important} /* the WASD key hints don't apply on touch */
+}
+
+/* ============================================================
    TRANSITION OVERLAY — 3D
    ============================================================ */
 #to{position:fixed;inset:0;z-index:800;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .7s}
@@ -281,6 +297,12 @@ canvas#g{position:fixed;top:0;left:0;width:100vw;height:100vh}
 <div id="xh"></div><div id="ip">Click or E</div>
 <div id="ct"><div class="cn"><div class="kc">W</div>Fwd</div><div class="cn"><div class="kc">A</div><div class="kc">D</div>Turn</div><div class="cn"><div class="kc">S</div>Back</div><div class="cn"><div class="kc">E</div>Use</div></div>
 <div id="mm"><canvas id="mc" width="150" height="150"></canvas></div>
+<div id="tpad">
+  <button class="tp-up" aria-label="Forward">&#8593;</button>
+  <button class="tp-left" aria-label="Turn left">&#8592;</button>
+  <button class="tp-down" aria-label="Back">&#8595;</button>
+  <button class="tp-right" aria-label="Turn right">&#8594;</button>
+</div>
 
 <!-- ═══════ QUIZ MODAL ═══════ -->
 <div id="qm"><div class="qb"><div class="ql" id="ql"></div><div class="qq" id="qq"></div><div class="qo" id="qo"></div></div></div>
@@ -480,6 +502,20 @@ document.addEventListener('keydown',function(e){kd[e.key.toLowerCase()]=true;
   if(e.key.toLowerCase()==='e')tryAct();
 });
 document.addEventListener('keyup',function(e){kd[e.key.toLowerCase()]=false;});
+
+// Touch D-pad — same kd flags the keyboard uses, so move() needs no changes.
+// Pointer Lock (used for the mouse-look camera) doesn't exist on touch devices,
+// so this is the only way to move/turn on a phone or tablet.
+(function(){
+  var pad=document.getElementById('tpad');
+  var dirs={'.tp-up':'arrowup','.tp-down':'arrowdown','.tp-left':'arrowleft','.tp-right':'arrowright'};
+  Object.keys(dirs).forEach(function(sel){
+    var btn=pad.querySelector(sel), key=dirs[sel];
+    btn.addEventListener('touchstart',function(e){e.preventDefault();kd[key]=true;},{passive:false});
+    btn.addEventListener('touchend',function(e){e.preventDefault();kd[key]=false;},{passive:false});
+    btn.addEventListener('touchcancel',function(){kd[key]=false;});
+  });
+})();
 
 cvs.addEventListener('click',function(){
   if(!gameOn||won||lvlDone)return;
@@ -780,6 +816,7 @@ document.getElementById('go').addEventListener('click',function(){
     document.getElementById('hud').style.display='flex';
     document.getElementById('mm').style.display='block';
     document.getElementById('ct').style.display='flex';
+    document.getElementById('tpad').classList.add('on');
     document.getElementById('xh').style.display='block';
     document.getElementById('at').style.display='block';
     document.getElementById('back-btn').style.display='flex';

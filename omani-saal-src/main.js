@@ -39,7 +39,7 @@ const Achievements = {
     night_walker: { id: 'night_walker', name: 'سائر الليل', desc: 'أكمل التوزيع ليلاً بدون ما يمسكك الحارس', icon: '🌙', unlocked: false },
     rain_dancer: { id: 'rain_dancer', name: 'راكص المطر', desc: 'شغل المطر السايبربانك 5 مرات', icon: '🌧️', unlocked: false },
     time_traveler: { id: 'time_traveler', name: 'مسافر الوقت', desc: 'استخدم تسريع الوقت 10 مرات', icon: '⏰', unlocked: false },
-    omani_hero: { id: 'omani_hero', name: 'بطل عمان', desc: 'أكمل كل المهام في القرية', icon: '⚔️', unlocked: false }
+    omani_hero: { id: 'omani_hero', name: 'بطل عمان', desc: 'أكمل كل المهام في القرية', icon: '🗡️', unlocked: false }
 };
 
 class Game {

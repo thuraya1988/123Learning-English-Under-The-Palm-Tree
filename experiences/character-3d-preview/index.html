@@ -132,7 +132,7 @@
 
     <div class="ui-overlay">
         <div class="ui-title">Under the Palm Tree</div>
-        <div class="ui-subtitle">Premium interactive 3D character<br>Low-poly paper sculpture aesthetic</div>
+        <div class="ui-subtitle">Premium interactive 3D character<br>Smooth, sculpted paper-craft aesthetic</div>
         <div class="ui-badge">
             <span class="info-dot" style="background:#C41E3A"></span>
             <span class="info-dot" style="background:#006C35"></span>
@@ -144,7 +144,7 @@
     <div class="side-info">
         <h3>Character Details</h3>
         <div class="info-row"><span>Age</span><span>14 years</span></div>
-        <div class="info-row"><span>Style</span><span>Low-poly paper</span></div>
+        <div class="info-row"><span>Style</span><span>Sculpted, smooth-shaded</span></div>
         <div class="info-row"><span>Outfit</span><span>Cream Dishdasha</span></div>
         <div class="info-row"><span>Headwear</span><span>Embroidered Kumma</span></div>
         <div class="info-row"><span>Scarf</span><span>National Flag</span></div>
@@ -344,24 +344,23 @@ const rLeg = new THREE.Group(); rLeg.position.set(-0.18, -0.1, 0); hips.add(rLeg
 const rKnee = new THREE.Group(); rKnee.position.y = -0.45; rLeg.add(rKnee);
 const rFoot = new THREE.Group(); rFoot.position.y = -0.45; rKnee.add(rFoot);
 
-// --- HEAD ---
-const headBase = box(0.38, 0.44, 0.36, M.skin, 2);
-headBase.position.y = 0.22; head.add(headBase);
-const jaw = box(0.32, 0.10, 0.30, M.skin, 1);
-jaw.position.y = 0.02; head.add(jaw);
+// --- HEAD (smooth sphere instead of boxes) ---
+const headGeo = new THREE.SphereGeometry(0.205, 20, 16);
+const headBase = new THREE.Mesh(headGeo, M.skin);
+headBase.scale.set(1, 1.04, 0.9);
+headBase.position.y = 0.20; headBase.castShadow = true; headBase.receiveShadow = true; head.add(headBase);
 
 // Ears
-const earG = new THREE.BoxGeometry(0.05, 0.11, 0.07);
-const lEar = new THREE.Mesh(earG, M.skin); lEar.position.set(0.20, 0.22, 0); lEar.castShadow = true; head.add(lEar);
-const rEar = new THREE.Mesh(earG, M.skin); rEar.position.set(-0.20, 0.22, 0); rEar.castShadow = true; head.add(rEar);
+const earG = new THREE.SphereGeometry(0.05, 10, 10);
+const lEar = new THREE.Mesh(earG, M.skin); lEar.scale.set(0.55, 1, 0.7); lEar.position.set(0.20, 0.21, 0); lEar.castShadow = true; head.add(lEar);
+const rEar = new THREE.Mesh(earG, M.skin); rEar.scale.set(0.55, 1, 0.7); rEar.position.set(-0.20, 0.21, 0); rEar.castShadow = true; head.add(rEar);
 
-// Hair (paper-cut style layers)
-const hairG = new THREE.Group(); head.add(hairG);
-const hTop = box(0.42, 0.10, 0.40, M.hair, 1); hTop.position.y = 0.48; hairG.add(hTop);
-const hBack = box(0.42, 0.28, 0.09, M.hair, 1); hBack.position.set(0, 0.30, -0.185); hairG.add(hBack);
-const hSideL = box(0.07, 0.20, 0.36, M.hair, 1); hSideL.position.set(0.21, 0.32, 0); hairG.add(hSideL);
-const hSideR = box(0.07, 0.20, 0.36, M.hair, 1); hSideR.position.set(-0.21, 0.32, 0); hairG.add(hSideR);
-const hFront = box(0.38, 0.07, 0.09, M.hair, 1); hFront.position.set(0, 0.42, 0.165); hairG.add(hFront);
+// Hair — a smooth partial-sphere "cap" hugging the sides/back of the head,
+// open across the face (short hairstyle, mostly covered by the kumma anyway).
+const hairCapGeo = new THREE.SphereGeometry(0.218, 20, 14, 2.44, 4.67, 0.05, 2.0);
+const hairCap = new THREE.Mesh(hairCapGeo, M.hair);
+hairCap.scale.set(1, 1.04, 0.9);
+hairCap.position.y = 0.20; hairCap.castShadow = true; head.add(hairCap);
 
 // Eyes
 function eye() {
@@ -398,12 +397,16 @@ const kBand = new THREE.Mesh(new THREE.CylinderGeometry(0.222, 0.222, 0.09, 24, 
 kBand.position.y = 0.52; kumma.add(kBand);
 
 // --- DISHDASHA ---
-// Torso
-const torso = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.68, 0.28, 2, 3, 1), M.dish);
-torso.position.y = 0.34; torso.castShadow = true; torso.receiveShadow = true; chest.add(torso);
-// Skirt
-const skirt = new THREE.Mesh(new THREE.BoxGeometry(0.50, 1.485, 0.26, 2, 4, 1), M.dish);
-skirt.position.y = -0.2425; skirt.castShadow = true; skirt.receiveShadow = true; hips.add(skirt);
+// One continuous smooth robe (lathe/body-of-revolution) instead of separate torso+skirt boxes.
+// Points are (radius, absolute height) from hem to collar; root has no offset so these are world Y.
+const robeProfile = [
+    [0.335, 0.05], [0.32, 0.30], [0.30, 0.65], [0.28, 1.045],
+    [0.255, 1.35], [0.238, 1.55], [0.255, 1.85], [0.24, 2.0],
+    [0.145, 2.15], [0.115, 2.22],
+].map(([r, y]) => new THREE.Vector2(r, y));
+const robeGeo = new THREE.LatheGeometry(robeProfile, 24);
+const robe = new THREE.Mesh(robeGeo, M.dish);
+robe.castShadow = true; robe.receiveShadow = true; root.add(robe);
 // Collar
 const collar = box(0.15, 0.10, 0.035, M.dishDark, 1); collar.position.set(0, 0.66, 0.145); chest.add(collar);
 // Placket
@@ -414,24 +417,27 @@ const tassel = box(0.012, 0.07, 0.012, M.dishDark, 1); tassel.position.set(0, 0.
 const foldL = box(0.01, 1.4, 0.02, M.dishDark, 1); foldL.position.set(0.12, -0.2425, 0.14); hips.add(foldL);
 const foldR = box(0.01, 1.4, 0.02, M.dishDark, 1); foldR.position.set(-0.12, -0.2425, 0.14); hips.add(foldR);
 
-// Sleeves
-const sleeveG = new THREE.BoxGeometry(0.13, 0.52, 0.13, 1, 3, 1);
+// Sleeves (tapered rounded cylinder instead of a box)
+const sleeveG = new THREE.CylinderGeometry(0.075, 0.095, 0.52, 14, 3);
 const lSleeve = new THREE.Mesh(sleeveG, M.dish); lSleeve.position.y = -0.22; lSleeve.castShadow = true; lArm.add(lSleeve);
 const rSleeve = new THREE.Mesh(sleeveG, M.dish); rSleeve.position.y = -0.22; rSleeve.castShadow = true; rArm.add(rSleeve);
-const lCuff = box(0.14, 0.05, 0.14, M.dishDark, 1); lCuff.position.y = -0.28; lArm.add(lCuff);
-const rCuff = box(0.14, 0.05, 0.14, M.dishDark, 1); rCuff.position.y = -0.28; rArm.add(rCuff);
+const cuffG = new THREE.CylinderGeometry(0.10, 0.10, 0.045, 14);
+const lCuff = new THREE.Mesh(cuffG, M.dishDark); lCuff.position.y = -0.28; lCuff.castShadow = true; lArm.add(lCuff);
+const rCuff = new THREE.Mesh(cuffG, M.dishDark); rCuff.position.y = -0.28; rCuff.castShadow = true; rArm.add(rCuff);
 
-// --- HANDS ---
+// --- HANDS (rounded palm + tapered fingers instead of boxes) ---
 function hand(isLeft) {
     const g = new THREE.Group();
-    g.add(box(0.075, 0.09, 0.035, M.skin, 1));
+    const palm = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), M.skin);
+    palm.scale.set(1, 1.1, 0.6); palm.castShadow = true; g.add(palm);
+    const fingerG = new THREE.CylinderGeometry(0.009, 0.011, 0.055, 6);
     for(let i=0; i<4; i++) {
-        const f = box(0.014, 0.055, 0.014, M.skin, 1);
-        f.position.set((i-1.5)*0.017, -0.055, 0.01); g.add(f);
+        const f = new THREE.Mesh(fingerG, M.skin);
+        f.position.set((i-1.5)*0.017, -0.055, 0.01); f.castShadow = true; g.add(f);
     }
-    const thumb = box(0.014, 0.035, 0.014, M.skin, 1);
+    const thumb = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.011, 0.035, 6), M.skin);
     thumb.position.set(isLeft ? 0.042 : -0.042, -0.015, 0.015);
-    thumb.rotation.z = isLeft ? -0.35 : 0.35; g.add(thumb);
+    thumb.rotation.z = isLeft ? -0.35 : 0.35; thumb.castShadow = true; g.add(thumb);
     return g;
 }
 const lHandMesh = hand(true); lHandMesh.position.y = -0.045; lHand.add(lHandMesh);
@@ -445,21 +451,21 @@ neckWrap.position.y = 0.02; neckWrap.castShadow = true; scarf.add(neckWrap);
 
 // Front Red panel (with emblem)
 const redPanel = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.62, 0.012, 1, 4, 1), M.scarfEmblem);
-redPanel.position.set(0.075, -0.28, 0.175); redPanel.castShadow = true; scarf.add(redPanel);
+redPanel.position.set(0.075, -0.28, 0.32); redPanel.castShadow = true; scarf.add(redPanel);
 // Front Green panel
 const greenPanel = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.62, 0.012, 1, 4, 1), M.scarfG);
-greenPanel.position.set(-0.075, -0.28, 0.175); greenPanel.castShadow = true; scarf.add(greenPanel);
+greenPanel.position.set(-0.075, -0.28, 0.32); greenPanel.castShadow = true; scarf.add(greenPanel);
 // White center strip
-const wStrip = box(0.035, 0.58, 0.01, M.scarfW, 1); wStrip.position.set(0, -0.26, 0.175); scarf.add(wStrip);
+const wStrip = box(0.035, 0.58, 0.01, M.scarfW, 1); wStrip.position.set(0, -0.26, 0.32); scarf.add(wStrip);
 
 // Stripes near bottom
-const rStripe = box(0.095, 0.025, 0.013, M.scarfR, 1); rStripe.position.set(0.075, -0.50, 0.175); scarf.add(rStripe);
-const gStripe = box(0.095, 0.025, 0.013, M.scarfG, 1); gStripe.position.set(-0.075, -0.50, 0.175); scarf.add(gStripe);
+const rStripe = box(0.095, 0.025, 0.013, M.scarfR, 1); rStripe.position.set(0.075, -0.50, 0.32); scarf.add(rStripe);
+const gStripe = box(0.095, 0.025, 0.013, M.scarfG, 1); gStripe.position.set(-0.075, -0.50, 0.32); scarf.add(gStripe);
 
 // Fringes
 for(let i=0; i<5; i++) {
-    const f1 = box(0.011, 0.035, 0.011, M.scarfW, 1); f1.position.set(0.035 + i*0.02, -0.62, 0.175); scarf.add(f1);
-    const f2 = box(0.011, 0.035, 0.011, M.scarfW, 1); f2.position.set(-0.035 - i*0.02, -0.62, 0.175); scarf.add(f2);
+    const f1 = box(0.011, 0.035, 0.011, M.scarfW, 1); f1.position.set(0.035 + i*0.02, -0.62, 0.32); scarf.add(f1);
+    const f2 = box(0.011, 0.035, 0.011, M.scarfW, 1); f2.position.set(-0.035 - i*0.02, -0.62, 0.32); scarf.add(f2);
 }
 
 // --- SANDALS ---
@@ -476,7 +482,7 @@ const lSandal = sandal(); lSandal.position.y = -0.045; lFoot.add(lSandal);
 const rSandal = sandal(); rSandal.position.y = -0.045; rFoot.add(rSandal);
 
 // --- LEGS (skin under dishdasha) ---
-const legGeo = new THREE.BoxGeometry(0.12, 0.42, 0.11, 1, 2, 1);
+const legGeo = new THREE.CylinderGeometry(0.055, 0.06, 0.42, 12, 2);
 const lLegMesh = new THREE.Mesh(legGeo, M.skin); lLegMesh.position.y = -0.21; lLegMesh.castShadow = true; lLeg.add(lLegMesh);
 const rLegMesh = new THREE.Mesh(legGeo, M.skin); rLegMesh.position.y = -0.21; rLegMesh.castShadow = true; rLeg.add(rLegMesh);
 

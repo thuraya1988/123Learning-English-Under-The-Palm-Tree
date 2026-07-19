@@ -767,21 +767,27 @@ async function startRecording() {
   btn.textContent = '■ Stop'; btn.classList.add('recording');
   const tl = document.getElementById('transcriptLive');
   tl.textContent = 'Listening...'; tl.classList.remove('empty');
-  let finalTranscript = '';
+  // committedFinal holds everything already recognized in earlier sessions
+  // (recognition auto-restarts periodically on some devices); each onresult
+  // rebuilds this session's text from event.results[0..length) instead of
+  // trusting event.resultIndex, which previously caused already-finalized
+  // text to be re-appended on every update (a runaway duplicated-prefix
+  // transcript, e.g. "small small small leather small leather pound...").
+  let committedFinal = '';
   recognition.onresult = (event) => {
-    let interim = '';
-    for (let i=event.resultIndex; i<event.results.length; i++) {
+    let sessionFinal = '', interim = '';
+    for (let i=0; i<event.results.length; i++) {
       const t = event.results[i][0].transcript;
-      if (event.results[i].isFinal) finalTranscript += ' '+t; else interim = t;
+      if (event.results[i].isFinal) sessionFinal += ' '+t; else interim += ' '+t;
     }
-    state.recognized = (finalTranscript+' '+interim).trim();
+    state.recognized = (committedFinal+' '+sessionFinal+' '+interim).trim();
     tl.textContent = state.recognized || 'Listening...';
     updateWordMatching(state.recognized);
   };
   recognition.onerror = (e) => {
     if (e.error!=='aborted'&&e.error!=='no-speech') tl.textContent = 'Error: '+e.error+'. Try again.';
   };
-  recognition.onend = () => { if (state.isRecording) { try{recognition.start();}catch(e){stopRecording();} } };
+  recognition.onend = () => { if (state.isRecording) { committedFinal = state.recognized; try{recognition.start();}catch(e){stopRecording();} } };
   try { recognition.start(); } catch(e) { stopRecording(); }
 }
 

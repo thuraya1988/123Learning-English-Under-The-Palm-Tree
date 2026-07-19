@@ -63,17 +63,39 @@
     return VOICE_EN;
   }
 
-  function synth(text, voice) {
+  function synthOnce(text, voice) {
     var lang = (voice === VOICE_AR || /ar/i.test(voice || "")) ? "ar" : "en";
     // Send lang only — the Space maps it to its installed voice, so the
     // client never 404s when the Space's voice files change quality tier.
     var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
-    if (ctrl) setTimeout(function () { ctrl.abort(); }, 45000);
+    var to = ctrl ? setTimeout(function () { ctrl.abort(); }, 45000) : null;
     return nativeFetch(BASE + "/synthesize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: text, lang: lang }),
       signal: ctrl ? ctrl.signal : undefined,
+    }).then(function (res) {
+      if (to) clearTimeout(to);
+      if (!res.ok) throw new Error("piper http " + res.status);
+      return res;
+    }, function (err) {
+      if (to) clearTimeout(to);
+      throw err;
+    });
+  }
+
+  // The Hugging Face Space this all runs on sleeps when idle and can take a
+  // few seconds to wake up. Without a retry, that cold start looks exactly
+  // like a permanent failure and every game falls back to the robotic native
+  // voice for the rest of the session — this mirrors the retry the novel
+  // reader already uses successfully (2 retries, 6s apart) so every page
+  // wired through this shim gets the same forgiving behavior.
+  function synth(text, voice, triesLeft) {
+    if (triesLeft == null) triesLeft = 2;
+    return synthOnce(text, voice).catch(function (err) {
+      if (triesLeft <= 0) throw err;
+      return new Promise(function (resolve) { setTimeout(resolve, 6000); })
+        .then(function () { return synth(text, voice, triesLeft - 1); });
     });
   }
 

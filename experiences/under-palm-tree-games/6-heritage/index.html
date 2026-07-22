@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سوق الماضي — Under Palm Tree</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="loading-palm">🌴</div>
+  <div class="loading-text">تحت النخلة...</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<nav class="main-nav">
+  <a href="../index.html" class="nav-logo">Under Palm Tree</a>
+  <a href="../index.html" class="nav-back">↩ كل الألعاب</a>
+</nav>
+
+<section class="section" id="game-heritage">
+  <h1 class="section-title">🏛️ سوق الماضي</h1>
+  <p class="section-subtitle">تجول في سوق مسقط القديم — اضغط على المحلات لسماع قصصها</p>
+  <div class="game-canvas-container" id="heritage-canvas-container"></div>
+  <div class="game-controls">
+    <button class="game-btn" onclick="moveMarketLeft()">⬅️ يسار</button>
+    <button class="game-btn" onclick="enterShop()">🏪 دخول المحل</button>
+    <button class="game-btn" onclick="moveMarketRight()">يمين ➡️</button>
+  </div>
+</section>
+
+<div class="info-overlay" id="heritage-overlay">
+  <div class="info-box">
+    <button class="close-btn" onclick="closeHeritageInfo()">×</button>
+    <h2 id="heritage-shop-name">اسم المحل</h2>
+    <p style="color:var(--violet);font-size:1rem;margin-bottom:1rem" id="heritage-shop-type">نوع المحل</p>
+    <p id="heritage-shop-desc">الوصف</p>
+    <div class="tag-row" id="heritage-shop-items"></div>
+  </div>
+</div>
+
+<script src="../shared/utils.js"></script>
+<script>
+const shops = [
+  { name: "بقالة الحاج محمد", type: "بقالة تقليدية", desc: "يعرض الحاج محمد بضائعه منذ 40 عاماً. يبيع التمر العماني، اللبان، والبهارات. يحفظ أسرار التجارة من جده ويعرف كل زبون بالاسم.", items: ["تمر خلاص", "لبان حوجري", "بهارات عمانية", "عسل سدر", "سمن بري"], color: "#8b4513" },
+  { name: "صيدلية الشفاء", type: "صيدلية عمانية تقليدية", desc: "أول صيدلية في مسقط، تأسست عام 1890. تبيع الأعشاب الطبية والأدوية التقليدية، وتحضّر بعضها يدوياً حتى اليوم.", items: ["الحبة السوداء", "زيت اللبان", "المر", "الصبر", "الزعفران"], color: "#4ade80" },
+  { name: "مخبز الفرن التقليدي", type: "مخبز تقليدي", desc: "يخبز الخبز العماني (الرقاق) في فرن طيني تقليدي منذ أكثر من 100 عام، ويخبز قبل الفجر ليصل الخبز طازجاً للفطور.", items: ["رقاق", "خبز التنور", "كعك العيد", "قرصان", "مشبك"], color: "#c9a96e" },
+  { name: "سوق السمك الطازج", type: "سمك طازج", desc: "يبيع الصيادون أسماكهم الطازجة كل صباح منذ الرابعة فجراً، من أقدم أسواق مسقط.", items: ["الكنعد", "الشعري", "الحامور", "الجمبري", "كاليماري"], color: "#64b4dc" },
+  { name: "محل الخناجر العمانية", type: "صناعة يدوية", desc: "يصنع الخناجر العمانية التقليدية يدوياً، وكل خنجر يحتاج شهراً كاملاً للصنع باستخدام فضة عمانية نقية.", items: ["خنجر صايفي", "خنجر سعيدي", "خنجر بري", "زينة خنجر", "غمد فضي"], color: "#c41e3a" },
+  { name: "سوق اللبان والبخور", type: "عطور ولبان", desc: "يبيع اللبان الحوجري الأصلي القادم مباشرة من ظفار، ويخلط العطور والبخور حسب طلب الزبون.", items: ["لبان حوجري", "بخور عماني", "دهن عود", "مسك طهارة", "مروكي"], color: "#7c3aed" }
+];
+
+let heritageScene, heritageCamera, heritageRenderer, heritageGroup;
+let heritageRaycaster = new THREE.Raycaster();
+let heritageMouse = new THREE.Vector2();
+let currentShopIndex = 0;
+
+function initHeritage() {
+  const container = document.getElementById('heritage-canvas-container');
+  const width = container.clientWidth, height = container.clientHeight;
+
+  heritageScene = new THREE.Scene();
+  heritageScene.background = new THREE.Color(0x1a1510);
+  heritageScene.fog = new THREE.FogExp2(0x1a1510, 0.04);
+
+  heritageCamera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+  heritageCamera.position.set(0, 2, 8);
+  heritageCamera.lookAt(0, 0, 0);
+
+  heritageRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  heritageRenderer.setSize(width, height);
+  heritageRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(heritageRenderer.domElement);
+
+  heritageScene.add(new THREE.AmbientLight(0xffffff, 0.4));
+  const warmLight = new THREE.PointLight(0xffd700, 0.6, 20);
+  warmLight.position.set(5, 8, 5);
+  heritageScene.add(warmLight);
+
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.9 }));
+  ground.rotation.x = -Math.PI / 2;
+  heritageScene.add(ground);
+
+  heritageGroup = new THREE.Group();
+  heritageScene.add(heritageGroup);
+  createMarketScene();
+  createParticleSystem(heritageScene, 80, { color: '#ffaa44', range: 12, opacity: 0.4 });
+
+  window.addEventListener('resize', onHeritageResize);
+  heritageRenderer.domElement.addEventListener('click', onHeritageClick);
+
+  withVisibilityPause(() => {
+    const time = Date.now() * 0.001;
+    heritageGroup.children.forEach((shop, i) => {
+      shop.children.forEach(child => {
+        if (child.userData && child.userData.item) child.position.y = 1.5 + Math.sin(time * 2 + i) * 0.1;
+      });
+    });
+    heritageRenderer.render(heritageScene, heritageCamera);
+  });
+}
+
+function createMarketScene() {
+  shops.forEach((shop, index) => {
+    const shopGroup = new THREE.Group();
+    const color = new THREE.Color(shop.color);
+
+    const shopMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 2.5, 1.5), new THREE.MeshStandardMaterial({ color, roughness: 0.8 }));
+    shopMesh.position.y = 1.25;
+    shopGroup.add(shopMesh);
+
+    const awning = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.2, 1), new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.7 }));
+    awning.position.set(0, 2.6, 0.8);
+    shopGroup.add(awning);
+
+    const signTexture = createTextTexture(shop.name, { width: 256, height: 64, font: 'bold 20px "Noto Naskh Arabic", serif', textColor: '#ffffff', bgColor1: shop.color, bgColor2: shop.color });
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.45), new THREE.MeshBasicMaterial({ map: signTexture }));
+    sign.position.set(0, 2.8, 0.76);
+    shopGroup.add(sign);
+
+    shop.items.forEach((item, i) => {
+      const itemMesh = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), new THREE.MeshStandardMaterial({ color: 0xc9a96e, emissive: 0xc9a96e, emissiveIntensity: 0.2 }));
+      itemMesh.position.set(-0.6 + i * 0.6, 1.5, 0.8);
+      itemMesh.userData = { item, shopIndex: index };
+      shopGroup.add(itemMesh);
+    });
+
+    shopGroup.position.set((index - 2) * 4, 0, -2);
+    shopGroup.userData = { shop, index };
+    heritageGroup.add(shopGroup);
+  });
+}
+
+function moveMarketLeft() {
+  gsap.to(heritageGroup.position, { x: heritageGroup.position.x + 4, duration: 0.8, ease: 'power2.out' });
+  currentShopIndex = Math.max(0, currentShopIndex - 1);
+}
+function moveMarketRight() {
+  gsap.to(heritageGroup.position, { x: heritageGroup.position.x - 4, duration: 0.8, ease: 'power2.out' });
+  currentShopIndex = Math.min(shops.length - 1, currentShopIndex + 1);
+}
+
+function enterShop() {
+  const shop = shops[currentShopIndex];
+  document.getElementById('heritage-shop-name').textContent = shop.name;
+  document.getElementById('heritage-shop-type').textContent = shop.type;
+  document.getElementById('heritage-shop-desc').textContent = shop.desc;
+  const itemsContainer = document.getElementById('heritage-shop-items');
+  itemsContainer.innerHTML = '';
+  shop.items.forEach(item => {
+    const span = document.createElement('span');
+    span.className = 'tag-pill';
+    span.textContent = item;
+    itemsContainer.appendChild(span);
+  });
+  document.getElementById('heritage-overlay').classList.add('active');
+}
+function closeHeritageInfo() { document.getElementById('heritage-overlay').classList.remove('active'); }
+
+function onHeritageClick(event) {
+  const rect = heritageRenderer.domElement.getBoundingClientRect();
+  heritageMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  heritageMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  heritageRaycaster.setFromCamera(heritageMouse, heritageCamera);
+  const intersects = heritageRaycaster.intersectObjects(heritageGroup.children, true);
+  if (intersects.length > 0) {
+    const node = findAncestorWithKey(intersects[0].object, 'shop');
+    if (node) { currentShopIndex = node.userData.index; enterShop(); }
+  }
+}
+
+function onHeritageResize() {
+  const container = document.getElementById('heritage-canvas-container');
+  heritageCamera.aspect = container.clientWidth / container.clientHeight;
+  heritageCamera.updateProjectionMatrix();
+  heritageRenderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHeritageInfo(); });
+document.getElementById('heritage-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeHeritageInfo(); });
+
+window.addEventListener('load', () => {
+  setTimeout(() => document.getElementById('loading').classList.add('hidden'), 1200);
+  setTimeout(initHeritage, 300);
+});
+</script>
+</body>
+</html>

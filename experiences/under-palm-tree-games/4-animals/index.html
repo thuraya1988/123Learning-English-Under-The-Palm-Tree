@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>عالم الحيوان العماني — Under Palm Tree</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="loading-palm">🌴</div>
+  <div class="loading-text">تحت النخلة...</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<nav class="main-nav">
+  <a href="../index.html" class="nav-logo">Under Palm Tree</a>
+  <a href="../index.html" class="nav-back">↩ كل الألعاب</a>
+</nav>
+
+<section class="section" id="game-animals">
+  <h1 class="section-title">🐆 عالم الحيوان العماني</h1>
+  <p class="section-subtitle">اكتشف الحيوانات منذ 1973 — اضغط للتنقل بينها</p>
+  <div class="game-canvas-container" id="animals-canvas-container"></div>
+  <div class="game-controls">
+    <button class="game-btn" onclick="prevAnimal()">⬅️ السابق</button>
+    <button class="game-btn" onclick="toggleAnimalInfo()">ℹ️ معلومات</button>
+    <button class="game-btn" onclick="nextAnimal()">التالي ➡️</button>
+  </div>
+</section>
+
+<div class="info-overlay" id="animal-overlay">
+  <div class="info-box">
+    <button class="close-btn" onclick="closeAnimalInfo()">×</button>
+    <h2 id="animal-name">الاسم</h2>
+    <p style="color:var(--violet);font-size:1rem;margin-bottom:1rem" id="animal-status"></p>
+    <p id="animal-desc"></p>
+  </div>
+</div>
+
+<script src="../shared/utils.js"></script>
+<script>
+const animals = [
+  { name: "المها العربي", latin: "Oryx leucoryx", status: "أُعيد إطلاقه — 1982", desc: "أول عملية إعادة إطلاق في العالم. يعيش في محمية الوسطى. يتميز بقرون طويلة مستقيمة. يُعتبر رمزاً وطنياً لعُمان. يتحمل العطش لأيام طويلة.", color: "#c9a96e" },
+  { name: "الوعل العربي", latin: "Capra aegagrus", status: "مهدد", desc: "يعيش في جبال الحجر. يواجه خطر الصيد غير القانوني. يتميز بقرون منحنية كبيرة. يقفز بين الصخور ببراعة.", color: "#8b7355" },
+  { name: "النمر العربي", latin: "Panthera pardus nimr", status: "مهدد بالانقراض", desc: "أقل من 200 فرد متبقي. يعيش في جبل سمحان بظفار. يتميز بفراء ذهبي منقط. يصطاد الغزلان والوبر ويحتاج حماية عاجلة.", color: "#c41e3a" },
+  { name: "الأرنب العربي", latin: "Lepus capensis", status: "مستقر", desc: "أكثر القوارض انتشاراً في عُمان. يعيش في الصحاري والمناطق الصخرية. يجري بسرعة 70 كم/ساعة.", color: "#4ade80" },
+  { name: "الظبي الجبلي", latin: "Gazella gazella", status: "ضعيف", desc: "يعيش في جبال ظفار. يتميز بقرون منحنية جميلة. يجري بسرعة فائقة ويواجه خطر فقدان الموائل.", color: "#7c3aed" },
+  { name: "الضبع المخطط", latin: "Hyaena hyaena", status: "مستقر", desc: "يعيش في محمية الوسطى. حيوان ليلي يتغذى على البقايا. يتميز بضحكته المميزة ويلعب دوراً بيئياً مهماً.", color: "#f4a6c0" },
+  { name: "السلحفاة الخضراء", latin: "Chelonia mydas", status: "مهدد", desc: "تعشش في رأس الجنز، أكبر موقع تعشيش في العالم. يبلغ وزنها 200 كجم وتعيش حتى 80 سنة.", color: "#2d5a3c" },
+  { name: "الوبر", latin: "Hyrax syriacus", status: "مستقر", desc: "يعيش في جبال ظفار. يشبه القوارض لكنه قريب من الفيل تصنيفياً! يعيش في مجموعات صاخبة.", color: "#8b4513" }
+];
+
+let animalScene, animalCamera, animalRenderer, currentAnimalIndex = 0, animalGroup;
+
+function initAnimals() {
+  const container = document.getElementById('animals-canvas-container');
+  const width = container.clientWidth, height = container.clientHeight;
+
+  animalScene = new THREE.Scene();
+  animalScene.background = new THREE.Color(0x0a0f0a);
+  animalScene.fog = new THREE.FogExp2(0x0a0f0a, 0.05);
+
+  animalCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+  animalCamera.position.set(0, 0, 6);
+
+  animalRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  animalRenderer.setSize(width, height);
+  animalRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(animalRenderer.domElement);
+
+  animalScene.add(new THREE.AmbientLight(0xffffff, 0.4));
+  const warmLight = new THREE.PointLight(0xc9a96e, 0.8, 20);
+  warmLight.position.set(3, 5, 5);
+  animalScene.add(warmLight);
+
+  animalGroup = new THREE.Group();
+  animalScene.add(animalGroup);
+  createAnimalScene(0);
+  createParticleSystem(animalScene, 100, { color: '#4ade80', range: 8, opacity: 0.3 });
+
+  window.addEventListener('resize', onAnimalResize);
+
+  withVisibilityPause(() => {
+    const time = Date.now() * 0.001;
+    animalGroup.rotation.y = Math.sin(time * 0.5) * 0.3;
+    animalRenderer.render(animalScene, animalCamera);
+  });
+}
+
+// FIX: THREE.CapsuleGeometry does not exist in r128 (added in r142) — the
+// original build called it and crashed this whole game on load. Body is
+// now built from a stretched sphere + cylinder instead, same silhouette.
+function createAnimalScene(index) {
+  while (animalGroup.children.length > 0) animalGroup.remove(animalGroup.children[0]);
+  const animal = animals[index];
+  const color = new THREE.Color(animal.color);
+  const bodyMaterial = new THREE.MeshStandardMaterial({ color, roughness: 0.6 });
+
+  const bodyCore = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.6, 12), bodyMaterial);
+  bodyCore.rotation.z = Math.PI / 2;
+  animalGroup.add(bodyCore);
+  [-0.3, 0.3].forEach(x => {
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 12), bodyMaterial);
+    cap.position.x = x;
+    animalGroup.add(cap);
+  });
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), bodyMaterial);
+  head.position.set(0.8, 0.3, 0);
+  animalGroup.add(head);
+
+  const legGeometry = new THREE.CylinderGeometry(0.1, 0.08, 0.6, 8);
+  [[-0.3, -0.5, 0.2], [-0.3, -0.5, -0.2], [0.3, -0.5, 0.2], [0.3, -0.5, -0.2]].forEach(pos => {
+    const leg = new THREE.Mesh(legGeometry, bodyMaterial);
+    leg.position.set(pos[0], pos[1], pos[2]);
+    animalGroup.add(leg);
+  });
+
+  const statusRing = new THREE.Mesh(new THREE.RingGeometry(0.8, 0.85, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+  statusRing.lookAt(animalCamera.position);
+  animalGroup.add(statusRing);
+
+  const nameTexture = createTextTexture(animal.name + '\n' + animal.latin, { width: 512, height: 256, textColor: animal.color, font: 'bold 36px "Noto Naskh Arabic", serif' });
+  const nameMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.25), new THREE.MeshBasicMaterial({ map: nameTexture, transparent: true }));
+  nameMesh.position.y = -1.5;
+  animalGroup.add(nameMesh);
+}
+
+function switchAnimal(newIndex) {
+  currentAnimalIndex = newIndex;
+  gsap.to(animalGroup.scale, { x: 0.1, y: 0.1, z: 0.1, duration: 0.2, ease: 'power2.in', onComplete: () => {
+    createAnimalScene(currentAnimalIndex);
+    gsap.to(animalGroup.scale, { x: 1, y: 1, z: 1, duration: 0.4, ease: 'power2.out' });
+  }});
+}
+function nextAnimal() { switchAnimal((currentAnimalIndex + 1) % animals.length); }
+function prevAnimal() { switchAnimal((currentAnimalIndex - 1 + animals.length) % animals.length); }
+
+function toggleAnimalInfo() {
+  const animal = animals[currentAnimalIndex];
+  document.getElementById('animal-name').textContent = animal.name + ' (' + animal.latin + ')';
+  document.getElementById('animal-status').textContent = 'الحالة: ' + animal.status;
+  document.getElementById('animal-desc').textContent = animal.desc;
+  document.getElementById('animal-overlay').classList.add('active');
+}
+function closeAnimalInfo() { document.getElementById('animal-overlay').classList.remove('active'); }
+
+function onAnimalResize() {
+  const container = document.getElementById('animals-canvas-container');
+  animalCamera.aspect = container.clientWidth / container.clientHeight;
+  animalCamera.updateProjectionMatrix();
+  animalRenderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnimalInfo(); });
+document.getElementById('animal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeAnimalInfo(); });
+
+window.addEventListener('load', () => {
+  setTimeout(() => document.getElementById('loading').classList.add('hidden'), 1200);
+  setTimeout(initAnimals, 300);
+});
+</script>
+</body>
+</html>

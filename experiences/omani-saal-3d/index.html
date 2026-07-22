@@ -148,7 +148,8 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0a0705; font-
 </div>
 <canvas id="minimap" class="hidden" width="150" height="110"></canvas>
 <div id="questNotify"></div>
-<div id="climbPrompt">اضغطوا واستمروا بالضغط على E للتسلّق (بالحبل التقليدي)</div>
+<div id="climbPrompt">تسلقوا! اضغطوا واستمروا بالضغط على E (بالحبل التقليدي)</div>
+<div id="weavePrompt" class="hint-toast" style="display:none;">ابنوا! اضغطوا B لنسج بساط من السعف</div>
 <svg id="climbRing" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="none" stroke="#5a4a3a" stroke-width="4"/><circle id="climbRingFill" cx="22" cy="22" r="18" fill="none" stroke="#00d4aa" stroke-width="4" stroke-dasharray="113" stroke-dashoffset="113" transform="rotate(-90 22 22)"/></svg>
 
 <div id="dialogueBox">
@@ -181,7 +182,7 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0a0705; font-
   <div class="action-btn" id="btn-jump">قفز</div>
   <div class="action-btn" id="btn-run">جري</div>
   <div class="action-btn" id="btn-action">E</div>
-  <div class="action-btn" id="btn-weave">B</div>
+  <div class="action-btn" id="btn-weave" style="font-size:11px;">ابنوا</div>
 </div>
 
 <script type="importmap">
@@ -1777,7 +1778,7 @@ function descendClimb(palm, topY) {
 
 // ===================== BUILDING / WEAVING =====================
 function tryWeaveMat() {
-  if (STATE.inventory.fronds < 3) { showNotify('تحتاجين ٣ سعفات لنسج البساط 🍃'); return; }
+  if (STATE.inventory.fronds < 3) { showNotify('تحتاجون ٣ سعفات لنسج البساط 🍃'); return; }
   STATE.inventory.fronds -= 3;
   STATE.inventory.matsWoven++;
   updateInventoryHUD();
@@ -1787,7 +1788,15 @@ function tryWeaveMat() {
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(player.position.x, 0.02, player.position.z);
   addObj(mesh);
-  showNotify('🧺 نسجتوا بساطًا من السعف!');
+  showNotify('🧺 بنيتوا بساطًا من السعف!');
+}
+function updateWeavePrompt() {
+  const el = document.getElementById('weavePrompt');
+  if (!STATE.currentSpeaker && !STATE.climbing && STATE.inventory.fronds >= 3) {
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
 }
 
 // ===================== PROXIMITY CHECKS =====================
@@ -1928,6 +1937,7 @@ function animate() {
   updatePlayer(delta);
   updateWeatherParticles(delta);
   updateClimbPrompt();
+  updateWeavePrompt();
   checkProximity();
   drawMinimap();
   composer.render();

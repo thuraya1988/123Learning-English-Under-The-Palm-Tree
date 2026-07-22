@@ -491,10 +491,16 @@ class WindowOfKnowledge {
         // Hand position
         this.handPosition = { x: 1 - indexTip.x, y: indexTip.y }; // Mirror
 
-        // Detect gestures
-        if (pinchDist < 0.08) {
+        // Detect gestures. Thresholds scale with Settings > Tracking Sensitivity
+        // (1-10, default 5); previously that slider was wired up in the UI but
+        // never actually read here, so it had no effect. At the default value
+        // of 5 these equal the original hardcoded 0.08 / 0.15.
+        const sensitivity = this.settings.trackingSensitivity || 5;
+        const pinchThreshold = 0.05 + (sensitivity / 10) * 0.06;
+        const waveThreshold = 0.20 - (sensitivity / 10) * 0.10;
+        if (pinchDist < pinchThreshold) {
             this.setGesture(GestureType.PINCH);
-        } else if (Math.abs(landmarks[12].x - wrist.x) > 0.15) {
+        } else if (Math.abs(landmarks[12].x - wrist.x) > waveThreshold) {
             this.setGesture(GestureType.WAVE);
         } else {
             this.setGesture(GestureType.HOVER);

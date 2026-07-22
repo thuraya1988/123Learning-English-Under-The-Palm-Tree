@@ -357,9 +357,14 @@ class TarotGame {
         if (this.settings.mirrorCamera) x = 1 - x;
         this.handPosition = { x, y: indexTip.y };
 
-        // Detect gestures
-        const pinchThreshold = 0.08;
-        const waveThreshold = 0.15;
+        // Detect gestures. Thresholds scale with the Settings > Tracking Sensitivity
+        // slider (1-10, default 5) — previously this slider was wired up in the UI
+        // but never actually read anywhere, so it did nothing. At the default value
+        // of 5 these equal the original hardcoded 0.08 / 0.15, so existing behavior
+        // is unchanged unless the user actually moves the slider.
+        const sensitivity = this.settings.trackingSensitivity || 5;
+        const pinchThreshold = 0.05 + (sensitivity / 10) * 0.06;
+        const waveThreshold = 0.20 - (sensitivity / 10) * 0.10;
 
         if (this.pinchDistance < pinchThreshold) {
             this.setGesture(GestureType.PINCH);

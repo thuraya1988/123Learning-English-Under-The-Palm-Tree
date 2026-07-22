@@ -1,0 +1,1996 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>لعبة الصعل العماني | The Omani Saal 3D</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-user-select:none; }
+html, body { width:100%; height:100%; overflow:hidden; background:#0a0705; font-family:'Segoe UI', Tahoma, sans-serif; }
+#canvas-container { position:fixed; inset:0; z-index:1; }
+#loading { position:fixed; inset:0; background:#0a0705; z-index:1000; display:flex; flex-direction:column; align-items:center; justify-content:center; transition:opacity 0.8s ease; }
+#loading h1 { color:#d4c5a9; font-size:26px; letter-spacing:2px; margin-bottom:24px; }
+#loading-bar { width:320px; height:6px; background:#2a1a12; border-radius:3px; overflow:hidden; border:1px solid #8b1a3a; }
+#loading-fill { height:100%; width:0%; background:linear-gradient(90deg,#8b1a3a,#d4c5a9); transition:width 0.3s; }
+#loading-text { color:#9a8b6b; font-size:12px; margin-top:14px; }
+
+.screen { position:fixed; inset:0; z-index:500; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:radial-gradient(ellipse at center, #241813 0%, #0a0705 100%); padding:20px; }
+.hidden { display:none !important; }
+.screen h1 { font-size:38px; color:#d4c5a9; margin-bottom:6px; text-shadow:0 0 20px rgba(212,197,169,0.3); }
+.screen .subtitle { color:#b8a88a; font-size:15px; margin-bottom:4px; }
+.screen .author { color:#8b7a5f; font-size:12px; font-style:italic; margin-bottom:18px; }
+.screen .desc { color:#c9baa0; font-size:13px; max-width:520px; line-height:1.8; margin-bottom:22px; }
+.btn { background:linear-gradient(135deg,#8b1a3a,#5a1028); color:#f0e6d2; border:1px solid #d4c5a9; padding:12px 32px; font-size:16px; border-radius:8px; cursor:pointer; margin:6px; transition:all 0.2s; }
+.btn:hover { background:linear-gradient(135deg,#a8234a,#701535); transform:translateY(-2px); }
+.btn.secondary { background:rgba(212,197,169,0.1); }
+.level-preview { display:flex; flex-wrap:wrap; gap:6px; max-width:560px; justify-content:center; margin-bottom:20px; }
+.level-dot { width:20px; height:20px; border-radius:50%; background:rgba(212,197,169,0.15); border:1px solid rgba(212,197,169,0.3); font-size:9px; color:#9a8b6b; display:flex; align-items:center; justify-content:center; }
+.level-dot.active { background:#d4c5a9; color:#2a1a12; font-weight:700; }
+#levelIndicator { direction:ltr; unicode-bidi:isolate; }
+
+#instructionsScreen ul { text-align:right; max-width:520px; color:#c9baa0; font-size:13px; line-height:2.1; margin-bottom:18px; list-style:none; }
+#instructionsScreen ul b { color:#d4c5a9; }
+
+#hud { position:fixed; top:8px; left:8px; right:8px; z-index:20; display:flex; justify-content:space-between; align-items:flex-start; gap:8px; pointer-events:none; }
+.hud-panel { background:rgba(10,8,6,0.85); border:1px solid #8b1a3a; border-radius:10px; padding:8px 14px; color:#e8d5b5; font-size:12px; backdrop-filter:blur(6px); pointer-events:auto; }
+.hud-panel .label { color:#00d4aa; font-size:9px; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:3px; font-weight:700; }
+#inventoryRow { display:flex; gap:10px; font-size:14px; }
+#inventoryRow span { display:flex; align-items:center; gap:3px; }
+#muteBtn, #camBtn { cursor:pointer; font-size:16px; line-height:1; }
+#minimap { position:fixed; top:70px; right:10px; width:150px; height:110px; background:rgba(10,8,6,0.85); border:1px solid #8b1a3a; border-radius:8px; z-index:20; }
+
+#questNotify { position:fixed; top:100px; left:50%; transform:translateX(-50%); z-index:25; background:rgba(10,8,6,0.92); border:1px solid #00d4aa; border-radius:10px; padding:10px 20px; color:#e8d5b5; font-size:14px; opacity:0; transition:opacity 0.3s; pointer-events:none; text-align:center; }
+#questNotify.show { opacity:1; }
+
+#dialogueBox { position:fixed; bottom:110px; left:50%; transform:translateX(-50%); width:min(640px,92vw); background:rgba(10,8,6,0.95); border:1px solid #8b1a3a; border-radius:14px; padding:16px 20px; z-index:30; display:none; cursor:pointer; }
+#dialogueBox .speaker { color:#00d4aa; font-size:12px; font-weight:700; margin-bottom:6px; }
+#dialogueBox .text-ar { color:#e8d5b5; font-size:15px; margin-bottom:4px; }
+#dialogueBox .text-en { color:#9a8b6b; font-size:12px; font-style:italic; }
+#dialogueBox .tap-hint { color:#5a4a3a; font-size:10px; margin-top:8px; text-align:left; }
+
+#quizBox { position:fixed; bottom:110px; left:50%; transform:translateX(-50%); width:min(560px,92vw); background:rgba(10,8,6,0.96); border:1px solid #00d4aa; border-radius:14px; padding:18px; z-index:35; display:none; }
+#quizBox .q { color:#e8d5b5; font-size:14px; margin-bottom:12px; }
+#quizBox .opt { display:block; width:100%; text-align:right; background:rgba(212,197,169,0.08); border:1px solid #5a4a3a; color:#e8d5b5; padding:8px 12px; margin:6px 0; border-radius:8px; cursor:pointer; font-size:13px; }
+#quizBox .opt:hover { background:rgba(212,197,169,0.18); }
+#quizBox .opt.correct { background:rgba(0,212,170,0.3); border-color:#00d4aa; }
+#quizBox .opt.wrong { background:rgba(139,26,58,0.4); border-color:#8b1a3a; }
+
+#pronounceBox { position:fixed; bottom:110px; left:50%; transform:translateX(-50%); width:min(420px,90vw); background:rgba(10,8,6,0.96); border:1px solid #d4c5a9; border-radius:14px; padding:16px; z-index:35; display:none; text-align:center; }
+#pronounceBox .word { color:#d4c5a9; font-size:20px; margin-bottom:4px; }
+#pronounceBox .status { color:#9a8b6b; font-size:12px; min-height:16px; margin-top:8px; }
+
+#climbPrompt { position:fixed; bottom:170px; left:50%; transform:translateX(-50%); z-index:20; color:#e8d5b5; font-size:13px; background:rgba(10,8,6,0.85); border:1px solid #d4c5a9; border-radius:8px; padding:6px 14px; display:none; }
+#climbRing { position:fixed; bottom:210px; left:50%; transform:translateX(-50%); width:44px; height:44px; z-index:20; display:none; }
+
+#winScreen h1 { font-size:34px; }
+#winVocab { max-width:600px; display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:18px; }
+#winVocab span { background:rgba(212,197,169,0.12); border:1px solid #8b1a3a; border-radius:6px; padding:4px 10px; font-size:11px; color:#c9baa0; }
+
+#mobileControls { position:fixed; bottom:16px; left:16px; width:152px; height:152px; z-index:20; display:none; }
+.dpad-btn { position:absolute; width:48px; height:48px; background:rgba(139,26,58,0.5); border:2px solid #d4c5a9; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; touch-action:none; }
+#mobileActions { position:fixed; bottom:16px; right:16px; z-index:20; display:none; flex-direction:column; gap:10px; align-items:flex-end; }
+.action-btn { width:56px; height:56px; border-radius:50%; background:rgba(0,212,170,0.35); border:2px solid #00d4aa; color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; touch-action:none; }
+@media (max-width:768px) {
+  #mobileControls, #mobileActions { display:flex; }
+  #dialogueBox, #quizBox, #pronounceBox { bottom:190px; }
+  #hud { flex-wrap:wrap; }
+  #missionText { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; max-width:160px; }
+  #minimap { width:90px; height:65px; top:128px; right:8px; }
+}
+
+.hint-toast { position:fixed; bottom:130px; left:50%; transform:translateX(-50%); z-index:15; color:#9a8b6b; font-size:11px; text-align:center; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <h1>لعبة الصعل العماني</h1>
+  <div id="loading-bar"><div id="loading-fill"></div></div>
+  <div id="loading-text">تحميل القرية...</div>
+</div>
+
+<div id="startScreen" class="screen hidden">
+  <h1>لعبة الصعل العماني</h1>
+  <div class="subtitle">The Omani Saal — Under The Palm Tree (3D)</div>
+  <div class="author">A Novel by Thuraya Al-Naabi</div>
+  <div class="desc">
+    امشوا، اركضوا، واقفزوا عبر ٣٦ مستوى من قرية القرواشية — نفس القرية، طقس ووقت مختلف كل مرة.
+    اجمعوا المفردات، وزّعوا التمر، ازرعوا الفسائل، انسجوا البِسط من السعف، وسلّموا فسيلة تمر لبيت محتاج
+    في كل مستوى لتفتحوا التالي.
+  </div>
+  <div class="level-preview" id="levelPreview"></div>
+  <div>
+    <button class="btn" id="startBtn">ابدأوا الرحلة</button>
+    <button class="btn secondary" id="howToBtn">كيف ألعب؟</button>
+  </div>
+</div>
+
+<div id="instructionsScreen" class="screen hidden">
+  <h1 style="font-size:26px;">كيف ألعب</h1>
+  <ul>
+    <li><b>WASD / الأسهم</b> — المشي</li>
+    <li><b>Shift</b> — الركض</li>
+    <li><b>Space (المسافة)</b> — القفز</li>
+    <li><b>E</b> — التفاعل (تسلّق النخلة، تسليم الفسيلة)</li>
+    <li><b>B</b> — نسج بساط من السعف (تحتاجون ٣ سعفات)</li>
+    <li><b>C</b> — تبديل الكاميرا (منظور أول / ثالث)</li>
+    <li><b>M</b> — كتم الصوت</li>
+  </ul>
+  <div class="desc">
+    كل مستوى فيه نفس قرية القرواشية بطقس ووقت مختلف. اجمعوا كل المفردات في المستوى لتحصلوا على فسيلة تمر،
+    ثم وصّلوها إلى البيت المحتاج (يضيء باللون الأخضر) لفتح المستوى التالي.
+  </div>
+  <button class="btn" id="backFromHelpBtn">رجوع</button>
+</div>
+
+<div id="winScreen" class="screen hidden">
+  <h1>اكتملت الرحلة!</h1>
+  <div class="subtitle">You have completed all 36 levels of Under The Palm Tree.</div>
+  <div id="winVocab"></div>
+  <div style="margin:10px 0; color:#d4c5a9; font-size:15px;">إجمالي الكلمات: <span id="certWordCount">0</span> &nbsp;|&nbsp; التمر: <span id="certDates">0</span> &nbsp;|&nbsp; البِسط المنسوجة: <span id="certMats">0</span></div>
+  <div>
+    <button class="btn" id="downloadCertBtn">حفظ الشهادة</button>
+    <button class="btn secondary" id="restartBtn">العبوا مرة أخرى</button>
+  </div>
+</div>
+
+<div id="canvas-container"></div>
+
+<div id="hud" class="hidden">
+  <div class="hud-panel"><div class="label">Level</div><div id="levelIndicator">1 / 36</div></div>
+  <div class="hud-panel"><div class="label">Mission</div><div id="missionText" style="font-size:11px; color:#a09080;">استكشفوا القرية</div></div>
+  <div class="hud-panel"><div class="label">Vocabulary</div><div id="vocabList" style="display:flex; gap:5px; flex-wrap:wrap; max-width:180px;"></div></div>
+  <div class="hud-panel"><div id="inventoryRow"><span>🌴<b id="invSeedling">0</b></span><span>🫘<b id="invDates">0</b></span><span>🍃<b id="invFronds">0</b></span><span>🧺<b id="invMats">0</b></span></div></div>
+  <div style="display:flex; gap:6px;">
+    <button id="camBtn" class="hud-panel">👁️</button>
+    <button id="muteBtn" class="hud-panel">🔊</button>
+  </div>
+</div>
+<canvas id="minimap" class="hidden" width="150" height="110"></canvas>
+<div id="questNotify"></div>
+<div id="climbPrompt">تسلقوا! اضغطوا واستمروا بالضغط على E (بالحبل التقليدي)</div>
+<div id="weavePrompt" class="hint-toast" style="display:none;">ابنوا! اضغطوا B لنسج بساط من السعف</div>
+<svg id="climbRing" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="none" stroke="#5a4a3a" stroke-width="4"/><circle id="climbRingFill" cx="22" cy="22" r="18" fill="none" stroke="#00d4aa" stroke-width="4" stroke-dasharray="113" stroke-dashoffset="113" transform="rotate(-90 22 22)"/></svg>
+
+<div id="dialogueBox">
+  <div class="speaker" id="speakerName"></div>
+  <div class="text-ar" id="dialogueAr"></div>
+  <div class="text-en" id="dialogueEn"></div>
+  <div class="tap-hint">اضغطوا للمتابعة...</div>
+</div>
+
+<div id="quizBox">
+  <div class="q" id="quizQuestion"></div>
+  <div id="quizOptions"></div>
+</div>
+
+<div id="pronounceBox">
+  <div class="word" id="pronounceWord"></div>
+  <button class="btn secondary" id="pronounceBtn">🎤 جرّبوا النطق</button>
+  <div class="status" id="pronounceStatus"></div>
+</div>
+
+<div class="hint-toast" id="climbEduToast"></div>
+
+<div id="mobileControls">
+  <div class="dpad-btn" id="btn-up" style="top:0; left:52px;">▲</div>
+  <div class="dpad-btn" id="btn-left" style="top:52px; left:0;">◀</div>
+  <div class="dpad-btn" id="btn-down" style="top:104px; left:52px;">▼</div>
+  <div class="dpad-btn" id="btn-right" style="top:52px; left:104px;">▶</div>
+</div>
+<div id="mobileActions">
+  <div class="action-btn" id="btn-jump">قفز</div>
+  <div class="action-btn" id="btn-run">جري</div>
+  <div class="action-btn" id="btn-action">E</div>
+  <div class="action-btn" id="btn-weave" style="font-size:11px;">ابنوا</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const TOTAL_LEVELS = 36;
+const WORLD_SCALE = 1 / 40; // convert 2D level coords (0-2400 x 0-1800) to 3D world units
+
+const weatherTypes = {
+  clear: { rain: 0, wind: 0.3, fog: 0, sand: 0, snow: 0 },
+  lightRain: { rain: 0.3, wind: 0.4, fog: 0.1, sand: 0, snow: 0 },
+  heavyRain: { rain: 0.8, wind: 0.7, fog: 0.3, sand: 0, snow: 0 },
+  thunderstorm: { rain: 1.0, wind: 0.9, fog: 0.2, sand: 0, snow: 0 },
+  sandstorm: { rain: 0, wind: 1.5, fog: 0.5, sand: 1.0, snow: 0 },
+  foggy: { rain: 0, wind: 0.2, fog: 0.8, sand: 0, snow: 0 },
+  snow: { rain: 0, wind: 0.5, fog: 0.3, sand: 0, snow: 0.7 },
+  blizzard: { rain: 0, wind: 1.2, fog: 0.6, sand: 0, snow: 1.0 },
+  windy: { rain: 0, wind: 1.0, fog: 0, sand: 0.2, snow: 0 },
+  dust: { rain: 0, wind: 0.6, fog: 0.4, sand: 0.6, snow: 0 }
+};
+const timeModes = {
+  dawn: { light: 0.3, sky: '#2a1a3a', ambient: '#4a3a5a' },
+  morning: { light: 0.6, sky: '#3a4a5a', ambient: '#5a6a7a' },
+  noon: { light: 1.0, sky: '#4a6a8a', ambient: '#6a8aaa' },
+  afternoon: { light: 0.8, sky: '#5a4a3a', ambient: '#7a6a5a' },
+  sunset: { light: 0.5, sky: '#8a4a2a', ambient: '#9a5a3a' },
+  dusk: { light: 0.3, sky: '#3a2a4a', ambient: '#4a3a5a' },
+  night: { light: 0.1, sky: '#0a0a1a', ambient: '#1a1a2a' },
+  midnight: { light: 0.05, sky: '#050510', ambient: '#0a0a15' }
+};
+const levelThemes = {
+  1: { name: 'Al-Qarwashiya Village', arName: 'قرية القرواشية', 
+       weather: 'clear', time: 'morning', 
+       desc: 'The ancient village at dawn. Explore mud-brick houses and meet the elder.',
+       arDesc: 'القرية القديمة عند الفجر. استكشف البيوت الطينية وقابل الشيخ.' },
+  2: { name: 'Morning Market', arName: 'سوق الصباح',
+       weather: 'clear', time: 'morning',
+       desc: 'The market awakens. Traders set up their stalls.',
+       arDesc: 'السوق يصحو. التجار ينصبون أكشاكهم.' },
+  3: { name: 'Windy Plains', arName: 'السهول الريحية',
+       weather: 'windy', time: 'noon',
+       desc: 'Strong winds sweep across the open plains.',
+       arDesc: 'رياح قوية تجتاح السهول المفتوحة.' },
+  4: { name: 'Rainy Afternoon', arName: 'بعد الظهر الممطر',
+       weather: 'lightRain', time: 'afternoon',
+       desc: 'Gentle rain falls on the village streets.',
+       arDesc: 'مطر خفيف يهطل على شوارع القرية.' },
+  5: { name: 'Sunset Over Falaj', arName: 'غروب فوق الفلج',
+       weather: 'clear', time: 'sunset',
+       desc: 'Golden light reflects on the ancient water channels.',
+       arDesc: 'ضوء ذهبي ينعكس على قنوات الماء القديمة.' },
+  6: { name: 'Night Village', arName: 'القرية الليلية',
+       weather: 'clear', time: 'night',
+       desc: 'Lanterns illuminate the quiet streets.',
+       arDesc: 'الفوانيس تضيء الشوارع الهادئة.' },
+  7: { name: 'Thunderstorm', arName: 'العاصفة الرعدية',
+       weather: 'thunderstorm', time: 'dusk',
+       desc: 'Lightning cracks the sky. Seek shelter!',
+       arDesc: 'البرق يشق السماء. ابحث عن ملجأ!' },
+  8: { name: 'Foggy Dawn', arName: 'ضباب الفجر',
+       weather: 'foggy', time: 'dawn',
+       desc: 'Thick fog hides the village paths.',
+       arDesc: 'ضباب كثيف يخفي دروب القرية.' },
+  9: { name: 'Sand Storm', arName: 'عاصفة الرمال',
+       weather: 'sandstorm', time: 'noon',
+       desc: 'A fierce sandstorm engulfs the desert.',
+       arDesc: 'عاصفة رمال عنيفة تبتلع الصحراء.' },
+  10: { name: 'Midnight Mystery', arName: 'لغز منتصف الليل',
+        weather: 'clear', time: 'midnight',
+        desc: 'The village sleeps. Ancient secrets awaken.',
+        arDesc: 'القرية تنام. الأسرار القديمة تستيقظ.' },
+  11: { name: 'Poultry Farm', arName: 'مزرعة الدواجن',
+        weather: 'clear', time: 'morning',
+        desc: 'Chickens roam freely. Collect fresh eggs.',
+        arDesc: 'الدجاج يتجول بحرية. اجمع البيض الطازج.' },
+  12: { name: 'Sheep Pasture', arName: 'مرعى الأغنام',
+        weather: 'clear', time: 'afternoon',
+        desc: 'Sheep graze on golden grass. Shepherds watch.',
+        arDesc: 'الأغنام ترعى العشب الذهبي. الرعاة يراقبون.' },
+  13: { name: 'Camel Caravan', arName: 'قافلة الجمال',
+        weather: 'dust', time: 'noon',
+        desc: 'A caravan rests at the oasis. Trade stories.',
+        arDesc: 'قافلة تستريح عند الواحة. تبادل القصص.' },
+  14: { name: 'Goat Mountain', arName: 'جبل الماعز',
+        weather: 'windy', time: 'morning',
+        desc: 'Mountain goats climb the rocky cliffs.',
+        arDesc: 'الماعز الجبلية تتسلق الصخور.' },
+  15: { name: 'Snowy Peak', arName: 'القمم الثلجية',
+        weather: 'snow', time: 'dawn',
+        desc: 'Rare snow covers the mountain village.',
+        arDesc: 'ثلج نادر يغطي قرية الجبل.' },
+  16: { name: 'Blizzard Pass', arName: 'ممر العاصفة الثلجية',
+        weather: 'blizzard', time: 'night',
+        desc: 'A blizzard rages. Find the safe path.',
+        arDesc: 'عاصفة ثلجية تعصف. ابحث عن الطريق الآمن.' },
+  17: { name: 'Cloudy Valley', arName: 'وادي الغيوم',
+        weather: 'foggy', time: 'afternoon',
+        desc: 'Clouds drift through the valley.',
+        arDesc: 'الغيوم تتجول عبر الوادي.' },
+  18: { name: 'Stormy Sea', arName: 'البحر العاصف',
+        weather: 'thunderstorm', time: 'dusk',
+        desc: 'Waves crash against the rocky shore.',
+        arDesc: 'الأمواج تتصادم مع الشاطئ الصخري.' },
+  19: { name: 'Desert Oasis', arName: 'واحة الصحراء',
+        weather: 'clear', time: 'noon',
+        desc: 'Palm trees surround the cool water pool.',
+        arDesc: 'النخيل تحيط ببركة الماء البارد.' },
+  20: { name: 'Date Plantation', arName: 'مزرعة التمر',
+        weather: 'clear', time: 'morning',
+        desc: 'Date palms heavy with fruit. Harvest season.',
+        arDesc: 'نخيل التمر مثقلة بالثمار. موسم الحصاد.' },
+  21: { name: 'Ancient Mosque', arName: 'المسجد القديم',
+        weather: 'clear', time: 'dawn',
+        desc: 'The call to prayer echoes through stone walls.',
+        arDesc: 'الأذان يتردد عبر الجدران الحجرية.' },
+  22: { name: 'School Courtyard', arName: 'ساحة المدرسة',
+        weather: 'clear', time: 'morning',
+        desc: 'Children learn English under the palm tree.',
+        arDesc: 'الأطفال يتعلمون الإنجليزية تحت النخلة.' },
+  23: { name: 'Majlis Gathering', arName: 'مجلس القرية',
+        weather: 'clear', time: 'afternoon',
+        desc: 'Elders discuss stories and wisdom.',
+        arDesc: 'المشايخ يناقشون القصص والحكمة.' },
+  24: { name: 'Pottery Workshop', arName: 'ورشة الفخار',
+        weather: 'clear', time: 'noon',
+        desc: 'Clay spins on the wheel. Ancient art lives.',
+        arDesc: 'الطين يدور على الدولاب. الفن القديم يحيا.' },
+  25: { name: 'Weaving House', arName: 'بيت النسيج',
+        weather: 'clear', time: 'morning',
+        desc: 'Looms create patterns of Omani heritage.',
+        arDesc: 'الأنوال تنشئ أنماط التراث العماني.' },
+  26: { name: 'Coffee Roastery', arName: 'محمصة القهوة',
+        weather: 'clear', time: 'afternoon',
+        desc: 'The scent of Omani coffee fills the air.',
+        arDesc: 'رائحة القهوة العمانية تملأ الجو.' },
+  27: { name: 'Frankincense Trail', arName: 'طريق اللبان',
+        weather: 'dust', time: 'noon',
+        desc: 'Follow the ancient trade route.',
+        arDesc: 'اتبع طريق التجارة القديم.' },
+  28: { name: 'Honey Apiary', arName: 'منحل العسل',
+        weather: 'clear', time: 'morning',
+        desc: 'Bees buzz around Sidr trees.',
+        arDesc: 'النحل يزن حول أشجار السدر.' },
+  29: { name: 'Fishing Village', arName: 'قرية الصيادين',
+        weather: 'clear', time: 'sunset',
+        desc: 'Boats return with the day\'s catch.',
+        arDesc: 'القوارب تعود بصيد اليوم.' },
+  30: { name: 'Salt Flats', arName: 'سبخات الملح',
+        weather: 'clear', time: 'noon',
+        desc: 'Crystalline salt stretches to the horizon.',
+        arDesc: 'ملح بلوري يمتد حتى الأفق.' },
+  31: { name: 'Cave of Echoes', arName: 'كهف الأصداء',
+        weather: 'foggy', time: 'night',
+        desc: 'Ancient voices whisper in the darkness.',
+        arDesc: 'أصوات قديمة تهمس في الظلام.' },
+  32: { name: 'Waterfall Garden', arName: 'حديقة الشلال',
+        weather: 'clear', time: 'morning',
+        desc: 'Water cascades through tropical plants.',
+        arDesc: 'الماء يتدفق عبر النباتات الاستوائية.' },
+  33: { name: 'Star Observatory', arName: 'مرصد النجوم',
+        weather: 'clear', time: 'midnight',
+        desc: 'Ancient astronomers mapped the skies.',
+        arDesc: 'علماء الفلك القدماء رسموا السماء.' },
+  34: { name: 'Rose Garden', arName: 'حديقة الورد',
+        weather: 'clear', time: 'sunset',
+        desc: 'Roses of Jabal Al Akhdar bloom.',
+        arDesc: 'ورود الجبل الأخضر تتفتح.' },
+  35: { name: 'Fortress Ruins', arName: 'أطلال الحصن',
+        weather: 'sandstorm', time: 'dusk',
+        desc: 'An ancient fort stands against time.',
+        arDesc: 'حصن قديم يقف في وجه الزمن.' },
+  36: { name: 'The Grand Finale', arName: 'الختام العظيم',
+        weather: 'clear', time: 'sunset',
+        desc: 'Celebrate the journey under the palm tree.',
+        arDesc: 'احتفل بالرحلة تحت النخلة.' }
+};
+const levelVocabularies = {
+  1: [
+    { word: 'Village', ar: 'القرية', x: 300, y: 200, desc: 'A small community of houses' },
+    { word: 'Palm Tree', ar: 'النخلة', x: 800, y: 400, desc: 'Symbol of Oman - dates and shade' },
+    { word: 'Elder', ar: 'الشيخ', x: 1200, y: 300, desc: 'Respected leader of the village' },
+    { word: 'Heritage', ar: 'التراث', x: 500, y: 800, desc: 'Traditions passed through generations' },
+    { word: 'Stone', ar: 'الحجر', x: 1500, y: 600, desc: 'Building material of ancient houses' }
+  ],
+  2: [
+    { word: 'Market', ar: 'السوق', x: 400, y: 300, desc: 'Place of trade and commerce' },
+    { word: 'Merchant', ar: 'التاجر', x: 900, y: 500, desc: 'One who sells goods' },
+    { word: 'Trade', ar: 'التجارة', x: 1300, y: 400, desc: 'Exchange of goods' },
+    { word: 'Bargain', ar: 'المساومة', x: 1600, y: 700, desc: 'Negotiating a price' },
+    { word: 'Currency', ar: 'العملة', x: 700, y: 900, desc: 'Money used for exchange' }
+  ],
+  3: [
+    { word: 'Wind', ar: 'الريح', x: 300, y: 300, desc: 'Moving air across the land' },
+    { word: 'Plains', ar: 'السهول', x: 700, y: 500, desc: 'Flat open grasslands' },
+    { word: 'Storm', ar: 'العاصفة', x: 1100, y: 400, desc: 'Violent weather disturbance' },
+    { word: 'Dust', ar: 'الغبار', x: 1500, y: 600, desc: 'Fine particles in the air' },
+    { word: 'Breeze', ar: 'النسيم', x: 500, y: 800, desc: 'Gentle wind' }
+  ],
+  4: [
+    { word: 'Rain', ar: 'المطر', x: 300, y: 400, desc: 'Water falling from clouds' },
+    { word: 'Wet', ar: 'مبلل', x: 700, y: 600, desc: 'Covered with water' },
+    { word: 'Puddle', ar: 'البركة', x: 1100, y: 500, desc: 'Small pool of water' },
+    { word: 'Umbrella', ar: 'المظلة', x: 1500, y: 800, desc: 'Protection from rain' },
+    { word: 'Rainbow', ar: 'قوس المطر', x: 500, y: 1000, desc: 'Colorful arc after rain' }
+  ],
+  5: [
+    { word: 'Sunset', ar: 'الغروب', x: 300, y: 400, desc: 'Sun disappearing below horizon' },
+    { word: 'Golden', ar: 'ذهبي', x: 700, y: 600, desc: 'Color of precious metal' },
+    { word: 'Reflection', ar: 'الانعكاس', x: 1100, y: 500, desc: 'Light bouncing off surface' },
+    { word: 'Channel', ar: 'القناة', x: 1500, y: 800, desc: 'Water pathway' },
+    { word: 'Evening', ar: 'المساء', x: 500, y: 1000, desc: 'Time between day and night' }
+  ],
+  6: [
+    { word: 'Night', ar: 'الليل', x: 300, y: 400, desc: 'Darkness after sunset' },
+    { word: 'Lantern', ar: 'الفانوس', x: 700, y: 600, desc: 'Portable light source' },
+    { word: 'Stars', ar: 'النجوم', x: 1100, y: 500, desc: 'Distant lights in sky' },
+    { word: 'Quiet', ar: 'الهدوء', x: 1500, y: 800, desc: 'Absence of noise' },
+    { word: 'Moon', ar: 'القمر', x: 500, y: 1000, desc: 'Earth\'s natural satellite' }
+  ],
+  7: [
+    { word: 'Thunder', ar: 'الرعد', x: 300, y: 400, desc: 'Sound of lightning' },
+    { word: 'Lightning', ar: 'البرق', x: 700, y: 600, desc: 'Electrical discharge in sky' },
+    { word: 'Shelter', ar: 'الملجأ', x: 1100, y: 500, desc: 'Place of protection' },
+    { word: 'Danger', ar: 'الخطر', x: 1500, y: 800, desc: 'Possibility of harm' },
+    { word: 'Flash', ar: 'الوميض', x: 500, y: 1000, desc: 'Sudden burst of light' }
+  ],
+  8: [
+    { word: 'Fog', ar: 'الضباب', x: 300, y: 400, desc: 'Thick cloud near ground' },
+    { word: 'Mist', ar: 'السديم', x: 700, y: 600, desc: 'Light fog' },
+    { word: 'Hidden', ar: 'مخفي', x: 1100, y: 500, desc: 'Concealed from view' },
+    { word: 'Mystery', ar: 'اللغز', x: 1500, y: 800, desc: 'Something unexplained' },
+    { word: 'Path', ar: 'الدرب', x: 500, y: 1000, desc: 'Way through fog' }
+  ],
+  9: [
+    { word: 'Sand', ar: 'الرمال', x: 300, y: 400, desc: 'Fine grains of rock' },
+    { word: 'Desert', ar: 'الصحراء', x: 700, y: 600, desc: 'Dry sandy landscape' },
+    { word: 'Heat', ar: 'الحرارة', x: 1100, y: 500, desc: 'High temperature' },
+    { word: 'Oasis', ar: 'الواحة', x: 1500, y: 800, desc: 'Water source in desert' },
+    { word: 'Dune', ar: 'الكثيب', x: 500, y: 1000, desc: 'Hill of sand' }
+  ],
+  10: [
+    { word: 'Midnight', ar: 'منتصف الليل', x: 300, y: 400, desc: 'Middle of the night' },
+    { word: 'Secret', ar: 'السر', x: 700, y: 600, desc: 'Hidden knowledge' },
+    { word: 'Ancient', ar: 'القديم', x: 1100, y: 500, desc: 'Very old' },
+    { word: 'Whisper', ar: 'الهمس', x: 1500, y: 800, desc: 'Soft spoken words' },
+    { word: 'Shadow', ar: 'الظل', x: 500, y: 1000, desc: 'Dark shape from light' }
+  ],
+  11: [
+    { word: 'Chicken', ar: 'الدجاج', x: 300, y: 400, desc: 'Domestic bird for eggs' },
+    { word: 'Egg', ar: 'البيضة', x: 700, y: 600, desc: 'Oval food from birds' },
+    { word: 'Farm', ar: 'المزرعة', x: 1100, y: 500, desc: 'Land for agriculture' },
+    { word: 'Feed', ar: 'العلف', x: 1500, y: 800, desc: 'Food for animals' },
+    { word: 'Coop', ar: 'القن', x: 500, y: 1000, desc: 'House for chickens' }
+  ],
+  12: [
+    { word: 'Sheep', ar: 'الخروف', x: 300, y: 400, desc: 'Wool-producing animal' },
+    { word: 'Wool', ar: 'الصوف', x: 700, y: 600, desc: 'Fiber from sheep' },
+    { word: 'Graze', ar: 'الرعي', x: 1100, y: 500, desc: 'Animals eating grass' },
+    { word: 'Pasture', ar: 'المرعى', x: 1500, y: 800, desc: 'Land for grazing' },
+    { word: 'Shepherd', ar: 'الراعي', x: 500, y: 1000, desc: 'One who tends sheep' }
+  ],
+  13: [
+    { word: 'Camel', ar: 'الجمل', x: 300, y: 400, desc: 'Desert transport animal' },
+    { word: 'Caravan', ar: 'القافلة', x: 700, y: 600, desc: 'Group of travelers' },
+    { word: 'Oasis', ar: 'الواحة', x: 1100, y: 500, desc: 'Water in desert' },
+    { word: 'Trade', ar: 'التجارة', x: 1500, y: 800, desc: 'Exchange of goods' },
+    { word: 'Journey', ar: 'الرحلة', x: 500, y: 1000, desc: 'Long travel' }
+  ],
+  14: [
+    { word: 'Goat', ar: 'الماعز', x: 300, y: 400, desc: 'Mountain climbing animal' },
+    { word: 'Mountain', ar: 'الجبل', x: 700, y: 600, desc: 'High natural elevation' },
+    { word: 'Climb', ar: 'التسلق', x: 1100, y: 500, desc: 'Ascend a slope' },
+    { word: 'Rock', ar: 'الصخرة', x: 1500, y: 800, desc: 'Hard natural material' },
+    { word: 'Horn', ar: 'القرن', x: 500, y: 1000, desc: 'Pointed growth on head' }
+  ],
+  15: [
+    { word: 'Snow', ar: 'الثلج', x: 300, y: 400, desc: 'Frozen water crystals' },
+    { word: 'Cold', ar: 'البرد', x: 700, y: 600, desc: 'Low temperature' },
+    { word: 'Peak', ar: 'القمم', x: 1100, y: 500, desc: 'Top of mountain' },
+    { word: 'White', ar: 'أبيض', x: 1500, y: 800, desc: 'Color of snow' },
+    { word: 'Freeze', ar: 'التجمد', x: 500, y: 1000, desc: 'Turn to ice' }
+  ],
+  16: [
+    { word: 'Blizzard', ar: 'العاصفة الثلجية', x: 300, y: 400, desc: 'Severe snow storm' },
+    { word: 'Pass', ar: 'الممر', x: 700, y: 600, desc: 'Way through mountains' },
+    { word: 'Survive', ar: 'البقاء', x: 1100, y: 500, desc: 'Stay alive' },
+    { word: 'Warmth', ar: 'الدفء', x: 1500, y: 800, desc: 'Heat and comfort' },
+    { word: 'Shelter', ar: 'الملجأ', x: 500, y: 1000, desc: 'Protection from storm' }
+  ],
+  17: [
+    { word: 'Cloud', ar: 'الغيمة', x: 300, y: 400, desc: 'Visible mass of water' },
+    { word: 'Valley', ar: 'الوادي', x: 700, y: 600, desc: 'Low land between hills' },
+    { word: 'Drift', ar: 'التجول', x: 1100, y: 500, desc: 'Move slowly' },
+    { word: 'Mist', ar: 'السديم', x: 1500, y: 800, desc: 'Thin fog' },
+    { word: 'Sky', ar: 'السماء', x: 500, y: 1000, desc: 'Atmosphere above earth' }
+  ],
+  18: [
+    { word: 'Sea', ar: 'البحر', x: 300, y: 400, desc: 'Large body of salt water' },
+    { word: 'Wave', ar: 'الموجة', x: 700, y: 600, desc: 'Moving ridge of water' },
+    { word: 'Shore', ar: 'الشاطئ', x: 1100, y: 500, desc: 'Land beside water' },
+    { word: 'Rocky', ar: 'صخري', x: 1500, y: 800, desc: 'Covered with rocks' },
+    { word: 'Crash', ar: 'التحطم', x: 500, y: 1000, desc: 'Violent impact' }
+  ],
+  19: [
+    { word: 'Oasis', ar: 'الواحة', x: 300, y: 400, desc: 'Green area in desert' },
+    { word: 'Pool', ar: 'البركة', x: 700, y: 600, desc: 'Small body of water' },
+    { word: 'Palm', ar: 'النخلة', x: 1100, y: 500, desc: 'Tropical tree' },
+    { word: 'Cool', ar: 'بارد', x: 1500, y: 800, desc: 'Moderately cold' },
+    { word: 'Rest', ar: 'الراحة', x: 500, y: 1000, desc: 'Stop to relax' }
+  ],
+  20: [
+    { word: 'Date', ar: 'التمر', x: 300, y: 400, desc: 'Sweet fruit of palm' },
+    { word: 'Harvest', ar: 'الحصاد', x: 700, y: 600, desc: 'Gathering crops' },
+    { word: 'Plantation', ar: 'المزرعة', x: 1100, y: 500, desc: 'Large cultivated area' },
+    { word: 'Sweet', ar: 'حلو', x: 1500, y: 800, desc: 'Pleasing taste' },
+    { word: 'Season', ar: 'الموسم', x: 500, y: 1000, desc: 'Period of the year' }
+  ],
+  21: [
+    { word: 'Mosque', ar: 'المسجد', x: 300, y: 400, desc: 'Islamic place of worship' },
+    { word: 'Prayer', ar: 'الصلاة', x: 700, y: 600, desc: 'Religious devotion' },
+    { word: 'Minaret', ar: 'المئذنة', x: 1100, y: 500, desc: 'Tower of mosque' },
+    { word: 'Call', ar: 'النداء', x: 1500, y: 800, desc: 'Invitation to prayer' },
+    { word: 'Faith', ar: 'الإيمان', x: 500, y: 1000, desc: 'Strong belief' }
+  ],
+  22: [
+    { word: 'School', ar: 'المدرسة', x: 300, y: 400, desc: 'Place of learning' },
+    { word: 'Student', ar: 'الطالب', x: 700, y: 600, desc: 'One who learns' },
+    { word: 'Teacher', ar: 'المعلم', x: 1100, y: 500, desc: 'One who teaches' },
+    { word: 'Lesson', ar: 'الدرس', x: 1500, y: 800, desc: 'Period of teaching' },
+    { word: 'Knowledge', ar: 'المعرفة', x: 500, y: 1000, desc: 'Information and skills' }
+  ],
+  23: [
+    { word: 'Majlis', ar: 'المجلس', x: 300, y: 400, desc: 'Sitting room for guests' },
+    { word: 'Gathering', ar: 'الاجتماع', x: 700, y: 600, desc: 'Group meeting' },
+    { word: 'Elder', ar: 'الشيخ', x: 1100, y: 500, desc: 'Respected older person' },
+    { word: 'Wisdom', ar: 'الحكمة', x: 1500, y: 800, desc: 'Deep knowledge' },
+    { word: 'Story', ar: 'القصة', x: 500, y: 1000, desc: 'Narrative tale' }
+  ],
+  24: [
+    { word: 'Pottery', ar: 'الفخار', x: 300, y: 400, desc: 'Clay vessels and art' },
+    { word: 'Wheel', ar: 'الدولاب', x: 700, y: 600, desc: 'Spinning tool' },
+    { word: 'Clay', ar: 'الطين', x: 1100, y: 500, desc: 'Wet earth material' },
+    { word: 'Art', ar: 'الفن', x: 1500, y: 800, desc: 'Creative expression' },
+    { word: 'Craft', ar: 'الحرفة', x: 500, y: 1000, desc: 'Skilled work' }
+  ],
+  25: [
+    { word: 'Weave', ar: 'النسج', x: 300, y: 400, desc: 'Make fabric' },
+    { word: 'Loom', ar: 'النول', x: 700, y: 600, desc: 'Weaving machine' },
+    { word: 'Pattern', ar: 'النمط', x: 1100, y: 500, desc: 'Repeated design' },
+    { word: 'Thread', ar: 'الخيط', x: 1500, y: 800, desc: 'Thin strand' },
+    { word: 'Color', ar: 'اللون', x: 500, y: 1000, desc: 'Visual property' }
+  ],
+  26: [
+    { word: 'Coffee', ar: 'القهوة', x: 300, y: 400, desc: 'Roasted bean drink' },
+    { word: 'Roast', ar: 'التحميص', x: 700, y: 600, desc: 'Cook with dry heat' },
+    { word: 'Aroma', ar: 'الرائحة', x: 1100, y: 500, desc: 'Pleasant smell' },
+    { word: 'Bean', ar: 'الحبة', x: 1500, y: 800, desc: 'Seed of coffee' },
+    { word: 'Scent', ar: 'العطر', x: 500, y: 1000, desc: 'Distinctive smell' }
+  ],
+  27: [
+    { word: 'Frankincense', ar: 'اللبان', x: 300, y: 400, desc: 'Omani aromatic resin' },
+    { word: 'Trail', ar: 'المسار', x: 700, y: 600, desc: 'Path through land' },
+    { word: 'Route', ar: 'الطريق', x: 1100, y: 500, desc: 'Way to destination' },
+    { word: 'Ancient', ar: 'القديم', x: 1500, y: 800, desc: 'Very old' },
+    { word: 'Incense', ar: 'البخور', x: 500, y: 1000, desc: 'Fragrant smoke' }
+  ],
+  28: [
+    { word: 'Honey', ar: 'العسل', x: 300, y: 400, desc: 'Sweet bee product' },
+    { word: 'Bee', ar: 'النحلة', x: 700, y: 600, desc: 'Insect that makes honey' },
+    { word: 'Hive', ar: 'الخلية', x: 1100, y: 500, desc: 'Bee home' },
+    { word: 'Buzz', ar: 'الطنين', x: 1500, y: 800, desc: 'Bee sound' },
+    { word: 'Sweet', ar: 'حلو', x: 500, y: 1000, desc: 'Pleasing taste' }
+  ],
+  29: [
+    { word: 'Fish', ar: 'السمك', x: 300, y: 400, desc: 'Aquatic animal' },
+    { word: 'Boat', ar: 'القارب', x: 700, y: 600, desc: 'Water vessel' },
+    { word: 'Catch', ar: 'الصيد', x: 1100, y: 500, desc: 'Fish captured' },
+    { word: 'Net', ar: 'الشبكة', x: 1500, y: 800, desc: 'Fishing tool' },
+    { word: 'Ocean', ar: 'المحيط', x: 500, y: 1000, desc: 'Large sea' }
+  ],
+  30: [
+    { word: 'Salt', ar: 'الملح', x: 300, y: 400, desc: 'Mineral for seasoning' },
+    { word: 'Crystal', ar: 'البلورة', x: 700, y: 600, desc: 'Solid geometric form' },
+    { word: 'Flat', ar: 'مسطح', x: 1100, y: 500, desc: 'Level surface' },
+    { word: 'Horizon', ar: 'الأفق', x: 1500, y: 800, desc: 'Line where earth meets sky' },
+    { word: 'Mineral', ar: 'المعدن', x: 500, y: 1000, desc: 'Natural substance' }
+  ],
+  31: [
+    { word: 'Cave', ar: 'الكهف', x: 300, y: 400, desc: 'Natural underground space' },
+    { word: 'Echo', ar: 'الصدى', x: 700, y: 600, desc: 'Reflected sound' },
+    { word: 'Dark', ar: 'الظلام', x: 1100, y: 500, desc: 'Absence of light' },
+    { word: 'Whisper', ar: 'الهمس', x: 1500, y: 800, desc: 'Soft voice' },
+    { word: 'Ancient', ar: 'القديم', x: 500, y: 1000, desc: 'Very old' }
+  ],
+  32: [
+    { word: 'Waterfall', ar: 'الشلال', x: 300, y: 400, desc: 'Falling water' },
+    { word: 'Garden', ar: 'الحديقة', x: 700, y: 600, desc: 'Cultivated plants' },
+    { word: 'Cascade', ar: 'الشلالات', x: 1100, y: 500, desc: 'Small waterfall' },
+    { word: 'Tropical', ar: 'استوائي', x: 1500, y: 800, desc: 'Hot climate' },
+    { word: 'Green', ar: 'أخضر', x: 500, y: 1000, desc: 'Color of plants' }
+  ],
+  33: [
+    { word: 'Star', ar: 'النجمة', x: 300, y: 400, desc: 'Distant sun' },
+    { word: 'Observatory', ar: 'المرصد', x: 700, y: 600, desc: 'Building for astronomy' },
+    { word: 'Astronomer', ar: 'عالم الفلك', x: 1100, y: 500, desc: 'Star scientist' },
+    { word: 'Map', ar: 'الخريطة', x: 1500, y: 800, desc: 'Chart of stars' },
+    { word: 'Sky', ar: 'السماء', x: 500, y: 1000, desc: 'Above earth' }
+  ],
+  34: [
+    { word: 'Rose', ar: 'الوردة', x: 300, y: 400, desc: 'Beautiful flower' },
+    { word: 'Bloom', ar: 'التفتح', x: 700, y: 600, desc: 'Open flower' },
+    { word: 'Fragrance', ar: 'العطر', x: 1100, y: 500, desc: 'Pleasant smell' },
+    { word: 'Petal', ar: 'البتلة', x: 1500, y: 800, desc: 'Flower part' },
+    { word: 'Garden', ar: 'الحديقة', x: 500, y: 1000, desc: 'Cultivated area' }
+  ],
+  35: [
+    { word: 'Fortress', ar: 'الحصن', x: 300, y: 400, desc: 'Strong building for defense' },
+    { word: 'Ruin', ar: 'الأطلال', x: 700, y: 600, desc: 'Destroyed building' },
+    { word: 'Defense', ar: 'الدفاع', x: 1100, y: 500, desc: 'Protection from attack' },
+    { word: 'History', ar: 'التاريخ', x: 1500, y: 800, desc: 'Past events' },
+    { word: 'Time', ar: 'الزمن', x: 500, y: 1000, desc: 'Passing of moments' }
+  ],
+  36: [
+    { word: 'Journey', ar: 'الرحلة', x: 300, y: 400, desc: 'Long travel' },
+    { word: 'Celebrate', ar: 'الاحتفال', x: 700, y: 600, desc: 'Mark an occasion' },
+    { word: 'Complete', ar: 'الإكمال', x: 1100, y: 500, desc: 'Finish fully' },
+    { word: 'Memory', ar: 'الذكرى', x: 1500, y: 800, desc: 'Recollection' },
+    { word: 'Victory', ar: 'النصر', x: 500, y: 1000, desc: 'Winning achievement' }
+  ]
+};
+// ===================== LEVEL NPCs =====================
+const levelNPCsData = {
+  1: [
+    { name: 'Sheikh Khalaf', arName: 'الشيخ خلف', x: 900, y: 500, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'أهلاً وسهلاً في قرية القرواشية! هذه القرية عمرها أكثر من 500 سنة.', en: 'Welcome to Al-Qarwashiya! This village is over 500 years old.' },
+        { ar: 'انظر حولك... النخيل، البيوت الحجرية، والفلج. هذا هو عُمان الحقيقي.', en: 'Look around... palm trees, stone houses, and the falaj. This is the real Oman.' },
+        { ar: 'اجمع المفردات المبعثرة في القرية. كل كلمة تحمل قصة من تراثنا.', en: 'Collect the scattered vocabulary words. Each word carries a story from our heritage.' }
+      ]},
+    { name: 'Thuraya', arName: 'ثريا', x: 400, y: 700, color: '#8b1a3a',
+      dialogues: [
+        { ar: 'مرحباً! أنا ثريا. أكتب رواية عن هذه القرية الجميلة.', en: 'Hello! I am Thuraya. I am writing a novel about this beautiful village.' },
+        { ar: 'هل رأيت النخلة الكبيرة؟ تحتها تجد أجمل الذكريات.', en: 'Have you seen the big palm tree? Under it, you find the most beautiful memories.' }
+      ]},
+  ],
+  2: [
+    { name: 'Merchant', arName: 'التاجر', x: 800, y: 450, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'مرحباً يا مسافر! عندي أفضل البضائع في السوق.', en: 'Welcome traveler! I have the best goods in the market.' },
+        { ar: 'الصباح الباكر هو أفضل وقت للتسوق. الأسعار منخفضة!', en: 'Early morning is the best time for shopping. Prices are low!' }
+      ]}
+  ],
+  3: [
+    { name: 'Wind Whisperer', arName: 'همس الرياح', x: 600, y: 400, color: '#00d4aa',
+      dialogues: [
+        { ar: 'الرياح تحمل أسراراً قديمة. استمع إليها!', en: 'The winds carry ancient secrets. Listen to them!' },
+        { ar: 'في السهول المفتوحة، الرياح هي ملكتنا.', en: 'In the open plains, the wind is our queen.' }
+      ]}
+  ],
+  4: [
+    { name: 'Rain Dancer', arName: 'راقص المطر', x: 700, y: 500, color: '#00d4aa',
+      dialogues: [
+        { ar: 'المطر نعمة من السماء. نحتفل به!', en: 'Rain is a blessing from the sky. We celebrate it!' },
+        { ar: 'انظر كيف تتلألأ قطرات المطر على النخيل.', en: 'See how raindrops sparkle on the palm trees.' }
+      ]}
+  ],
+  5: [
+    { name: 'Sunset Poet', arName: 'شاعر الغروب', x: 1200, y: 600, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'الغروب هنا يشبه اللوحة الذهبية. انظر!', en: 'The sunset here is like a golden painting. Look!' },
+        { ar: 'عندما تغرب الشمس، تبدأ الحكايات.', en: 'When the sun sets, the stories begin.' }
+      ]}
+  ],
+  6: [
+    { name: 'Night Guardian', arName: 'حارس الليل', x: 500, y: 500, color: '#8b1a3a',
+      dialogues: [
+        { ar: 'القرية تنام، لكن الأسرار تستيقظ.', en: 'The village sleeps, but secrets awaken.' },
+        { ar: 'الفوانيس تضيء الطريق للمسافرين.', en: 'Lanterns light the way for travelers.' }
+      ]}
+  ],
+  7: [
+    { name: 'Storm Chaser', arName: 'مطارد العواصف', x: 800, y: 600, color: '#00d4aa',
+      dialogues: [
+        { ar: 'العاصفة قادمة! ابحث عن ملجأ!', en: 'The storm is coming! Find shelter!' },
+        { ar: 'البرق يشق السماء كسيف ذهبي.', en: 'Lightning splits the sky like a golden sword.' }
+      ]}
+  ],
+  8: [
+    { name: 'Fog Walker', arName: 'سائر الضباب', x: 600, y: 400, color: '#a09080',
+      dialogues: [
+        { ar: 'الضباب يخفي الأشياء ويكشف أسراراً.', en: 'Fog hides things and reveals secrets.' },
+        { ar: 'في الضباب، كل صوت يصدى بشكل مختلف.', en: 'In fog, every sound echoes differently.' }
+      ]}
+  ],
+  9: [
+    { name: 'Desert Nomad', arName: 'بدو الصحراء', x: 900, y: 700, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'عاصفة الرمال تغطي كل شيء! احمِ نفسك!', en: 'The sandstorm covers everything! Protect yourself!' },
+        { ar: 'الصحراء جميلة لكنها قاسية.', en: 'The desert is beautiful but harsh.' }
+      ]}
+  ],
+  10: [
+    { name: 'Midnight Sage', arName: 'حكيم منتصف الليل', x: 1000, y: 900, color: '#8b1a3a',
+      dialogues: [
+        { ar: 'في منتصف الليل، تتكشف الأسرار.', en: 'At midnight, secrets are revealed.' },
+        { ar: 'أنا أعرف قصصاً لم يسمعها أحد منذ قرون.', en: 'I know stories no one has heard for centuries.' }
+      ]}
+  ],
+  11: [
+    { name: 'Farmer', arName: 'الفلاح', x: 600, y: 500, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'الدجاج يبيض كل صباح. انظر إلى البيض الطازج!', en: 'The chickens lay eggs every morning. Look at the fresh eggs!' },
+        { ar: 'الدواجن مصدر رزقنا. نعتني بها جيداً.', en: 'Poultry is our livelihood. We take good care of them.' }
+      ]}
+  ],
+  12: [
+    { name: 'Shepherd Omar', arName: 'الراعي عمر', x: 800, y: 600, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'الأغنام ترعى على العشب الذهبي. منظر جميل!', en: 'The sheep graze on golden grass. A beautiful sight!' },
+        { ar: 'الصوف من أغنامنا يصنع أفضل الملابس.', en: 'Wool from our sheep makes the best clothes.' }
+      ]}
+  ],
+  13: [
+    { name: 'Caravan Leader', arName: 'زعيم القافلة', x: 1000, y: 700, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'الجمال تستريح في الواحة. حان وقت الشاي!', en: 'The camels rest at the oasis. Tea time!' },
+        { ar: 'قافلتنا تجوب الصحراء منذ أجيال.', en: 'Our caravan has crossed the desert for generations.' }
+      ]}
+  ],
+  14: [
+    { name: 'Mountain Guide', arName: 'دليل الجبل', x: 700, y: 500, color: '#00d4aa',
+      dialogues: [
+        { ar: 'الماعز تتسلق الصخور بسهولة. انظر!', en: 'The goats climb rocks with ease. Look!' },
+        { ar: 'الجبل يحمل أسراراً قديمة.', en: 'The mountain holds ancient secrets.' }
+      ]}
+  ],
+  15: [
+    { name: 'Snow Elder', arName: 'شيخ الثلج', x: 600, y: 400, color: '#a09080',
+      dialogues: [
+        { ar: 'الثلج نادر هنا. نحتفل به!', en: 'Snow is rare here. We celebrate it!' },
+        { ar: 'القمم البيضاء تذكرنا بجمال الطبيعة.', en: 'White peaks remind us of nature\'s beauty.' }
+      ]}
+  ],
+  16: [
+    { name: 'Blizzard Survivor', arName: 'ناجي العاصفة', x: 800, y: 600, color: '#00d4aa',
+      dialogues: [
+        { ar: 'العاصفة الثلجية خطيرة! ابحث عن الملجأ!', en: 'The blizzard is dangerous! Find shelter!' },
+        { ar: 'الثلج يغطي كل شيء. لا تضع!', en: 'Snow covers everything. Do not get lost!' }
+      ]}
+  ],
+  17: [
+    { name: 'Cloud Dreamer', arName: 'حالم الغيوم', x: 700, y: 500, color: '#a09080',
+      dialogues: [
+        { ar: 'الغيوم تتجول عبر الوادي كأبرياء.', en: 'Clouds wander through the valley like innocents.' },
+        { ar: 'كل غيمة تحمل حلماً.', en: 'Every cloud carries a dream.' }
+      ]}
+  ],
+  18: [
+    { name: 'Sea Captain', arName: 'الكابتن البحري', x: 900, y: 600, color: '#00d4aa',
+      dialogues: [
+        { ar: 'الأمواج تتصادم مع الشاطئ. قوية!', en: 'The waves crash against the shore. Powerful!' },
+        { ar: 'البحر يعطي ويأخذ.', en: 'The sea gives and takes.' }
+      ]}
+  ],
+  19: [
+    { name: 'Oasis Keeper', arName: 'حارس الواحة', x: 800, y: 500, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'الواحة هي الحياة في الصحراء. الماء والظل.', en: 'The oasis is life in the desert. Water and shade.' },
+        { ar: 'النخيل تحمي الواحة من الشمس القاسية.', en: 'Palm trees protect the oasis from the harsh sun.' }
+      ]}
+  ],
+  20: [
+    { name: 'Date Farmer', arName: 'فلاح التمر', x: 700, y: 600, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'موسم الحصاد! التمر ناضج وجميل.', en: 'Harvest season! The dates are ripe and beautiful.' },
+        { ar: 'نخيلنا تعطي أجود أنواع التمر.', en: 'Our palms give the finest dates.' }
+      ]}
+  ],
+  21: [
+    { name: 'Imam', arName: 'الإمام', x: 900, y: 600, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'الأذان يتردد في المسجد القديم. سلام.', en: 'The call to prayer echoes in the old mosque. Peace.' },
+        { ar: 'المسجد هو قلب القرية.', en: 'The mosque is the heart of the village.' }
+      ]}
+  ],
+  22: [
+    { name: 'Teacher John', arName: 'المعلم جون', x: 600, y: 400, color: '#00d4aa',
+      dialogues: [
+        { ar: 'أهلاً بك في مدرسة القرواشية! هنا نعلم الأطفال.', en: 'Welcome to Al-Qarwashiya School! Here we teach children.' },
+        { ar: 'اللغة الإنجليزية تفتح أبواباً جديدة.', en: 'English opens new doors.' }
+      ]}
+  ],
+  23: [
+    { name: 'Village Elder', arName: 'شيخ القرية', x: 800, y: 500, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'المجلس هو مكان الحكمة والقصص.', en: 'The Majlis is the place of wisdom and stories.' },
+        { ar: 'كل قصة تحمل درساً.', en: 'Every story carries a lesson.' }
+      ]}
+  ],
+  24: [
+    { name: 'Potter', arName: 'الخزاف', x: 700, y: 600, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'الطين يتحول إلى فن بأيدينا.', en: 'Clay turns into art with our hands.' },
+        { ar: 'كل قطعة فخار تحمل روحاً.', en: 'Every pottery piece carries a soul.' }
+      ]}
+  ],
+  25: [
+    { name: 'Weaver', arName: 'النساجة', x: 600, y: 500, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'الأنوال تنشئ أنماطاً جميلة.', en: 'The looms create beautiful patterns.' },
+        { ar: 'كل نمط يحكي قصة.', en: 'Every pattern tells a story.' }
+      ]}
+  ],
+  26: [
+    { name: 'Coffee Master', arName: 'سيد القهوة', x: 700, y: 500, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'قهوتنا العمانية مشهورة في كل العالم.', en: 'Our Omani coffee is famous worldwide.' },
+        { ar: 'القهوة تجمع الناس.', en: 'Coffee brings people together.' }
+      ]}
+  ],
+  27: [
+    { name: 'Incense Trader', arName: 'تاجر اللبان', x: 800, y: 600, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'اللبان العماني أغلى من الذهب.', en: 'Omani frankincense is worth more than gold.' },
+        { ar: 'اتبع طريق التجارة القديم.', en: 'Follow the ancient trade route.' }
+      ]}
+  ],
+  28: [
+    { name: 'Beekeeper', arName: 'نحال العسل', x: 600, y: 500, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'النحل يصنع العسل من زهور السدر.', en: 'Bees make honey from Sidr flowers.' },
+        { ar: 'عسل السدر هو أفضل أنواع العسل.', en: 'Sidr honey is the best kind of honey.' }
+      ]}
+  ],
+  29: [
+    { name: 'Fisherman', arName: 'الصياد', x: 900, y: 600, color: '#00d4aa',
+      dialogues: [
+        { ar: 'القوارب تعود بالصيد. يوم جيد!', en: 'The boats return with the catch. A good day!' },
+        { ar: 'البحر يعطي بسخاء.', en: 'The sea gives generously.' }
+      ]}
+  ],
+  30: [
+    { name: 'Salt Collector', arName: 'جامع الملح', x: 700, y: 500, color: '#a09080',
+      dialogues: [
+        { ar: 'الملح البلوري يمتد حتى الأفق.', en: 'Crystalline salt stretches to the horizon.' },
+        { ar: 'الملح هو كنز الصحراء.', en: 'Salt is the treasure of the desert.' }
+      ]}
+  ],
+  31: [
+    { name: 'Cave Explorer', arName: 'مستكشف الكهف', x: 800, y: 600, color: '#00d4aa',
+      dialogues: [
+        { ar: 'الكهف يحمل أصداء الماضي.', en: 'The cave holds echoes of the past.' },
+        { ar: 'استمع... هل تسمع الأصوات القديمة؟', en: 'Listen... do you hear the ancient voices?' }
+      ]}
+  ],
+  32: [
+    { name: 'Garden Keeper', arName: 'حارس الحديقة', x: 700, y: 500, color: '#00d4aa',
+      dialogues: [
+        { ar: 'الشلال يغني أغنية الحياة.', en: 'The waterfall sings the song of life.' },
+        { ar: 'الحديقة الاستوائية هي جنة صغيرة.', en: 'The tropical garden is a small paradise.' }
+      ]}
+  ],
+  33: [
+    { name: 'Astronomer', arName: 'عالم الفلك', x: 800, y: 600, color: '#a09080',
+      dialogues: [
+        { ar: 'النجوم تحكي قصصاً منذ آلاف السنين.', en: 'The stars have told stories for thousands of years.' },
+        { ar: 'انظر إلى السماء... كم نجمة ترى؟', en: 'Look at the sky... how many stars do you see?' }
+      ]}
+  ],
+  34: [
+    { name: 'Rose Gardener', arName: 'بستاني الورد', x: 600, y: 500, color: '#d63384',
+      dialogues: [
+        { ar: 'ورود الجبل الأخضر تفتح في الغروب.', en: 'The roses of Jabal Al Akhdar bloom at sunset.' },
+        { ar: 'رائحة الورد تملأ الهواء.', en: 'The scent of roses fills the air.' }
+      ]}
+  ],
+  35: [
+    { name: 'Fortress Guardian', arName: 'حارس الحصن', x: 900, y: 700, color: '#8b1a3a',
+      dialogues: [
+        { ar: 'الحصن القديم يقف شامخاً في وجه الزمن.', en: 'The ancient fort stands tall against time.' },
+        { ar: 'هنا دافع أجدادنا عن أرضهم.', en: 'Here our ancestors defended their land.' }
+      ]}
+  ],
+  36: [
+    { name: 'Thuraya', arName: 'ثريا', x: 700, y: 600, color: '#d4c5a9',
+      dialogues: [
+        { ar: 'أنا فخورة بك! لقد أكملتَ جميع المستويات الـ 36.', en: 'I am proud of you! You have completed all 36 levels.' },
+        { ar: 'الآن أنت تعرف الكثير عن تراث عُمان وثقافتها. استمر في التعلم!', en: 'Now you know a lot about Omani heritage and culture. Keep learning!' },
+        { ar: 'شكراً لك على هذه الرحلة الرائعة تحت النخلة.', en: 'Thank you for this wonderful journey Under the Palm Tree.' }
+      ]}
+  ]
+};
+// ===================== SCENE / RENDERER / CAMERA =====================
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x3a4a5a, 8, 60);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+container.appendChild(renderer.domElement);
+
+function makeSkyTexture(topColor) {
+  const c = document.createElement('canvas');
+  c.width = 2; c.height = 256;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, topColor);
+  grad.addColorStop(1, '#05040a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 2, 256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const pmrem = new THREE.PMREMGenerator(renderer);
+let envMap = pmrem.fromEquirectangular(makeSkyTexture('#3a4a5a')).texture;
+scene.environment = envMap;
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.9, 0.5, 0.55);
+composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+const ambientLight = new THREE.AmbientLight(0x6a8aaa, 0.6);
+scene.add(ambientLight);
+const fillLight = new THREE.HemisphereLight(0x8899aa, 0x2a2015, 0.5);
+scene.add(fillLight);
+const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+sunLight.position.set(20, 30, 10);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(1024, 1024);
+sunLight.shadow.camera.left = -40;
+sunLight.shadow.camera.right = 40;
+sunLight.shadow.camera.top = 40;
+sunLight.shadow.camera.bottom = -40;
+scene.add(sunLight);
+
+let ground = null;
+
+// ===================== PLAYER =====================
+function createPlayer() {
+  const group = new THREE.Group();
+  const robeMat = new THREE.MeshStandardMaterial({ color: 0xd4c5a9, roughness: 0.8 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0x5a1028, roughness: 0.7 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xc8a880, roughness: 0.6 });
+
+  const torsoGeo = new THREE.CylinderGeometry(0.22, 0.3, 1.0, 10);
+  const torso = new THREE.Mesh(torsoGeo, robeMat);
+  torso.position.y = 0.9;
+  torso.castShadow = true;
+  group.add(torso);
+
+  const trimGeo = new THREE.TorusGeometry(0.23, 0.03, 8, 16);
+  const trim = new THREE.Mesh(trimGeo, trimMat);
+  trim.position.y = 1.35;
+  trim.rotation.x = Math.PI / 2;
+  group.add(trim);
+
+  const headGeo = new THREE.SphereGeometry(0.16, 16, 16);
+  const head = new THREE.Mesh(headGeo, skinMat);
+  head.position.y = 1.58;
+  head.castShadow = true;
+  group.add(head);
+
+  const capGeo = new THREE.SphereGeometry(0.17, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  const cap = new THREE.Mesh(capGeo, robeMat);
+  cap.position.y = 1.6;
+  group.add(cap);
+
+  const armGeo = new THREE.CapsuleGeometry(0.06, 0.5, 4, 8);
+  const leftArm = new THREE.Mesh(armGeo, robeMat);
+  leftArm.position.set(-0.28, 1.0, 0);
+  leftArm.castShadow = true;
+  group.add(leftArm);
+  const rightArm = leftArm.clone();
+  rightArm.position.set(0.28, 1.0, 0);
+  group.add(rightArm);
+
+  const legGeo = new THREE.CapsuleGeometry(0.08, 0.5, 4, 8);
+  const leftLeg = new THREE.Mesh(legGeo, robeMat);
+  leftLeg.position.set(-0.12, 0.3, 0);
+  leftLeg.castShadow = true;
+  group.add(leftLeg);
+  const rightLeg = leftLeg.clone();
+  rightLeg.position.set(0.12, 0.3, 0);
+  group.add(rightLeg);
+
+  group.userData = {
+    velocity: new THREE.Vector3(),
+    onGround: true,
+    speed: 0.09,
+    runSpeed: 0.17,
+    jumpForce: 0.24,
+    leftArm, rightArm, leftLeg, rightLeg, head,
+    animTime: 0,
+    jumpPressed: false
+  };
+  group.position.set(0, 0, 0);
+  scene.add(group);
+  return group;
+}
+const player = createPlayer();
+
+// ===================== INPUT =====================
+const keys = {};
+const touch = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'KeyC') toggleCamera();
+  if (e.code === 'KeyM') toggleMute();
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') STATE.isRunning = true;
+  if (e.code === 'KeyE') STATE.interactHeld = true;
+  if (e.code === 'KeyB') tryWeaveMat();
+});
+window.addEventListener('keyup', e => {
+  keys[e.code] = false;
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') STATE.isRunning = false;
+  if (e.code === 'KeyE') STATE.interactHeld = false;
+});
+function setupTouchBtn(id, code) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  const on = ev => { ev.preventDefault(); touch[code] = true; };
+  const off = ev => { ev.preventDefault(); touch[code] = false; };
+  btn.addEventListener('touchstart', on);
+  btn.addEventListener('touchend', off);
+  btn.addEventListener('mousedown', () => touch[code] = true);
+  btn.addEventListener('mouseup', () => touch[code] = false);
+}
+setupTouchBtn('btn-up', 'KeyW');
+setupTouchBtn('btn-down', 'KeyS');
+setupTouchBtn('btn-left', 'KeyA');
+setupTouchBtn('btn-right', 'KeyD');
+setupTouchBtn('btn-jump', 'Space');
+setupTouchBtn('btn-run', 'ShiftLeft');
+document.getElementById('btn-action')?.addEventListener('touchstart', e => { e.preventDefault(); STATE.interactHeld = true; });
+document.getElementById('btn-action')?.addEventListener('touchend', e => { e.preventDefault(); STATE.interactHeld = false; });
+document.getElementById('btn-weave')?.addEventListener('touchstart', e => { e.preventDefault(); tryWeaveMat(); });
+function isDown(c) { return keys[c] || touch[c]; }
+
+let cameraMode = 'first';
+let cameraOffset = new THREE.Vector3(0, 1.55, 0.15);
+function toggleCamera() {
+  cameraMode = cameraMode === 'first' ? 'third' : 'first';
+  cameraOffset = cameraMode === 'first' ? new THREE.Vector3(0, 1.55, 0.15) : new THREE.Vector3(0, 2.6, 4.2);
+}
+
+function updatePlayer(delta) {
+  const p = player.userData;
+  const move = new THREE.Vector3();
+  if (isDown('KeyA') || isDown('ArrowLeft')) move.x -= 1;
+  if (isDown('KeyD') || isDown('ArrowRight')) move.x += 1;
+  if (isDown('KeyW') || isDown('ArrowUp')) move.z -= 1;
+  if (isDown('KeyS') || isDown('ArrowDown')) move.z += 1;
+  const currentSpeed = STATE.isRunning ? p.runSpeed : p.speed;
+
+  if (STATE.climbing) { move.set(0, 0, 0); }
+
+  if (move.length() > 0 && !STATE.climbing) {
+    move.normalize().multiplyScalar(currentSpeed);
+    p.velocity.x += (move.x - p.velocity.x) * 0.2;
+    p.velocity.z += (move.z - p.velocity.z) * 0.2;
+    const nextX = player.position.x + p.velocity.x;
+    const nextZ = player.position.z + p.velocity.z;
+    if (!collidesWithBuildings(nextX, player.position.z)) player.position.x = nextX;
+    if (!collidesWithBuildings(player.position.x, nextZ)) player.position.z = nextZ;
+    const targetRot = Math.atan2(p.velocity.x, p.velocity.z);
+    let rotDiff = targetRot - player.rotation.y;
+    while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+    while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+    player.rotation.y += rotDiff * 0.2;
+    const animSpeed = STATE.isRunning ? 14 : 9;
+    p.animTime += delta * animSpeed;
+    p.leftLeg.rotation.x = Math.sin(p.animTime) * 0.6;
+    p.rightLeg.rotation.x = Math.sin(p.animTime + Math.PI) * 0.6;
+    p.leftArm.rotation.x = Math.sin(p.animTime + Math.PI) * 0.4;
+    p.rightArm.rotation.x = Math.sin(p.animTime) * 0.4;
+  } else if (!STATE.climbing) {
+    p.velocity.x *= 0.8;
+    p.velocity.z *= 0.8;
+    player.position.x += p.velocity.x;
+    player.position.z += p.velocity.z;
+    p.leftLeg.rotation.x *= 0.85;
+    p.rightLeg.rotation.x *= 0.85;
+    p.leftArm.rotation.x *= 0.85;
+    p.rightArm.rotation.x *= 0.85;
+  }
+
+  if (!STATE.climbing) {
+    if ((isDown('Space')) && !p.jumpPressed && p.onGround) {
+      p.velocity.y = p.jumpForce;
+      p.onGround = false;
+      playSound('jump');
+      p.jumpPressed = true;
+    }
+    if (!isDown('Space')) p.jumpPressed = false;
+    p.velocity.y -= 0.012;
+    player.position.y += p.velocity.y;
+    if (player.position.y <= 0) {
+      player.position.y = 0;
+      p.velocity.y = 0;
+      p.onGround = true;
+    }
+    const half = STATE.worldHalfSize;
+    player.position.x = Math.max(-half, Math.min(half, player.position.x));
+    player.position.z = Math.max(-half, Math.min(half, player.position.z));
+  }
+
+  const targetPos = player.position.clone();
+  if (cameraMode === 'first') {
+    targetPos.y += cameraOffset.y;
+    targetPos.x += Math.sin(player.rotation.y) * cameraOffset.z;
+    targetPos.z += Math.cos(player.rotation.y) * cameraOffset.z;
+    camera.position.lerp(targetPos, 0.4);
+    const lookAt = player.position.clone().add(new THREE.Vector3(Math.sin(player.rotation.y) * 3, cameraOffset.y, Math.cos(player.rotation.y) * 3));
+    camera.lookAt(lookAt);
+  } else {
+    const behind = new THREE.Vector3(Math.sin(player.rotation.y) * -cameraOffset.z, cameraOffset.y, Math.cos(player.rotation.y) * -cameraOffset.z);
+    camera.position.lerp(player.position.clone().add(behind), 0.1);
+    camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 1.2, 0)));
+  }
+}
+
+function dist2D(x1, z1, x2, z2) {
+  return Math.sqrt((x1 - x2) ** 2 + (z1 - z2) ** 2);
+}
+// ===================== GAME STATE =====================
+const STATE = {
+  level: 1,
+  isRunning: false,
+  interactHeld: false,
+  climbing: false,
+  worldHalfSize: 30,
+  muted: false,
+  inventory: { seedling: 0, dates: 0, fronds: 0, matsWoven: 0 },
+  vocabCollected: 0,
+  vocabTotal: 0,
+  totalWordsCollected: 0,
+  levelObjects: [],
+  buildingBoxes: [],
+  poorHouse: null,
+  climbablePalm: null,
+  npcs: [],
+  vocabItems: [],
+  frondItems: [],
+  currentSpeaker: null,
+  dialogueQueue: [],
+  quizShownThisLevel: false,
+  climbEduShown: false
+};
+
+function collidesWithBuildings(x, z) {
+  const r = 0.35;
+  for (const b of STATE.buildingBoxes) {
+    if (x > b.minX - r && x < b.maxX + r && z > b.minZ - r && z < b.maxZ + r) return true;
+  }
+  return false;
+}
+
+// ===================== AUDIO (Web Audio oscillator tones) =====================
+let audioCtx = null;
+function ensureAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function playSound(kind) {
+  if (STATE.muted) return;
+  try {
+    ensureAudio();
+    const t = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    const presets = {
+      jump: { freq: 440, dur: 0.12, type: 'square' },
+      vocab: { freq: 700, dur: 0.15, type: 'sine' },
+      frond: { freq: 500, dur: 0.12, type: 'triangle' },
+      seedling: { freq: 300, dur: 0.3, type: 'sine' },
+      deliver: { freq: 880, dur: 0.4, type: 'sine' },
+      levelComplete: { freq: 660, dur: 0.5, type: 'sine' },
+      weave: { freq: 380, dur: 0.25, type: 'triangle' },
+      climb: { freq: 220, dur: 0.2, type: 'sawtooth' },
+      quizRight: { freq: 900, dur: 0.2, type: 'sine' },
+      quizWrong: { freq: 180, dur: 0.3, type: 'square' }
+    };
+    const preset = presets[kind] || presets.vocab;
+    o.type = preset.type;
+    o.frequency.setValueAtTime(preset.freq, t);
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.exponentialRampToValueAtTime(0.15, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + preset.dur);
+    o.start(t);
+    o.stop(t + preset.dur + 0.05);
+  } catch (e) { /* audio unavailable */ }
+}
+function toggleMute() {
+  STATE.muted = !STATE.muted;
+  document.getElementById('muteBtn').textContent = STATE.muted ? '🔇' : '🔊';
+}
+document.getElementById('muteBtn').addEventListener('click', toggleMute);
+document.getElementById('camBtn').addEventListener('click', toggleCamera);
+
+// ===================== WEATHER PARTICLES =====================
+let weatherParticles = null;
+function buildWeatherParticles(weather) {
+  if (weatherParticles) { scene.remove(weatherParticles); weatherParticles = null; }
+  const intensity = Math.max(weather.rain, weather.snow, weather.sand);
+  if (intensity <= 0) return;
+  const count = Math.floor(400 + intensity * 800);
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * STATE.worldHalfSize * 2;
+    positions[i * 3 + 1] = Math.random() * 20;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * STATE.worldHalfSize * 2;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  let color = 0x88ccff, size = 0.05;
+  if (weather.snow > 0) { color = 0xffffff; size = 0.08; }
+  if (weather.sand > 0) { color = 0xd2b48c; size = 0.06; }
+  const mat = new THREE.PointsMaterial({ color, size, transparent: true, opacity: 0.6 });
+  weatherParticles = new THREE.Points(geo, mat);
+  weatherParticles.userData = { weather };
+  scene.add(weatherParticles);
+}
+function updateWeatherParticles(delta) {
+  if (!weatherParticles) return;
+  const weather = weatherParticles.userData.weather;
+  const fall = weather.snow > 0 ? 3 : 14;
+  const positions = weatherParticles.geometry.attributes.position.array;
+  for (let i = 0; i < positions.length; i += 3) {
+    positions[i + 1] -= fall * delta;
+    if (weather.sand > 0) positions[i] += weather.wind * delta * 2;
+    if (positions[i + 1] < 0) positions[i + 1] = 20;
+  }
+  weatherParticles.geometry.attributes.position.needsUpdate = true;
+}
+
+// ===================== LEVEL / VILLAGE GENERATION =====================
+function clearLevelObjects() {
+  for (const obj of STATE.levelObjects) scene.remove(obj);
+  STATE.levelObjects = [];
+  STATE.buildingBoxes = [];
+  STATE.npcs = [];
+  STATE.vocabItems = [];
+  STATE.frondItems = [];
+  STATE.poorHouse = null;
+  STATE.climbablePalm = null;
+  if (ground) { scene.remove(ground); ground = null; }
+}
+
+function addObj(obj) { scene.add(obj); STATE.levelObjects.push(obj); return obj; }
+
+function makeTextSprite(text, color) {
+  const fontSize = 28;
+  const measureCanvas = document.createElement('canvas');
+  const measureCtx = measureCanvas.getContext('2d');
+  measureCtx.font = `${fontSize}px sans-serif`;
+  const textWidth = measureCtx.measureText(text).width;
+  const canvasWidth = Math.max(160, Math.ceil(textWidth + 40));
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasWidth; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(10,8,6,0.75)';
+  ctx.fillRect(0, 0, canvasWidth, 64);
+  ctx.font = `${fontSize}px sans-serif`;
+  ctx.fillStyle = color || '#e8d5b5';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, canvasWidth / 2, 32);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(2 * (canvasWidth / 256), 0.5, 1);
+  return sprite;
+}
+
+const NEON_COLORS = [0x00d4aa, 0xd63384, 0x00e5ff, 0x8b1a3a];
+
+function buildBuilding(bx, by, bw, bh, type, isPoorHouse) {
+  const x = bx * WORLD_SCALE;
+  const z = by * WORLD_SCALE;
+  const w = bw * WORLD_SCALE;
+  const d = bh * WORLD_SCALE;
+  const height = type === 'mosque' ? 4.2 : type === 'tower' ? 4 : type === 'school' ? 3.2 : 1.8 + Math.random() * 0.6;
+  const colorPalette = ['#241812', '#2a1c15', '#1e1410', '#2e1e16', '#221610'];
+  const color = isPoorHouse ? 0x2a5a3a : colorPalette[Math.floor(Math.random() * colorPalette.length)];
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.25, envMapIntensity: 1.2 });
+  const geo = new THREE.BoxGeometry(w, height, d);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x + w / 2, height / 2, z + d / 2);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  addObj(mesh);
+
+  // Neon edge outline (cyberpunk-style glow visible from every angle, never gold) —
+  // uses an unlit line material so it reads as neon regardless of lighting/viewing side.
+  const neonColor = isPoorHouse ? 0x00d4aa : NEON_COLORS[Math.floor(Math.random() * NEON_COLORS.length)];
+  const edges = new THREE.EdgesGeometry(geo);
+  const edgeMat = new THREE.LineBasicMaterial({ color: neonColor, toneMapped: false });
+  const outline = new THREE.LineSegments(edges, edgeMat);
+  outline.position.copy(mesh.position);
+  addObj(outline);
+
+  // A few glowing window squares on random faces for extra neon density
+  const faceOffsets = [
+    { dx: 0, dz: d / 2 + 0.02, ry: 0 },
+    { dx: 0, dz: -d / 2 - 0.02, ry: Math.PI },
+    { dx: w / 2 + 0.02, dz: 0, ry: Math.PI / 2 },
+    { dx: -w / 2 - 0.02, dz: 0, ry: -Math.PI / 2 }
+  ];
+  const winMat = new THREE.MeshBasicMaterial({ color: neonColor, toneMapped: false });
+  for (const f of faceOffsets) {
+    if (Math.random() > 0.4) continue;
+    const winGeo = new THREE.PlaneGeometry(Math.min(w, d) * 0.3, height * 0.18);
+    const win = new THREE.Mesh(winGeo, winMat);
+    win.position.set(x + w / 2 + f.dx, height * (0.4 + Math.random() * 0.35), z + d / 2 + f.dz);
+    win.rotation.y = f.ry;
+    addObj(win);
+  }
+
+  if (type === 'mosque') {
+    const domeGeo = new THREE.SphereGeometry(w * 0.35, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    const domeMat = new THREE.MeshStandardMaterial({ color: 0x0a3a3a, emissive: 0x00e5ff, emissiveIntensity: 0.5, metalness: 0.5, roughness: 0.3 });
+    const dome = new THREE.Mesh(domeGeo, domeMat);
+    dome.position.set(x + w / 2, height, z + d / 2);
+    addObj(dome);
+    const label = makeTextSprite('🕌 مسجد', '#00e5ff');
+    label.position.set(x + w / 2, height + 1.4, z + d / 2);
+    addObj(label);
+  }
+  if (type === 'school') {
+    const label = makeTextSprite('🏫 مدرسة', '#d63384');
+    label.position.set(x + w / 2, height + 1.1, z + d / 2);
+    addObj(label);
+  }
+  if (isPoorHouse) {
+    const glow = new THREE.PointLight(0x00d4aa, 1.4, 7);
+    glow.position.set(x + w / 2, height + 0.5, z + d / 2);
+    addObj(glow);
+    const label = makeTextSprite('🏠 بيت محتاج', '#00d4aa');
+    label.position.set(x + w / 2, height + 1.1, z + d / 2);
+    addObj(label);
+  }
+  STATE.buildingBoxes.push({ minX: x, maxX: x + w, minZ: z, maxZ: z + d, isPoorHouse: !!isPoorHouse, type, cx: x + w / 2, cz: z + d / 2 });
+  return { minX: x, maxX: x + w, minZ: z, maxZ: z + d };
+}
+
+function buildPalm(px, py, size, climbable) {
+  const x = px * WORLD_SCALE;
+  const z = py * WORLD_SCALE;
+  const trunkH = 2 + (size / 100) * 1.5;
+  const trunkMat = new THREE.MeshStandardMaterial({ color: climbable ? 0x8b6a3f : 0x6b4a2f, roughness: 1 });
+  const trunkGeo = new THREE.CylinderGeometry(0.1, 0.14, trunkH, 6);
+  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+  trunk.position.set(x, trunkH / 2, z);
+  trunk.castShadow = true;
+  addObj(trunk);
+  const frondMat = new THREE.MeshStandardMaterial({ color: 0x2f5a2f, roughness: 0.8 });
+  for (let i = 0; i < 6; i++) {
+    const frondGeo = new THREE.ConeGeometry(0.55, 1.2, 4);
+    const frond = new THREE.Mesh(frondGeo, frondMat);
+    const ang = (i / 6) * Math.PI * 2;
+    frond.position.set(x + Math.cos(ang) * 0.35, trunkH + 0.3, z + Math.sin(ang) * 0.35);
+    frond.rotation.z = Math.cos(ang) * 0.9;
+    frond.rotation.x = Math.sin(ang) * 0.9 + 0.3;
+    addObj(frond);
+  }
+  if (climbable) {
+    const ropeMat = new THREE.MeshStandardMaterial({ color: 0xd63384 });
+    const ropeGeo = new THREE.TorusGeometry(0.16, 0.02, 6, 12);
+    const rope = new THREE.Mesh(ropeGeo, ropeMat);
+    rope.position.set(x, trunkH * 0.4, z);
+    rope.rotation.x = Math.PI / 2;
+    addObj(rope);
+    STATE.climbablePalm = { x, z, trunkH };
+  }
+}
+
+function buildVocabItem(vx, vy, word, ar) {
+  const x = vx * WORLD_SCALE;
+  const z = vy * WORLD_SCALE;
+  const geo = new THREE.IcosahedronGeometry(0.18, 0);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x00d4aa, emissive: 0x00d4aa, emissiveIntensity: 0.6 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, 1.1, z);
+  addObj(mesh);
+  const label = makeTextSprite(word, '#00d4aa');
+  label.position.set(x, 1.7, z);
+  addObj(label);
+  STATE.vocabItems.push({ x, z, word, ar, mesh, label, collected: false });
+}
+
+function buildFrondItem(fx, fz) {
+  const geo = new THREE.ConeGeometry(0.12, 0.35, 4);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x3a7a3a, emissive: 0x1a3a1a, emissiveIntensity: 0.4 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(fx, 0.3, fz);
+  mesh.rotation.z = Math.PI;
+  addObj(mesh);
+  STATE.frondItems.push({ x: fx, z: fz, mesh, collected: false });
+}
+
+function buildSpiderMonument(mx, mz) {
+  const baseGeo = new THREE.CylinderGeometry(1.2, 1.5, 0.3, 24);
+  const baseMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.15, metalness: 1.0, envMapIntensity: 1.5 });
+  const base = new THREE.Mesh(baseGeo, baseMat);
+  base.position.set(mx, 0.15, mz);
+  base.castShadow = true; base.receiveShadow = true;
+  addObj(base);
+
+  const coreGeo = new THREE.SphereGeometry(0.45, 32, 32);
+  const coreMat = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x00e5ff, emissiveIntensity: 3, roughness: 0.1, metalness: 0.2 });
+  const core = new THREE.Mesh(coreGeo, coreMat);
+  core.position.set(mx, 1.6, mz);
+  addObj(core);
+  const coreLight = new THREE.PointLight(0x00e5ff, 2, 8);
+  coreLight.position.copy(core.position);
+  addObj(coreLight);
+
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2, metalness: 0.95, envMapIntensity: 1.2 });
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const legGeo = new THREE.CylinderGeometry(0.05, 0.025, 1.8, 8);
+    const leg = new THREE.Mesh(legGeo, legMat);
+    leg.position.set(mx + Math.cos(angle) * 0.7, 0.9, mz + Math.sin(angle) * 0.7);
+    leg.rotation.z = Math.cos(angle) * 0.5;
+    leg.rotation.x = Math.sin(angle) * 0.5;
+    leg.castShadow = true;
+    addObj(leg);
+    const tipGeo = new THREE.SphereGeometry(0.06, 12, 12);
+    const tipMat = new THREE.MeshStandardMaterial({ color: i % 2 === 0 ? 0x00e5ff : 0xd63384, emissive: i % 2 === 0 ? 0x00e5ff : 0xd63384, emissiveIntensity: 2.5 });
+    const tip = new THREE.Mesh(tipGeo, tipMat);
+    tip.position.set(mx + Math.cos(angle) * 1.5, 0.1, mz + Math.sin(angle) * 1.5);
+    addObj(tip);
+  }
+
+  const ringGeo = new THREE.TorusGeometry(0.7, 0.03, 12, 64);
+  const ringMat = new THREE.MeshStandardMaterial({ color: 0xd63384, emissive: 0xd63384, emissiveIntensity: 2 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.set(mx, 1.6, mz);
+  ring.rotation.x = Math.PI / 2;
+  addObj(ring);
+}
+
+function buildNPC(nx, ny, name, arName, color, dialogues) {
+  const x = nx * WORLD_SCALE;
+  const z = ny * WORLD_SCALE;
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: color || '#d4c5a9' });
+  const bodyGeo = new THREE.CapsuleGeometry(0.22, 0.7, 4, 8);
+  const body = new THREE.Mesh(bodyGeo, mat);
+  body.position.y = 0.9;
+  body.castShadow = true;
+  group.add(body);
+  const headGeo = new THREE.SphereGeometry(0.16, 12, 12);
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xc8a880 });
+  const head = new THREE.Mesh(headGeo, skinMat);
+  head.position.y = 1.5;
+  group.add(head);
+  group.position.set(x, 0, z);
+  const label = makeTextSprite(name, '#d4c5a9');
+  label.position.set(0, 2.1, 0);
+  group.add(label);
+  addObj(group);
+  STATE.npcs.push({ x, z, name, arName, dialogues, met: false, group });
+}
+
+function generateVillage(levelNum) {
+  clearLevelObjects();
+  const theme = levelThemes[levelNum];
+  const weather = weatherTypes[theme.weather];
+  const time = timeModes[theme.time];
+
+  scene.background = new THREE.Color(time.sky);
+  scene.fog.color = new THREE.Color(time.sky);
+  scene.fog.near = weather.fog > 0 ? 4 : 10;
+  scene.fog.far = weather.fog > 0 ? 14 - weather.fog * 6 : 55;
+  ambientLight.color = new THREE.Color(time.ambient);
+  ambientLight.intensity = 0.25 + time.light * 0.5;
+  sunLight.intensity = time.light * 1.1;
+  if (envMap) envMap.dispose();
+  envMap = pmrem.fromEquirectangular(makeSkyTexture(time.sky)).texture;
+  scene.environment = envMap;
+
+  const groundColor = weather.snow > 0 ? 0xe8e8f0 : weather.sand > 0 ? 0xc9a86a : 0x4a5a3a;
+  const groundGeo = new THREE.PlaneGeometry(STATE.worldHalfSize * 2, STATE.worldHalfSize * 2);
+  const groundMat = new THREE.MeshStandardMaterial({ color: groundColor, roughness: 1 });
+  ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(0, 0, 0);
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Buildings laid out on a dense grid — 100+ per level, matching the original 2D village layout logic
+  const w = 2400, h = 1800;
+  const buildingTypes = ['house', 'house', 'house', 'house', 'shop', 'barn', 'well', 'tower'];
+  const rows = 14 + Math.floor(levelNum / 6);
+  const cols = 16 + Math.floor(levelNum / 6);
+  const cellW = w / cols, cellH = h / rows;
+  let poorHouseAssigned = false;
+  let mosqueAssigned = false;
+  let schoolAssigned = false;
+  const placed = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const monumentClear = Math.abs(c - Math.floor(cols * 0.3)) < 2 && Math.abs(r - Math.floor(rows * 0.3)) < 2;
+      if (!monumentClear && Math.random() > 0.28) {
+        const bx = c * cellW + 10 + Math.random() * Math.max(10, cellW - 90) - w / 2;
+        const by = r * cellH + 10 + Math.random() * Math.max(10, cellH - 70) - h / 2;
+        const bw = 55 + Math.random() * 40;
+        const bh = 45 + Math.random() * 40;
+        let btype = buildingTypes[Math.floor(Math.random() * buildingTypes.length)];
+        if (!mosqueAssigned && r === Math.floor(rows / 2) && c === Math.floor(cols / 2)) { btype = 'mosque'; mosqueAssigned = true; }
+        else if (!schoolAssigned && r === Math.floor(rows / 2) && c === Math.floor(cols / 2) + 2) { btype = 'school'; schoolAssigned = true; }
+        const isPoor = !poorHouseAssigned && btype === 'house';
+        if (isPoor) poorHouseAssigned = true;
+        buildBuilding(bx, by, bw, bh, btype, isPoor);
+        placed.push({ x: bx, y: by, w: bw, h: bh });
+      }
+    }
+  }
+  if (!poorHouseAssigned && placed.length) {
+    buildBuilding(placed[0].x, placed[0].y, placed[0].w, placed[0].h, 'house', true);
+  }
+  if (!mosqueAssigned && placed.length) {
+    buildBuilding(placed[1] ? placed[1].x : 0, placed[1] ? placed[1].y : 0, 140, 140, 'mosque', false);
+  }
+  if (!schoolAssigned && placed.length) {
+    buildBuilding(placed[2] ? placed[2].x : 100, placed[2] ? placed[2].y : 100, 130, 110, 'school', false);
+  }
+
+  // Palm trees
+  const palmCount = 10 + Math.floor(Math.random() * 10);
+  let climbableAssigned = false;
+  for (let i = 0; i < palmCount; i++) {
+    const px = Math.random() * w - w / 2;
+    const py = Math.random() * h - h / 2;
+    let inside = false;
+    for (const b of placed) {
+      if (px > b.x - 50 && px < b.x + b.w + 50 && py > b.y - 50 && py < b.y + b.h + 50) { inside = true; break; }
+    }
+    if (!inside) {
+      const climbable = !climbableAssigned && i === 0;
+      if (climbable) climbableAssigned = true;
+      buildPalm(px, py, 50 + Math.random() * 40, climbable);
+    }
+  }
+  if (!climbableAssigned) buildPalm(0, -6 / WORLD_SCALE, 60, true);
+
+  buildSpiderMonument(-w * 0.2 * WORLD_SCALE, -h * 0.2 * WORLD_SCALE);
+
+  // Vocabulary + NPCs from the ported 2D data
+  const vocab = levelVocabularies[levelNum] || [];
+  STATE.vocabTotal = vocab.length;
+  STATE.vocabCollected = 0;
+  for (const v of vocab) buildVocabItem(v.x - w / 2, v.y - h / 2, v.word, v.ar);
+
+  const npcs = levelNPCsData[levelNum] || [];
+  for (const n of npcs) buildNPC(n.x - w / 2, n.y - h / 2, n.name, n.arName, n.color, n.dialogues);
+
+  // Palm-frond pickups (for the weaving/building mechanic)
+  for (let i = 0; i < 3; i++) {
+    const fx = (Math.random() - 0.5) * STATE.worldHalfSize * 1.6;
+    const fz = (Math.random() - 0.5) * STATE.worldHalfSize * 1.6;
+    buildFrondItem(fx, fz);
+  }
+
+  buildWeatherParticles(weather);
+
+  player.position.set(0, 0, 0);
+  player.userData.velocity.set(0, 0, 0);
+  STATE.quizShownThisLevel = false;
+
+  document.getElementById('levelIndicator').textContent = `${levelNum} / ${TOTAL_LEVELS}`;
+  document.getElementById('missionText').textContent = theme.arDesc;
+  updateVocabHUD();
+  updateInventoryHUD();
+}
+// ===================== HUD =====================
+function updateVocabHUD() {
+  const el = document.getElementById('vocabList');
+  el.innerHTML = '';
+  for (const v of STATE.vocabItems) {
+    if (v.collected) {
+      const span = document.createElement('span');
+      span.textContent = v.word;
+      span.style.cssText = 'background:rgba(0,212,170,0.15);border:1px solid #00d4aa;border-radius:5px;padding:2px 6px;font-size:10px;color:#00d4aa;';
+      el.appendChild(span);
+    }
+  }
+}
+function updateInventoryHUD() {
+  document.getElementById('invSeedling').textContent = STATE.inventory.seedling;
+  document.getElementById('invDates').textContent = STATE.inventory.dates;
+  document.getElementById('invFronds').textContent = STATE.inventory.fronds;
+  document.getElementById('invMats').textContent = STATE.inventory.matsWoven;
+}
+let notifyTimer = null;
+function showNotify(text) {
+  const el = document.getElementById('questNotify');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ===================== DIALOGUE =====================
+function showDialogue(npc) {
+  STATE.currentSpeaker = npc;
+  npc.dialogueIndex = npc.dialogueIndex || 0;
+  document.getElementById('dialogueBox').style.display = 'block';
+  updateDialogueUI();
+}
+function updateDialogueUI() {
+  const npc = STATE.currentSpeaker;
+  if (!npc) return;
+  const line = npc.dialogues[npc.dialogueIndex];
+  document.getElementById('speakerName').textContent = npc.name + ' — ' + npc.arName;
+  document.getElementById('dialogueAr').textContent = line.ar;
+  document.getElementById('dialogueEn').textContent = line.en;
+}
+function advanceDialogue() {
+  const npc = STATE.currentSpeaker;
+  if (!npc) return;
+  npc.dialogueIndex++;
+  if (npc.dialogueIndex >= npc.dialogues.length) { closeDialogue(); return; }
+  updateDialogueUI();
+}
+function closeDialogue() {
+  document.getElementById('dialogueBox').style.display = 'none';
+  STATE.currentSpeaker = null;
+}
+document.getElementById('dialogueBox').addEventListener('click', advanceDialogue);
+
+// ===================== GRAMMAR QUIZ =====================
+const GRAMMAR_QUESTIONS = [
+  { q: 'She ___ to the market every morning.', ar: 'اختاروا الفعل الصحيح', opts: ['go', 'goes', 'going'], correct: 1 },
+  { q: 'They ___ playing near the palm trees.', ar: 'اختاروا الفعل الصحيح', opts: ['is', 'am', 'are'], correct: 2 },
+  { q: 'I ___ a book yesterday.', ar: 'اختاروا الفعل الصحيح (الماضي)', opts: ['read', 'reads', 'reading'], correct: 0 },
+  { q: 'This is ___ house in the village.', ar: 'اختاروا الأداة الصحيحة', opts: ['a', 'an', 'the'], correct: 2 },
+  { q: 'The children ___ vocabulary every day.', ar: 'اختاروا الفعل الصحيح', opts: ['collect', 'collects', 'collecting'], correct: 0 },
+  { q: 'We will visit ___ falaj tomorrow.', ar: 'اختاروا الأداة الصحيحة', opts: ['a', 'an', 'the'], correct: 2 },
+  { q: 'He ___ his seedling in the garden.', ar: 'اختاروا الفعل الصحيح (الماضي)', opts: ['plant', 'planted', 'planting'], correct: 1 },
+  { q: '___ you seen the Sheikh today?', ar: 'اختاروا الفعل المساعد', opts: ['Do', 'Have', 'Is'], correct: 1 },
+  { q: 'The dates are sweet ___ delicious.', ar: 'اختاروا أداة الربط', opts: ['and', 'but', 'or'], correct: 0 },
+  { q: 'She is the ___ student in class.', ar: 'اختاروا صيغة التفضيل', opts: ['good', 'better', 'best'], correct: 2 }
+];
+function maybeShowQuiz() {
+  if (STATE.quizShownThisLevel || STATE.currentSpeaker) return;
+  STATE.quizShownThisLevel = true;
+  const q = GRAMMAR_QUESTIONS[STATE.level % GRAMMAR_QUESTIONS.length];
+  const box = document.getElementById('quizBox');
+  document.getElementById('quizQuestion').textContent = q.q + '  |  ' + q.ar;
+  const optsEl = document.getElementById('quizOptions');
+  optsEl.innerHTML = '';
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt';
+    btn.textContent = opt;
+    btn.onclick = () => {
+      Array.from(optsEl.children).forEach((c, ci) => {
+        c.classList.add(ci === q.correct ? 'correct' : (ci === i ? 'wrong' : ''));
+        c.onclick = null;
+      });
+      playSound(i === q.correct ? 'quizRight' : 'quizWrong');
+      showNotify(i === q.correct ? '✅ إجابة صحيحة! +10 نقاط' : '🔁 حاولي مرة أخرى في المرة القادمة');
+      setTimeout(() => { box.style.display = 'none'; }, 1400);
+    };
+    optsEl.appendChild(btn);
+  });
+  box.style.display = 'block';
+}
+
+// ===================== PRONUNCIATION PRACTICE =====================
+let recognition = null;
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+function showPronounce(word) {
+  const box = document.getElementById('pronounceBox');
+  document.getElementById('pronounceWord').textContent = word;
+  document.getElementById('pronounceStatus').textContent = SpeechRecognitionCtor ? '' : 'التعرف الصوتي غير مدعوم في هذا المتصفح';
+  box.style.display = 'block';
+  clearTimeout(box._hideTimer);
+  box._hideTimer = setTimeout(() => { box.style.display = 'none'; }, 6000);
+}
+document.getElementById('pronounceBtn').addEventListener('click', () => {
+  const word = document.getElementById('pronounceWord').textContent;
+  const statusEl = document.getElementById('pronounceStatus');
+  if (!SpeechRecognitionCtor) { statusEl.textContent = 'التعرف الصوتي غير مدعوم في هذا المتصفح'; return; }
+  if (recognition) { try { recognition.stop(); } catch (e) {} }
+  recognition = new SpeechRecognitionCtor();
+  recognition.lang = 'en-US';
+  recognition.maxAlternatives = 3;
+  statusEl.textContent = '🎙️ استمعي... تكلمي الآن';
+  recognition.onresult = ev => {
+    const said = ev.results[0][0].transcript.toLowerCase();
+    const target = word.toLowerCase();
+    const good = said.includes(target) || target.includes(said);
+    statusEl.textContent = good ? `✅ ممتاز! سمعت: "${said}"` : `🔁 سمعت: "${said}" — جربوا مرة أخرى`;
+  };
+  recognition.onerror = () => { statusEl.textContent = 'تعذّر الاستماع، حاولي مرة أخرى'; };
+  try { recognition.start(); } catch (e) { statusEl.textContent = 'تعذّر تشغيل الميكروفون'; }
+});
+
+// ===================== PALM CLIMBING =====================
+let climbHoldStart = 0;
+function updateClimbPrompt() {
+  const palm = STATE.climbablePalm;
+  const promptEl = document.getElementById('climbPrompt');
+  const ringEl = document.getElementById('climbRing');
+  if (!palm || STATE.climbing) { promptEl.style.display = 'none'; ringEl.style.display = 'none'; return; }
+  const d = dist2D(player.position.x, player.position.z, palm.x, palm.z);
+  if (d < 1.2) {
+    promptEl.style.display = 'block';
+    if (STATE.interactHeld) {
+      ringEl.style.display = 'block';
+      if (!climbHoldStart) climbHoldStart = performance.now();
+      const held = (performance.now() - climbHoldStart) / 1500;
+      const fill = document.getElementById('climbRingFill');
+      fill.setAttribute('stroke-dashoffset', String(113 * (1 - Math.min(1, held))));
+      if (held >= 1) { startClimb(palm); climbHoldStart = 0; }
+    } else {
+      climbHoldStart = 0;
+      ringEl.style.display = 'none';
+    }
+  } else {
+    promptEl.style.display = 'none';
+    ringEl.style.display = 'none';
+    climbHoldStart = 0;
+  }
+}
+function startClimb(palm) {
+  STATE.climbing = true;
+  playSound('climb');
+  if (!STATE.climbEduShown) {
+    STATE.climbEduShown = true;
+    const toast = document.getElementById('climbEduToast');
+    toast.textContent = 'يتسلّق مزارعو النخيل تقليديًا بحبل يُلف حول الجذع والجسم للاستناد عليه أثناء الصعود لجني التمر.';
+    toast.style.opacity = '1';
+    setTimeout(() => { toast.style.opacity = '0'; }, 5000);
+  }
+  const startY = 0, topY = palm.trunkH * 0.85;
+  const startTime = performance.now();
+  const duration = 2200;
+  function step() {
+    const t = Math.min(1, (performance.now() - startTime) / duration);
+    player.position.y = startY + (topY - startY) * Math.sin(t * Math.PI / 2);
+    player.position.x = palm.x;
+    player.position.z = palm.z;
+    if (t < 1) { requestAnimationFrame(step); }
+    else {
+      STATE.inventory.dates += 4;
+      updateInventoryHUD();
+      showNotify('🫘 جمعتوا التمر من أعلى النخلة! +4');
+      playSound('vocab');
+      setTimeout(() => descendClimb(palm, topY), 500);
+    }
+  }
+  requestAnimationFrame(step);
+}
+function descendClimb(palm, topY) {
+  const startTime = performance.now();
+  const duration = 1500;
+  function step() {
+    const t = Math.min(1, (performance.now() - startTime) / duration);
+    player.position.y = topY * (1 - t);
+    if (t < 1) { requestAnimationFrame(step); }
+    else { player.position.y = 0; STATE.climbing = false; }
+  }
+  requestAnimationFrame(step);
+}
+
+// ===================== BUILDING / WEAVING =====================
+function tryWeaveMat() {
+  if (STATE.inventory.fronds < 3) { showNotify('تحتاجون ٣ سعفات لنسج البساط 🍃'); return; }
+  STATE.inventory.fronds -= 3;
+  STATE.inventory.matsWoven++;
+  updateInventoryHUD();
+  playSound('weave');
+  const geo = new THREE.CylinderGeometry(0.5, 0.5, 0.03, 8);
+  const mat = new THREE.MeshStandardMaterial({ color: 0xd4c5a9, roughness: 0.9 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(player.position.x, 0.02, player.position.z);
+  addObj(mesh);
+  showNotify('🧺 بنيتوا بساطًا من السعف!');
+}
+function updateWeavePrompt() {
+  const el = document.getElementById('weavePrompt');
+  if (!STATE.currentSpeaker && !STATE.climbing && STATE.inventory.fronds >= 3) {
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ===================== PROXIMITY CHECKS =====================
+function checkProximity() {
+  if (STATE.currentSpeaker || STATE.climbing) return;
+  for (const v of STATE.vocabItems) {
+    if (!v.collected && dist2D(player.position.x, player.position.z, v.x, v.z) < 1.1) {
+      v.collected = true;
+      v.mesh.visible = false; v.label.visible = false;
+      STATE.totalWordsCollected++;
+      STATE.vocabCollected++;
+      playSound('vocab');
+      showNotify(`📖 ${v.word} — ${v.ar}`);
+      updateVocabHUD();
+      showPronounce(v.word);
+      if (STATE.vocabCollected >= STATE.vocabTotal && STATE.inventory.seedling === 0) {
+        STATE.inventory.seedling = 1;
+        updateInventoryHUD();
+        playSound('seedling');
+        setTimeout(() => showNotify('🌴 جمعتوا كل المفردات! خذوا الفسيلة إلى البيت المحتاج'), 1500);
+      }
+      if (!STATE.quizShownThisLevel) setTimeout(maybeShowQuiz, 2200);
+    }
+  }
+  for (const f of STATE.frondItems) {
+    if (!f.collected && dist2D(player.position.x, player.position.z, f.x, f.z) < 0.9) {
+      f.collected = true;
+      f.mesh.visible = false;
+      STATE.inventory.fronds++;
+      updateInventoryHUD();
+      playSound('frond');
+      showNotify('🍃 جمعتوا سعفة');
+    }
+  }
+  for (const n of STATE.npcs) {
+    if (!n.met && dist2D(player.position.x, player.position.z, n.x, n.z) < 1.4) {
+      n.met = true;
+      showDialogue(n);
+    }
+  }
+  for (const b of STATE.buildingBoxes) {
+    if (b.isPoorHouse && STATE.inventory.seedling > 0) {
+      if (dist2D(player.position.x, player.position.z, b.cx, b.cz) < 1.6) {
+        STATE.inventory.seedling = 0;
+        updateInventoryHUD();
+        playSound('deliver');
+        showNotify('🌴 سلّمتوا فسيلة التمر للبيت المحتاج!');
+        setTimeout(advanceLevel, 1200);
+      }
+    }
+  }
+}
+
+// ===================== MINIMAP =====================
+const minimapCanvas = document.getElementById('minimap');
+const mCtx = minimapCanvas.getContext('2d');
+function drawMinimap() {
+  const s = STATE.worldHalfSize;
+  const scale = minimapCanvas.width / (s * 2);
+  mCtx.fillStyle = 'rgba(10,8,6,0.9)';
+  mCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+  mCtx.fillStyle = 'rgba(139,26,58,0.5)';
+  for (const b of STATE.buildingBoxes) {
+    mCtx.fillRect((b.minX + s) * scale, (b.minZ + s) * scale, (b.maxX - b.minX) * scale, (b.maxZ - b.minZ) * scale);
+  }
+  mCtx.fillStyle = '#00d4aa';
+  for (const v of STATE.vocabItems) {
+    if (v.collected) continue;
+    mCtx.beginPath();
+    mCtx.arc((v.x + s) * scale, (v.z + s) * scale, 2, 0, Math.PI * 2);
+    mCtx.fill();
+  }
+  mCtx.fillStyle = '#d4c5a9';
+  mCtx.beginPath();
+  mCtx.arc((player.position.x + s) * scale, (player.position.z + s) * scale, 3, 0, Math.PI * 2);
+  mCtx.fill();
+}
+
+// ===================== LEVEL PROGRESSION =====================
+function advanceLevel() {
+  playSound('levelComplete');
+  STATE.level++;
+  if (STATE.level > TOTAL_LEVELS) { showWinScreen(); return; }
+  generateVillage(STATE.level);
+}
+function showWinScreen() {
+  document.getElementById('hud').classList.add('hidden');
+  minimapCanvas.classList.add('hidden');
+  document.getElementById('certWordCount').textContent = STATE.totalWordsCollected;
+  document.getElementById('certDates').textContent = STATE.inventory.dates;
+  document.getElementById('certMats').textContent = STATE.inventory.matsWoven;
+  document.getElementById('winScreen').classList.remove('hidden');
+}
+function downloadCertificate() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 900; canvas.height = 640;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 900, 640);
+  grad.addColorStop(0, '#1a1008'); grad.addColorStop(1, '#241813');
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, 900, 640);
+  ctx.strokeStyle = '#d4c5a9'; ctx.lineWidth = 5;
+  ctx.strokeRect(24, 24, 852, 592);
+  ctx.strokeStyle = 'rgba(212,197,169,0.4)'; ctx.lineWidth = 1;
+  ctx.strokeRect(40, 40, 820, 560);
+  ctx.fillStyle = '#00d4aa';
+  ctx.font = 'bold 42px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🌴', 450, 140);
+  ctx.fillStyle = '#d4c5a9';
+  ctx.font = 'bold 40px serif';
+  ctx.fillText('شهادة إنجاز', 450, 210);
+  ctx.font = '22px serif';
+  ctx.fillStyle = '#c9baa0';
+  ctx.fillText('رحلة الصعل العماني — Under The Palm Tree', 450, 255);
+  ctx.font = '20px serif';
+  ctx.fillStyle = '#e8d5b5';
+  ctx.fillText('أُكملت رحلة الـ 36 مستوى بنجاح', 450, 330);
+  ctx.font = 'bold 24px serif';
+  ctx.fillStyle = '#00d4aa';
+  ctx.fillText(`الكلمات: ${STATE.totalWordsCollected}   |   التمر: ${STATE.inventory.dates}   |   البِسط: ${STATE.inventory.matsWoven}`, 450, 400);
+  ctx.font = '15px serif';
+  ctx.fillStyle = '#8b7a5f';
+  ctx.fillText('A Novel by Thuraya Al-Naabi', 450, 560);
+  const link = document.createElement('a');
+  link.download = 'saal-certificate.png';
+  link.href = canvas.toDataURL();
+  link.click();
+}
+document.getElementById('downloadCertBtn').addEventListener('click', downloadCertificate);
+
+// ===================== MAIN LOOP =====================
+const clock = new THREE.Clock();
+let running = false;
+function animate() {
+  requestAnimationFrame(animate);
+  if (!running) return;
+  const delta = Math.min(clock.getDelta(), 0.1);
+  updatePlayer(delta);
+  updateWeatherParticles(delta);
+  updateClimbPrompt();
+  updateWeavePrompt();
+  checkProximity();
+  drawMinimap();
+  composer.render();
+}
+animate();
+
+// ===================== START / UI WIRING =====================
+function buildLevelPreview() {
+  const el = document.getElementById('levelPreview');
+  el.innerHTML = '';
+  for (let i = 1; i <= TOTAL_LEVELS; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'level-dot' + (i === 1 ? ' active' : '');
+    dot.textContent = i;
+    el.appendChild(dot);
+  }
+}
+buildLevelPreview();
+
+document.getElementById('loading').style.opacity = '0';
+setTimeout(() => {
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('startScreen').classList.remove('hidden');
+}, 400);
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('hud').classList.remove('hidden');
+  minimapCanvas.classList.remove('hidden');
+  generateVillage(STATE.level);
+  running = true;
+});
+document.getElementById('howToBtn').addEventListener('click', () => {
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('instructionsScreen').classList.remove('hidden');
+});
+document.getElementById('backFromHelpBtn').addEventListener('click', () => {
+  document.getElementById('instructionsScreen').classList.add('hidden');
+  document.getElementById('startScreen').classList.remove('hidden');
+});
+document.getElementById('restartBtn').addEventListener('click', () => {
+  STATE.level = 1;
+  STATE.inventory = { seedling: 0, dates: 0, fronds: 0, matsWoven: 0 };
+  STATE.totalWordsCollected = 0;
+  document.getElementById('winScreen').classList.add('hidden');
+  document.getElementById('hud').classList.remove('hidden');
+  minimapCanvas.classList.remove('hidden');
+  generateVillage(1);
+  running = true;
+});
+
+window.__SAAL3D_DEBUG__ = { STATE, generateVillage, advanceLevel, player, scene };
+
+</script>
+</body>
+</html>

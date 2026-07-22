@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="description" content="Al-Qarawashiya Tarot - Hand Gesture Controlled Mystical Experience">
+    <meta name="theme-color" content="#1a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Al-Qarawashiya Tarot | التاروت القرواشية</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Amiri:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-content">
+            <div class="mystical-symbol">🌙</div>
+            <h1 class="loading-title" data-en="Al-Qarawashiya Tarot" data-ar="تاروت القرواشية">Al-Qarawashiya Tarot</h1>
+            <p class="loading-subtitle" data-en="Hand Gesture Mystical Experience" data-ar="تجربة يد صوفية">Hand Gesture Mystical Experience</p>
+            <div class="loading-bar-container">
+                <div class="loading-bar">
+                    <div class="loading-bar-fill" id="loading-bar-fill"></div>
+                </div>
+                <p class="loading-text" id="loading-text" data-en="Awakening the cards..." data-ar="استيقاظ البطاقات...">Awakening the cards...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Permission Screen -->
+    <div id="camera-permission" class="hidden">
+        <div class="permission-content">
+            <div class="permission-icon">📷</div>
+            <h2 data-en="Camera Access Required" data-ar="مطلوب الوصول للكاميرا">Camera Access Required</h2>
+            <p data-en="We need your camera to track your hand gestures. Your video never leaves your device." 
+               data-ar="نحتاج كاميرتك لتتبع حركات يدك. الفيديو ما يطلع من جهازك.">
+               We need your camera to track your hand gestures. Your video never leaves your device.
+            </p>
+            <button class="permission-btn" id="btn-enable-camera" data-en="Enable Camera" data-ar="تفعيل الكاميرا">
+                Enable Camera
+            </button>
+            <button class="permission-btn secondary" id="btn-mouse-mode" data-en="Use Mouse Instead" data-ar="استخدام الماوس">
+                Use Mouse Instead
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="hidden">
+        <div class="menu-background">
+            <div class="mystical-particles" id="menu-particles"></div>
+            <div class="ambient-glow"></div>
+        </div>
+
+        <div class="menu-content">
+            <div class="game-logo">
+                <div class="logo-moon">🌙</div>
+                <h1 class="logo-title" data-en="Al-Qarawashiya Tarot" data-ar="تاروت القرواشية">Al-Qarawashiya Tarot</h1>
+                <p class="logo-subtitle" data-en="Where Desert Wisdom Meets the Stars" data-ar="حيث حكمة الصحراء تلتقي النجوم">Where Desert Wisdom Meets the Stars</p>
+                <div class="logo-divider"></div>
+            </div>
+
+            <div class="menu-buttons">
+                <button class="menu-btn primary" id="btn-single-draw" data-action="single-draw" data-en="Single Card Draw" data-ar="سحب بطاقة واحدة">
+                    <span class="btn-icon">🃏</span>
+                    <span class="btn-text">Single Card Draw</span>
+                </button>
+
+                <button class="menu-btn" id="btn-three-spread" data-action="three-spread" data-en="Three Card Spread" data-ar="انتشار ثلاثي">
+                    <span class="btn-icon">🃏🃏🃏</span>
+                    <span class="btn-text">Three Card Spread</span>
+                </button>
+
+                <button class="menu-btn" id="btn-celtic-cross" data-action="celtic-cross" data-en="Celtic Cross" data-ar="الصليب الكلتي">
+                    <span class="btn-icon">✨</span>
+                    <span class="btn-text">Celtic Cross</span>
+                </button>
+
+                <button class="menu-btn" id="btn-learn" data-action="learn" data-en="Learn the Cards" data-ar="تعلم البطاقات">
+                    <span class="btn-icon">📖</span>
+                    <span class="btn-text">Learn the Cards</span>
+                </button>
+
+                <button class="menu-btn" id="btn-settings" data-action="settings" data-en="Settings" data-ar="الإعدادات">
+                    <span class="btn-icon">⚙️</span>
+                    <span class="btn-text">Settings</span>
+                </button>
+            </div>
+
+            <div class="menu-footer">
+                <p>Under Palm Tree © 2026 | Oman 🇴🇲</p>
+                <p class="version">v1.0.0 — Desert Mysticism</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Area -->
+    <div id="game-area" class="hidden">
+        <!-- Video Input (Hidden) -->
+        <video id="input-video" class="hidden" playsinline></video>
+
+        <!-- Hand Tracking Canvas -->
+        <canvas id="hand-canvas"></canvas>
+
+        <!-- Main Tarot Canvas -->
+        <canvas id="tarot-canvas"></canvas>
+
+        <!-- Gesture Feedback -->
+        <div class="gesture-feedback" id="gesture-feedback">
+            <div class="gesture-icon" id="gesture-icon">✋</div>
+            <div class="gesture-text" id="gesture-text" data-en="Show your hand to begin" data-ar="أظهر يدك للبدء">Show your hand to begin</div>
+        </div>
+
+        <!-- Hand Tracking Status -->
+        <div class="hand-status" id="hand-status">
+            <div class="status-dot" id="status-dot"></div>
+            <span class="status-text" id="status-text" data-en="Camera Off" data-ar="الكاميرا مغلقة">Camera Off</span>
+        </div>
+
+        <!-- Card Reading Panel -->
+        <div class="reading-panel hidden" id="reading-panel">
+            <div class="reading-content">
+                <div class="reading-card-display" id="reading-card-display"></div>
+                <div class="reading-text" id="reading-text"></div>
+                <button class="reading-close" id="btn-close-reading" data-en="Close" data-ar="إغلاق">Close</button>
+            </div>
+        </div>
+
+        <!-- HUD -->
+        <div class="tarot-hud">
+            <div class="hud-top-left">
+                <div class="spread-info" id="spread-info">
+                    <span class="spread-name" id="spread-name" data-en="Single Draw" data-ar="سحب واحد">Single Draw</span>
+                </div>
+            </div>
+
+            <div class="hud-top-right">
+                <button class="hud-btn" id="btn-restart-spread" data-en="New Spread" data-ar="انتشار جديد">New Spread</button>
+                <button class="hud-btn" id="btn-back-menu" data-en="Menu" data-ar="قائمة">Menu</button>
+            </div>
+
+            <div class="hud-bottom">
+                <div class="gesture-legend">
+                    <div class="gesture-item">
+                        <span class="gesture-emoji">✋</span>
+                        <span data-en="Show hand to hover" data-ar="أظهر يدك للتحويم">Show hand to hover</span>
+                    </div>
+                    <div class="gesture-item">
+                        <span class="gesture-emoji">👆</span>
+                        <span data-en="Pinch to select" data-ar="قرص للاختيار">Pinch to select</span>
+                    </div>
+                    <div class="gesture-item">
+                        <span class="gesture-emoji">👋</span>
+                        <span data-en="Wave to shuffle" data-ar="لوح للخلط">Wave to shuffle</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settings-screen" class="hidden screen-overlay">
+        <div class="settings-content">
+            <h2 class="settings-title" data-en="Settings" data-ar="الإعدادات">Settings</h2>
+
+            <div class="settings-section">
+                <h3 data-en="Language" data-ar="اللغة">Language</h3>
+                <div class="setting-item">
+                    <label data-en="Interface Language" data-ar="لغة الواجهة">Interface Language</label>
+                    <div class="language-toggle">
+                        <button class="lang-btn active" data-lang="en">English</button>
+                        <button class="lang-btn" data-lang="ar">العربية</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3 data-en="Hand Tracking" data-ar="تتبع اليد">Hand Tracking</h3>
+                <div class="setting-item">
+                    <label data-en="Tracking Sensitivity" data-ar="حساسية التتبع">Tracking Sensitivity</label>
+                    <input type="range" id="tracking-sensitivity" min="1" max="10" value="5">
+                    <span class="setting-value" id="tracking-sensitivity-val">5</span>
+                </div>
+                <div class="setting-item">
+                    <label data-en="Show Hand Skeleton" data-ar="إظهار هيكل اليد">Show Hand Skeleton</label>
+                    <input type="checkbox" id="show-skeleton" checked>
+                </div>
+                <div class="setting-item">
+                    <label data-en="Mirror Camera" data-ar="عكس الكاميرا">Mirror Camera</label>
+                    <input type="checkbox" id="mirror-camera" checked>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3 data-en="Audio" data-ar="الصوت">Audio</h3>
+                <div class="setting-item">
+                    <label data-en="Ambient Sound" data-ar="الصوت المحيط">Ambient Sound</label>
+                    <input type="range" id="ambient-volume" min="0" max="100" value="50">
+                    <span class="setting-value" id="ambient-volume-val">50%</span>
+                </div>
+                <div class="setting-item">
+                    <label data-en="Card Sound Effects" data-ar="مؤثرات البطاقات">Card Sound Effects</label>
+                    <input type="range" id="sfx-volume" min="0" max="100" value="70">
+                    <span class="setting-value" id="sfx-volume-val">70%</span>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3 data-en="Visual Effects" data-ar="التأثيرات البصرية">Visual Effects</h3>
+                <div class="setting-item">
+                    <label data-en="Particle Effects" data-ar="جسيمات">Particle Effects</label>
+                    <input type="checkbox" id="particles-enabled" checked>
+                </div>
+                <div class="setting-item">
+                    <label data-en="Card Glow" data-ar="توهج البطاقات">Card Glow</label>
+                    <input type="checkbox" id="card-glow" checked>
+                </div>
+            </div>
+
+            <button class="back-btn" data-back="menu" data-en="Back to Menu" data-ar="العودة للقائمة">Back to Menu</button>
+        </div>
+    </div>
+
+    <!-- Learn Screen -->
+    <div id="learn-screen" class="hidden screen-overlay">
+        <div class="learn-content">
+            <h2 class="learn-title" data-en="The Major Arcana" data-ar="الأركانا الكبرى">The Major Arcana</h2>
+            <div class="cards-grid" id="cards-grid"></div>
+            <button class="back-btn" data-back="menu" data-en="Back to Menu" data-ar="العودة للقائمة">Back to Menu</button>
+        </div>
+    </div>
+
+    <!-- Card Detail Modal -->
+    <div id="card-modal" class="hidden modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close" id="btn-close-modal">×</button>
+            <div class="modal-card" id="modal-card"></div>
+        </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

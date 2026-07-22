@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>كنز اللبان — Under Palm Tree</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="loading-palm">🌴</div>
+  <div class="loading-text">تحت النخلة...</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<nav class="main-nav">
+  <a href="../index.html" class="nav-logo">Under Palm Tree</a>
+  <a href="../index.html" class="nav-back">↩ كل الألعاب</a>
+</nav>
+
+<section class="section" id="game-cacao">
+  <h1 class="section-title">💎 كنز اللبان</h1>
+  <p class="section-subtitle">مغامرة في غابات ظفار — اجمع الصمغ واكتشف الكنوز</p>
+  <div class="game-canvas-container" id="cacao-canvas-container"></div>
+  <div class="game-controls">
+    <button class="game-btn" onclick="exploreForest()">🌲 استكشاف</button>
+    <button class="game-btn" onclick="collectResin()">💧 جمع الصمغ</button>
+    <button class="game-btn" onclick="findTreasure()">🏆 البحث عن الكنز</button>
+  </div>
+</section>
+
+<div class="info-overlay" id="treasure-overlay">
+  <div class="info-box">
+    <button class="close-btn" onclick="closeTreasureInfo()">×</button>
+    <h2 id="treasure-title">🏆 اكتشاف!</h2>
+    <p id="treasure-desc" style="margin-top:1rem">الوصف</p>
+    <div class="tag-row" id="treasure-items"></div>
+  </div>
+</div>
+
+<script src="../shared/utils.js"></script>
+<script>
+const treasures = [
+  { title: "صمغ ذهبي نادر", desc: "وجدت قطعة صمغ لبان نادرة ذات لون ذهبي فاتح، تُستخدم في العطور الفاخرة وتُعتبر من أجود أنواع اللبان في العالم.", items: ["صمغ ذهبي", "نقاط عطرية", "زيت لبان خالص"], points: 100 },
+  { title: "شجرة بوسويليا عتيقة", desc: "اكتشفت شجرة بوسويليا عمرها أكثر من 100 عام، لا تزال تنتج الصمغ حتى اليوم! يُعتبرها السكان المحليون مقدسة.", items: ["صمغ قديم", "أوراق نادرة", "جذور مقدسة"], points: 150 },
+  { title: "كنز ظفار الأخضر", desc: "وجدت كمية كبيرة من اللبان الحوجري في كهف جبلي، كنز حقيقي يُقدر بآلاف الريالات ومن أجود أنواع اللبان.", items: ["لبان حوجري", "صمغ أبيض", "كريستال طبيعي"], points: 200 },
+  { title: "وعاء فخاري أثري", desc: "عثرت على وعاء فخاري قديم كان يُستخدم لتخزين اللبان في القرون الوسطى، يحمل نقوشاً هندسية نادرة.", items: ["وعاء فخاري", "صمغ محفوظ", "نقش تاريخي"], points: 250 },
+  { title: "طريق البخور القديم", desc: "اكتشفت آثار طريق البخور القديم الممتد من ظفار إلى الصين، يحتوي على محطات استراحة وآبار.", items: ["خريطة قديمة", "عملات نادرة", "رسائل تجارية"], points: 300 }
+];
+
+let cacaoScene, cacaoCamera, cacaoRenderer, cacaoGroup, trees = [];
+let cacaoRaycaster = new THREE.Raycaster();
+let cacaoMouse = new THREE.Vector2();
+let totalPoints = 0;
+let collectedResin = 0;
+
+function initCacao() {
+  const container = document.getElementById('cacao-canvas-container');
+  const width = container.clientWidth, height = container.clientHeight;
+
+  cacaoScene = new THREE.Scene();
+  cacaoScene.background = new THREE.Color(0x0a1f0a);
+  cacaoScene.fog = new THREE.FogExp2(0x0a1f0a, 0.04);
+
+  cacaoCamera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+  cacaoCamera.position.set(0, 3, 10);
+  cacaoCamera.lookAt(0, 0, 0);
+
+  cacaoRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  cacaoRenderer.setSize(width, height);
+  cacaoRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(cacaoRenderer.domElement);
+
+  cacaoScene.add(new THREE.AmbientLight(0xffffff, 0.4));
+  const sunLight = new THREE.DirectionalLight(0xffd700, 0.7);
+  sunLight.position.set(5, 10, 5);
+  cacaoScene.add(sunLight);
+
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x1a3a1a, roughness: 0.9 }));
+  ground.rotation.x = -Math.PI / 2;
+  cacaoScene.add(ground);
+
+  cacaoGroup = new THREE.Group();
+  cacaoScene.add(cacaoGroup);
+  createForestTrees();
+  createParticleSystem(cacaoScene, 100, { color: '#4ade80', range: 15, opacity: 0.3 });
+
+  window.addEventListener('resize', onCacaoResize);
+  cacaoRenderer.domElement.addEventListener('click', onCacaoClick);
+
+  withVisibilityPause(() => {
+    const time = Date.now() * 0.001;
+    trees.forEach((tree, i) => { tree.rotation.y = Math.sin(time * 0.2 + i) * 0.05; });
+    cacaoRenderer.render(cacaoScene, cacaoCamera);
+  });
+}
+
+function createForestTrees() {
+  for (let i = 0; i < 8; i++) {
+    const treeGroup = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 3, 8), new THREE.MeshStandardMaterial({ color: 0x4a3728, roughness: 0.9 }));
+    trunk.position.y = 1.5;
+    treeGroup.add(trunk);
+
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(1, 2, 8), new THREE.MeshStandardMaterial({ color: 0x2d5a3c, roughness: 0.6 }));
+    leaf.position.y = 3.5;
+    treeGroup.add(leaf);
+
+    const resinMaterial = new THREE.MeshStandardMaterial({ color: 0xc9a96e, emissive: 0xc9a96e, emissiveIntensity: 0.5, roughness: 0.3 });
+    for (let j = 0; j < 3; j++) {
+      const resin = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), resinMaterial);
+      resin.position.set(0.25, 1 + j * 0.5, 0);
+      resin.userData = { isResin: true, treeIndex: i };
+      treeGroup.add(resin);
+    }
+
+    treeGroup.position.set((Math.random() - 0.5) * 12, 0, (Math.random() - 0.5) * 12 - 3);
+    // FIX: treeIndex is a number that can be 0 — the original code checked
+    // `!obj.userData.treeIndex` while walking up parents, which treated the
+    // very first tree (index 0) as "not found". We now tag with an explicit
+    // boolean `isTree` alongside the numeric index so tree 0 works too.
+    treeGroup.userData = { isTree: true, hasTreasure: Math.random() > 0.7, treeIndex: i };
+    cacaoGroup.add(treeGroup);
+    trees.push(treeGroup);
+  }
+}
+
+function exploreForest() {
+  const randomTree = trees[Math.floor(Math.random() * trees.length)];
+  gsap.to(cacaoCamera.position, { x: randomTree.position.x, z: randomTree.position.z + 3, duration: 1.5, ease: 'power2.out' });
+}
+
+function collectResin() {
+  collectedResin += 1;
+  totalPoints += 10;
+  trees.forEach(tree => {
+    tree.children.forEach(child => {
+      if (child.userData && child.userData.isResin) gsap.to(child.scale, { x: 1.5, y: 1.5, z: 1.5, duration: 0.3, yoyo: true, repeat: 1 });
+    });
+  });
+  showToast('💧 جمعت ' + collectedResin + ' صمغة! النقاط: ' + totalPoints);
+}
+
+function findTreasure() {
+  if (collectedResin < 5) { showToast('تحتاج 5 صمغات على الأقل للبحث عن الكنز!'); return; }
+  collectedResin -= 5;
+  const treasure = treasures[Math.floor(Math.random() * treasures.length)];
+  totalPoints += treasure.points;
+
+  document.getElementById('treasure-title').textContent = '🏆 ' + treasure.title;
+  document.getElementById('treasure-desc').textContent = treasure.desc + '  —  نقاطك الآن: ' + totalPoints;
+  const itemsContainer = document.getElementById('treasure-items');
+  itemsContainer.innerHTML = '';
+  treasure.items.forEach(item => {
+    const span = document.createElement('span');
+    span.className = 'tag-pill';
+    span.textContent = item;
+    itemsContainer.appendChild(span);
+  });
+  document.getElementById('treasure-overlay').classList.add('active');
+}
+function closeTreasureInfo() { document.getElementById('treasure-overlay').classList.remove('active'); }
+
+function onCacaoClick(event) {
+  const rect = cacaoRenderer.domElement.getBoundingClientRect();
+  cacaoMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  cacaoMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  cacaoRaycaster.setFromCamera(cacaoMouse, cacaoCamera);
+  const intersects = cacaoRaycaster.intersectObjects(cacaoGroup.children, true);
+  if (intersects.length === 0) return;
+
+  if (intersects[0].object.userData && intersects[0].object.userData.isResin) {
+    collectResin();
+    return;
+  }
+  const node = findAncestorWithKey(intersects[0].object, 'isTree');
+  if (node && node.userData.hasTreasure) findTreasure();
+}
+
+function onCacaoResize() {
+  const container = document.getElementById('cacao-canvas-container');
+  cacaoCamera.aspect = container.clientWidth / container.clientHeight;
+  cacaoCamera.updateProjectionMatrix();
+  cacaoRenderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeTreasureInfo(); });
+document.getElementById('treasure-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeTreasureInfo(); });
+
+window.addEventListener('load', () => {
+  setTimeout(() => document.getElementById('loading').classList.add('hidden'), 1200);
+  setTimeout(initCacao, 300);
+});
+</script>
+</body>
+</html>

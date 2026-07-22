@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دوحة العطور — Under Palm Tree</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="loading-palm">🌴</div>
+  <div class="loading-text">تحت النخلة...</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<nav class="main-nav">
+  <a href="../index.html" class="nav-logo">Under Palm Tree</a>
+  <a href="../index.html" class="nav-back">↩ كل الألعاب</a>
+</nav>
+
+<section class="section" id="game-petal">
+  <h1 class="section-title">🌸 دوحة العطور</h1>
+  <p class="section-subtitle">عالم اللبان والورد العماني — اضغط على الزهرة لاستنشاق عطرها</p>
+  <div class="game-canvas-container" id="petal-canvas-container"></div>
+  <div class="game-controls">
+    <button class="game-btn" onclick="collectFrankincense()">💎 جمع اللبان</button>
+    <button class="game-btn" onclick="distillPerfume()">⚗️ تقطير</button>
+    <button class="game-btn" onclick="mixScent()">🧪 مزج العطر</button>
+  </div>
+</section>
+
+<div class="info-overlay" id="perfume-overlay">
+  <div class="info-box">
+    <button class="close-btn" onclick="closePerfumeInfo()">×</button>
+    <h2 id="perfume-name">اسم العطر</h2>
+    <p id="perfume-desc">الوصف</p>
+    <div class="tag-row" id="perfume-ingredients"></div>
+  </div>
+</div>
+
+<script src="../shared/utils.js"></script>
+<script>
+const perfumes = [
+  { name: "لبان حوجري فاخر", desc: "أجود أنواع اللبان العماني، يُستخرج من شجر البوسويليا في جبال ظفار. يُستخدم في العطور الفاخرة والطقوس، ويُجمع يدوياً من الشجرة.", ingredients: ["صمغ البوسويليا", "زيت عطري", "مسك أبيض", "عنبر"], color: "#c9a96e" },
+  { name: "ورد الجبل العماني", desc: "ورد طبيعي يُزرع في جبال عُمان. رائحة نقية ومنعشة، يُستخدم في صناعة العطور وماء الورد، ويُجمع يدوياً في الصباح الباكر.", ingredients: ["بتلات الورد", "ماء ورد", "زيت زيتون", "عسل نحل"], color: "#f4a6c0" },
+  { name: "مسك الدهن العماني", desc: "دهن عود عماني فاخر يُستخدم في المناسبات الخاصة، يُستخرج من خشب العود ويدوم على الجلد لأيام.", ingredients: ["عود عماني", "مسك أبيض", "عنبر", "زعفران"], color: "#7c3aed" },
+  { name: "بخور البيت العماني", desc: "بخور تقليدي يُستخدم في استقبال الضيوف، يُخلط حسب وصفات عائلية سرية ويُستخدم يومياً في البيوت العمانية.", ingredients: ["لبان", "مستكة", "زعفران", "هيل", "مسك"], color: "#8b7355" },
+  { name: "العنبر البحري", desc: "مادة نادرة تُعتبر كنزاً بحرياً، تُستخدم في أغلى العطور وتُباع بالجرام برائحة فريدة لا تُضاهى.", ingredients: ["عنبر طبيعي", "مسك", "زعفران", "ورد"], color: "#f4e8c2" }
+];
+
+let perfumeScene, perfumeCamera, perfumeRenderer, perfumeGroup, flowers = [];
+let perfumeRaycaster = new THREE.Raycaster();
+let perfumeMouse = new THREE.Vector2();
+let collectedFrankincense = 0;
+
+function initPetal() {
+  const container = document.getElementById('petal-canvas-container');
+  const width = container.clientWidth, height = container.clientHeight;
+
+  perfumeScene = new THREE.Scene();
+  perfumeScene.background = new THREE.Color(0x0f0a0a);
+  perfumeScene.fog = new THREE.FogExp2(0x0f0a0a, 0.03);
+
+  perfumeCamera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+  perfumeCamera.position.set(0, 3, 8);
+  perfumeCamera.lookAt(0, 0, 0);
+
+  perfumeRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  perfumeRenderer.setSize(width, height);
+  perfumeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(perfumeRenderer.domElement);
+
+  perfumeScene.add(new THREE.AmbientLight(0xffffff, 0.4));
+  const warmLight = new THREE.PointLight(0xc9a96e, 0.6, 20);
+  warmLight.position.set(3, 5, 3);
+  perfumeScene.add(warmLight);
+
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x1a0a10, roughness: 0.9 }));
+  ground.rotation.x = -Math.PI / 2;
+  perfumeScene.add(ground);
+
+  perfumeGroup = new THREE.Group();
+  perfumeScene.add(perfumeGroup);
+  createPerfumeFlowers();
+  createParticleSystem(perfumeScene, 150, { color: '#c9a96e', range: 10, opacity: 0.5 });
+
+  window.addEventListener('resize', onPerfumeResize);
+  perfumeRenderer.domElement.addEventListener('click', onPerfumeClick);
+
+  withVisibilityPause(() => {
+    const time = Date.now() * 0.001;
+    flowers.forEach((flower, i) => {
+      flower.rotation.y = Math.sin(time * 0.5 + i) * 0.1;
+      flower.children.forEach((child, j) => { if (j < 5) child.position.y = 0.5 + Math.sin(time * 2 + i + j) * 0.05; });
+    });
+    perfumeRenderer.render(perfumeScene, perfumeCamera);
+  });
+}
+
+function createPerfumeFlowers() {
+  perfumes.forEach((perfume, index) => {
+    const flowerGroup = new THREE.Group();
+    const color = new THREE.Color(perfume.color);
+    const petalMaterial = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3, roughness: 0.5 });
+
+    for (let i = 0; i < 5; i++) {
+      const petal = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), petalMaterial);
+      const angle = (i / 5) * Math.PI * 2;
+      petal.position.set(Math.cos(angle) * 0.4, 0.5, Math.sin(angle) * 0.4);
+      petal.scale.y = 0.5;
+      flowerGroup.add(petal);
+    }
+
+    const center = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 0.5 }));
+    center.position.y = 0.5;
+    flowerGroup.add(center);
+
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 8), new THREE.MeshStandardMaterial({ color: 0x2d5a3c }));
+    flowerGroup.add(stem);
+
+    const labelTexture = createTextTexture(perfume.name, { width: 256, height: 64, font: 'bold 18px "Noto Naskh Arabic", serif', textColor: '#ffffff' });
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.375), new THREE.MeshBasicMaterial({ map: labelTexture, transparent: true }));
+    label.position.y = -0.8;
+    flowerGroup.add(label);
+
+    flowerGroup.position.set((index - 1.5) * 2.5, 0, -1);
+    flowerGroup.userData = { perfume, index };
+    perfumeGroup.add(flowerGroup);
+    flowers.push(flowerGroup);
+  });
+}
+
+function collectFrankincense() {
+  collectedFrankincense += 1;
+  flowers.forEach(flower => gsap.to(flower.scale, { x: 1.2, y: 1.2, z: 1.2, duration: 0.3, yoyo: true, repeat: 1 }));
+  showToast('💎 جمعت ' + collectedFrankincense + ' قطعة لبان!');
+}
+function distillPerfume() {
+  if (collectedFrankincense < 3) { showToast('تحتاج على الأقل 3 قطع لبان للتقطير!'); return; }
+  collectedFrankincense -= 3;
+  flowers.forEach(flower => gsap.to(flower.children[0].material, { emissiveIntensity: 1, duration: 1, yoyo: true, repeat: 1 }));
+  showToast('⚗️ تم تقطير العطر بنجاح!');
+}
+function showPerfumeCard(perfume) {
+  document.getElementById('perfume-name').textContent = perfume.name;
+  document.getElementById('perfume-desc').textContent = perfume.desc;
+  const ingredientsContainer = document.getElementById('perfume-ingredients');
+  ingredientsContainer.innerHTML = '';
+  perfume.ingredients.forEach(ing => {
+    const span = document.createElement('span');
+    span.className = 'tag-pill';
+    span.textContent = ing;
+    ingredientsContainer.appendChild(span);
+  });
+  document.getElementById('perfume-overlay').classList.add('active');
+}
+function mixScent() { showPerfumeCard(perfumes[Math.floor(Math.random() * perfumes.length)]); }
+function closePerfumeInfo() { document.getElementById('perfume-overlay').classList.remove('active'); }
+
+function onPerfumeClick(event) {
+  const rect = perfumeRenderer.domElement.getBoundingClientRect();
+  perfumeMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  perfumeMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  perfumeRaycaster.setFromCamera(perfumeMouse, perfumeCamera);
+  const intersects = perfumeRaycaster.intersectObjects(perfumeGroup.children, true);
+  if (intersects.length > 0) {
+    const node = findAncestorWithKey(intersects[0].object, 'perfume');
+    if (node) showPerfumeCard(node.userData.perfume);
+  }
+}
+
+function onPerfumeResize() {
+  const container = document.getElementById('petal-canvas-container');
+  perfumeCamera.aspect = container.clientWidth / container.clientHeight;
+  perfumeCamera.updateProjectionMatrix();
+  perfumeRenderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePerfumeInfo(); });
+document.getElementById('perfume-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closePerfumeInfo(); });
+
+window.addEventListener('load', () => {
+  setTimeout(() => document.getElementById('loading').classList.add('hidden'), 1200);
+  setTimeout(initPetal, 300);
+});
+</script>
+</body>
+</html>

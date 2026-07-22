@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>حديقة النخيل — Under Palm Tree</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="loading-palm">🌴</div>
+  <div class="loading-text">تحت النخلة...</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<nav class="main-nav">
+  <a href="../index.html" class="nav-logo">Under Palm Tree</a>
+  <a href="../index.html" class="nav-back">↩ كل الألعاب</a>
+</nav>
+
+<section class="section" id="game-garden">
+  <h1 class="section-title">🌴 حديقة النخيل</h1>
+  <p class="section-subtitle">زرع، ري، وحصاد التمور</p>
+  <div class="game-canvas-container" id="garden-canvas-container"></div>
+  <div class="game-controls">
+    <button class="game-btn" onclick="plantPalm()">🌱 زرع نخلة</button>
+    <button class="game-btn" onclick="waterGarden()">💧 ري</button>
+    <button class="game-btn" onclick="harvestDates()">🌙 حصاد</button>
+  </div>
+</section>
+
+<script src="../shared/utils.js"></script>
+<script>
+let gardenScene, gardenCamera, gardenRenderer, palms = [];
+
+function initGarden() {
+  const container = document.getElementById('garden-canvas-container');
+  const width = container.clientWidth, height = container.clientHeight;
+
+  gardenScene = new THREE.Scene();
+  gardenScene.background = new THREE.Color(0x0a1f15);
+  gardenScene.fog = new THREE.FogExp2(0x0a1f15, 0.04);
+
+  gardenCamera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+  gardenCamera.position.set(0, 3, 8);
+  gardenCamera.lookAt(0, 0, 0);
+
+  gardenRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  gardenRenderer.setSize(width, height);
+  gardenRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(gardenRenderer.domElement);
+
+  gardenScene.add(new THREE.AmbientLight(0xffffff, 0.4));
+  const sunLight = new THREE.DirectionalLight(0xffd700, 0.8);
+  sunLight.position.set(5, 10, 5);
+  gardenScene.add(sunLight);
+
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x1a3a2f, roughness: 0.9 }));
+  ground.rotation.x = -Math.PI / 2;
+  gardenScene.add(ground);
+
+  for (let i = 0; i < 5; i++) createPalm((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10);
+  createParticleSystem(gardenScene, 100, { color: '#4ade80', range: 15, opacity: 0.3 });
+
+  window.addEventListener('resize', onGardenResize);
+
+  withVisibilityPause(() => {
+    const time = Date.now() * 0.001;
+    palms.forEach((palm, i) => { palm.rotation.y = Math.sin(time * 0.3 + i) * 0.05; });
+    gardenRenderer.render(gardenScene, gardenCamera);
+  });
+}
+
+function createPalm(x, z) {
+  const palmGroup = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 2, 8), new THREE.MeshStandardMaterial({ color: 0x3d2817, roughness: 0.9 }));
+  trunk.position.y = 1;
+  palmGroup.add(trunk);
+
+  const leafMaterial = new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.6 });
+  for (let i = 0; i < 6; i++) {
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.5, 8), leafMaterial);
+    leaf.position.y = 2;
+    leaf.rotation.z = Math.PI / 3;
+    leaf.rotation.y = (i / 6) * Math.PI * 2;
+    leaf.position.x = Math.cos(leaf.rotation.y) * 0.3;
+    leaf.position.z = Math.sin(leaf.rotation.y) * 0.3;
+    palmGroup.add(leaf);
+  }
+
+  const dateMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.5 });
+  for (let i = 0; i < 8; i++) {
+    const date = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), dateMaterial);
+    date.position.y = 1.8;
+    date.position.x = Math.cos((i / 8) * Math.PI * 2) * 0.4;
+    date.position.z = Math.sin((i / 8) * Math.PI * 2) * 0.4;
+    palmGroup.add(date);
+  }
+
+  palmGroup.position.set(x, 0, z);
+  palmGroup.userData = { type: 'palm', id: palms.length };
+  gardenScene.add(palmGroup);
+  palms.push(palmGroup);
+}
+
+function plantPalm() {
+  createPalm((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
+  const palm = palms[palms.length - 1];
+  palm.scale.set(0, 0, 0);
+  gsap.to(palm.scale, { x: 1, y: 1, z: 1, duration: 0.8, ease: 'back.out(1.7)' });
+  showToast('🌱 زُرعت نخلة جديدة!');
+}
+function waterGarden() {
+  palms.forEach(palm => gsap.to(palm.scale, { x: 1.2, y: 1.2, z: 1.2, duration: 0.3, yoyo: true, repeat: 1 }));
+  showToast('💧 تم ري الحديقة');
+}
+function harvestDates() {
+  let harvested = 0;
+  palms.forEach(palm => {
+    palm.children.forEach(child => {
+      if (child.geometry && child.geometry.type === 'SphereGeometry' && child.scale.x < 2) {
+        gsap.to(child.scale, { x: 1.5, y: 1.5, z: 1.5, duration: 0.5, ease: 'elastic.out(1, 0.5)' });
+        harvested++;
+      }
+    });
+  });
+  showToast('🌙 حصدت ' + harvested + ' حبة تمر!');
+}
+
+function onGardenResize() {
+  const container = document.getElementById('garden-canvas-container');
+  gardenCamera.aspect = container.clientWidth / container.clientHeight;
+  gardenCamera.updateProjectionMatrix();
+  gardenRenderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+window.addEventListener('load', () => {
+  setTimeout(() => document.getElementById('loading').classList.add('hidden'), 1200);
+  setTimeout(initGarden, 300);
+});
+</script>
+</body>
+</html>

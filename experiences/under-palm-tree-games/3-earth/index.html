@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>كرة عمان — Under Palm Tree</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="loading-palm">🌴</div>
+  <div class="loading-text">تحت النخلة...</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<nav class="main-nav">
+  <a href="../index.html" class="nav-logo">Under Palm Tree</a>
+  <a href="../index.html" class="nav-back">↩ كل الألعاب</a>
+</nav>
+
+<section class="section" id="game-earth">
+  <h1 class="section-title">🌍 كرة عمان</h1>
+  <p class="section-subtitle">بث حول العالم — اضغط على النقاط المضيئة</p>
+  <div class="game-canvas-container" id="earth-canvas-container"></div>
+  <div class="game-controls">
+    <button class="game-btn" onclick="rotateEarth()">🔄 دوران</button>
+    <button class="game-btn" onclick="resetEarthView()">🏠 إعادة</button>
+  </div>
+</section>
+
+<script src="../shared/utils.js"></script>
+<script>
+const locations = [
+  { name: "مسقط", flag: "🇴🇲", lat: 23.6139, lon: 58.5423, desc: "عاصمة عُمان وقلب النبض" },
+  { name: "طوكيو", flag: "🇯🇵", lat: 35.6762, lon: 139.6503, desc: "ثقافة وتقنية" },
+  { name: "آيسلندا", flag: "🇮🇸", lat: 64.9631, lon: -19.0208, desc: "الشفق القطبي" },
+  { name: "ريو", flag: "🇧🇷", lat: -22.9068, lon: -43.1729, desc: "الكارنفال والشوارع" },
+  { name: "مراكش", flag: "🇲🇦", lat: 31.6295, lon: -7.9811, desc: "الأسواق والتراث" },
+  { name: "أوتيروا", flag: "🇳🇿", lat: -40.9006, lon: 174.8869, desc: "البرية والماوري" }
+];
+
+let earthScene, earthCamera, earthRenderer, earthMesh, atmosphereMesh;
+let earthRaycaster = new THREE.Raycaster();
+let earthMouse = new THREE.Vector2();
+let isEarthRotating = true;
+
+function initEarth() {
+  const container = document.getElementById('earth-canvas-container');
+  const width = container.clientWidth, height = container.clientHeight;
+
+  earthScene = new THREE.Scene();
+  earthScene.background = new THREE.Color(0x050510);
+
+  earthCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+  earthCamera.position.z = 5;
+
+  earthRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  earthRenderer.setSize(width, height);
+  earthRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(earthRenderer.domElement);
+
+  const earthCanvas = document.createElement('canvas');
+  earthCanvas.width = 512; earthCanvas.height = 256;
+  const eCtx = earthCanvas.getContext('2d');
+  eCtx.fillStyle = '#1a3a5c'; eCtx.fillRect(0, 0, 512, 256);
+  eCtx.fillStyle = '#2d5a3c';
+  eCtx.fillRect(220, 100, 80, 60); eCtx.fillRect(240, 80, 40, 30);
+  eCtx.fillRect(300, 60, 120, 80); eCtx.fillRect(260, 40, 60, 40);
+  eCtx.fillRect(60, 60, 50, 100); eCtx.fillRect(80, 40, 30, 40);
+  eCtx.fillRect(420, 140, 50, 30);
+  eCtx.fillStyle = '#c9a96e'; eCtx.fillRect(265, 105, 15, 10);
+  earthMesh = new THREE.Mesh(new THREE.SphereGeometry(1.5, 64, 64), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(earthCanvas), roughness: 0.7, metalness: 0.1 }));
+  earthScene.add(earthMesh);
+
+  atmosphereMesh = new THREE.Mesh(new THREE.SphereGeometry(1.6, 64, 64), new THREE.MeshBasicMaterial({ color: 0x4a9acc, transparent: true, opacity: 0.1, side: THREE.BackSide }));
+  earthScene.add(atmosphereMesh);
+
+  createParticleSystem(earthScene, 500, { color: '#ffffff', range: 20, opacity: 0.8, pointSize: 0.02 });
+
+  locations.forEach(loc => earthMesh.add(createLocationMarker(loc)));
+
+  const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+  sunLight.position.set(5, 3, 5);
+  earthScene.add(sunLight);
+  earthScene.add(new THREE.AmbientLight(0x404040, 0.5));
+
+  window.addEventListener('resize', onEarthResize);
+  earthRenderer.domElement.addEventListener('click', onEarthClick);
+
+  withVisibilityPause(() => {
+    if (isEarthRotating) { earthMesh.rotation.y += 0.002; atmosphereMesh.rotation.y += 0.002; }
+    earthRenderer.render(earthScene, earthCamera);
+  });
+}
+
+function createLocationMarker(loc) {
+  const phi = (90 - loc.lat) * (Math.PI / 180);
+  const theta = (loc.lon + 180) * (Math.PI / 180);
+  const radius = 1.52;
+  const x = -(radius * Math.sin(phi) * Math.cos(theta));
+  const z = (radius * Math.sin(phi) * Math.sin(theta));
+  const y = (radius * Math.cos(phi));
+
+  const marker = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), new THREE.MeshBasicMaterial({ color: 0xc9a96e, emissive: 0xc9a96e, emissiveIntensity: 0.5 }));
+  marker.position.set(x, y, z);
+  marker.userData = { location: loc };
+
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.06, 0.08, 32), new THREE.MeshBasicMaterial({ color: 0xc9a96e, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+  ring.position.set(x, y, z);
+  ring.lookAt(0, 0, 0);
+  marker.add(ring);
+  return marker;
+}
+
+function rotateEarth() { isEarthRotating = !isEarthRotating; }
+function resetEarthView() {
+  gsap.to(earthCamera.position, { x: 0, y: 0, z: 5, duration: 1, ease: 'power2.out' });
+  gsap.to(earthMesh.rotation, { x: 0, y: 0, z: 0, duration: 1, ease: 'power2.out' });
+}
+
+function onEarthClick(event) {
+  const rect = earthRenderer.domElement.getBoundingClientRect();
+  earthMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  earthMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  earthRaycaster.setFromCamera(earthMouse, earthCamera);
+  const intersects = earthRaycaster.intersectObjects(earthMesh.children, true);
+  if (intersects.length > 0) {
+    const node = findAncestorWithKey(intersects[0].object, 'location');
+    if (node) showToast(node.userData.location.flag + ' ' + node.userData.location.name + ' — ' + node.userData.location.desc);
+  }
+}
+
+function onEarthResize() {
+  const container = document.getElementById('earth-canvas-container');
+  earthCamera.aspect = container.clientWidth / container.clientHeight;
+  earthCamera.updateProjectionMatrix();
+  earthRenderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+window.addEventListener('load', () => {
+  setTimeout(() => document.getElementById('loading').classList.add('hidden'), 1200);
+  setTimeout(initEarth, 300);
+});
+</script>
+</body>
+</html>

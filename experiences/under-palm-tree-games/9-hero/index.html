@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>باب النخلة — Under Palm Tree</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="loading-palm">🌴</div>
+  <div class="loading-text">تحت النخلة...</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<nav class="main-nav">
+  <a href="../index.html" class="nav-logo">Under Palm Tree</a>
+  <a href="../index.html" class="nav-back">↩ كل الألعاب</a>
+</nav>
+
+<section class="section" id="game-hero">
+  <h1 class="section-title">🚪 باب النخلة</h1>
+  <p class="section-subtitle">المدخل السحري لعالم Under Palm Tree</p>
+  <div class="game-canvas-container" id="hero-canvas-container"></div>
+  <div class="game-controls">
+    <button class="game-btn" onclick="enterPortal()">✨ دخول</button>
+    <button class="game-btn" onclick="rotatePortal()">🌀 دوران</button>
+    <button class="game-btn" onclick="changePortalColor()">🎨 لون جديد</button>
+  </div>
+</section>
+
+<div class="info-overlay" id="portal-overlay">
+  <div class="info-box">
+    <button class="close-btn" onclick="closePortalInfo()">×</button>
+    <h2>🌴 أهلاً بك في عالم Under Palm Tree</h2>
+    <p style="margin-top:1rem">
+      لقد دخلت البوابة السحرية! هنا تبدأ رحلتك في عالم القرية الرقمية.<br><br>
+      اكتشف الألعاب التعليمية، تعلم عن التراث العماني، واستمتع بالمغامرة.
+    </p>
+    <div style="margin-top:1.5rem">
+      <button class="game-btn" onclick="closePortalInfo()">ابدأ المغامرة 🚀</button>
+    </div>
+  </div>
+</div>
+
+<script src="../shared/utils.js"></script>
+<script>
+let heroScene, heroCamera, heroRenderer, portalGroup, portalParticles;
+let portalColors = [0xc9a96e, 0x7c3aed, 0x4ade80, 0xf4a6c0, 0x64b4dc];
+let currentPortalColor = 0;
+
+function initHero() {
+  const container = document.getElementById('hero-canvas-container');
+  const width = container.clientWidth, height = container.clientHeight;
+
+  heroScene = new THREE.Scene();
+  heroScene.background = new THREE.Color(0x0a0a0f);
+  heroScene.fog = new THREE.FogExp2(0x0a0a0f, 0.03);
+
+  heroCamera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+  heroCamera.position.set(0, 0, 6);
+
+  heroRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  heroRenderer.setSize(width, height);
+  heroRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(heroRenderer.domElement);
+
+  heroScene.add(new THREE.AmbientLight(0xffffff, 0.3));
+  const portalLight = new THREE.PointLight(portalColors[0], 1, 20);
+  portalLight.position.set(0, 0, 2);
+  heroScene.add(portalLight);
+
+  portalGroup = new THREE.Group();
+  heroScene.add(portalGroup);
+  createPortal();
+  portalParticles = createParticleSystem(heroScene, 300, { color: '#c9a96e', range: 8, opacity: 0.6 });
+
+  window.addEventListener('resize', onHeroResize);
+  heroRenderer.domElement.addEventListener('click', onHeroClick);
+
+  withVisibilityPause(() => {
+    const time = Date.now() * 0.001;
+    portalGroup.rotation.z = time * 0.5;
+    portalGroup.children[0].rotation.z = time * 0.3;
+    portalGroup.children[1].rotation.x = Math.PI / 2 + Math.sin(time) * 0.2;
+    portalGroup.children[2].scale.setScalar(1 + Math.sin(time * 2) * 0.1);
+    if (portalParticles) portalParticles.rotation.y = time * 0.1;
+    heroRenderer.render(heroScene, heroCamera);
+  });
+}
+
+function createPortal() {
+  while (portalGroup.children.length > 0) portalGroup.remove(portalGroup.children[0]);
+  const color = new THREE.Color(portalColors[currentPortalColor]);
+
+  const outerRing = new THREE.Mesh(new THREE.TorusGeometry(2, 0.1, 16, 100), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.8, roughness: 0.3, metalness: 0.7 }));
+  portalGroup.add(outerRing);
+
+  const innerRing = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.05, 16, 100), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5, roughness: 0.3, metalness: 0.7 }));
+  innerRing.rotation.x = Math.PI / 2;
+  portalGroup.add(innerRing);
+
+  const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3, transparent: true, opacity: 0.3, roughness: 0.1, metalness: 0.9 }));
+  portalGroup.add(sphere);
+
+  const palmTexture = createTextTexture('🌴', { width: 128, height: 128, font: '80px serif', textColor: '#ffffff' });
+  const palm = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: palmTexture, transparent: true }));
+  palm.position.z = 0.5;
+  portalGroup.add(palm);
+}
+
+function enterPortal() {
+  gsap.to(portalGroup.scale, { x: 0.1, y: 0.1, z: 0.1, duration: 0.5, ease: 'power2.in' });
+  setTimeout(() => {
+    document.getElementById('portal-overlay').classList.add('active');
+    gsap.to(portalGroup.scale, { x: 1, y: 1, z: 1, duration: 0.5, ease: 'power2.out' });
+  }, 500);
+}
+function rotatePortal() { gsap.to(portalGroup.rotation, { y: portalGroup.rotation.y + Math.PI * 2, duration: 2, ease: 'power2.inOut' }); }
+function changePortalColor() { currentPortalColor = (currentPortalColor + 1) % portalColors.length; createPortal(); }
+function closePortalInfo() { document.getElementById('portal-overlay').classList.remove('active'); }
+
+function onHeroClick(event) {
+  const rect = heroRenderer.domElement.getBoundingClientRect();
+  const mouse = new THREE.Vector2();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, heroCamera);
+  if (raycaster.intersectObjects(portalGroup.children, true).length > 0) enterPortal();
+}
+
+function onHeroResize() {
+  const container = document.getElementById('hero-canvas-container');
+  heroCamera.aspect = container.clientWidth / container.clientHeight;
+  heroCamera.updateProjectionMatrix();
+  heroRenderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePortalInfo(); });
+document.getElementById('portal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closePortalInfo(); });
+
+window.addEventListener('load', () => {
+  setTimeout(() => document.getElementById('loading').classList.add('hidden'), 1200);
+  setTimeout(initHero, 300);
+});
+</script>
+</body>
+</html>

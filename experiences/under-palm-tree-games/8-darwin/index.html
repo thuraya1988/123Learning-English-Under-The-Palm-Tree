@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>أرشيف العُماني — Under Palm Tree</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="loading-palm">🌴</div>
+  <div class="loading-text">تحت النخلة...</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<nav class="main-nav">
+  <a href="../index.html" class="nav-logo">Under Palm Tree</a>
+  <a href="../index.html" class="nav-back">↩ كل الألعاب</a>
+</nav>
+
+<section class="section" id="game-darwin">
+  <h1 class="section-title">📜 أرشيف العُماني</h1>
+  <p class="section-subtitle">مكتبة رقمية تفاعلية — اضغط على المخطوطة لقراءتها</p>
+  <div class="game-canvas-container" id="darwin-canvas-container"></div>
+  <div class="game-controls">
+    <button class="game-btn" onclick="prevScroll()">⬅️ السابق</button>
+    <button class="game-btn" onclick="openScroll()">📖 فتح</button>
+    <button class="game-btn" onclick="nextScroll()">التالي ➡️</button>
+  </div>
+</section>
+
+<div class="info-overlay" id="scroll-overlay">
+  <div class="info-box">
+    <button class="close-btn" onclick="closeScrollInfo()">×</button>
+    <h2 id="scroll-title">عنوان المخطوطة</h2>
+    <p style="color:var(--violet);font-size:1rem;margin-bottom:1rem" id="scroll-author">المؤلف</p>
+    <p id="scroll-content" style="font-size:1.05rem">المحتوى</p>
+    <p style="opacity:0.5;font-size:0.8rem;margin-top:1rem" id="scroll-year">التاريخ</p>
+  </div>
+</div>
+
+<script src="../shared/utils.js"></script>
+<script>
+// هذه القائمة تقتصر عمدًا على شخصيات عمانية موثقة النسب والسيرة بلا خلاف
+// (تمت إزالة أي اسم كانت نسبته العمانية غير مؤكدة، مثل المبرد، من هذه القائمة).
+const scrolls = [
+  { title: "كتاب العين", author: "الخليل بن أحمد الفراهيدي", content: "أول قاموس في اللغة العربية. يحتوي على ترتيب حروف المعجم حسب مخرج الحروف من الفم، ويُعتبر من أعظم الإنجازات اللغوية في التاريخ الإسلامي.", year: "القرن الثاني الهجري (718-786م)" },
+  { title: "سفينة البحار", author: "أحمد بن ماجد الساعدي", content: "كتاب في علم الملاحة البحرية يصف طرق التجارة من عُمان إلى الهند والصين، ويحتوي على خرائط وإحداثيات ومعلومات عن التيارات والرياح الموسمية.", year: "القرن الخامس عشر (1430-1500م)" },
+  { title: "تاريخ عُمان", author: "حامد بن محمد بن رزيق", content: "يصف تاريخ عُمان منذ عهد النبوة حتى القرن التاسع عشر، ويُعتبر من أهم المصادر التاريخية التي تُدرّس في الجامعات العمانية.", year: "1874 م" },
+  { title: "الأشعار", author: "عبدالله بن علي الخليلي", content: "مجموعة شعرية تضم قصائد في الوطن والحب والحكمة، لشاعر يُلقب بأمير البلاغة، تجمع بين الفصاحة والعمق المعنوي.", year: "القرن العشرين (1892-1944)" },
+  { title: "الفتح المبين", author: "حامد بن محمد بن رزيق", content: "يصف انتشار الإسلام في عُمان والهند وشرق أفريقيا، ويحتوي على سجلات الرحلات البحرية والتجارة والعلاقات الدولية.", year: "1880 م" }
+];
+
+let darwinScene, darwinCamera, darwinRenderer, darwinGroup, scrollMeshes = [];
+let darwinRaycaster = new THREE.Raycaster();
+let darwinMouse = new THREE.Vector2();
+let currentScrollIndex = 0;
+
+function initDarwin() {
+  const container = document.getElementById('darwin-canvas-container');
+  const width = container.clientWidth, height = container.clientHeight;
+
+  darwinScene = new THREE.Scene();
+  darwinScene.background = new THREE.Color(0x0a0a0f);
+  darwinScene.fog = new THREE.FogExp2(0x0a0a0f, 0.04);
+
+  darwinCamera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+  darwinCamera.position.set(0, 1, 8);
+  darwinCamera.lookAt(0, 0, 0);
+
+  darwinRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  darwinRenderer.setSize(width, height);
+  darwinRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(darwinRenderer.domElement);
+
+  darwinScene.add(new THREE.AmbientLight(0xffffff, 0.3));
+  const candleLight = new THREE.PointLight(0xffaa44, 0.8, 15);
+  candleLight.position.set(0, 3, 3);
+  darwinScene.add(candleLight);
+
+  darwinGroup = new THREE.Group();
+  darwinScene.add(darwinGroup);
+  createScrolls();
+  createParticleSystem(darwinScene, 100, { color: '#ffaa44', range: 8, opacity: 0.3 });
+
+  window.addEventListener('resize', onDarwinResize);
+  darwinRenderer.domElement.addEventListener('click', onDarwinClick);
+
+  withVisibilityPause(() => {
+    const time = Date.now() * 0.001;
+    scrollMeshes.forEach((scroll, i) => { scroll.rotation.y = Math.sin(time * 0.3 + i) * 0.1; });
+    darwinRenderer.render(darwinScene, darwinCamera);
+  });
+}
+
+function createScrolls() {
+  scrolls.forEach((scroll, index) => {
+    const scrollGroup = new THREE.Group();
+    const scrollMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2, 16), new THREE.MeshStandardMaterial({ color: 0xd4a574, roughness: 0.8 }));
+    scrollMesh.rotation.z = Math.PI / 2;
+    scrollGroup.add(scrollMesh);
+
+    const endMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.6 });
+    [-1, 1].forEach(x => {
+      const end = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16), endMaterial);
+      end.rotation.z = Math.PI / 2;
+      end.position.x = x;
+      scrollGroup.add(end);
+    });
+
+    const labelTexture = createTextTexture(scroll.title, { width: 256, height: 64, font: 'bold 16px "Noto Naskh Arabic", serif', textColor: '#8b4513' });
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.375), new THREE.MeshBasicMaterial({ map: labelTexture, transparent: true }));
+    label.position.y = -0.8;
+    scrollGroup.add(label);
+
+    scrollGroup.position.set((index - 2) * 2.5, 0, -1);
+    scrollGroup.userData = { scroll, index };
+    darwinGroup.add(scrollGroup);
+    scrollMeshes.push(scrollGroup);
+  });
+}
+
+function openScroll() {
+  const scroll = scrolls[currentScrollIndex];
+  document.getElementById('scroll-title').textContent = scroll.title;
+  document.getElementById('scroll-author').textContent = 'المؤلف: ' + scroll.author;
+  document.getElementById('scroll-content').textContent = scroll.content;
+  document.getElementById('scroll-year').textContent = 'التاريخ: ' + scroll.year;
+  document.getElementById('scroll-overlay').classList.add('active');
+}
+function nextScroll() {
+  currentScrollIndex = (currentScrollIndex + 1) % scrolls.length;
+  gsap.to(darwinGroup.position, { x: -currentScrollIndex * 2.5, duration: 0.8, ease: 'power2.out' });
+}
+function prevScroll() {
+  currentScrollIndex = (currentScrollIndex - 1 + scrolls.length) % scrolls.length;
+  gsap.to(darwinGroup.position, { x: -currentScrollIndex * 2.5, duration: 0.8, ease: 'power2.out' });
+}
+function closeScrollInfo() { document.getElementById('scroll-overlay').classList.remove('active'); }
+
+function onDarwinClick(event) {
+  const rect = darwinRenderer.domElement.getBoundingClientRect();
+  darwinMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  darwinMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  darwinRaycaster.setFromCamera(darwinMouse, darwinCamera);
+  const intersects = darwinRaycaster.intersectObjects(darwinGroup.children, true);
+  if (intersects.length > 0) {
+    const node = findAncestorWithKey(intersects[0].object, 'scroll');
+    if (node) { currentScrollIndex = node.userData.index; openScroll(); }
+  }
+}
+
+function onDarwinResize() {
+  const container = document.getElementById('darwin-canvas-container');
+  darwinCamera.aspect = container.clientWidth / container.clientHeight;
+  darwinCamera.updateProjectionMatrix();
+  darwinRenderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeScrollInfo(); });
+document.getElementById('scroll-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeScrollInfo(); });
+
+window.addEventListener('load', () => {
+  setTimeout(() => document.getElementById('loading').classList.add('hidden'), 1200);
+  setTimeout(initDarwin, 300);
+});
+</script>
+</body>
+</html>

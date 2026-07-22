@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="description" content="Al-Qarawashiya Window of Knowledge - 3D Globe + Hand Gesture + Free Books + Free Courses">
+    <meta name="theme-color" content="#1a0a0f">
+    <title>Window of Knowledge | نافذة المعرفة</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Amiri:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+
+    <!-- CesiumJS -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <a href="../index.html" style="position:fixed;top:1rem;left:1rem;z-index:9999;color:#d4c5a9;text-decoration:none;font-size:0.85rem;border:1px solid rgba(212,197,169,0.4);padding:0.4rem 1rem;border-radius:50px;background:rgba(26,10,15,0.7);backdrop-filter:blur(6px);">↩ كل الألعاب</a>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-content">
+            <div class="mystical-symbol">🌍</div>
+            <h1 class="loading-title" data-en="Window of Knowledge" data-ar="نافذة المعرفة">Window of Knowledge</h1>
+            <p class="loading-subtitle" data-en="3D Globe + Hand Gesture + Free Books + Free Courses" 
+               data-ar="جلوب ثلاثي الأبعاد + تحكم باليد + كتب مجانية + كورسات مجانية">
+               3D Globe + Hand Gesture + Free Books + Free Courses
+            </p>
+            <div class="loading-bar-container">
+                <div class="loading-bar">
+                    <div class="loading-bar-fill" id="loading-bar-fill"></div>
+                </div>
+                <p class="loading-text" id="loading-text" data-en="Initializing the world..." data-ar="تهيئة العالم...">Initializing the world...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Permission -->
+    <div id="camera-permission" class="hidden">
+        <div class="permission-content">
+            <div class="permission-icon">📷</div>
+            <h2 data-en="Camera Access" data-ar="الوصول للكاميرا">Camera Access</h2>
+            <p data-en="We need your camera for hand gesture control. Your video never leaves your device." 
+               data-ar="نحتاج كاميرتك للتحكم بالإيماءات. الفيديو ما يطلع من جهازك.">
+               We need your camera for hand gesture control. Your video never leaves your device.
+            </p>
+            <button class="permission-btn" id="btn-enable-camera" data-en="Enable Camera" data-ar="تفعيل الكاميرا">Enable Camera</button>
+            <button class="permission-btn secondary" id="btn-mouse-mode" data-en="Use Mouse" data-ar="استخدام الماوس">Use Mouse</button>
+        </div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="hidden">
+        <div class="menu-background">
+            <div class="mystical-particles" id="menu-particles"></div>
+            <div class="ambient-glow"></div>
+        </div>
+        <div class="menu-content">
+            <div class="game-logo">
+                <div class="logo-globe">🌍</div>
+                <h1 class="logo-title" data-en="Window of Knowledge" data-ar="نافذة المعرفة">Window of Knowledge</h1>
+                <p class="logo-subtitle" data-en="Explore the World with Your Hands" data-ar="استكشف العالم بيديك">Explore the World with Your Hands</p>
+                <div class="logo-divider"></div>
+            </div>
+            <div class="menu-buttons">
+                <button class="menu-btn primary" id="btn-explore-globe" data-action="explore">
+                    <span class="btn-icon">🌍</span>
+                    <span class="btn-text" data-en="Explore the Globe" data-ar="استكشف الجلوب">Explore the Globe</span>
+                </button>
+                <button class="menu-btn" id="btn-free-books" data-action="books">
+                    <span class="btn-icon">📚</span>
+                    <span class="btn-text" data-en="Free Books" data-ar="كتب مجانية">Free Books</span>
+                </button>
+                <button class="menu-btn" id="btn-free-courses" data-action="courses">
+                    <span class="btn-icon">🎓</span>
+                    <span class="btn-text" data-en="Free Courses" data-ar="كورسات مجانية">Free Courses</span>
+                </button>
+                <button class="menu-btn" id="btn-oman-history" data-action="history">
+                    <span class="btn-icon">🏛️</span>
+                    <span class="btn-text" data-en="Oman History" data-ar="تاريخ عمان">Oman History</span>
+                </button>
+                <button class="menu-btn" id="btn-settings" data-action="settings">
+                    <span class="btn-icon">⚙️</span>
+                    <span class="btn-text" data-en="Settings" data-ar="الإعدادات">Settings</span>
+                </button>
+            </div>
+            <div class="menu-footer">
+                <p data-en="Privacy First - No Data Collection" data-ar="الخصوصية أولاً - لا جمع للبيانات">Privacy First - No Data Collection</p>
+                <p class="version">v2.0.0 - Window of Knowledge</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Globe Area -->
+    <div id="globe-area" class="hidden">
+        <!-- Cesium Container -->
+        <div id="cesiumContainer"></div>
+
+        <!-- Video Input (Hidden) -->
+        <video id="input-video" class="hidden" playsinline></video>
+
+        <!-- Hand Tracking Canvas -->
+        <canvas id="hand-canvas"></canvas>
+
+        <!-- Gesture Feedback -->
+        <div class="gesture-feedback" id="gesture-feedback">
+            <div class="gesture-icon" id="gesture-icon">✋</div>
+            <div class="gesture-text" id="gesture-text" data-en="Show your hand to control the globe" data-ar="أظهر يدك للتحكم بالجلوب">Show your hand to control the globe</div>
+        </div>
+
+        <!-- Hand Status -->
+        <div class="hand-status" id="hand-status">
+            <div class="status-dot" id="status-dot"></div>
+            <span class="status-text" id="status-text" data-en="Camera Off" data-ar="الكاميرا مغلقة">Camera Off</span>
+        </div>
+
+        <!-- Country Info Panel -->
+        <div class="country-panel hidden" id="country-panel">
+            <div class="country-content">
+                <button class="country-close" id="btn-close-country">×</button>
+                <div class="country-flag" id="country-flag">🇴🇲</div>
+                <h2 class="country-name" id="country-name">Oman</h2>
+                <p class="country-name-ar" id="country-name-ar">عمان</p>
+                <div class="country-info" id="country-info"></div>
+                <div class="country-resources" id="country-resources">
+                    <h3 data-en="Free Resources" data-ar="مصادر مجانية">Free Resources</h3>
+                    <div class="resource-tabs">
+                        <button class="resource-tab active" data-tab="books" data-en="Books" data-ar="كتب">Books</button>
+                        <button class="resource-tab" data-tab="courses" data-en="Courses" data-ar="كورسات">Courses</button>
+                        <button class="resource-tab" data-tab="history" data-en="History" data-ar="تاريخ">History</button>
+                    </div>
+                    <div class="resource-content" id="resource-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- HUD -->
+        <div class="globe-hud">
+            <div class="hud-top-left">
+                <div class="coordinates" id="coordinates">Lat: 23.61° | Lon: 58.55°</div>
+            </div>
+            <div class="hud-top-right">
+                <button class="hud-btn" id="btn-reset-view" data-en="Reset View" data-ar="إعادة العرض">Reset View</button>
+                <button class="hud-btn" id="btn-back-menu-globe" data-en="Menu" data-ar="قائمة">Menu</button>
+            </div>
+            <div class="hud-bottom">
+                <div class="gesture-legend">
+                    <div class="gesture-item">
+                        <span class="gesture-emoji">✋</span>
+                        <span data-en="Move hand to rotate" data-ar="حرك يدك للدوران">Move hand to rotate</span>
+                    </div>
+                    <div class="gesture-item">
+                        <span class="gesture-emoji">👆</span>
+                        <span data-en="Pinch to select country" data-ar="قرص لاختيار البلد">Pinch to select country</span>
+                    </div>
+                    <div class="gesture-item">
+                        <span class="gesture-emoji">👋</span>
+                        <span data-en="Wave to zoom" data-ar="لوح للتكبير">Wave to zoom</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Books Panel -->
+    <div id="books-panel" class="hidden screen-overlay">
+        <div class="panel-content">
+            <h2 class="panel-title" data-en="Free Books" data-ar="كتب مجانية">Free Books</h2>
+            <div class="search-bar">
+                <input type="text" id="book-search" placeholder="Search books..." data-placeholder-ar="ابحث في الكتب...">
+                <button id="btn-search-books">🔍</button>
+            </div>
+            <div class="books-grid" id="books-grid"></div>
+            <button class="back-btn" data-back="menu" data-en="Back to Menu" data-ar="العودة للقائمة">Back to Menu</button>
+        </div>
+    </div>
+
+    <!-- Courses Panel -->
+    <div id="courses-panel" class="hidden screen-overlay">
+        <div class="panel-content">
+            <h2 class="panel-title" data-en="Free Courses" data-ar="كورسات مجانية">Free Courses</h2>
+            <div class="courses-grid" id="courses-grid"></div>
+            <button class="back-btn" data-back="menu" data-en="Back to Menu" data-ar="العودة للقائمة">Back to Menu</button>
+        </div>
+    </div>
+
+    <!-- History Panel -->
+    <div id="history-panel" class="hidden screen-overlay">
+        <div class="panel-content">
+            <h2 class="panel-title" data-en="Oman in History" data-ar="عمان في التاريخ">Oman in History</h2>
+            <div class="timeline-container" id="timeline-container"></div>
+            <button class="back-btn" data-back="menu" data-en="Back to Menu" data-ar="العودة للقائمة">Back to Menu</button>
+        </div>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings-screen" class="hidden screen-overlay">
+        <div class="settings-content">
+            <h2 class="settings-title" data-en="Settings" data-ar="الإعدادات">Settings</h2>
+            <div class="settings-section">
+                <h3 data-en="Language" data-ar="اللغة">Language</h3>
+                <div class="language-toggle">
+                    <button class="lang-btn active" data-lang="en">English</button>
+                    <button class="lang-btn" data-lang="ar">العربية</button>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h3 data-en="Hand Tracking" data-ar="تتبع اليد">Hand Tracking</h3>
+                <div class="setting-item">
+                    <label data-en="Tracking Sensitivity" data-ar="حساسية التتبع">Tracking Sensitivity</label>
+                    <input type="range" id="tracking-sensitivity" min="1" max="10" value="5">
+                    <span class="setting-value" id="tracking-sensitivity-val">5</span>
+                </div>
+                <div class="setting-item">
+                    <label data-en="Show Hand Skeleton" data-ar="إظهار هيكل اليد">Show Hand Skeleton</label>
+                    <input type="checkbox" id="show-skeleton" checked>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h3 data-en="Globe" data-ar="الجلوب">Globe</h3>
+                <div class="setting-item">
+                    <label data-en="Show Terrain" data-ar="إظهار التضاريس">Show Terrain</label>
+                    <input type="checkbox" id="show-terrain" checked>
+                </div>
+                <div class="setting-item">
+                    <label data-en="Show Labels" data-ar="إظهار التسميات">Show Labels</label>
+                    <input type="checkbox" id="show-labels" checked>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h3 data-en="Privacy" data-ar="الخصوصية">Privacy</h3>
+                <p class="privacy-text" data-en="This application processes all data on your device. No images, videos, or personal data are sent to any external server." 
+                   data-ar="هذا التطبيق يعالج كل البيانات في جهازك. لا صور أو فيديوهات أو بيانات شخصية ترسل لأي خادم خارجي.">
+                   This application processes all data on your device. No images, videos, or personal data are sent to any external server.
+                </p>
+            </div>
+            <button class="back-btn" data-back="menu" data-en="Back to Menu" data-ar="العودة للقائمة">Back to Menu</button>
+        </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

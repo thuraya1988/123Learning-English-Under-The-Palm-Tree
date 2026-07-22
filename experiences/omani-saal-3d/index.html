@@ -109,6 +109,7 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0a0705; font-
   <h1 style="font-size:26px;">كيف ألعب</h1>
   <ul>
     <li><b>WASD / الأسهم</b> — المشي</li>
+    <li><b>الفأرة (اسحبوا) / اسحبوا الشاشة بالجوال</b> — اللف والدوران بحرية</li>
     <li><b>Shift</b> — الركض</li>
     <li><b>Space (المسافة)</b> — القفز</li>
     <li><b>E</b> — التفاعل (تسلّق النخلة، تسليم الفسيلة)</li>
@@ -171,6 +172,7 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0a0705; font-
 </div>
 
 <div class="hint-toast" id="climbEduToast"></div>
+<div class="hint-toast" id="lookHint" style="bottom:8px; opacity:0.6;">اسحبوا الشاشة / حرّكوا الفأرة للنظر حولكم</div>
 
 <div id="mobileControls">
   <div class="dpad-btn" id="btn-up" style="top:0; left:52px;">▲</div>
@@ -892,6 +894,7 @@ const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x3a4a5a, 8, 60);
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
+camera.rotation.order = 'YXZ';
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -1055,16 +1058,65 @@ function toggleCamera() {
   cameraOffset = cameraMode === 'first' ? new THREE.Vector3(0, 1.55, 0.15) : new THREE.Vector3(0, 2.6, 4.2);
 }
 
+// ===================== FREE-LOOK (mouse drag / pointer lock on desktop, touch-drag on mobile) =====================
+let yaw = 0, pitch = 0;
+const LOOK_SENS = 0.0028;
+const TOUCH_LOOK_SENS = 0.0055;
+
+renderer.domElement.addEventListener('click', () => {
+  if (!('ontouchstart' in window)) renderer.domElement.requestPointerLock();
+});
+document.addEventListener('mousemove', e => {
+  if (document.pointerLockElement === renderer.domElement) {
+    yaw -= e.movementX * LOOK_SENS;
+    pitch -= e.movementY * LOOK_SENS;
+    pitch = Math.max(-1.2, Math.min(1.2, pitch));
+  }
+});
+
+const lookTouch = { id: null, lastX: 0, lastY: 0 };
+renderer.domElement.addEventListener('touchstart', e => {
+  if (lookTouch.id !== null) return;
+  const t = e.changedTouches[0];
+  lookTouch.id = t.identifier;
+  lookTouch.lastX = t.clientX;
+  lookTouch.lastY = t.clientY;
+}, { passive: true });
+renderer.domElement.addEventListener('touchmove', e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === lookTouch.id) {
+      const dx = t.clientX - lookTouch.lastX;
+      const dy = t.clientY - lookTouch.lastY;
+      yaw -= dx * TOUCH_LOOK_SENS;
+      pitch -= dy * TOUCH_LOOK_SENS;
+      pitch = Math.max(-1.2, Math.min(1.2, pitch));
+      lookTouch.lastX = t.clientX;
+      lookTouch.lastY = t.clientY;
+    }
+  }
+}, { passive: true });
+renderer.domElement.addEventListener('touchend', e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === lookTouch.id) lookTouch.id = null;
+  }
+});
+
 function updatePlayer(delta) {
   const p = player.userData;
+  // Movement is relative to look direction (yaw), so turning with the mouse/drag
+  // actually changes which way "forward" goes — independent free-look.
+  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const right = new THREE.Vector3(fwd.z, 0, -fwd.x);
   const move = new THREE.Vector3();
-  if (isDown('KeyA') || isDown('ArrowLeft')) move.x -= 1;
-  if (isDown('KeyD') || isDown('ArrowRight')) move.x += 1;
-  if (isDown('KeyW') || isDown('ArrowUp')) move.z -= 1;
-  if (isDown('KeyS') || isDown('ArrowDown')) move.z += 1;
+  if (isDown('KeyW') || isDown('ArrowUp')) move.add(fwd);
+  if (isDown('KeyS') || isDown('ArrowDown')) move.sub(fwd);
+  if (isDown('KeyD') || isDown('ArrowRight')) move.add(right);
+  if (isDown('KeyA') || isDown('ArrowLeft')) move.sub(right);
   const currentSpeed = STATE.isRunning ? p.runSpeed : p.speed;
 
   if (STATE.climbing) { move.set(0, 0, 0); }
+
+  player.rotation.y = yaw;
 
   if (move.length() > 0 && !STATE.climbing) {
     move.normalize().multiplyScalar(currentSpeed);
@@ -1074,11 +1126,6 @@ function updatePlayer(delta) {
     const nextZ = player.position.z + p.velocity.z;
     if (!collidesWithBuildings(nextX, player.position.z)) player.position.x = nextX;
     if (!collidesWithBuildings(player.position.x, nextZ)) player.position.z = nextZ;
-    const targetRot = Math.atan2(p.velocity.x, p.velocity.z);
-    let rotDiff = targetRot - player.rotation.y;
-    while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
-    while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-    player.rotation.y += rotDiff * 0.2;
     const animSpeed = STATE.isRunning ? 14 : 9;
     p.animTime += delta * animSpeed;
     p.leftLeg.rotation.x = Math.sin(p.animTime) * 0.6;
@@ -1116,16 +1163,16 @@ function updatePlayer(delta) {
     player.position.z = Math.max(-half, Math.min(half, player.position.z));
   }
 
-  const targetPos = player.position.clone();
   if (cameraMode === 'first') {
+    const targetPos = player.position.clone();
     targetPos.y += cameraOffset.y;
-    targetPos.x += Math.sin(player.rotation.y) * cameraOffset.z;
-    targetPos.z += Math.cos(player.rotation.y) * cameraOffset.z;
-    camera.position.lerp(targetPos, 0.4);
-    const lookAt = player.position.clone().add(new THREE.Vector3(Math.sin(player.rotation.y) * 3, cameraOffset.y, Math.cos(player.rotation.y) * 3));
-    camera.lookAt(lookAt);
+    targetPos.x += Math.sin(yaw) * cameraOffset.z;
+    targetPos.z += Math.cos(yaw) * cameraOffset.z;
+    camera.position.lerp(targetPos, 0.5);
+    camera.rotation.y = yaw;
+    camera.rotation.x = pitch;
   } else {
-    const behind = new THREE.Vector3(Math.sin(player.rotation.y) * -cameraOffset.z, cameraOffset.y, Math.cos(player.rotation.y) * -cameraOffset.z);
+    const behind = new THREE.Vector3(Math.sin(yaw) * -cameraOffset.z, cameraOffset.y + pitch * 3, Math.cos(yaw) * -cameraOffset.z);
     camera.position.lerp(player.position.clone().add(behind), 0.1);
     camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 1.2, 0)));
   }
@@ -1969,6 +2016,9 @@ document.getElementById('startBtn').addEventListener('click', () => {
   minimapCanvas.classList.remove('hidden');
   generateVillage(STATE.level);
   running = true;
+  const hint = document.getElementById('lookHint');
+  hint.style.transition = 'opacity 1s';
+  setTimeout(() => { hint.style.opacity = '0'; }, 6000);
 });
 document.getElementById('howToBtn').addEventListener('click', () => {
   document.getElementById('startScreen').classList.add('hidden');

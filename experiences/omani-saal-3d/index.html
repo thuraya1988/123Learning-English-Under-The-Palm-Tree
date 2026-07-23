@@ -1002,13 +1002,131 @@ for (let i = 0; i < 14; i++) {
 }
 scene.add(mountainGroup);
 
-function updateSky(time) {
+const sunGeo = new THREE.SphereGeometry(9, 24, 24);
+const sunMat = new THREE.MeshBasicMaterial({ color: 0xfff2d0, transparent: true, opacity: 0, toneMapped: false });
+const sun = new THREE.Mesh(sunGeo, sunMat);
+sun.position.set(100, 85, -90);
+scene.add(sun);
+const sunGlow = new THREE.PointLight(0xffdba0, 0, 80);
+sunGlow.position.copy(sun.position);
+scene.add(sunGlow);
+
+function makeCloudTexture() {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 64;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createRadialGradient(64, 32, 4, 64, 32, 60);
+  grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 64);
+  return new THREE.CanvasTexture(c);
+}
+const cloudTexture = makeCloudTexture();
+const cloudGroup = new THREE.Group();
+const clouds = [];
+for (let i = 0; i < 10; i++) {
+  const cloudMat = new THREE.SpriteMaterial({ map: cloudTexture, transparent: true, opacity: 0, depthWrite: false });
+  const cloud = new THREE.Sprite(cloudMat);
+  const scale = 14 + Math.random() * 12;
+  cloud.scale.set(scale, scale * 0.5, 1);
+  cloud.position.set((Math.random() - 0.5) * 150, 35 + Math.random() * 20, (Math.random() - 0.5) * 150);
+  cloud.userData = { speed: 0.4 + Math.random() * 0.6 };
+  cloudGroup.add(cloud);
+  clouds.push(cloud);
+}
+scene.add(cloudGroup);
+
+function makeBirdTexture() {
+  const c = document.createElement('canvas');
+  c.width = 32; c.height = 16;
+  const ctx = c.getContext('2d');
+  ctx.strokeStyle = '#241a12';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(2, 6); ctx.quadraticCurveTo(8, 0, 16, 8);
+  ctx.quadraticCurveTo(24, 0, 30, 6);
+  ctx.stroke();
+  return new THREE.CanvasTexture(c);
+}
+const birdTexture = makeBirdTexture();
+const birds = [];
+for (let i = 0; i < 4; i++) {
+  const birdMat = new THREE.SpriteMaterial({ map: birdTexture, transparent: true, opacity: 0, depthWrite: false });
+  const bird = new THREE.Sprite(birdMat);
+  bird.scale.set(2, 1, 1);
+  bird.userData = { angle: Math.random() * Math.PI * 2, radius: 20 + Math.random() * 15, height: 18 + Math.random() * 6, speed: 0.15 + Math.random() * 0.1 };
+  scene.add(bird);
+  birds.push(bird);
+}
+
+function makeButterflyTexture(color) {
+  const c = document.createElement('canvas');
+  c.width = 24; c.height = 24;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.ellipse(7, 10, 6, 8, -0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(17, 10, 6, 8, 0.4, 0, Math.PI * 2); ctx.fill();
+  return new THREE.CanvasTexture(c);
+}
+const butterflyColors = ['#00d4aa', '#d63384', '#e8d5b5'];
+const butterflies = [];
+for (let i = 0; i < 6; i++) {
+  const tex = makeButterflyTexture(butterflyColors[i % butterflyColors.length]);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false });
+  const bf = new THREE.Sprite(mat);
+  bf.scale.set(0.35, 0.35, 1);
+  bf.userData = {
+    baseX: (Math.random() - 0.5) * 20, baseZ: (Math.random() - 0.5) * 20,
+    phase: Math.random() * Math.PI * 2, speed: 1.5 + Math.random()
+  };
+  scene.add(bf);
+  butterflies.push(bf);
+}
+
+let daytimeAmbience = 0;
+function updateSky(time, weather) {
   const nightAmount = Math.max(0, 1 - time.light * 1.6);
   starMat.opacity = nightAmount * 0.9;
   moonMat.opacity = nightAmount;
   moonGlow.intensity = nightAmount * 1.5;
   mountainGroup.children.forEach(m => {
     m.material.color.set(time.sky).lerp(new THREE.Color(0x3a3a52), 0.5);
+  });
+
+  const dayAmount = Math.max(0, time.light - 0.35);
+  sunMat.opacity = dayAmount;
+  sunGlow.intensity = dayAmount * 1.2;
+
+  const calmClear = weather.rain === 0 && weather.snow === 0 && weather.sand === 0 && weather.fog < 0.3;
+  daytimeAmbience = calmClear ? dayAmount : dayAmount * 0.3;
+  clouds.forEach(c => { c.material.opacity = daytimeAmbience * 0.7; });
+  birds.forEach(b => { b.material.opacity = calmClear ? dayAmount * 0.9 : 0; });
+  butterflies.forEach(b => { b.material.opacity = calmClear ? dayAmount * 0.9 : 0; });
+}
+
+function updateSkyAnimation(delta) {
+  const t = performance.now() / 1000;
+  clouds.forEach(c => {
+    c.position.x += c.userData.speed * delta;
+    if (c.position.x > 90) c.position.x = -90;
+  });
+  birds.forEach(b => {
+    b.userData.angle += b.userData.speed * delta;
+    b.position.set(
+      player.position.x + Math.cos(b.userData.angle) * b.userData.radius,
+      b.userData.height,
+      player.position.z + Math.sin(b.userData.angle) * b.userData.radius
+    );
+    b.material.rotation = Math.sin(t * 8 + b.userData.angle) * 0.3;
+  });
+  butterflies.forEach(b => {
+    const d = b.userData;
+    b.position.set(
+      player.position.x + d.baseX + Math.sin(t * d.speed) * 2,
+      1 + Math.sin(t * d.speed * 2 + d.phase) * 0.4,
+      player.position.z + d.baseZ + Math.cos(t * d.speed * 0.7) * 2
+    );
   });
 }
 
@@ -1674,7 +1792,7 @@ function generateVillage(levelNum) {
   if (envMap) envMap.dispose();
   envMap = pmrem.fromEquirectangular(makeSkyTexture(time.sky)).texture;
   scene.environment = envMap;
-  updateSky(time);
+  updateSky(time, weather);
 
   const groundColor = weather.snow > 0 ? 0xe8e8f0 : weather.sand > 0 ? 0xc9a86a : 0x4a5a3a;
   const groundGeo = new THREE.PlaneGeometry(STATE.worldHalfSize * 2, STATE.worldHalfSize * 2);
@@ -2144,6 +2262,7 @@ function animate() {
   const delta = Math.min(clock.getDelta(), 0.1);
   updatePlayer(delta);
   updateWeatherParticles(delta);
+  updateSkyAnimation(delta);
   updateClimbPrompt();
   updateWeavePrompt();
   checkProximity();

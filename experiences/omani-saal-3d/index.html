@@ -960,6 +960,58 @@ scene.add(sunLight);
 
 let ground = null;
 
+// ===================== SKY: STARS, MOON, DISTANT MOUNTAINS =====================
+const SKY_RADIUS = 200;
+
+const starGeo = new THREE.BufferGeometry();
+const STAR_COUNT = 1500;
+const starPositions = new Float32Array(STAR_COUNT * 3);
+for (let i = 0; i < STAR_COUNT; i++) {
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(Math.random() * 0.85);
+  starPositions[i * 3] = SKY_RADIUS * Math.sin(phi) * Math.cos(theta);
+  starPositions[i * 3 + 1] = Math.abs(SKY_RADIUS * Math.cos(phi)) + 10;
+  starPositions[i * 3 + 2] = SKY_RADIUS * Math.sin(phi) * Math.sin(theta);
+}
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0, sizeAttenuation: false, toneMapped: false });
+const starField = new THREE.Points(starGeo, starMat);
+scene.add(starField);
+
+const moonGeo = new THREE.SphereGeometry(6, 24, 24);
+const moonMat = new THREE.MeshBasicMaterial({ color: 0xe8e4d8, transparent: true, opacity: 0, toneMapped: false });
+const moon = new THREE.Mesh(moonGeo, moonMat);
+moon.position.set(-90, 70, -120);
+scene.add(moon);
+const moonGlow = new THREE.PointLight(0xaab0d0, 0, 60);
+moonGlow.position.copy(moon.position);
+scene.add(moonGlow);
+
+const mountainGroup = new THREE.Group();
+const MOUNTAIN_RING_RADIUS = 55;
+for (let i = 0; i < 14; i++) {
+  const angle = (i / 14) * Math.PI * 2 + Math.random() * 0.2;
+  const mHeight = 18 + Math.random() * 22;
+  const mWidth = 20 + Math.random() * 20;
+  const mGeo = new THREE.ConeGeometry(mWidth, mHeight, 4);
+  const mMat = new THREE.MeshStandardMaterial({ color: 0x3a3a52, roughness: 1, fog: true });
+  const mesh = new THREE.Mesh(mGeo, mMat);
+  mesh.position.set(Math.cos(angle) * MOUNTAIN_RING_RADIUS, mHeight / 2 - 3, Math.sin(angle) * MOUNTAIN_RING_RADIUS);
+  mesh.rotation.y = Math.random() * Math.PI;
+  mountainGroup.add(mesh);
+}
+scene.add(mountainGroup);
+
+function updateSky(time) {
+  const nightAmount = Math.max(0, 1 - time.light * 1.6);
+  starMat.opacity = nightAmount * 0.9;
+  moonMat.opacity = nightAmount;
+  moonGlow.intensity = nightAmount * 1.5;
+  mountainGroup.children.forEach(m => {
+    m.material.color.set(time.sky).lerp(new THREE.Color(0x3a3a52), 0.5);
+  });
+}
+
 // ===================== PLAYER =====================
 function createPlayer() {
   const group = new THREE.Group();
@@ -1622,6 +1674,7 @@ function generateVillage(levelNum) {
   if (envMap) envMap.dispose();
   envMap = pmrem.fromEquirectangular(makeSkyTexture(time.sky)).texture;
   scene.environment = envMap;
+  updateSky(time);
 
   const groundColor = weather.snow > 0 ? 0xe8e8f0 : weather.sand > 0 ? 0xc9a86a : 0x4a5a3a;
   const groundGeo = new THREE.PlaneGeometry(STATE.worldHalfSize * 2, STATE.worldHalfSize * 2);

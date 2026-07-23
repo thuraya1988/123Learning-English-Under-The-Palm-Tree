@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>عرض تجريبي — ستارة الحروف: قلعة بهلا</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; background:#0a080d; font-family:'Segoe UI', Tahoma, sans-serif; color:#e8d5b5; overflow:hidden; }
+
+.note { position:fixed; top:10px; left:50%; transform:translateX(-50%); font-size:11px; color:#5a4a3a; text-align:center; z-index:80; max-width:90vw; }
+
+#stage { position:fixed; inset:0; overflow:hidden; }
+
+/* الصورة الخلفية — بديل مؤقت (رسم مبسط لقلعة) لحين توفير صورة حقيقية لقلعة بهلا */
+#photoBg { position:absolute; inset:0; background:linear-gradient(180deg,#7a6a52 0%,#a8916c 55%,#c9b490 100%); filter:blur(18px) brightness(0.45); transition:filter 0.6s ease; }
+#photoBg.revealed { filter:blur(0px) brightness(1); }
+.fort-art { position:absolute; bottom:0; left:0; right:0; height:55%; }
+.fort-tower { position:absolute; bottom:0; width:14%; background:#8a7358; border:2px solid #5c4a36; }
+.fort-tower.t1 { left:8%; height:70%; }
+.fort-tower.t2 { left:26%; height:100%; }
+.fort-tower.t3 { left:44%; height:60%; }
+.fort-tower.t4 { left:62%; height:85%; }
+.fort-tower.t5 { left:80%; height:65%; }
+.fort-crenel { position:absolute; top:0; left:0; right:0; height:8%; background:repeating-linear-gradient(90deg,#5c4a36 0 12%,transparent 12% 24%); }
+.fort-sun { position:absolute; top:8%; right:12%; width:70px; height:70px; border-radius:50%; background:radial-gradient(circle,#ffe0a8,rgba(255,224,168,0)); }
+
+#dimOverlay { position:absolute; inset:0; background:rgba(6,5,9,0.55); transition:opacity 0.6s ease; z-index:2; pointer-events:none; }
+
+#curtain { position:absolute; inset:0; z-index:10; }
+.strand { position:absolute; top:0; display:flex; flex-direction:column; align-items:center; }
+.letter { position:relative; width:34px; height:34px; margin-top:2px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; color:#e8d5b5; background:rgba(30,22,16,0.55); border:1px solid rgba(212,197,169,0.3); border-radius:6px; cursor:grab; user-select:none; touch-action:none; transition:transform 0.25s, opacity 0.4s; }
+.letter::before { content:''; position:absolute; top:-8px; left:50%; width:2px; height:8px; background:rgba(212,197,169,0.35); transform:translateX(-50%); }
+.letter.target { border-color:rgba(0,212,170,0.55); box-shadow:0 0 8px rgba(0,212,170,0.15); }
+.letter.dragging { cursor:grabbing; z-index:50; transition:none; box-shadow:0 8px 20px rgba(0,0,0,0.5); }
+.letter.flying { pointer-events:none; }
+.letter.gone { opacity:0; transform:scale(0.3) rotate(180deg); pointer-events:none; }
+
+#trayWrap { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:60; display:flex; flex-direction:column; align-items:center; gap:10px; }
+#tray { display:flex; gap:6px; background:rgba(10,8,13,0.7); border:1px solid rgba(212,197,169,0.25); border-radius:14px; padding:10px 16px; direction:ltr; unicode-bidi:isolate; }
+.slot { width:34px; height:38px; border:1px dashed rgba(212,197,169,0.4); border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; color:#00d4aa; }
+.slot.space { border:none; width:14px; }
+.slot.filled { border-style:solid; border-color:#00d4aa; background:rgba(0,212,170,0.12); }
+
+#kicker { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#00d4aa; text-align:center; }
+
+.top-hud { position:fixed; top:16px; right:16px; z-index:70; display:flex; gap:10px; }
+.top-hud button { background:rgba(10,8,13,0.7); border:1px solid rgba(212,197,169,0.3); color:#e8d5b5; border-radius:10px; padding:8px 14px; font-size:13px; cursor:pointer; }
+.top-hud button:hover { background:rgba(212,197,169,0.12); }
+
+#manuscript { position:fixed; top:0; right:-360px; width:340px; height:100%; background:linear-gradient(160deg,#241a12,#1a120c); border-left:1px solid rgba(212,197,169,0.25); z-index:90; padding:70px 22px 22px; transition:right 0.4s ease; overflow-y:auto; }
+#manuscript.open { right:0; }
+#manuscript h3 { color:#d4c5a9; font-size:15px; margin-bottom:14px; direction:ltr; unicode-bidi:isolate; }
+#manuscript p { color:#c9baa0; font-size:13px; line-height:1.9; direction:ltr; unicode-bidi:isolate; font-style:italic; }
+#manuscript .closeHint { position:absolute; top:16px; left:16px; background:none; border:none; color:#8b7a5f; font-size:20px; cursor:pointer; }
+
+#successScreen { position:fixed; inset:0; z-index:100; background:rgba(6,5,9,0.92); display:none; align-items:center; justify-content:center; flex-direction:column; text-align:center; padding:24px; }
+#successScreen.show { display:flex; }
+#successScreen .icon { font-size:56px; margin-bottom:14px; }
+#successScreen h2 { color:#d4c5a9; font-size:24px; margin-bottom:10px; direction:ltr; unicode-bidi:isolate; }
+#successScreen p { color:#8b7a5f; font-size:13px; max-width:420px; margin-bottom:22px; direction:ltr; unicode-bidi:isolate; }
+#successScreen button { background:rgba(214,51,132,0.15); border:1px solid rgba(214,51,132,0.4); color:#f0e6d2; padding:10px 28px; border-radius:10px; cursor:pointer; font-size:13px; }
+</style>
+</head>
+<body>
+
+<div class="note">عرض تجريبي لفكرة "ستارة الحروف" — الخلفية رسم مبسط مؤقت لحين توفير صورة حقيقية لقلعة بهلا. اسحبوا الحروف الصحيحة للأسفل.</div>
+
+<div id="stage">
+  <div id="photoBg">
+    <div class="fort-art">
+      <div class="fort-crenel"></div>
+      <div class="fort-tower t1"></div>
+      <div class="fort-tower t2"></div>
+      <div class="fort-tower t3"></div>
+      <div class="fort-tower t4"></div>
+      <div class="fort-tower t5"></div>
+    </div>
+    <div class="fort-sun"></div>
+  </div>
+  <div id="dimOverlay"></div>
+  <div id="curtain"></div>
+</div>
+
+<div class="top-hud">
+  <button id="hintBtn">📜 Hint</button>
+</div>
+
+<div id="trayWrap">
+  <div id="kicker">Drag the letters down to spell it</div>
+  <div id="tray"></div>
+</div>
+
+<div id="manuscript">
+  <button class="closeHint" id="closeHintBtn">✕</button>
+  <h3>THE MANUSCRIPT</h3>
+  <p id="hintText"></p>
+</div>
+
+<div id="successScreen">
+  <div class="icon">🏰</div>
+  <h2 id="successTitle"></h2>
+  <p>Well done! You uncovered the fort by spelling its name letter by letter.</p>
+  <button id="restartBtn">Try Again</button>
+</div>
+
+<script>
+const TARGET = 'BAHLA FORT';
+const HINT = 'Built from mud brick and stone, this vast fortress rises from a desert oasis. For centuries it guarded a key trade route, its high walls and towers watching over the palm groves below. UNESCO once called it one of the finest examples of its kind in the whole region.';
+
+const letterSlots = TARGET.split('').map(ch => ({ ch, filled: ch === ' ' }));
+let nextIndex = letterSlots.findIndex(s => !s.filled);
+
+const trayEl = document.getElementById('tray');
+function renderTray() {
+  trayEl.innerHTML = '';
+  letterSlots.forEach(s => {
+    const el = document.createElement('div');
+    if (s.ch === ' ') {
+      el.className = 'slot space';
+    } else {
+      el.className = 'slot' + (s.filled ? ' filled' : '');
+      el.textContent = s.filled ? s.ch : '';
+    }
+    trayEl.appendChild(el);
+  });
+}
+renderTray();
+
+// ===== توليد ستارة الحروف =====
+const curtainEl = document.getElementById('curtain');
+const NOISE = 'ETAOINSHRDLUCMFGYPWBVKJXQZ';
+const COLS = 16;
+
+function buildCurtain() {
+  curtainEl.innerHTML = '';
+  const needed = TARGET.replace(/ /g, '').split('');
+  // عداد بدل Set — "BAHLA FORT" فيها حرفين A، وSet كان يدمجهم فيسبب حلقة لا نهائية
+  let placedCount = 0;
+  const colWidth = window.innerWidth / COLS;
+
+  for (let c = 0; c < COLS; c++) {
+    const strand = document.createElement('div');
+    strand.className = 'strand';
+    strand.style.left = (c * colWidth + colWidth * 0.5 - 17) + 'px';
+    const rows = 6 + Math.floor(Math.random() * 5);
+    for (let r = 0; r < rows; r++) {
+      const el = document.createElement('div');
+      let ch;
+      if (placedCount < needed.length && Math.random() < 0.35) {
+        ch = needed[placedCount];
+        placedCount++;
+        el.classList.add('target');
+        el.dataset.letter = ch;
+      } else {
+        ch = NOISE[Math.floor(Math.random() * NOISE.length)];
+        el.dataset.letter = ch;
+      }
+      el.className += ' letter';
+      el.textContent = ch;
+      strand.appendChild(el);
+    }
+    curtainEl.appendChild(strand);
+  }
+  // لو فاضل حروف مطلوبة ما انحطت (نادراً)، نضيفها بعمود عشوائي مضمون
+  while (placedCount < needed.length) {
+    const strand = curtainEl.children[Math.floor(Math.random() * COLS)];
+    const el = document.createElement('div');
+    const ch = needed[placedCount];
+    placedCount++;
+    el.className = 'letter target';
+    el.textContent = ch;
+    el.dataset.letter = ch;
+    strand.appendChild(el);
+  }
+}
+buildCurtain();
+
+// ===== صوت بسيط (نغمات مصنّعة تحاكي الضحك/الفرح — ما فيه ملفات صوت حقيقية بعد) =====
+let audioCtx = null;
+function ensureAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function playGiggle() {
+  try {
+    ensureAudio();
+    const now = audioCtx.currentTime;
+    [0, 0.08, 0.16].forEach((t, i) => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(500 + i * 160, now + t);
+      g.gain.setValueAtTime(0.001, now + t);
+      g.gain.exponentialRampToValueAtTime(0.12, now + t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, now + t + 0.15);
+      o.start(now + t); o.stop(now + t + 0.2);
+    });
+  } catch (e) { /* audio unavailable */ }
+}
+function playWrong() {
+  try {
+    ensureAudio();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = 'square';
+    o.frequency.setValueAtTime(160, audioCtx.currentTime);
+    g.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+    o.start(); o.stop(audioCtx.currentTime + 0.2);
+  } catch (e) { /* audio unavailable */ }
+}
+function playFanfare() {
+  try {
+    ensureAudio();
+    const now = audioCtx.currentTime;
+    [660, 880, 1100].forEach((f, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f, now + i * 0.12);
+      g.gain.setValueAtTime(0.001, now + i * 0.12);
+      g.gain.exponentialRampToValueAtTime(0.15, now + i * 0.12 + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.4);
+      o.start(now + i * 0.12); o.stop(now + i * 0.12 + 0.45);
+    });
+  } catch (e) { /* audio unavailable */ }
+}
+
+// ===== السحب والإفلات =====
+let dragEl = null, dragStartX = 0, dragStartY = 0, dragOX = 0, dragOY = 0;
+
+curtainEl.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('.letter');
+  if (!el || el.classList.contains('flying') || el.classList.contains('gone')) return;
+  dragEl = el;
+  const rect = el.getBoundingClientRect();
+  dragStartX = e.clientX; dragStartY = e.clientY;
+  dragOX = rect.left; dragOY = rect.top;
+  el.classList.add('dragging');
+  el.style.position = 'fixed';
+  el.style.left = rect.left + 'px';
+  el.style.top = rect.top + 'px';
+  el.setPointerCapture(e.pointerId);
+});
+
+curtainEl.addEventListener('pointermove', (e) => {
+  if (!dragEl) return;
+  const dx = e.clientX - dragStartX;
+  const dy = e.clientY - dragStartY;
+  dragEl.style.left = (dragOX + dx) + 'px';
+  dragEl.style.top = (dragOY + dy) + 'px';
+});
+
+function endDrag(e) {
+  if (!dragEl) return;
+  const el = dragEl;
+  dragEl = null;
+  el.classList.remove('dragging');
+
+  const trayRect = trayEl.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const droppedOnTray = elRect.top < trayRect.bottom + 40 && elRect.bottom > trayRect.top - 40;
+  const draggedFarEnough = Math.abs(elRect.top - dragOY) > 40;
+
+  const letter = el.dataset.letter;
+  const needed = letterSlots[nextIndex] ? letterSlots[nextIndex].ch : null;
+
+  if (droppedOnTray && draggedFarEnough && letter === needed) {
+    correctLetter(el);
+  } else if (droppedOnTray && draggedFarEnough) {
+    playWrong();
+    snapBack(el);
+  } else {
+    snapBack(el);
+  }
+}
+curtainEl.addEventListener('pointerup', endDrag);
+curtainEl.addEventListener('pointercancel', endDrag);
+
+function snapBack(el) {
+  el.style.position = '';
+  el.style.left = '';
+  el.style.top = '';
+}
+
+function correctLetter(el) {
+  el.classList.add('flying');
+  const slotEls = trayEl.querySelectorAll('.slot');
+  const targetSlot = slotEls[nextIndex];
+  const tr = targetSlot.getBoundingClientRect();
+  el.style.left = (tr.left + tr.width / 2 - 17) + 'px';
+  el.style.top = (tr.top) + 'px';
+  playGiggle();
+
+  letterSlots[nextIndex].filled = true;
+  renderTray();
+  nextIndex = letterSlots.findIndex(s => !s.filled);
+
+  setTimeout(() => { el.classList.add('gone'); }, 260);
+
+  // كشف تدريجي للصورة مع كل حرف صحيح
+  const progress = letterSlots.filter(s => s.filled).length / letterSlots.length;
+  document.getElementById('dimOverlay').style.opacity = String(1 - progress * 0.85);
+  document.getElementById('photoBg').style.filter = `blur(${18 * (1 - progress)}px) brightness(${0.45 + progress * 0.55})`;
+
+  if (nextIndex === -1) {
+    setTimeout(showSuccess, 500);
+  }
+}
+
+function showSuccess() {
+  playFanfare();
+  document.getElementById('photoBg').classList.add('revealed');
+  document.getElementById('dimOverlay').style.opacity = '0';
+  document.getElementById('successTitle').textContent = 'BAHLA FORT';
+  document.getElementById('successScreen').classList.add('show');
+}
+
+// ===== المخطوطة (تلميح) =====
+document.getElementById('hintText').textContent = HINT;
+document.getElementById('hintBtn').addEventListener('click', () => {
+  document.getElementById('manuscript').classList.add('open');
+});
+document.getElementById('closeHintBtn').addEventListener('click', () => {
+  document.getElementById('manuscript').classList.remove('open');
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => location.reload());
+
+window.addEventListener('resize', () => { buildCurtain(); });
+</script>
+
+</body>
+</html>

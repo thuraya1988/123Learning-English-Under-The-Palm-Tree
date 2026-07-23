@@ -1264,6 +1264,32 @@ gltfLoader.load('./assets/arab-rooftop-scene.glb', (gltf) => {
 }, undefined, () => { /* rooftop landmark simply won't appear if it fails to load */ });
 let rooftopModelInstance = null;
 
+let mosqueModelTemplate = null;
+const MOSQUE_FOOTPRINT = 14;
+gltfLoader.load('./assets/an-arab-mosque.glb', (gltf) => {
+  const model = fitModelToFootprint(gltf.scene, MOSQUE_FOOTPRINT);
+  model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  mosqueModelTemplate = model;
+}, undefined, () => { /* falls back to the primitive box+dome mosque if this fails to load */ });
+
+// Athan (call to prayer) plays once when the player first enters a mosque's radius each level.
+// No synthesized substitute is used here — the game's other sounds are simple oscillator tones,
+// which cannot stand in for a real vocal recitation. Drop a clip at ./assets/athan.mp3 to enable it.
+const athanAudio = new Audio('./assets/athan.mp3');
+athanAudio.volume = 0.6;
+function checkMosqueProximity() {
+  if (STATE.muted || !STATE.mosques) return;
+  for (const m of STATE.mosques) {
+    if (m.played) continue;
+    const dx = player.position.x - m.x, dz = player.position.z - m.z;
+    if (dx * dx + dz * dz < m.r * m.r) {
+      m.played = true;
+      athanAudio.currentTime = 0;
+      athanAudio.play().catch(() => { /* clip not uploaded yet, or autoplay blocked */ });
+    }
+  }
+}
+
 // ===================== INPUT =====================
 const keys = {};
 const touch = {};
@@ -1452,6 +1478,7 @@ const STATE = {
   totalWordsCollected: 0,
   levelObjects: [],
   buildingBoxes: [],
+  mosques: [],
   poorHouse: null,
   climbablePalm: null,
   npcs: [],
@@ -1552,6 +1579,7 @@ function clearLevelObjects() {
   for (const obj of STATE.levelObjects) scene.remove(obj);
   STATE.levelObjects = [];
   STATE.buildingBoxes = [];
+  STATE.mosques = [];
   STATE.npcs = [];
   STATE.vocabItems = [];
   STATE.frondItems = [];
@@ -1593,6 +1621,24 @@ function buildBuilding(bx, by, bw, bh, type, isPoorHouse) {
   const z = by * WORLD_SCALE;
   const w = bw * WORLD_SCALE;
   const d = bh * WORLD_SCALE;
+
+  if (type === 'mosque' && mosqueModelTemplate) {
+    const cx = x + w / 2, cz = z + d / 2;
+    const model = mosqueModelTemplate.clone(true);
+    model.position.set(cx, 0, cz);
+    addObj(model);
+    const glow = new THREE.PointLight(0x00e5ff, 2, 12);
+    glow.position.set(cx, 3, cz);
+    addObj(glow);
+    const label = makeTextSprite('🕌 مسجد', '#00e5ff');
+    label.position.set(cx, MOSQUE_FOOTPRINT * 0.5, cz);
+    addObj(label);
+    const r = MOSQUE_FOOTPRINT / 2;
+    STATE.mosques.push({ x: cx, z: cz, r: MOSQUE_FOOTPRINT * 1.4, played: false });
+    STATE.buildingBoxes.push({ minX: cx - r, maxX: cx + r, minZ: cz - r, maxZ: cz + r, isPoorHouse: false, type, cx, cz });
+    return { minX: cx - r, maxX: cx + r, minZ: cz - r, maxZ: cz + r };
+  }
+
   const height = type === 'mosque' ? 4.2 : type === 'tower' ? 4 : type === 'school' ? 3.2 : 1.8 + Math.random() * 0.6;
   const colorPalette = ['#241812', '#2a1c15', '#1e1410', '#2e1e16', '#221610'];
   const color = isPoorHouse ? 0x2a5a3a : colorPalette[Math.floor(Math.random() * colorPalette.length)];
@@ -2266,6 +2312,7 @@ function animate() {
   updateClimbPrompt();
   updateWeavePrompt();
   checkProximity();
+  checkMosqueProximity();
   drawMinimap();
   composer.render();
 }

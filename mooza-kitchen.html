@@ -42,6 +42,11 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .hidden{display:none!important}
 
 .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s var(--ease),transform .5s var(--ease);z-index:10;background:var(--bg);overflow-y:auto;}
+
+/* 3D kitchen backdrop — a Three.js scene showing Mooza's kitchen room, visible through
+   the entrance and gameplay screens that represent being physically in the kitchen. */
+#scene3d{position:fixed;inset:0;z-index:1;}
+.screen.scene3d-bg{background:transparent;}
 .screen.out{opacity:0;transform:scale(1.03);pointer-events:none}
 .screen.in{opacity:1;transform:scale(1)}
 
@@ -187,6 +192,8 @@ p{font-family:var(--font-b);font-size:clamp(0.85rem,2.2vw,1rem);line-height:1.75
 </head>
 <body>
 
+<canvas id="scene3d"></canvas>
+
 <!-- HEADER -->
 <header class="palm-header">
   <div class="palm-header__site">
@@ -197,7 +204,7 @@ p{font-family:var(--font-b);font-size:clamp(0.85rem,2.2vw,1rem);line-height:1.75
 </header>
 
 <!-- MAIN MENU -->
-<div id="mainMenu" class="screen in" style="padding-top:44px;">
+<div id="mainMenu" class="screen in scene3d-bg" style="padding-top:44px;">
   <div class="palm-wrap">
     <div class="au" style="margin-top:1rem;">
       <h3>Al-Qurawashiyah Village · Samail · 1973</h3>
@@ -254,7 +261,7 @@ p{font-family:var(--font-b);font-size:clamp(0.85rem,2.2vw,1rem);line-height:1.75
 </div>
 
 <!-- KITCHEN GAMEPLAY -->
-<div id="kitchenGame" class="screen hidden" style="padding-top:88px;">
+<div id="kitchenGame" class="screen hidden scene3d-bg" style="padding-top:88px;">
   <div class="game-hud">
     <button class="btn" onclick="showScreen('kitchenMenu')" style="font-size:0.6rem;padding:0.4em 1em;">Exit</button>
     <div class="hud-level" id="kitchenHudInfo">Level 1</div>
@@ -606,5 +613,82 @@ function celebNext() { document.getElementById('celebration').classList.add('hid
 
 document.addEventListener('DOMContentLoaded', () => { renderKitchenMenu(); });
 </script>
+
+<!-- 3D kitchen backdrop: Mooza's kitchen room, visible behind the entrance and gameplay screens -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+
+const canvas = document.getElementById('scene3d');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xF5EDD8); // --sand
+scene.fog = new THREE.Fog(0xF5EDD8, 7, 16);
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.05, 100);
+camera.position.set(0, 1.4, 0);
+camera.lookAt(0.5, 1.4, -1);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// Warm, sand-toned lighting to match the site's earthy theme (no dark/neon palette here).
+// This particular model's material doesn't pick up texture color well in three.js, so the
+// lighting is pushed warmer/brighter than usual to keep the room reading as an inviting kitchen
+// rather than flat grey.
+scene.add(new THREE.AmbientLight(0xF5E0B8, 2.0));
+const keyLight = new THREE.DirectionalLight(0xE8C088, 1.6);
+keyLight.position.set(1, 3, 1);
+scene.add(keyLight);
+const fillLight = new THREE.PointLight(0xC9AA80, 1.2, 8);
+fillLight.position.set(0.3, 1.8, -0.8);
+scene.add(fillLight);
+
+const gltfLoader = new GLTFLoader();
+gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+
+function fitModel(root, targetWidth) {
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const scale = targetWidth / (Math.max(size.x, size.z) || 1);
+  const wrapper = new THREE.Group();
+  root.position.set(-center.x, -box.min.y, -center.z);
+  wrapper.add(root);
+  wrapper.scale.setScalar(scale);
+  return wrapper;
+}
+
+gltfLoader.load('public/assets/mooza-kitchen/kitchen-in-rent-flat.glb', (gltf) => {
+  const model = fitModel(gltf.scene, 5.5);
+  model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(model);
+}, undefined, () => { /* the entrance/gameplay screens still work fine without the room if this fails to load */ });
+
+let t = 0;
+function animateScene3d() {
+  requestAnimationFrame(animateScene3d);
+  t += 0.0015;
+  camera.lookAt(0.5 + Math.sin(t) * 0.4, 1.4, -1);
+  renderer.render(scene, camera);
+}
+animateScene3d();
+</script>
+
 </body>
 </html>

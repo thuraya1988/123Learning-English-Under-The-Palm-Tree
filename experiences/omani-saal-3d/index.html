@@ -122,7 +122,7 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0a0705; font-
     ثم وصّلوها إلى البيت المحتاج (يضيء باللون الأخضر) لفتح المستوى التالي.
   </div>
   <div class="desc" style="font-size:10px; opacity:0.6;">
-    نموذج القلعة بمستوى ٣٥ عمل "Persian City" من farhad.Guli عبر Sketchfab (رخصة CC-BY-4.0).
+    نموذج القلعة بمستوى ٣٥ عمل "Persian City" من farhad.Guli، ومشهد السطح المتكرر عمل "Scean Arab" من omarme37 — كلاهما عبر Sketchfab (رخصة CC-BY-4.0).
   </div>
   <button class="btn" id="backFromHelpBtn">رجوع</button>
 </div>
@@ -1077,6 +1077,18 @@ gltfLoader.load('./assets/persian-city-fortress.glb', (gltf) => {
   fortressModel = model;
 }, undefined, () => { /* fortress landmark simply won't appear if it fails to load */ });
 
+let rooftopModelTemplate = null;
+const ROOFTOP_FOOTPRINT = 7;
+gltfLoader.load('./assets/arab-rooftop-scene.glb', (gltf) => {
+  const model = fitModelToFootprint(gltf.scene, ROOFTOP_FOOTPRINT);
+  model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  const rimLight = new THREE.PointLight(0xd63384, 2, 10);
+  rimLight.position.set(0, 4, 0);
+  model.add(rimLight);
+  rooftopModelTemplate = model;
+}, undefined, () => { /* rooftop landmark simply won't appear if it fails to load */ });
+let rooftopModelInstance = null;
+
 // ===================== INPUT =====================
 const keys = {};
 const touch = {};
@@ -1682,6 +1694,16 @@ function generateVillage(levelNum) {
       const r = FORTRESS_FOOTPRINT / 2;
       STATE.buildingBoxes.push({ minX: fx - r, maxX: fx + r, minZ: fz - r, maxZ: fz + r, isPoorHouse: false, cx: fx, cz: fz });
     }
+  }
+
+  if (rooftopModelTemplate) {
+    rooftopModelInstance = rooftopModelTemplate.clone(true);
+    const rx = w * 0.22 * WORLD_SCALE - (w / 2) * WORLD_SCALE;
+    const rz = h * 0.35 * WORLD_SCALE - (h / 2) * WORLD_SCALE;
+    rooftopModelInstance.position.set(rx, 0, rz);
+    addObj(rooftopModelInstance);
+    const r = ROOFTOP_FOOTPRINT / 2;
+    STATE.buildingBoxes.push({ minX: rx - r, maxX: rx + r, minZ: rz - r, maxZ: rz + r, isPoorHouse: false, cx: rx, cz: rz });
   }
 
   // Vocabulary + NPCs from the ported 2D data

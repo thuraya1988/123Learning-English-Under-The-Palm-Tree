@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سمائل — واحة ثلاثية الأبعاد</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #0a0a1a; font-family: 'Segoe UI', Tahoma, sans-serif; }
+canvas { display: block; }
+
+/* شريط العنوان */
+#header {
+  position: fixed; top: 0; left: 0; right: 0;
+  padding: 18px 30px;
+  background: linear-gradient(180deg, rgba(10,10,26,0.9) 0%, transparent 100%);
+  z-index: 100; pointer-events: none;
+}
+#header h1 {
+  font-size: 28px; color: #f4d58d;
+  text-shadow: 0 0 20px rgba(244,213,141,0.4);
+  letter-spacing: 2px;
+}
+#header p { font-size: 13px; color: #8a9bb5; margin-top: 4px; }
+
+/* بطاقات القصص */
+#stories {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 12px; z-index: 100;
+}
+.story-card {
+  background: rgba(20,25,40,0.85);
+  border: 1px solid rgba(244,213,141,0.2);
+  border-radius: 12px; padding: 14px 18px;
+  min-width: 160px; cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+.story-card:hover {
+  border-color: rgba(244,213,141,0.6);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(244,213,141,0.15);
+}
+.story-card .icon { font-size: 24px; margin-bottom: 6px; }
+.story-card .title { font-size: 14px; color: #f4d58d; font-weight: 600; }
+.story-card .desc { font-size: 11px; color: #6a7b95; margin-top: 4px; line-height: 1.5; }
+
+/* نقطة الاستكشاف */
+.explore-dot {
+  position: absolute; width: 18px; height: 18px;
+  background: radial-gradient(circle, #f4d58d 30%, transparent 70%);
+  border-radius: 50%; cursor: pointer;
+  animation: pulse-dot 2s infinite;
+  z-index: 50;
+}
+.explore-dot::after {
+  content: ''; position: absolute; inset: -6px;
+  border: 1.5px solid rgba(244,213,141,0.4);
+  border-radius: 50%; animation: ring-expand 2s infinite;
+}
+@keyframes pulse-dot { 0%,100%{opacity:0.7;transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }
+@keyframes ring-expand { 0%{transform:scale(1);opacity:0.6} 100%{transform:scale(2.5);opacity:0} }
+
+/* لوحة المعلومات */
+#info-panel {
+  position: fixed; top: 50%; right: 30px; transform: translateY(-50%);
+  background: rgba(15,18,30,0.9); border: 1px solid rgba(244,213,141,0.15);
+  border-radius: 16px; padding: 24px; width: 260px;
+  z-index: 100; backdrop-filter: blur(12px);
+  opacity: 0; transition: opacity 0.5s;
+  pointer-events: none;
+}
+#info-panel.show { opacity: 1; pointer-events: all; }
+#info-panel h3 { color: #f4d58d; font-size: 18px; margin-bottom: 10px; }
+#info-panel p { color: #8a9bb5; font-size: 13px; line-height: 1.8; }
+#info-panel .close-btn {
+  position: absolute; top: 12px; left: 12px;
+  background: none; border: none; color: #6a7b95;
+  font-size: 18px; cursor: pointer;
+}
+
+/* بوصلة */
+#compass {
+  position: fixed; bottom: 100px; right: 30px;
+  width: 60px; height: 60px; z-index: 100;
+}
+#compass svg { width: 100%; height: 100%; filter: drop-shadow(0 0 8px rgba(244,213,141,0.3)); }
+
+/* مؤشرات */
+#hud {
+  position: fixed; top: 80px; right: 30px; z-index: 100;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.hud-item {
+  background: rgba(15,18,30,0.7); border-radius: 8px;
+  padding: 8px 14px; font-size: 12px; color: #6a7b95;
+  border: 1px solid rgba(100,120,160,0.1);
+}
+.hud-item span { color: #f4d58d; font-weight: 600; }
+
+/* تعليمات */
+#instructions {
+  position: fixed; bottom: 100px; left: 30px;
+  font-size: 11px; color: #4a5a75; z-index: 100;
+  line-height: 2;
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>🌴 سمائل</h1>
+  <p>واحة محصورة بين جبال الحجر — حيث النخيل والفلاج والتاريخ</p>
+</div>
+
+<div id="hud">
+  <div class="hud-item">🕐 الوقت: <span id="hud-time">فجر</span></div>
+  <div class="hud-item">🌡️ الحرارة: <span id="hud-temp">28°C</span></div>
+  <div class="hud-item">💧 الرطوبة: <span id="hud-hum">45%</span></div>
+  <div class="hud-item">🧭 الاتجاه: <span id="hud-dir">شمال</span></div>
+</div>
+
+<div id="compass">
+  <svg viewBox="0 0 60 60">
+    <circle cx="30" cy="30" r="28" fill="none" stroke="rgba(244,213,141,0.2)" stroke-width="1"/>
+    <polygon points="30,6 27,28 30,24 33,28" fill="#e74c3c" opacity="0.8"/>
+    <polygon points="30,54 27,32 30,36 33,32" fill="#f4d58d" opacity="0.6"/>
+    <text x="30" y="4" text-anchor="middle" fill="#e74c3c" font-size="7" font-weight="bold">N</text>
+    <text x="30" y="59" text-anchor="middle" fill="#6a7b95" font-size="7">S</text>
+    <text x="57" y="33" text-anchor="middle" fill="#6a7b95" font-size="7">E</text>
+    <text x="3" y="33" text-anchor="middle" fill="#6a7b95" font-size="7">W</text>
+  </svg>
+</div>
+
+<div id="instructions">
+  🖱️ اسحب للدوران<br>
+  🔍 اقرّب/بعد بالعجلة<br>
+  📍 انقر على النقاط للاستكشاف<br>
+  📖 انقر على البطاقات للقصص
+</div>
+
+<div id="info-panel">
+  <button class="close-btn" onclick="closeInfo()">✕</button>
+  <h3 id="info-title"></h3>
+  <p id="info-text"></p>
+</div>
+
+<div id="stories">
+  <div class="story-card" onclick="showStory('bustan')">
+    <div class="icon">🌳</div>
+    <div class="title">بستان سمائل</div>
+    <div class="desc">واحة خضراء تضم آلاف النخيل</div>
+  </div>
+  <div class="story-card" onclick="showStory('falaj')">
+    <div class="icon">💧</div>
+    <div class="title">فلاج سمائل</div>
+    <div class="desc">نظام ري عريق يروي الأرض</div>
+  </div>
+  <div class="story-card" onclick="showStory('bayt')">
+    <div class="icon">🏠</div>
+    <div class="title">بيت طيني</div>
+    <div class="desc">عمارة عمانية تتحدى الزمن</div>
+  </div>
+  <div class="story-card" onclick="showStory('jibal')">
+    <div class="icon">⛰️</div>
+    <div class="title">جبال الحجر</div>
+    <div class="desc">حصن طبيعي يحمي الواحة</div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ─── المشهد الأساسي ───
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x1a1520, 0.008);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 500);
+camera.position.set(35, 25, 45);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.maxPolarAngle = Math.PI / 2.1;
+controls.minDistance = 15;
+controls.maxDistance = 80;
+controls.target.set(0, 2, 0);
+
+// ─── الأضواء ───
+const ambientLight = new THREE.AmbientLight(0x4466aa, 0.4);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xffeedd, 1.8);
+sunLight.position.set(30, 40, 20);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 100;
+sunLight.shadow.camera.left = -40;
+sunLight.shadow.camera.right = 40;
+sunLight.shadow.camera.top = 40;
+sunLight.shadow.camera.bottom = -40;
+scene.add(sunLight);
+
+const warmLight = new THREE.PointLight(0xf4d58d, 0.6, 30);
+warmLight.position.set(0, 8, 0);
+scene.add(warmLight);
+
+// ─── السماء ───
+const skyGeo = new THREE.SphereGeometry(200, 32, 32);
+const skyMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 },
+    uSunPos: { value: new THREE.Vector3(30, 40, 20) }
+  },
+  vertexShader: `
+    varying vec3 vWorldPos;
+    void main() {
+      vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform vec3 uSunPos;
+    varying vec3 vWorldPos;
+    void main() {
+      vec3 dir = normalize(vWorldPos);
+      float sunDot = max(dot(dir, normalize(uSunPos)), 0.0);
+      vec3 dawn = vec3(0.15, 0.1, 0.25);
+      vec3 day = vec3(0.35, 0.55, 0.85);
+      vec3 horizon = vec3(0.85, 0.6, 0.35);
+      float h = dir.y;
+      vec3 col = mix(horizon, day, smoothstep(0.0, 0.4, h));
+      col = mix(dawn, col, smoothstep(-0.1, 0.2, h));
+      col += vec3(1.0, 0.85, 0.5) * pow(sunDot, 128.0) * 2.0;
+      col += vec3(1.0, 0.7, 0.3) * pow(sunDot, 8.0) * 0.4;
+      // نجوم خافتة
+      float stars = step(0.997, fract(sin(dot(dir.xz * 400.0, vec2(12.9898,78.233))) * 43758.5453));
+      col += stars * smoothstep(0.3, -0.1, h) * 0.3;
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+  side: THREE.BackSide
+});
+scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+// ─── التضاريس ───
+function createTerrain() {
+  const geo = new THREE.PlaneGeometry(120, 120, 80, 80);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i);
+    let h = 0;
+    // وادي في الوسط
+    const distFromCenter = Math.abs(x) * 0.08;
+    h -= Math.max(0, 2 - distFromCenter) * 1.5;
+    // تضاريس عامة
+    h += Math.sin(x * 0.15) * Math.cos(y * 0.12) * 1.5;
+    h += Math.sin(x * 0.3 + 1) * Math.cos(y * 0.25) * 0.8;
+    h += (Math.random() - 0.5) * 0.3;
+    // ارتفاع نحو الأطراف (جبال)
+    const edgeDist = Math.max(Math.abs(x), Math.abs(y)) / 60;
+    h += Math.pow(edgeDist, 2) * 8;
+    pos.setZ(i, h);
+  }
+  geo.computeVertexNormals();
+
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 vPos;
+      varying float vHeight;
+      void main() {
+        vNormal = normalMatrix * normal;
+        vPos = (modelMatrix * vec4(position, 1.0)).xyz;
+        vHeight = position.z;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vNormal;
+      varying vec3 vPos;
+      varying float vHeight;
+      void main() {
+        vec3 lightDir = normalize(vec3(30, 40, 20));
+        float diff = max(dot(normalize(vNormal), lightDir), 0.0);
+        float amb = 0.3;
+        vec3 sand = vec3(0.76, 0.65, 0.42);
+        vec3 rock = vec3(0.45, 0.38, 0.32);
+        vec3 darkRock = vec3(0.25, 0.2, 0.18);
+        vec3 wadi = vec3(0.55, 0.48, 0.35);
+        float slope = 1.0 - normalize(vNormal).z;
+        vec3 col = mix(sand, rock, smoothstep(0.3, 0.7, slope));
+        col = mix(col, darkRock, smoothstep(5.0, 12.0, vHeight));
+        col = mix(col, wadi, smoothstep(-1.0, 0.5, vHeight) * (1.0 - smoothstep(0.5, 2.0, vHeight)));
+        col *= (amb + diff * 0.7);
+        // تدرج صحراوي
+        col += vec3(0.08, 0.04, 0.0) * (1.0 - smoothstep(0.0, 60.0, length(vPos.xz)));
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `
+  });
+
+  const terrain = new THREE.Mesh(geo, mat);
+  terrain.rotation.x = -Math.PI / 2;
+  terrain.receiveShadow = true;
+  scene.add(terrain);
+  return terrain;
+}
+const terrain = createTerrain();
+
+// ─── جبال الحجر ───
+function createMountain(x, z, height, radius, color) {
+  const geo = new THREE.ConeGeometry(radius, height, 8 + Math.floor(Math.random()*4));
+  // تشوه طبيعي
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    pos.setX(i, pos.getX(i) + (Math.random()-0.5) * radius * 0.2);
+    pos.setY(i, pos.getY(i) + (Math.random()-0.5) * height * 0.05);
+    pos.setZ(i, pos.getZ(i) + (Math.random()-0.5) * radius * 0.2);
+  }
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({
+    color, roughness: 0.9, metalness: 0.05,
+    flatShading: true
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, height/2, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+
+  // قمة ثلجية
+  const snowGeo = new THREE.ConeGeometry(radius * 0.3, height * 0.15, 6);
+  const snowMat = new THREE.MeshStandardMaterial({ color: 0xeeddcc, roughness: 0.5 });
+  const snow = new THREE.Mesh(snowGeo, snowMat);
+  snow.position.set(x, height * 0.92, z);
+  scene.add(snow);
+
+  return mesh;
+}
+
+// سلسلة الجبال
+const mountainColors = [0x6b5b4f, 0x7a6b5e, 0x5c4e42, 0x8a7a6d];
+const mountains = [
+  createMountain(-45, -30, 22, 12, mountainColors[0]),
+  createMountain(-35, -40, 18, 10, mountainColors[1]),
+  createMountain( 40, -35, 25, 14, mountainColors[2]),
+  createMountain( 50, -20, 16, 9, mountainColors[3]),
+  createMountain(-30,  40, 20, 11, mountainColors[0]),
+  createMountain( 35,  45, 19, 10, mountainColors[2]),
+  createMountain(-50,   5, 15, 8, mountainColors[1]),
+  createMountain( 55,  10, 17, 9, mountainColors[3]),
+];
+
+// ─── وادي سمائل ───
+function createWadi() {
+  const shape = new THREE.Shape();
+  shape.moveTo(-30, -3);
+  shape.quadraticCurveTo(-15, -2, 0, -1.5);
+  shape.quadraticCurveTo(15, -1, 30, -2.5);
+  shape.lineTo(30, 2.5);
+  shape.quadraticCurveTo(15, 1, 0, 1.5);
+  shape.quadraticCurveTo(-15, 2, -30, 3);
+  shape.closePath();
+
+  const geo = new THREE.ShapeGeometry(shape, 32);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x8b7d6b, roughness: 0.95, metalness: 0
+  });
+  const wadi = new THREE.Mesh(geo, mat);
+  wadi.rotation.x = -Math.PI / 2;
+  wadi.position.y = 0.05;
+  wadi.receiveShadow = true;
+  scene.add(wadi);
+
+  // مجرى ماء جاف
+  const streamGeo = new THREE.PlaneGeometry(28, 0.8, 20, 1);
+  const streamMat = new THREE.MeshStandardMaterial({
+    color: 0x6b8b9b, roughness: 0.7, metalness: 0.1,
+    transparent: true, opacity: 0.6
+  });
+  const stream = new THREE.Mesh(streamGeo, streamMat);
+  stream.rotation.x = -Math.PI / 2;
+  stream.position.set(0, 0.08, 0);
+  scene.add(stream);
+}
+createWadi();
+
+// ─── الفلاج (نظام الري) ───
+const falajPoints = [];
+function createFalaj(x, z) {
+  // قناة ماء
+  const channelGeo = new THREE.BoxGeometry(6, 0.15, 0.5);
+  const channelMat = new THREE.MeshStandardMaterial({ color: 0x5a7a6a, roughness: 0.8 });
+  const channel = new THREE.Mesh(channelGeo, channelMat);
+  channel.position.set(x, 0.12, z);
+  channel.castShadow = true;
+  scene.add(channel);
+
+  // ماء متحرك
+  const waterGeo = new THREE.PlaneGeometry(5.8, 0.4);
+  const waterMat = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      varying vec2 vUv;
+      void main() {
+        float wave = sin(vUv.x * 10.0 + uTime * 2.0) * 0.5 + 0.5;
+        vec3 col = mix(vec3(0.2, 0.45, 0.55), vec3(0.35, 0.65, 0.75), wave);
+        float edge = smoothstep(0.0, 0.15, vUv.y) * smoothstep(1.0, 0.85, vUv.y);
+        gl_FragColor = vec4(col, 0.7 * edge);
+      }
+    `,
+    transparent: true
+  });
+  const water = new THREE.Mesh(waterGeo, waterMat);
+  water.rotation.x = -Math.PI / 2;
+  water.position.set(x, 0.2, z);
+  scene.add(water);
+
+  // نقطة مضيئة
+  const glowGeo = new THREE.SphereGeometry(0.15, 8, 8);
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x88ddff });
+  const glow = new THREE.Mesh(glowGeo, glowMat);
+  glow.position.set(x, 0.5, z);
+  scene.add(glow);
+
+  falajPoints.push({ mesh: glow, baseY: 0.5, x, z });
+  return { channel, water, glow };
+}
+
+createFalaj(-8, -2);
+createFalaj(5, -1);
+createFalaj(12, -2.5);
+
+// ─── النخيل ───
+function createPalmTree(x, z, tall = false) {
+  const group = new THREE.Group();
+  const trunkH = tall ? 6 + Math.random()*2 : 4 + Math.random()*1.5;
+
+  // جذع منحني
+  const curve = new THREE.CubicBezierCurve3(
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0.3, trunkH*0.3, 0.2),
+    new THREE.Vector3(-0.2, trunkH*0.7, -0.1),
+    new THREE.Vector3(0.1, trunkH, 0.1)
+  );
+  const trunkGeo = new THREE.TubeGeometry(curve, 12, 0.2, 8, false);
+  const trunkMat = new THREE.MeshStandardMaterial({
+    color: 0x6b5b3a, roughness: 0.95, metalness: 0
+  });
+  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+  trunk.castShadow = true;
+  group.add(trunk);
+
+  // أوراق النخيل
+  const leafCount = tall ? 10 : 7;
+  for (let i = 0; i < leafCount; i++) {
+    const angle = (i / leafCount) * Math.PI * 2;
+    const leafLen = tall ? 3.5 : 2.5;
+    const leafCurve = new THREE.CubicBezierCurve3(
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(Math.cos(angle)*leafLen*0.4, -0.3, Math.sin(angle)*leafLen*0.4),
+      new THREE.Vector3(Math.cos(angle)*leafLen*0.8, -1.2, Math.sin(angle)*leafLen*0.8),
+      new THREE.Vector3(Math.cos(angle)*leafLen, -2, Math.sin(angle)*leafLen)
+    );
+    const leafGeo = new THREE.TubeGeometry(leafCurve, 8, 0.08, 4, false);
+    const leafMat = new THREE.MeshStandardMaterial({
+      color: 0x2d6b1e, roughness: 0.8, metalness: 0,
+      side: THREE.DoubleSide
+    });
+    const leaf = new THREE.Mesh(leafGeo, leafMat);
+    leaf.position.y = trunkH;
+    leaf.castShadow = true;
+    group.add(leaf);
+  }
+
+  // تمر (للنخيل الكبيرة)
+  if (tall) {
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      const clusterGeo = new THREE.SphereGeometry(0.3, 6, 6);
+      const clusterMat = new THREE.MeshStandardMaterial({ color: 0x8b6914, roughness: 0.7 });
+      const cluster = new THREE.Mesh(clusterGeo, clusterMat);
+      cluster.position.set(Math.cos(a)*0.8, trunkH - 1.5, Math.sin(a)*0.8);
+      group.add(cluster);
+    }
+  }
+
+  group.position.set(x, 0, z);
+  group.castShadow = true;
+  scene.add(group);
+  return group;
+}
+
+// زراعة النخيل
+const palms = [];
+const palmPositions = [
+  [-6, -5, false], [-4, -6, true], [-2, -4, false], [0, -5.5, true],
+  [3, -4.5, false], [6, -6, true], [8, -4, false], [10, -5.5, false],
+  [-8, 3, true], [-5, 4, false], [-3, 2.5, true], [0, 3.5, false],
+  [4, 3, true], [7, 4.5, false], [9, 2, true], [11, 3.5, false],
+  [-7, -1, false], [5, -2, true], [13, -1, false],
+];
+palmPositions.forEach(([x, z, t]) => palms.push(createPalmTree(x, z, t)));
+
+// ─── البيوت الطينية ───
+function createMudHouse(x, z, rotation = 0) {
+  const group = new THREE.Group();
+
+  // الجسم الرئيسي
+  const bodyGeo = new THREE.BoxGeometry(3, 2.5, 3.5);
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0xc4a872, roughness: 0.95, metalness: 0,
+    flatShading: true
+  });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 1.25;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  group.add(body);
+
+  // البرج
+  const towerGeo = new THREE.CylinderGeometry(0.6, 0.7, 3.5, 6);
+  const towerMat = new THREE.MeshStandardMaterial({
+    color: 0xb89a65, roughness: 0.9, flatShading: true
+  });
+  const tower = new THREE.Mesh(towerGeo, towerMat);
+  tower.position.set(1.2, 1.75, 1.4);
+  tower.castShadow = true;
+  group.add(tower);
+
+  // السطح
+  const roofGeo = new THREE.BoxGeometry(3.4, 0.2, 3.9);
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0xa89060, roughness: 0.9 });
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.position.y = 2.6;
+  group.add(roof);
+
+  // الباب
+  const doorGeo = new THREE.BoxGeometry(0.6, 1.4, 0.1);
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x4a3520, roughness: 0.9 });
+  const door = new THREE.Mesh(doorGeo, doorMat);
+  door.position.set(0, 0.7, 1.76);
+  group.add(door);
+
+  // نافذتان
+  for (const dx of [-0.8, 0.8]) {
+    const winGeo = new THREE.BoxGeometry(0.4, 0.4, 0.1);
+    const winMat = new THREE.MeshStandardMaterial({
+      color: 0x8ec5d6, roughness: 0.3, metalness: 0.2,
+      emissive: 0x334455, emissiveIntensity: 0.3
+    });
+    const win = new THREE.Mesh(winGeo, winMat);
+    win.position.set(dx, 1.6, 1.76);
+    group.add(win);
+  }
+
+  group.position.set(x, 0, z);
+  group.rotation.y = rotation;
+  scene.add(group);
+  return group;
+}
+
+createMudHouse(-10, 6, 0.3);
+createMudHouse(-6, 8, -0.2);
+createMudHouse(8, 7, 0.5);
+
+// ─── طيور ───
+const birds = [];
+function createBird() {
+  const group = new THREE.Group();
+  const wingGeo = new THREE.BufferGeometry();
+  const vertices = new Float32Array([
+    0,0,0, -1.5,0.3,-0.3, -0.5,0.1,0,
+    0,0,0, 1.5,0.3,-0.3, 0.5,0.1,0
+  ]);
+  wingGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  wingGeo.computeVertexNormals();
+  const wingMat = new THREE.MeshBasicMaterial({
+    color: 0x222222, side: THREE.DoubleSide
+  });
+  const wings = new THREE.Mesh(wingGeo, wingMat);
+  group.add(wings);
+
+  group.position.set(
+    (Math.random()-0.5) * 60,
+    12 + Math.random() * 10,
+    (Math.random()-0.5) * 60
+  );
+  group.userData = {
+    speed: 3 + Math.random() * 2,
+    wingPhase: Math.random() * Math.PI * 2,
+    radius: 15 + Math.random() * 20,
+    center: new THREE.Vector3(
+      (Math.random()-0.5) * 30,
+      12 + Math.random() * 8,
+      (Math.random()-0.5) * 30
+    )
+  };
+  scene.add(group);
+  birds.push(group);
+}
+for (let i = 0; i < 6; i++) createBird();
+
+// ─── غبار صحراوي ───
+const dustParticles = [];
+function createDust() {
+  const geo = new THREE.BufferGeometry();
+  const count = 200;
+  const positions = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    positions[i*3] = (Math.random()-0.5) * 80;
+    positions[i*3+1] = Math.random() * 15;
+    positions[i*3+2] = (Math.random()-0.5) * 80;
+    sizes[i] = 0.05 + Math.random() * 0.15;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+  const mat = new THREE.PointsMaterial({
+    color: 0xd4b896,
+    size: 0.12,
+    transparent: true,
+    opacity: 0.35,
+    sizeAttenuation: true
+  });
+  const dust = new THREE.Points(geo, mat);
+  scene.add(dust);
+  return dust;
+}
+const dustSystem = createDust();
+
+// ─── ابن ماجد (شخصية تمشي) ───
+function createIbnMajid() {
+  const group = new THREE.Group();
+
+  // الجسم
+  const bodyGeo = new THREE.CylinderGeometry(0.25, 0.3, 1.4, 6);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xf5f0e8, roughness: 0.8 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 1.0;
+  group.add(body);
+
+  // الرأس
+  const headGeo = new THREE.SphereGeometry(0.22, 8, 8);
+  const headMat = new THREE.MeshStandardMaterial({ color: 0xd4a574, roughness: 0.7 });
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.position.y = 1.85;
+  group.add(head);
+
+  // العمامة
+  const turbanGeo = new THREE.SphereGeometry(0.28, 8, 6);
+  const turbanMat = new THREE.MeshStandardMaterial({ color: 0xfaf5e8, roughness: 0.6 });
+  const turban = new THREE.Mesh(turbanGeo, turbanMat);
+  turban.position.y = 1.95;
+  turban.scale.set(1, 0.7, 1);
+  group.add(turban);
+
+  // نقاط الاستكشاف
+  const explorePoints = [
+    { x: 15, z: -10, label: 'قلعة سمائل' },
+    { x: -12, z: 12, label: 'بئر قديم' },
+    { x: 5, z: 15, label: 'سوق النخيل' },
+    { x: -20, z: -5, label: 'نقوش صخرية' }
+  ];
+
+  explorePoints.forEach(p => {
+    const dotGeo = new THREE.SphereGeometry(0.3, 8, 8);
+    const dotMat = new THREE.MeshBasicMaterial({
+      color: 0xf4d58d,
+      transparent: true, opacity: 0.7
+    });
+    const dot = new THREE.Mesh(dotGeo, dotMat);
+    dot.position.set(p.x, 1.5, p.z);
+    dot.userData = { label: p.label };
+    scene.add(dot);
+
+    // عمود ضوئي
+    const beamGeo = new THREE.CylinderGeometry(0.02, 0.15, 3, 6);
+    const beamMat = new THREE.MeshBasicMaterial({
+      color: 0xf4d58d, transparent: true, opacity: 0.2
+    });
+    const beam = new THREE.Mesh(beamGeo, beamMat);
+    beam.position.set(p.x, 1.5, p.z);
+    scene.add(beam);
+  });
+
+  group.position.set(0, 0, 5);
+  scene.add(group);
+  return group;
+}
+const ibnMajid = createIbnMajid();
+
+// ─── التأثيرات البيئية ───
+// ضباب صحراوي
+const dustFogGeo = new THREE.PlaneGeometry(100, 100);
+const dustFogMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: { value: 0 } },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    varying vec2 vUv;
+    void main() {
+      float n = sin(vUv.x * 5.0 + uTime * 0.3) * cos(vUv.y * 4.0 + uTime * 0.2);
+      float alpha = smoothstep(0.3, 0.8, n) * 0.08;
+      gl_FragColor = vec4(0.8, 0.7, 0.5, alpha);
+    }
+  `,
+  transparent: true, depthWrite: false
+});
+const dustFog = new THREE.Mesh(dustFogGeo, dustFogMat);
+dustFog.rotation.x = -Math.PI / 2;
+dustFog.position.y = 0.5;
+scene.add(dustFog);
+
+// ─── القصص ───
+const stories = {
+  bustan: {
+    title: '🌳 بستان سمائل',
+    text: 'واحة سمائل هي واحدة من أكبر الواحات في عمان، تضم آلاف أشجار النخيل المنتشرة على طول وادي سمائل. تُروى هذه البساتين بنظام الفلاج العماني القديم الذي يعود لمئات السنين. تمتد المساحات الخضراء بين الجبال الحجرية، مما يجعل سمائل واحة حقيقية في قلب الصحراء.'
+  },
+  falaj: {
+    title: '💧 فلاج سمائل',
+    text: 'فلاج سمائل هو جزء من شبكة فلاج عمانية عريقة مدرجة في قائمة التراث العالمي لليونسكو. ينقل الماء من جوف الجبال عبر قنوات تحت الأرض إلى البساتين والحقول. يُعد نظام الفلاج من أقدم أنظمة الري في العالم، ويمثل عبقرية هندسية عمانية.'
+  },
+  bayt: {
+    title: '🏠 البيت الطيني العماني',
+    text: 'تتميز بيوت سمائل بالطراز المعماري العماني التقليدي: جدران من الطين والجص، أبراج مربعة للتهوية، وأبواب خشبية منحوتة. صُممت هذه البيوت لتحمل الحرارة الشديدة وتوفير البرودة داخلها. كل بيت يحكي قصة عائلات عاشت هنا لأجيال.'
+  },
+  jibal: {
+    title: '⛰️ جبال الحجر',
+    text: 'تحتضن سمائل سلسلة جبال الحجر التي تشكلت قبل ملايين السنين. ت acting as حصن طبيعي يحمي الواحة من العواصف الرملية ويوفر مصدراً للمياه الجوفية. تحتوي هذه الجبال على كهوف ونقوش صخرية تعود لآلاف السنين، شاهدة على حضارات مرت من هنا.'
+  }
+};
+
+window.showStory = function(key) {
+  const s = stories[key];
+  document.getElementById('info-title').textContent = s.title;
+  document.getElementById('info-text').textContent = s.text;
+  document.getElementById('info-panel').classList.add('show');
+};
+
+window.closeInfo = function() {
+  document.getElementById('info-panel').classList.remove('show');
+};
+
+// ─── تحديث HUD ───
+function updateHUD(time) {
+  const hours = Math.floor((time * 0.5) % 24);
+  const timeNames = ['منتصف الليل','فجر','شروق','صباح','ظهر','عصر','مغرب','عشاء'];
+  const idx = Math.floor(hours / 3);
+  document.getElementById('hud-time').textContent = timeNames[idx];
+  document.getElementById('hud-temp').textContent = Math.floor(28 + Math.sin(time * 0.3) * 8) + '°C';
+  document.getElementById('hud-hum').textContent = Math.floor(45 + Math.cos(time * 0.2) * 15) + '%';
+
+  const dirs = ['شمال','شمال شرق','شرق','جنوب شرق','جنوب','جنوب غرب','غرب','شمال غرب'];
+  const camAngle = Math.atan2(camera.position.x, camera.position.z);
+  const dirIdx = Math.floor(((camAngle + Math.PI) / (Math.PI * 2)) * 8) % 8;
+  document.getElementById('hud-dir').textContent = dirs[dirIdx];
+
+  // تحديث البوصلة
+  const compass = document.querySelector('#compass svg');
+  if (compass) {
+    const rot = -camAngle * (180 / Math.PI);
+    compass.style.transform = `rotate(${rot}deg)`;
+  }
+}
+
+// ─── حلقة التحريك ───
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  const dt = clock.getDelta();
+
+  // تحديث uniforms
+  skyMat.uniforms.uTime.value = t;
+  if (terrain.material.uniforms) terrain.material.uniforms.uTime.value = t;
+  dustFogMat.uniforms.uTime.value = t;
+
+  // ماء الفلاج
+  scene.traverse(child => {
+    if (child.material && child.material.uniforms && child.material.uniforms.uTime) {
+      child.material.uniforms.uTime.value = t;
+    }
+  });
+
+  // النخيل يتحرك بالرياح
+  palms.forEach((palm, i) => {
+    palm.rotation.z = Math.sin(t * 0.8 + i * 0.5) * 0.03;
+    palm.rotation.x = Math.cos(t * 0.6 + i * 0.3) * 0.02;
+  });
+
+  // الفلاج يتوهج
+  falajPoints.forEach((fp, i) => {
+    fp.mesh.position.y = fp.baseY + Math.sin(t * 2 + i) * 0.1;
+    fp.mesh.material.opacity = 0.5 + Math.sin(t * 3 + i * 2) * 0.3;
+  });
+
+  // الطيور تطير
+  birds.forEach(bird => {
+    const d = bird.userData;
+    const angle = t * d.speed * 0.1;
+    bird.position.x = d.center.x + Math.cos(angle) * d.radius;
+    bird.position.z = d.center.z + Math.sin(angle) * d.radius;
+    bird.position.y = d.center.y + Math.sin(t * 0.5 + d.wingPhase) * 1.5;
+    bird.rotation.y = -angle + Math.PI / 2;
+    // حركة الأجنحة
+    if (bird.children[0]) {
+      bird.children[0].rotation.z = Math.sin(t * 8 + d.wingPhase) * 0.4;
+    }
+  });
+
+  // الغبار يتحرك
+  if (dustSystem) {
+    const pos = dustSystem.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      pos.setX(i, pos.getX(i) + Math.sin(t * 0.2 + i) * 0.01);
+      pos.setY(i, pos.getY(i) + Math.cos(t * 0.15 + i * 0.5) * 0.005);
+      if (pos.getY(i) > 15) pos.setY(i, 0);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // ابن ماجد يمشي
+  const walkPath = Math.sin(t * 0.15) * 8;
+  ibnMajid.position.x = walkPath;
+  ibnMajid.position.z = 5 + Math.cos(t * 0.1) * 3;
+  ibnMajid.rotation.y = Math.atan2(
+    Math.cos(t * 0.15) * 8 * 0.15,
+    -Math.sin(t * 0.1) * 3 * 0.1
+  );
+  // تأرجح المشي
+  ibnMajid.position.y = Math.abs(Math.sin(t * 3)) * 0.08;
+
+  // تحديث الشمس حسب الوقت
+  const sunAngle = t * 0.05;
+  sunLight.position.x = Math.cos(sunAngle) * 40;
+  sunLight.position.y = 20 + Math.sin(sunAngle) * 20;
+  sunLight.intensity = 1.0 + Math.sin(sunAngle) * 0.8;
+
+  updateHUD(t);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+animate();
+
+// التعديل حسب حجم الشاشة
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// انقر على نقاط الاستكشاف
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+renderer.domElement.addEventListener('click', (e) => {
+  mouse.x = (e.clientX / innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(scene.children, true);
+  for (const hit of intersects) {
+    if (hit.object.userData && hit.object.userData.label) {
+      document.getElementById('info-title').textContent = '📍 ' + hit.object.userData.label;
+      document.getElementById('info-text').textContent = 'نقطة استكشاف في سمائل — ' + hit.object.userData.label;
+      document.getElementById('info-panel').classList.add('show');
+      break;
+    }
+  }
+});
+
+</script>
+</body>
+</html>

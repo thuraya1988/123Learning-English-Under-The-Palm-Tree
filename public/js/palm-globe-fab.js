@@ -2,9 +2,10 @@
  * Story World floating icon — Under The Palm Tree
  *
  * A small floating 🌍 button that follows the visitor on every page and
- * opens the Story World Globe. Positioned bottom-left (the sound controls
- * own bottom-right); on the museum pages, which show a joystick bottom-left
- * on mobile, it moves to the top-left instead.
+ * opens the Interactive World hub (Black Hole portal → Globe, Silk Road,
+ * Ocean, and the novel's 3D world). Positioned bottom-left (the sound
+ * controls own bottom-right); on the museum pages, which show a joystick
+ * bottom-left on mobile, it moves to the top-left instead.
  *
  * Opt out per page: <script>window.PALM_GLOBE_FAB_DISABLED = true;</script>
  */
@@ -12,10 +13,14 @@
   if (window.__palmGlobeFab) return;
   window.__palmGlobeFab = true;
   if (window.PALM_GLOBE_FAB_DISABLED) return;
-  // Don't show the button on the globe itself.
-  if (location.pathname.indexOf('/globe') !== -1) return;
+  // Don't show the button on the world hub or any of the experiences it links to.
+  var onWorldPage = ['/globe', '/experiences/world', '/experiments/gargantua',
+    '/experiments/silk-atlas', '/experiments/open-sea'].some(function (p) {
+    return location.pathname.indexOf(p) !== -1;
+  });
+  if (onWorldPage) return;
 
-  var GLOBE_URL = 'https://play.under-palm-tree.com/globe/';
+  var GLOBE_URL = 'https://play.under-palm-tree.com/experiences/world/';
 
   function boot() {
     if (document.querySelector('.palm-globe-fab')) return;

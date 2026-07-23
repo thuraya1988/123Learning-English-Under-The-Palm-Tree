@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مستكشف 3D — أي مكان في العالم</title>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;600;700&display=swap');
+:root {
+  --gold: #d4a853; --dark: #0f1118; --dark2: #181c28;
+  --text: #c8d0e0; --text2: #6a7590;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; font-family: 'Noto Kufi Arabic', sans-serif; background: #000; }
+#map { width: 100vw; height: 100vh; }
+
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 52px;
+  background: rgba(10,12,20,0.94); backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(212,168,83,0.15);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; z-index: 1000;
+}
+.topbar .logo { display: flex; align-items: center; gap: 10px; }
+.topbar .logo span { font-size: 24px; }
+.topbar h1 { font-size: 16px; font-weight: 600; color: var(--gold); }
+
+.controls { display: flex; gap: 5px; align-items: center; }
+.ctrl-btn {
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07);
+  color: var(--text); padding: 7px 12px; border-radius: 8px;
+  font-size: 11px; font-family: inherit; cursor: pointer; transition: all 0.2s;
+}
+.ctrl-btn:hover, .ctrl-btn.active {
+  background: rgba(212,168,83,0.12); border-color: rgba(212,168,83,0.25); color: var(--gold);
+}
+
+/* صندوق البحث */
+.search-box {
+  position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+  width: 420px; z-index: 1000; display: flex; gap: 6px;
+}
+.search-box input {
+  flex: 1; padding: 12px 16px;
+  background: rgba(10,12,20,0.92); backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+  color: var(--text); font-family: inherit; font-size: 13px; outline: none;
+}
+.search-box input:focus { border-color: rgba(212,168,83,0.3); }
+.search-box input::placeholder { color: var(--text2); }
+.search-box button {
+  padding: 12px 18px; background: rgba(212,168,83,0.15);
+  border: 1px solid rgba(212,168,83,0.3); border-radius: 10px;
+  color: var(--gold); font-family: inherit; font-size: 13px;
+  cursor: pointer; transition: all 0.2s;
+}
+.search-box button:hover { background: rgba(212,168,83,0.25); }
+
+/* نتائج البحث */
+.search-results {
+  position: fixed; top: 112px; left: 50%; transform: translateX(-50%);
+  width: 420px; max-height: 250px; overflow-y: auto;
+  background: rgba(10,12,20,0.95); backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.06); border-radius: 10px;
+  z-index: 1000; display: none;
+}
+.search-results.show { display: block; }
+.search-result-item {
+  padding: 12px 16px; cursor: pointer; transition: background 0.2s;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-size: 13px; color: var(--text);
+}
+.search-result-item:hover { background: rgba(212,168,83,0.08); }
+.search-result-item .result-name { font-weight: 600; color: #e0d8c8; margin-bottom: 3px; }
+.search-result-item .result-addr { font-size: 11px; color: var(--text2); }
+
+/* لوحة التحكم */
+.control-panel {
+  position: fixed; top: 64px; right: 16px;
+  width: 260px; background: rgba(10,12,20,0.92); backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+  padding: 18px; z-index: 1000;
+}
+.control-panel h3 { font-size: 13px; color: var(--gold); margin-bottom: 14px; }
+
+.slider-group { margin-bottom: 14px; }
+.slider-group label {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--text2); margin-bottom: 6px;
+}
+.slider-group label span { color: var(--gold); font-weight: 600; }
+.slider-group input[type="range"] {
+  width: 100%; -webkit-appearance: none; height: 4px;
+  background: rgba(255,255,255,0.08); border-radius: 2px; outline: none;
+}
+.slider-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  background: var(--gold); border-radius: 50%; cursor: pointer;
+}
+
+.toggle-group {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; font-size: 12px; color: var(--text2);
+}
+.toggle {
+  width: 40px; height: 22px; background: rgba(255,255,255,0.08);
+  border-radius: 11px; cursor: pointer; position: relative;
+  transition: background 0.2s;
+}
+.toggle.active { background: rgba(212,168,83,0.4); }
+.toggle::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; background: #fff; border-radius: 50%;
+  transition: transform 0.2s;
+}
+.toggle.active::after { transform: translateX(18px); }
+
+/* معلومات الموقع */
+.info-bar {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: rgba(10,12,20,0.92); backdrop-filter: blur(20px);
+  border: 1px solid rgba(212,168,83,0.12); border-radius: 12px;
+  padding: 12px 24px; z-index: 1000;
+  display: flex; gap: 24px; align-items: center;
+}
+.info-item { text-align: center; }
+.info-item .label { font-size: 9px; color: var(--text2); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+.info-item .value { font-size: 13px; color: var(--gold); font-weight: 600; font-family: monospace; direction: ltr; }
+
+/* تعليمات */
+.hint {
+  position: fixed; bottom: 65px; left: 20px;
+  background: rgba(10,12,20,0.8); border-radius: 10px;
+  padding: 10px 14px; z-index: 1000;
+  font-size: 10px; color: var(--text2); line-height: 2;
+}
+.hint kbd {
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 3px; padding: 1px 5px; font-size: 9px; color: #8a95ad;
+}
+
+/* رسوم متحركة */
+@keyframes drop {
+  0% { transform: translateY(-20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.drop-in { animation: drop 0.4s ease-out; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="logo">
+    <span>🌍</span>
+    <h1>مستكشف 3D — أي مكان في العالم</h1>
+  </div>
+  <div class="controls">
+    <button class="ctrl-btn active" onclick="setStyle('satellite')" id="btnSatellite">🛰️ قمر صناعي</button>
+    <button class="ctrl-btn" onclick="setStyle('terrain')" id="btnTerrain">🗺️ تضاريس</button>
+    <button class="ctrl-btn" onclick="setStyle('dark')" id="btnDark">🌙 داكن</button>
+    <button class="ctrl-btn" onclick="flyToLocation(23.308, 57.932, 13, 45)" id="btnSamail">🏔️ سمائل</button>
+  </div>
+</header>
+
+<div class="search-box drop-in">
+  <input type="text" id="searchInput" placeholder="ابحث عن أي مكان في العالم... (مثال: Dubai, Paris, Tokyo)"
+    onkeydown="if(event.key==='Enter')doSearch()" oninput="debounceSearch()">
+  <button onclick="doSearch()">🔍 بحث</button>
+</div>
+<div class="search-results" id="searchResults"></div>
+
+<div class="control-panel drop-in">
+  <h3>⚙️ إعدادات العرض</h3>
+
+  <div class="slider-group">
+    <label>تضاريس <span id="exagVal">1.5x</span></label>
+    <input type="range" id="exaggeration" min="0" max="5" step="0.1" value="1.5" oninput="setExaggeration(this.value)">
+  </div>
+
+  <div class="slider-group">
+    <label>الارتفاع <span id="altVal">45°</span></label>
+    <input type="range" id="pitchSlider" min="0" max="85" step="1" value="45" oninput="setPitch(this.value)">
+  </div>
+
+  <div class="slider-group">
+    <label>الدوران <span id="bearVal">0°</span></label>
+    <input type="range" id="bearingSlider" min="0" max="360" step="1" value="0" oninput="setBearing(this.value)">
+  </div>
+
+  <div class="slider-group">
+    <label>السرعة <span id="speedVal">3s</span></label>
+    <input type="range" id="speedSlider" min="1" max="10" step="0.5" value="3" oninput="document.getElementById('speedVal').textContent=this.value+'s'">
+  </div>
+
+  <div class="toggle-group">
+    <span>المباني ثلاثية الأبعاد</span>
+    <div class="toggle" id="toggleBuildings" onclick="toggleBuildings()"></div>
+  </div>
+  <div class="toggle-group">
+    <span>الحدود</span>
+    <div class="toggle" id="toggleBorders" onclick="toggleBorders()"></div>
+  </div>
+  <div class="toggle-group">
+    <span>الأسماء</span>
+    <div class="toggle active" id="toggleLabels" onclick="toggleLabels()"></div>
+  </div>
+
+  <div style="margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.04);">
+    <h3 style="margin-bottom:10px;">📍 أماكن سريعة</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;">
+      <button class="ctrl-btn" onclick="flyToLocation(23.308,57.932,14,50)">سمائل</button>
+      <button class="ctrl-btn" onclick="flyToLocation(23.588,58.382,14,45)">مسقط</button>
+      <button class="ctrl-btn" onclick="flyToLocation(23.585,58.405,16,60)">مطرح</button>
+      <button class="ctrl-btn" onclick="flyToLocation(22.943,57.534,13,55)">نيزوا</button>
+      <button class="ctrl-btn" onclick="flyToLocation(23.600,57.500,12,50)">صحار</button>
+      <button class="ctrl-btn" onclick="flyToLocation(25.285,55.270,13,50)">دبي</button>
+      <button class="ctrl-btn" onclick="flyToLocation(24.467,54.367,12,40)">أبوظبي</button>
+      <button class="ctrl-btn" onclick="flyToLocation(21.389,39.826,14,50)">مكة</button>
+      <button class="ctrl-btn" onclick="flyToLocation(48.858,2.347,14,55)">باريس</button>
+      <button class="ctrl-btn" onclick="flyToLocation(35.689,139.692,13,50)">طوكيو</button>
+      <button class="ctrl-btn" onclick="flyToLocation(40.748,-73.986,14,45)">نيويورك</button>
+      <button class="ctrl-btn" onclick="flyToLocation(27.175,78.042,16,60)">تاج محل</button>
+    </div>
+  </div>
+</div>
+
+<div class="info-bar">
+  <div class="info-item"><div class="label">LAT</div><div class="value" id="infoLat">—</div></div>
+  <div class="info-item"><div class="label">LNG</div><div class="value" id="infoLng">—</div></div>
+  <div class="info-item"><div class="label">ZOOM</div><div class="value" id="infoZoom">—</div></div>
+  <div class="info-item"><div class="label">PITCH</div><div class="value" id="infoPitch">—</div></div>
+  <div class="info-item"><div class="label">BEARING</div><div class="value" id="infoBear">—</div></div>
+  <div class="info-item"><div class="label">ELEVATION</div><div class="value" id="infoElev">—</div></div>
+</div>
+
+<div class="hint">
+  🖱️ اسحب = دوران &nbsp;|&nbsp; عجلة = تقريب &nbsp;|&nbsp; <kbd>Shift</kbd>+اسحب = ميلان<br>
+  انقر على الخريطة = تحديد موقع &nbsp;|&nbsp; ابحث عن أي مكان بالاسم
+</div>
+
+<div id="map"></div>
+
+<script>
+// ─── مفاتيح مجانية ───
+// DEM terrain من AWS (مجاني بدون مفتاح)
+const DEM_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+
+// MapTiler مجاني (مفتاح عام للـ demo)
+const MAPTILER_KEY = 'get_your_own';
+
+// مصادر مجانية بالكامل
+const STYLES = {
+  satellite: {
+    version: 8,
+    sources: {
+      'sat': { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, attribution: 'Esri' },
+      'terrain': { type: 'raster-dem', tiles: [DEM_TILES], tileSize: 256, encoding: 'terrarium', maxzoom: 15 },
+    },
+    layers: [
+      { id: 'sat', type: 'raster', source: 'sat', paint: { 'raster-contrast': 0.05, 'raster-brightness-max': 0.85 } },
+      { id: 'sky', type: 'sky', paint: { 'sky-type': 'atmosphere', 'sky-atmosphere-sun-intensity': 15 } }
+    ],
+    sky: { 'sky-type': 'atmosphere' }
+  },
+  terrain: {
+    version: 8,
+    sources: {
+      'osm': { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OSM' },
+      'terrain': { type: 'raster-dem', tiles: [DEM_TILES], tileSize: 256, encoding: 'terrarium', maxzoom: 15 },
+    },
+    layers: [
+      { id: 'osm', type: 'raster', source: 'osm', paint: { 'raster-saturation': -0.2, 'raster-brightness-max': 0.75 } },
+      { id: 'hillshade', type: 'hillshade', source: 'terrain', paint: { 'hillshade-shadow-color': 'rgba(0,0,0,0.35)', 'hillshade-highlight-color': 'rgba(255,255,240,0.12)' } },
+      { id: 'sky', type: 'sky', paint: { 'sky-type': 'atmosphere', 'sky-atmosphere-sun-intensity': 15 } }
+    ]
+  },
+  dark: {
+    version: 8,
+    sources: {
+      'dark': { type: 'raster', tiles: ['https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'], tileSize: 256, attribution: 'CartoDB' },
+      'terrain': { type: 'raster-dem', tiles: [DEM_TILES], tileSize: 256, encoding: 'terrarium', maxzoom: 15 },
+    },
+    layers: [
+      { id: 'dark', type: 'raster', source: 'dark' },
+      { id: 'hillshade', type: 'hillshade', source: 'terrain', paint: { 'hillshade-shadow-color': 'rgba(0,0,0,0.5)', 'hillshade-highlight-color': 'rgba(200,200,255,0.08)' } },
+      { id: 'sky', type: 'sky', paint: { 'sky-type': 'atmosphere', 'sky-atmosphere-sun-intensity': 10 } }
+    ]
+  }
+};
+
+let currentStyle = 'satellite';
+let buildingsVisible = false;
+let bordersVisible = false;
+let labelsVisible = true;
+
+// ─── تهيئة الخريطة ───
+const map = new maplibregl.Map({
+  container: 'map',
+  style: STYLES.satellite,
+  center: [57.932, 23.308],
+  zoom: 12,
+  pitch: 45,
+  bearing: -10,
+  antialias: true,
+  maxPitch: 85
+});
+
+map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
+
+// ─── بعد تحميل الخريطة ───
+map.on('load', () => {
+  map.setTerrain({ source: 'terrain', exaggeration: 1.5 });
+  addInfoListeners();
+  updateInfo();
+
+  // انقر على الخريطة لتحديد موقع
+  map.on('click', (e) => {
+    const { lat, lng } = e.lngLat;
+    flyToLocation(lat, lng, map.getZoom(), map.getPitch());
+  });
+});
+
+// ─── تبديل النمط ───
+function setStyle(name) {
+  currentStyle = name;
+  document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+  if (document.getElementById('btn' + name)) document.getElementById('btn' + name).classList.add('active');
+
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+  const pitch = map.getPitch();
+  const bearing = map.getBearing();
+
+  map.setStyle(STYLES[name], { diff: false });
+
+  map.once('style.load', () => {
+    map.jumpTo({ center, zoom, pitch, bearing });
+    const exag = parseFloat(document.getElementById('exaggeration').value);
+    map.setTerrain({ source: 'terrain', exaggeration: exag });
+
+    if (buildingsVisible) addBuildings();
+    if (!labelsVisible) hideLabels();
+  });
+}
+
+// ─── المباني ───
+function toggleBuildings() {
+  buildingsVisible = !buildingsVisible;
+  document.getElementById('toggleBuildings').classList.toggle('active', buildingsVisible);
+  if (buildingsVisible) addBuildings();
+  else map.removeLayer('buildings');
+}
+
+function addBuildings() {
+  if (map.getLayer('buildings')) return;
+  // إضافة طبقة مبани من OpenStreetMap (矢量 tiles مجانية)
+  try {
+    if (!map.getSource('osm-buildings')) {
+      map.addSource('osm-buildings', {
+        type: 'vector',
+        tiles: ['https://tiles.osmbuildings.org/{z}/{x}/{y}.pbf'],
+        maxzoom: 16
+      });
+    }
+    map.addLayer({
+      id: 'buildings',
+      type: 'fill-extrusion',
+      source: 'osm-buildings',
+      'source-layer': 'building',
+      minzoom: 14,
+      paint: {
+        'fill-extrusion-color': [
+          'interpolate', ['linear'], ['get', 'height'],
+          0, '#c8a87c',
+          30, '#b8956a',
+          80, '#a07850',
+          150, '#8a6540'
+        ],
+        'fill-extrusion-height': ['coalesce', ['get', 'height'], 10],
+        'fill-extrusion-base': ['coalesce', ['get', 'min_height'], 0],
+        'fill-extrusion-opacity': 0.8
+      }
+    });
+  } catch(e) {
+    console.log('Buildings source not available for this area');
+  }
+}
+
+// ─── الحدود ───
+function toggleBorders() {
+  bordersVisible = !bordersVisible;
+  document.getElementById('toggleBorders').classList.toggle('active', bordersVisible);
+  // حدود بسيطة من OSM
+  if (bordersVisible) {
+    if (!map.getLayer('borders')) {
+      map.addSource('borders', {
+        type: 'vector',
+        tiles: ['https://tiles.openstreetmap.org/boundaries/{z}/{x}/{y}.pbf']
+      });
+    }
+  }
+}
+
+// ─── الأسماء ───
+function toggleLabels() {
+  labelsVisible = !labelsVisible;
+  document.getElementById('toggleLabels').classList.toggle('active', labelsVisible);
+  if (labelsVisible) {
+    showLabels();
+  } else {
+    hideLabels();
+  }
+}
+
+function hideLabels() {
+  map.getStyle().layers.forEach(layer => {
+    if (layer.type === 'symbol' || layer.type === 'fill' && layer.id.includes('label')) {
+      map.setLayoutProperty(layer.id, 'visibility', 'none');
+    }
+  });
+}
+
+function showLabels() {
+  map.getStyle().layers.forEach(layer => {
+    if (layer.type === 'symbol') {
+      map.setLayoutProperty(layer.id, 'visibility', 'visible');
+    }
+  });
+}
+
+// ─── التضاريس ───
+function setExaggeration(val) {
+  document.getElementById('exagVal').textContent = val + 'x';
+  map.setTerrain({ source: 'terrain', exaggeration: parseFloat(val) });
+}
+
+function setPitch(val) {
+  document.getElementById('altVal').textContent = val + '°';
+  map.easeTo({ pitch: parseFloat(val), duration: 500 });
+}
+
+function setBearing(val) {
+  document.getElementById('bearVal').textContent = val + '°';
+  map.easeTo({ bearing: parseFloat(val), duration: 500 });
+}
+
+// ─── البحث (Nominatim — مجاني) ───
+let searchTimeout;
+let lastSearchResults = [];
+function debounceSearch() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(doSearch, 600);
+}
+
+async function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q || q.length < 2) { document.getElementById('searchResults').classList.remove('show'); return; }
+
+  const container = document.getElementById('searchResults');
+  container.innerHTML = '<div class="search-result-item"><div class="result-name">⏳ جاري البحث...</div></div>';
+  container.classList.add('show');
+
+  try {
+    // جرب Nominatim أولاً
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=6&accept-language=ar,en&addressdetails=1`, {
+      headers: { 'Accept': 'application/json' }
+    });
+
+    if (!res.ok) throw new Error('Nominatim failed: ' + res.status);
+
+    const data = await res.json();
+    lastSearchResults = data;
+
+    if (data.length === 0) {
+      // جرب بالإنجليزي لو عربي ما نفع
+      const res2 = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=6&accept-language=en&addressdetails=1`);
+      const data2 = await res2.json();
+      lastSearchResults = data2;
+      if (data2.length === 0) {
+        container.innerHTML = '<div class="search-result-item"><div class="result-name">❌ لا نتائج</div><div class="result-addr">جرب تكتب بالإنجليزي أو اسم أقرب مدينة</div></div>';
+      } else {
+        renderSearchResults(data2, container);
+      }
+    } else {
+      renderSearchResults(data, container);
+    }
+  } catch(e) {
+    console.error('Search error:', e);
+    // fallback: جرب Photon (خدمة بديلة مجانية)
+    try {
+      const res3 = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=ar`);
+      const data3 = await res3.json();
+      if (data3.features && data3.features.length > 0) {
+        lastSearchResults = data3.features.map(f => ({
+          lat: f.geometry.coordinates[1],
+          lon: f.geometry.coordinates[0],
+          display_name: f.properties.name + (f.properties.city ? ', ' + f.properties.city : '') + (f.properties.country ? ', ' + f.properties.country : '')
+        }));
+        renderSearchResults(lastSearchResults, container);
+      } else {
+        container.innerHTML = '<div class="search-result-item"><div class="result-name">❌ لا نتائج</div><div class="result-addr">جرب تكتب بالإنجليزي</div></div>';
+      }
+    } catch(e2) {
+      container.innerHTML = '<div class="search-result-item"><div class="result-name">⚠️ خطأ في الاتصال</div><div class="result-addr">تأكد من اتصالك بالإنترنت</div></div>';
+    }
+  }
+}
+
+function renderSearchResults(data, container) {
+  container.innerHTML = data.map((r, i) => {
+    const name = r.display_name || 'Unknown';
+    const shortName = name.split(',')[0];
+    return `
+      <div class="search-result-item" data-index="${i}">
+        <div class="result-name">📍 ${escapeHtml(shortName)}</div>
+        <div class="result-addr">${escapeHtml(name)}</div>
+      </div>
+    `;
+  }).join('');
+
+  // ربط الأحداث بدل onclick لتجنب مشاكل الـ escaping
+  container.querySelectorAll('.search-result-item').forEach((el, i) => {
+    el.addEventListener('click', () => selectSearchResult(i));
+  });
+}
+
+function selectSearchResult(index) {
+  const r = lastSearchResults[index];
+  if (!r) return;
+  document.getElementById('searchResults').classList.remove('show');
+  document.getElementById('searchInput').value = (r.display_name || '').split(',')[0];
+  flyToLocation(parseFloat(r.lat), parseFloat(r.lon), 14, 50);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// إخفاء النتائج عند النقر خارجها
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.search-box') && !e.target.closest('.search-results')) {
+    document.getElementById('searchResults').classList.remove('show');
+  }
+});
+
+// ─── التحليق ───
+function flyToLocation(lat, lng, zoom, pitch) {
+  const duration = parseFloat(document.getElementById('speedSlider').value) * 1000;
+  map.flyTo({
+    center: [lng, lat],
+    zoom: zoom || 14,
+    pitch: pitch || 50,
+    bearing: parseFloat(document.getElementById('bearingSlider').value),
+    duration: duration,
+    essential: true,
+    curve: 1.5
+  });
+}
+
+// ─── تحديث المعلومات ───
+function addInfoListeners() {
+  map.on('move', updateInfo);
+  map.on('pitch', updateInfo);
+  map.on('rotate', updateInfo);
+  map.on('zoom', updateInfo);
+}
+
+function updateInfo() {
+  const c = map.getCenter();
+  const b = ((map.getBearing() % 360) + 360) % 360;
+
+  document.getElementById('infoLat').textContent = c.lat.toFixed(4) + '°';
+  document.getElementById('infoLng').textContent = c.lng.toFixed(4) + '°';
+  document.getElementById('infoZoom').textContent = map.getZoom().toFixed(1);
+  document.getElementById('infoPitch').textContent = Math.round(map.getPitch()) + '°';
+  document.getElementById('infoBear').textContent = Math.round(b) + '°';
+
+  // تقدير الارتفاع من zoom
+  const zoom = map.getZoom();
+  const elevApprox = Math.round(Math.pow(2, 15 - zoom) * 10);
+  document.getElementById('infoElev').textContent = elevApprox > 0 ? '~' + elevApprox + ' m' : '—';
+
+  // تحديث السلايدرات
+  document.getElementById('pitchSlider').value = map.getPitch();
+  document.getElementById('altVal').textContent = Math.round(map.getPitch()) + '°';
+}
+</script>
+</body>
+</html>

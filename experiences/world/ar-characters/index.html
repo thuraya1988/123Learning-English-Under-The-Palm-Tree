@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Under Palm Tree - AR شخصيات الرواية</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; }
+body { background:#0a0a0a; color:#f5e6d3; overflow:hidden; }
+
+#camera-container { position:relative; width:100%; height:100vh; overflow:hidden; }
+#camera-video { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+#ar-canvas { position:absolute; top:0; left:0; width:100%; height:100%; z-index:5; }
+
+#ui-layer { position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; pointer-events:none; }
+#ui-layer > * { pointer-events:auto; }
+
+#title-bar { position:absolute; top:10px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); padding:10px 20px; border-radius:12px; text-align:center; }
+#title-bar h1 { font-size:14px; color:#ffd700; }
+#title-bar p { font-size:11px; color:#c4a882; }
+
+#character-selector { position:absolute; bottom:80px; left:50%; transform:translateX(-50%); display:flex; gap:10px; z-index:15; }
+.char-btn { width:60px; height:60px; border-radius:50%; border:3px solid rgba(255,255,255,0.3); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:28px; background:rgba(0,0,0,0.5); transition:all 0.2s; }
+.char-btn.selected { border-color:#ffd700; transform:scale(1.1); box-shadow:0 0 15px rgba(255,215,0,0.4); }
+.char-btn:active { transform:scale(0.9); }
+
+#word-card { position:absolute; top:60px; left:50%; transform:translateX(-50%) translateY(-100px); background:rgba(26,15,10,0.95); padding:15px 25px; border-radius:16px; border:2px solid #ffd700; text-align:center; transition:transform 0.5s ease; z-index:20; }
+#word-card.show { transform:translateX(-50%) translateY(0); }
+#word-en { color:#4A90E2; font-size:20px; font-weight:700; margin-bottom:4px; }
+#word-ar { color:#f5e6d3; font-size:16px; margin-bottom:4px; }
+#word-context { color:#aaa; font-size:12px; }
+
+#place-btn { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg,#8b6914,#5c4a0a); color:#f5e6d3; border:none; padding:12px 40px; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; z-index:15; }
+#place-btn:active { transform:translateX(-50%) scale(0.95); }
+
+#start-screen { position:absolute; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg,#1a0f0a,#2d1f14); z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px; }
+#start-screen h1 { color:#ffd700; font-size:24px; margin-bottom:10px; }
+#start-screen p { color:#c4a882; font-size:14px; line-height:1.6; margin-bottom:8px; max-width:400px; }
+#start-btn { margin-top:20px; background:linear-gradient(135deg,#8b6914,#5c4a0a); color:#f5e6d3; border:none; padding:14px 40px; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer; }
+#start-btn:active { transform:scale(0.95); }
+
+#permission-denied { display:none; color:#ff4444; font-size:14px; margin-top:10px; }
+
+@media (max-width:480px) {
+    .char-btn { width:50px; height:50px; font-size:24px; }
+    #word-en { font-size:18px; }
+    #word-ar { font-size:14px; }
+}
+</style>
+</head>
+<body>
+
+<div id="start-screen">
+    <h1>📱 Under Palm Tree AR</h1>
+    <p>وجه الكاميرا على أي مكان في غرفتك!</p>
+    <p>اضغط على شخصية ثم اضغط "ضع الشخصية" ليظهر بطل الرواية في عالمك الحقيقي!</p>
+    <p>💡 كل شخصية تعلمك كلمة إنجليزية جديدة</p>
+    <button id="start-btn">📷 فتح الكاميرا</button>
+    <p id="permission-denied">❌ يجب السماح بالوصول للكاميرا</p>
+</div>
+
+<div id="camera-container" style="display:none;">
+    <video id="camera-video" autoplay playsinline></video>
+    <canvas id="ar-canvas"></canvas>
+
+    <div id="ui-layer">
+        <div id="title-bar">
+            <h1>🌴 AR قرية النخلة</h1>
+            <p>اختر شخصية ثم اضغط "ضع الشخصية"</p>
+        </div>
+
+        <div id="word-card">
+            <div id="word-en">-</div>
+            <div id="word-ar">-</div>
+            <div id="word-context">-</div>
+        </div>
+
+        <div id="character-selector">
+            <div class="char-btn selected" data-char="john" title="جون جريفيث">👨‍🦰</div>
+            <div class="char-btn" data-char="sophia" title="صوفيا">👩‍⚕️</div>
+            <div class="char-btn" data-char="thuria" title="ثريا">👩‍💼</div>
+            <div class="char-btn" data-char="alexander" title="الإسكندر">👨‍💼</div>
+            <div class="char-btn" data-char="palm" title="نخلة">🌴</div>
+        </div>
+
+        <button id="place-btn">👆 ضع الشخصية هنا</button>
+    </div>
+</div>
+
+<script>
+// ==================== AR CONTROLLER ====================
+let video, canvas, ctx;
+let selectedChar = 'john';
+let placedCharacters = [];
+let cameraActive = false;
+
+const CHARACTERS = {
+    john: { emoji: '👨‍🦰', name: 'John Griffith', ar: 'جون جريفيث', word: 'Adventure', wordAr: 'مغامرة', color: '#FF8C00' },
+    sophia: { emoji: '👩‍⚕️', name: 'Sophia', ar: 'صوفيا', word: 'Nurse', wordAr: 'ممرضة', color: '#FF69B4' },
+    thuria: { emoji: '👩‍💼', name: 'Thuria', ar: 'ثريا', word: 'Leader', wordAr: 'قائدة', color: '#228B22' },
+    alexander: { emoji: '👨‍💼', name: 'Alexander', ar: 'الإسكندر', word: 'Friend', wordAr: 'صديق', color: '#4169E1' },
+    palm: { emoji: '🌴', name: 'Palm Tree', ar: 'نخلة', word: 'Heritage', wordAr: 'تراث', color: '#4a7c2a' }
+};
+
+// Start camera
+document.getElementById('start-btn').addEventListener('click', async () => {
+    try {
+        video = document.getElementById('camera-video');
+        canvas = document.getElementById('ar-canvas');
+        ctx = canvas.getContext('2d');
+
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment' },
+            audio: false 
+        });
+        video.srcObject = stream;
+
+        video.onloadedmetadata = () => {
+            canvas.width = video.videoWidth || window.innerWidth;
+            canvas.height = video.videoHeight || window.innerHeight;
+            cameraActive = true;
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('camera-container').style.display = 'block';
+            animateAR();
+        };
+    } catch (e) {
+        document.getElementById('permission-denied').style.display = 'block';
+        console.error('Camera error:', e);
+    }
+});
+
+// Character selection
+document.querySelectorAll('.char-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedChar = btn.getAttribute('data-char');
+    });
+});
+
+// Place character
+let tapX = 0.5, tapY = 0.5;
+
+document.getElementById('place-btn').addEventListener('click', () => {
+    const char = CHARACTERS[selectedChar];
+
+    // Add to placed characters
+    placedCharacters.push({
+        x: tapX,
+        y: tapY,
+        char: selectedChar,
+        scale: 0,
+        targetScale: 1,
+        time: Date.now()
+    });
+
+    // Show word card
+    document.getElementById('word-en').textContent = char.word;
+    document.getElementById('word-ar').textContent = char.wordAr;
+    document.getElementById('word-context').textContent = char.name + ' - ' + char.ar;
+    const card = document.getElementById('word-card');
+    card.classList.add('show');
+    setTimeout(() => card.classList.remove('show'), 3000);
+
+    // Save progress
+    saveProgress(char.word);
+});
+
+// Track touch for placement position
+canvas.addEventListener('touchstart', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    tapX = (e.touches[0].clientX - rect.left) / rect.width;
+    tapY = (e.touches[0].clientY - rect.top) / rect.height;
+}, {passive: true});
+
+canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    tapX = (e.clientX - rect.left) / rect.width;
+    tapY = (e.clientY - rect.top) / rect.height;
+});
+
+function animateAR() {
+    if (!cameraActive) return;
+
+    // Clear canvas (keep video visible underneath)
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const now = Date.now();
+
+    // Draw placed characters
+    placedCharacters.forEach((item, index) => {
+        // Animate scale in
+        if (item.scale < item.targetScale) {
+            item.scale += 0.05;
+        }
+
+        // Floating animation
+        const floatY = Math.sin((now - item.time) * 0.003) * 20;
+        const x = item.x * canvas.width;
+        const y = item.y * canvas.height + floatY;
+        const size = 80 * item.scale * (canvas.width / 400);
+
+        const char = CHARACTERS[item.char];
+
+        // Draw shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(x, y + size * 0.4, size * 0.5, size * 0.15, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw emoji
+        ctx.font = `${size}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(char.emoji, x, y);
+
+        // Draw name tag
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.roundRect(x - size * 0.6, y - size * 0.8, size * 1.2, 22, 8);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText(char.ar, x, y - size * 0.65);
+
+        // Draw word
+        ctx.fillStyle = char.color;
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText(char.word, x, y + size * 0.6);
+    });
+
+    // Draw placement indicator
+    const ix = tapX * canvas.width;
+    const iy = tapY * canvas.height;
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.arc(ix, iy, 30, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    requestAnimationFrame(animateAR);
+}
+
+function saveProgress(word) {
+    let data = JSON.parse(localStorage.getItem('upt_ar_progress') || '{"words":[],"count":0}');
+    if (!data.words.includes(word)) {
+        data.words.push(word);
+        data.count++;
+        localStorage.setItem('upt_ar_progress', JSON.stringify(data));
+    }
+}
+
+// Round rect polyfill
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+        this.beginPath();
+        this.moveTo(x + r, y);
+        this.lineTo(x + w - r, y);
+        this.quadraticCurveTo(x + w, y, x + w, y + r);
+        this.lineTo(x + w, y + h - r);
+        this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        this.lineTo(x + r, y + h);
+        this.quadraticCurveTo(x, y + h, x, y + h - r);
+        this.lineTo(x, y + r);
+        this.quadraticCurveTo(x, y, x + r, y);
+        this.closePath();
+        return this;
+    };
+}
+</script>
+
+</body>
+</html>

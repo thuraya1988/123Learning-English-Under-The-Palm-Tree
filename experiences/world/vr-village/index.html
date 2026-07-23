@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Under Palm Tree - جولة VR في القرية</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; }
+body { background:#0a0a0a; color:#f5e6d3; overflow:hidden; }
+#info { position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.6); padding:10px 20px; border-radius:12px; }
+#info h1 { font-size:16px; color:#ffd700; }
+#info p { font-size:12px; color:#c4a882; }
+#vr-btn { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); z-index:10; background:linear-gradient(135deg,#8b6914,#5c4a0a); color:#f5e6d3; border:none; padding:12px 30px; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; }
+#vr-btn:disabled { opacity:0.5; cursor:not-allowed; }
+#exit-vr { position:absolute; top:20px; right:20px; z-index:20; background:rgba(255,0,0,0.6); color:#fff; border:none; padding:8px 16px; border-radius:8px; font-size:12px; cursor:pointer; display:none; }
+#loading { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:18px; color:#ffd700; }
+</style>
+</head>
+<body>
+
+<div id="loading">⏳ جاري تحميل جولة VR...</div>
+
+<div id="info">
+    <h1>🥽 جولة افتراضية في قرية النخلة</h1>
+    <p>استخدم الماوس للنظر | اضغط VR للدخول للواقع الافتراضي</p>
+</div>
+
+<button id="vr-btn" disabled>🥽 دخول VR</button>
+<button id="exit-vr">❌ خروج</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ==================== VR VILLAGE TOUR ====================
+let scene, camera, renderer, vrSession = null;
+let isVR = false;
+let villageObjects = [];
+
+function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB);
+
+    camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 100);
+    camera.position.set(0, 1.6, 5); // Eye height
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.xr.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // Lights
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambient);
+    const sun = new THREE.DirectionalLight(0xffd4a3, 0.8);
+    sun.position.set(10, 20, 10);
+    scene.add(sun);
+
+    // Build VR Village
+    buildVRVillage();
+
+    // VR Button
+    const vrBtn = document.getElementById('vr-btn');
+    if (navigator.xr) {
+        navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+            if (supported) {
+                vrBtn.disabled = false;
+                vrBtn.addEventListener('click', enterVR);
+            } else {
+                vrBtn.textContent = '❌ المتصفح لا يدعم VR';
+            }
+        }).catch(() => {
+            vrBtn.textContent = '📱 استخدم جوال VR';
+            vrBtn.disabled = false;
+            vrBtn.addEventListener('click', () => {
+                alert('لتجربة VR:\n1. استخدم جوال يدعم WebXR\n2. افتح في Chrome/Safari\n3. استخدم Google Cardboard أو Oculus');
+            });
+        });
+    } else {
+        vrBtn.textContent = '❌ WebXR غير مدعوم';
+    }
+
+    document.getElementById('exit-vr').addEventListener('click', exitVR);
+    document.getElementById('loading').style.display = 'none';
+
+    // Mouse look for non-VR
+    let mouseX = 0, mouseY = 0;
+    document.addEventListener('mousemove', (e) => {
+        if (isVR) return;
+        mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+        mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+        camera.rotation.y = mouseX * 0.5;
+        camera.rotation.x = mouseY * 0.3;
+    });
+
+    animate();
+}
+
+function buildVRVillage() {
+    // Ground
+    const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(50, 50),
+        new THREE.MeshLambertMaterial({ color: 0xE6C288 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Houses (Omani style)
+    const houseColors = [0xB85450, 0x8B6914, 0x7a6f5b, 0xB85450];
+    const positions = [
+        [-4, 0, -4], [4, 0, -3], [-3, 0, 4], [5, 0, 5], [-6, 0, 1], [3, 0, -7]
+    ];
+
+    positions.forEach((pos, i) => {
+        const house = new THREE.Group();
+        // Walls
+        const walls = new THREE.Mesh(
+            new THREE.BoxGeometry(2, 2, 2),
+            new THREE.MeshLambertMaterial({ color: houseColors[i % houseColors.length] })
+        );
+        walls.position.y = 1;
+        house.add(walls);
+        // Roof
+        const roof = new THREE.Mesh(
+            new THREE.BoxGeometry(2.4, 0.3, 2.4),
+            new THREE.MeshLambertMaterial({ color: 0x8B4513 })
+        );
+        roof.position.y = 2.15;
+        house.add(roof);
+        // Door
+        const door = new THREE.Mesh(
+            new THREE.BoxGeometry(0.6, 1.2, 0.1),
+            new THREE.MeshLambertMaterial({ color: 0x5c3a1e })
+        );
+        door.position.set(0, 0.6, 1.05);
+        house.add(door);
+
+        house.position.set(pos[0], pos[1], pos[2]);
+        scene.add(house);
+        villageObjects.push(house);
+    });
+
+    // Mosque
+    const mosque = new THREE.Group();
+    const mosqueBody = new THREE.Mesh(
+        new THREE.BoxGeometry(3, 2.5, 3),
+        new THREE.MeshLambertMaterial({ color: 0xF5F5DC })
+    );
+    mosqueBody.position.y = 1.25;
+    mosque.add(mosqueBody);
+    // Dome
+    const dome = new THREE.Mesh(
+        new THREE.SphereGeometry(1, 16, 16),
+        new THREE.MeshLambertMaterial({ color: 0xF5F5DC })
+    );
+    dome.position.y = 3;
+    mosque.add(dome);
+    // Minaret
+    const minaret = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.2, 0.3, 5, 8),
+        new THREE.MeshLambertMaterial({ color: 0xF5F5DC })
+    );
+    minaret.position.set(2.5, 2.5, 0);
+    mosque.add(minaret);
+    mosque.position.set(0, 0, -8);
+    scene.add(mosque);
+
+    // Palm Trees
+    for (let i = 0; i < 12; i++) {
+        const tree = new THREE.Group();
+        const trunk = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.2, 3, 6),
+            new THREE.MeshLambertMaterial({ color: 0x8B6914 })
+        );
+        trunk.position.y = 1.5;
+        tree.add(trunk);
+        // Leaves
+        for (let j = 0; j < 6; j++) {
+            const leaf = new THREE.Mesh(
+                new THREE.BoxGeometry(0.8, 0.1, 0.3),
+                new THREE.MeshLambertMaterial({ color: 0x4a7c2a })
+            );
+            leaf.position.y = 3;
+            leaf.rotation.y = (j / 6) * Math.PI * 2;
+            leaf.position.x = Math.sin(leaf.rotation.y) * 0.5;
+            leaf.position.z = Math.cos(leaf.rotation.y) * 0.5;
+            tree.add(leaf);
+        }
+        const angle = (i / 12) * Math.PI * 2;
+        tree.position.set(Math.sin(angle) * 8, 0, Math.cos(angle) * 8);
+        scene.add(tree);
+    }
+
+    // Well
+    const well = new THREE.Group();
+    const wellRing = new THREE.Mesh(
+        new THREE.TorusGeometry(1, 0.2, 8, 16),
+        new THREE.MeshLambertMaterial({ color: 0x7a6f5b })
+    );
+    wellRing.rotation.x = -Math.PI / 2;
+    wellRing.position.y = 0.2;
+    well.add(wellRing);
+    const water = new THREE.Mesh(
+        new THREE.CircleGeometry(0.8, 16),
+        new THREE.MeshLambertMaterial({ color: 0x4A90E2 })
+    );
+    water.rotation.x = -Math.PI / 2;
+    water.position.y = 0.1;
+    well.add(water);
+    well.position.set(0, 0, 2);
+    scene.add(well);
+
+    // NPCs (Characters from the novel)
+    const npcColors = [0xFF69B4, 0x228B22, 0xFF8C00, 0x4169E1];
+    const npcNames = ['صوفيا', 'ثريا', 'جون', 'الإسكندر'];
+    npcColors.forEach((color, i) => {
+        const npc = new THREE.Group();
+        const body = new THREE.Mesh(
+            new THREE.BoxGeometry(0.4, 0.8, 0.2),
+            new THREE.MeshLambertMaterial({ color: color })
+        );
+        body.position.y = 0.4;
+        npc.add(body);
+        const head = new THREE.Mesh(
+            new THREE.BoxGeometry(0.25, 0.25, 0.25),
+            new THREE.MeshLambertMaterial({ color: 0xf5c6a0 })
+        );
+        head.position.y = 0.95;
+        npc.add(head);
+        npc.position.set(-2 + i * 1.5, 0, 0);
+        scene.add(npc);
+    });
+
+    // Labels (floating text)
+    // Info points
+    const infoPoints = [
+        { pos: [0, 2, -8], text: 'مسجد القرية' },
+        { pos: [0, 1, 2], text: 'بئر النخلة' },
+        { pos: [-4, 2, -4], text: 'بيت صوفيا' },
+        { pos: [4, 2, -3], text: 'بيت جون' }
+    ];
+}
+
+async function enterVR() {
+    if (!navigator.xr) return;
+    try {
+        const session = await navigator.xr.requestSession('immersive-vr', {
+            requiredFeatures: ['local-floor']
+        });
+        vrSession = session;
+        isVR = true;
+        renderer.xr.setSession(session);
+        document.getElementById('vr-btn').style.display = 'none';
+        document.getElementById('exit-vr').style.display = 'block';
+        document.getElementById('info').style.display = 'none';
+
+        session.addEventListener('end', () => {
+            isVR = false;
+            vrSession = null;
+            document.getElementById('vr-btn').style.display = 'block';
+            document.getElementById('exit-vr').style.display = 'none';
+            document.getElementById('info').style.display = 'block';
+        });
+    } catch (e) {
+        alert('⚠️ لا يوجد جهاز VR متصل.\nلتجربة VR استخدم:\n• Google Cardboard\n• Oculus Quest\n• Samsung Gear VR');
+    }
+}
+
+function exitVR() {
+    if (vrSession) {
+        vrSession.end();
+    }
+}
+
+function animate() {
+    renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+    });
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+init();
+</script>
+
+</body>
+</html>

@@ -12,18 +12,10 @@ html, body { width:100%; height:100%; background:#0a080d; font-family:'Segoe UI'
 
 #stage { position:fixed; inset:0; overflow:hidden; }
 
-/* الصورة الخلفية — بديل مؤقت (رسم مبسط لقلعة) لحين توفير صورة حقيقية لقلعة بهلا */
-#photoBg { position:absolute; inset:0; background:linear-gradient(180deg,#7a6a52 0%,#a8916c 55%,#c9b490 100%); filter:blur(18px) brightness(0.45); transition:filter 0.6s ease; }
+/* صورة حقيقية لقلعة بهلا (Wikimedia Commons، CC BY-SA 4.0) */
+#photoBg { position:absolute; inset:0; background:url('assets/bahla-fort.jpg') center 60%/cover; filter:blur(18px) brightness(0.45); transition:filter 0.6s ease; }
 #photoBg.revealed { filter:blur(0px) brightness(1); }
-.fort-art { position:absolute; bottom:0; left:0; right:0; height:55%; }
-.fort-tower { position:absolute; bottom:0; width:14%; background:#8a7358; border:2px solid #5c4a36; }
-.fort-tower.t1 { left:8%; height:70%; }
-.fort-tower.t2 { left:26%; height:100%; }
-.fort-tower.t3 { left:44%; height:60%; }
-.fort-tower.t4 { left:62%; height:85%; }
-.fort-tower.t5 { left:80%; height:65%; }
-.fort-crenel { position:absolute; top:0; left:0; right:0; height:8%; background:repeating-linear-gradient(90deg,#5c4a36 0 12%,transparent 12% 24%); }
-.fort-sun { position:absolute; top:8%; right:12%; width:70px; height:70px; border-radius:50%; background:radial-gradient(circle,#ffe0a8,rgba(255,224,168,0)); }
+#photoCredit { position:fixed; bottom:6px; left:10px; font-size:10px; color:rgba(232,213,181,0.35); z-index:15; direction:ltr; unicode-bidi:isolate; }
 
 #dimOverlay { position:absolute; inset:0; background:rgba(6,5,9,0.55); transition:opacity 0.6s ease; z-index:2; pointer-events:none; }
 
@@ -63,23 +55,14 @@ html, body { width:100%; height:100%; background:#0a080d; font-family:'Segoe UI'
 </head>
 <body>
 
-<div class="note">عرض تجريبي لفكرة "ستارة الحروف" — الخلفية رسم مبسط مؤقت لحين توفير صورة حقيقية لقلعة بهلا. اسحبوا الحروف الصحيحة للأسفل.</div>
+<div class="note">عرض تجريبي لفكرة "ستارة الحروف" — اسحبوا الحروف الصحيحة للأسفل لكشف قلعة بهلا.</div>
 
 <div id="stage">
-  <div id="photoBg">
-    <div class="fort-art">
-      <div class="fort-crenel"></div>
-      <div class="fort-tower t1"></div>
-      <div class="fort-tower t2"></div>
-      <div class="fort-tower t3"></div>
-      <div class="fort-tower t4"></div>
-      <div class="fort-tower t5"></div>
-    </div>
-    <div class="fort-sun"></div>
-  </div>
+  <div id="photoBg"></div>
   <div id="dimOverlay"></div>
   <div id="curtain"></div>
 </div>
+<div id="photoCredit">Photo: Bahla Fort — Wikimedia Commons, CC BY-SA 4.0</div>
 
 <div class="top-hud">
   <button id="hintBtn">📜 Hint</button>
@@ -275,6 +258,23 @@ function simulateCurtain(dt, actor) {
     }
   }
 
+  // تحديد أقصى سرعة — بدونها سحب سريع (خصوصاً لحرف عميق بمنتصف السلسلة)
+  // يسبب انفجار عددي بقيود الحبل ويطيّر حروف أخرى بعيد عن الشاشة كلياً
+  const vmax = 1100, vmaxDt = vmax * dt;
+  for (let c = 0; c < pts.length; c++) {
+    for (let r = 1; r < pts[c].length; r++) {
+      const p = pts[c][r];
+      if (p.held) continue;
+      const vx = p.x - p.px, vy = p.y - p.py;
+      const v = Math.hypot(vx, vy);
+      if (v > vmaxDt) {
+        const s = vmaxDt / v;
+        p.px = p.x - vx * s;
+        p.py = p.y - vy * s;
+      }
+    }
+  }
+
   // عرض: نحدّث موضع كل عنصر DOM من نتيجة الفيزياء
   for (let c = 0; c < pts.length; c++) {
     for (let r = 0; r < pts[c].length; r++) {
@@ -338,10 +338,33 @@ let held = null; // { col, row, el }
 let lastPX = 0, lastPY = 0, actorVX = 0, actorVY = 0;
 let startY = 0;
 
+// لو الفيزياء حركت الحرف شوي أثناء لحظة الضغط (حتى لو بكسلات قليلة)، نمسك
+// أقرب حرف فعلياً بدل ما نعتمد فقط على hit-test من عنصر DOM — أدق وأكثر تسامحاً
+// مع اللمس على الجوال
+function findNearestLetter(x, y, maxDist) {
+  let best = null, bestD = maxDist * maxDist;
+  for (let c = 0; c < pts.length; c++) {
+    for (let r = 1; r < pts[c].length; r++) {
+      const p = pts[c][r];
+      const dx = p.x - x, dy = p.y - y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD) { bestD = d2; best = { col: c, row: r, el: p.el }; }
+    }
+  }
+  return best;
+}
+
 curtainEl.addEventListener('pointerdown', (e) => {
-  const el = e.target.closest('.letter');
+  let el = e.target.closest('.letter');
+  let col, row;
+  if (el) {
+    col = +el.dataset.col; row = +el.dataset.row;
+  } else {
+    const nearest = findNearestLetter(e.clientX, e.clientY, 26);
+    if (!nearest) return;
+    ({ col, row, el } = nearest);
+  }
   if (!el || el.classList.contains('flying') || el.classList.contains('gone')) return;
-  const col = +el.dataset.col, row = +el.dataset.row;
   const p = pts[col][row];
   if (row === 0) return; // الصف 0 مثبّت دائماً، مو قابل للسحب
   p.held = true;

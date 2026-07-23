@@ -121,6 +121,9 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0a0705; font-
     كل مستوى فيه نفس قرية القرواشية بطقس ووقت مختلف. اجمعوا كل المفردات في المستوى لتحصلوا على فسيلة تمر،
     ثم وصّلوها إلى البيت المحتاج (يضيء باللون الأخضر) لفتح المستوى التالي.
   </div>
+  <div class="desc" style="font-size:10px; opacity:0.6;">
+    نموذج القلعة بمستوى ٣٥ عمل "Persian City" من farhad.Guli عبر Sketchfab (رخصة CC-BY-4.0).
+  </div>
   <button class="btn" id="backFromHelpBtn">رجوع</button>
 </div>
 
@@ -201,6 +204,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 const TOTAL_LEVELS = 36;
 const WORLD_SCALE = 1 / 40; // convert 2D level coords (0-2400 x 0-1800) to 3D world units
@@ -953,6 +958,8 @@ let ground = null;
 // ===================== PLAYER =====================
 function createPlayer() {
   const group = new THREE.Group();
+  const primitiveGroup = new THREE.Group();
+  group.add(primitiveGroup);
   const robeMat = new THREE.MeshStandardMaterial({ color: 0xd4c5a9, roughness: 0.8 });
   const trimMat = new THREE.MeshStandardMaterial({ color: 0x5a1028, roughness: 0.7 });
   const skinMat = new THREE.MeshStandardMaterial({ color: 0xc8a880, roughness: 0.6 });
@@ -961,42 +968,46 @@ function createPlayer() {
   const torso = new THREE.Mesh(torsoGeo, robeMat);
   torso.position.y = 0.9;
   torso.castShadow = true;
-  group.add(torso);
+  primitiveGroup.add(torso);
 
   const trimGeo = new THREE.TorusGeometry(0.23, 0.03, 8, 16);
   const trim = new THREE.Mesh(trimGeo, trimMat);
   trim.position.y = 1.35;
   trim.rotation.x = Math.PI / 2;
-  group.add(trim);
+  primitiveGroup.add(trim);
 
   const headGeo = new THREE.SphereGeometry(0.16, 16, 16);
   const head = new THREE.Mesh(headGeo, skinMat);
   head.position.y = 1.58;
   head.castShadow = true;
-  group.add(head);
+  primitiveGroup.add(head);
 
   const capGeo = new THREE.SphereGeometry(0.17, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
   const cap = new THREE.Mesh(capGeo, robeMat);
   cap.position.y = 1.6;
-  group.add(cap);
+  primitiveGroup.add(cap);
 
   const armGeo = new THREE.CapsuleGeometry(0.06, 0.5, 4, 8);
   const leftArm = new THREE.Mesh(armGeo, robeMat);
   leftArm.position.set(-0.28, 1.0, 0);
   leftArm.castShadow = true;
-  group.add(leftArm);
+  primitiveGroup.add(leftArm);
   const rightArm = leftArm.clone();
   rightArm.position.set(0.28, 1.0, 0);
-  group.add(rightArm);
+  primitiveGroup.add(rightArm);
 
   const legGeo = new THREE.CapsuleGeometry(0.08, 0.5, 4, 8);
   const leftLeg = new THREE.Mesh(legGeo, robeMat);
   leftLeg.position.set(-0.12, 0.3, 0);
   leftLeg.castShadow = true;
-  group.add(leftLeg);
+  primitiveGroup.add(leftLeg);
   const rightLeg = leftLeg.clone();
   rightLeg.position.set(0.12, 0.3, 0);
-  group.add(rightLeg);
+  primitiveGroup.add(rightLeg);
+
+  const accentLight = new THREE.PointLight(0x00e5ff, 0.8, 3);
+  accentLight.position.set(0, 1.4, 0);
+  group.add(accentLight);
 
   group.userData = {
     velocity: new THREE.Vector3(),
@@ -1005,6 +1016,7 @@ function createPlayer() {
     runSpeed: 0.17,
     jumpForce: 0.24,
     leftArm, rightArm, leftLeg, rightLeg, head,
+    primitiveGroup, modelGroup: null,
     animTime: 0,
     jumpPressed: false
   };
@@ -1013,6 +1025,57 @@ function createPlayer() {
   return group;
 }
 const player = createPlayer();
+
+// ===================== REAL 3D ASSETS (Arab male teacher character + fortress-city landmark) =====================
+const gltfLoader = new GLTFLoader();
+gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+
+function fitAndCenterModel(root, targetHeight) {
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const scale = targetHeight / (size.y || 1);
+  const wrapper = new THREE.Group();
+  root.position.set(-center.x, -box.min.y, -center.z);
+  wrapper.add(root);
+  wrapper.scale.setScalar(scale);
+  return wrapper;
+}
+function fitModelToFootprint(root, targetWidth) {
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const scale = targetWidth / (Math.max(size.x, size.z) || 1);
+  const wrapper = new THREE.Group();
+  root.position.set(-center.x, -box.min.y, -center.z);
+  wrapper.add(root);
+  wrapper.scale.setScalar(scale);
+  return wrapper;
+}
+
+gltfLoader.load('./assets/arab-male-teacher.glb', (gltf) => {
+  const model = fitAndCenterModel(gltf.scene, 1.8);
+  model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  player.userData.modelGroup = model;
+  player.add(model);
+  updateBodyVisibility();
+}, undefined, () => { /* keep the primitive placeholder if the asset fails to load */ });
+
+let fortressModel = null;
+const FORTRESS_FOOTPRINT = 22;
+gltfLoader.load('./assets/persian-city-fortress.glb', (gltf) => {
+  const model = fitModelToFootprint(gltf.scene, FORTRESS_FOOTPRINT);
+  model.traverse(o => {
+    if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+  });
+  const rimLight1 = new THREE.PointLight(0x00e5ff, 3, 20);
+  rimLight1.position.set(4, 6, 4);
+  model.add(rimLight1);
+  const rimLight2 = new THREE.PointLight(0xd63384, 3, 20);
+  rimLight2.position.set(-4, 6, -4);
+  model.add(rimLight2);
+  fortressModel = model;
+}, undefined, () => { /* fortress landmark simply won't appear if it fails to load */ });
 
 // ===================== INPUT =====================
 const keys = {};
@@ -1053,10 +1116,17 @@ function isDown(c) { return keys[c] || touch[c]; }
 
 let cameraMode = 'first';
 let cameraOffset = new THREE.Vector3(0, 1.55, 0.15);
+function updateBodyVisibility() {
+  const showBody = cameraMode === 'third';
+  player.userData.primitiveGroup.visible = showBody && !player.userData.modelGroup;
+  if (player.userData.modelGroup) player.userData.modelGroup.visible = showBody;
+}
 function toggleCamera() {
   cameraMode = cameraMode === 'first' ? 'third' : 'first';
   cameraOffset = cameraMode === 'first' ? new THREE.Vector3(0, 1.55, 0.15) : new THREE.Vector3(0, 2.6, 4.2);
+  updateBodyVisibility();
 }
+updateBodyVisibility();
 
 // ===================== FREE-LOOK (mouse drag / pointer lock on desktop, touch-drag on mobile) =====================
 let yaw = 0, pitch = 0;
@@ -1602,6 +1672,17 @@ function generateVillage(levelNum) {
   if (!climbableAssigned) buildPalm(0, -6 / WORLD_SCALE, 60, true);
 
   buildSpiderMonument(-w * 0.2 * WORLD_SCALE, -h * 0.2 * WORLD_SCALE);
+
+  if (fortressModel) {
+    scene.remove(fortressModel);
+    if (levelNum === 35) {
+      const fx = w * 0.15 * WORLD_SCALE, fz = h * 0.15 * WORLD_SCALE;
+      fortressModel.position.set(fx, 0, fz);
+      scene.add(fortressModel);
+      const r = FORTRESS_FOOTPRINT / 2;
+      STATE.buildingBoxes.push({ minX: fx - r, maxX: fx + r, minZ: fz - r, maxZ: fz + r, isPoorHouse: false, cx: fx, cz: fz });
+    }
+  }
 
   // Vocabulary + NPCs from the ported 2D data
   const vocab = levelVocabularies[levelNum] || [];

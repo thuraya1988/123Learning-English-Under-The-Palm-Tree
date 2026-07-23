@@ -1,0 +1,2356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SILK ATLAS — Building Eaves + Text Curtain</title>
+<style>
+/* ============================================================
+   SILK ATLAS — aged-paper editorial stage
+   Design baseline 1848x1080. #ui lives in design coordinates,
+   scaled by JS with the same transform used for the canvas.
+   ============================================================ */
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  overflow: hidden;
+  background: #d9ccb2; /* flat warm letterbox tone */
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#stage {
+  position: absolute; left: 0; top: 0;
+  display: block;
+  cursor: none;                 /* custom cursor drawn on canvas */
+  touch-action: none;           /* pointer events drive the curtain */
+}
+#ui {
+  position: absolute;
+  width: 1848px; height: 1080px;
+  transform-origin: 0 0;
+  pointer-events: none;         /* only .interactive children take events */
+  overflow: hidden;
+  font-family: Georgia, "Times New Roman", "Noto Serif", serif;
+  color: #33261b;
+}
+#ui .interactive { pointer-events: auto; }
+
+/* ---------- header ---------- */
+header.top {
+  position: absolute; left: 100px; top: 44px;
+  display: flex; align-items: center; gap: 34px;
+  transition: opacity .25s ease;
+}
+.brand {
+  display: flex; align-items: center; gap: 11px;
+  font-style: italic; font-size: 15px; letter-spacing: .03em;
+  color: #33261b; white-space: nowrap;
+}
+.seal {
+  width: 8px; height: 8px; flex: 0 0 auto;
+  border: 1.4px solid #8a3b22;
+  transform: rotate(45deg);
+}
+nav { display: flex; gap: 26px; align-items: center; }
+nav a, nav span {
+  font-size: 11.5px; letter-spacing: .14em; color: #6a5a47;
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+  transition: color .18s ease;
+}
+nav a:hover { color: #33261b; }
+nav span { cursor: default; opacity: .75; }
+#configure {
+  position: absolute; right: 100px; top: 40px;
+  background: #3a2c20; color: #e8dcc4;
+  font-size: 11.5px; letter-spacing: .1em;
+  padding: 9px 20px; border-radius: 999px;
+  cursor: pointer; white-space: nowrap;
+  transition: opacity .18s ease;
+}
+#configure:hover { opacity: .88; }
+
+/* ---------- hero copy ---------- */
+#kicker {
+  position: absolute; left: 100px; top: 506px; width: 460px;
+  font-size: 12.5px; letter-spacing: .18em; color: #7a6a55;
+  white-space: nowrap;
+  transition: opacity .25s ease;
+}
+#title {
+  position: absolute; left: 100px; top: 534px; width: 406px;
+  font-family: Didot, "Bodoni MT", "Playfair Display", Georgia, "Times New Roman", serif;
+  font-size: 58px; line-height: 1.04; font-weight: 500;
+  color: #33261b; letter-spacing: 0;
+  transition: opacity .25s ease;
+}
+#desc {
+  position: absolute; left: 1448px; top: 905px; width: 300px;
+  font-size: 12px; line-height: 1.55; color: #6a5a47;
+  transition: opacity .25s ease;
+}
+
+/* ---------- side destination cards ---------- */
+.card {
+  position: absolute; width: 96px; top: 286px;
+  cursor: pointer;
+  transition: transform .2s ease, opacity .25s ease;
+}
+#cardL { left: 102px; }
+#cardR { left: 1650px; }
+.card .frame {
+  width: 96px; height: 86px; box-sizing: border-box;
+  border: 1px solid rgba(90,70,50,.35);
+  background: rgba(238,230,211,.55);
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .2s ease;
+}
+.card:hover .frame { border-color: rgba(58,42,28,.62); }
+.card:hover { transform: translateY(-2px); }
+.card canvas { width: 84px; height: 56px; display: block; }
+.card .cap {
+  margin-top: 9px; text-align: center;
+  font-size: 10.5px; letter-spacing: .22em; color: #7a6a55;
+}
+
+/* ---------- bottom hint ---------- */
+#hint {
+  position: absolute; left: 924px; top: 1010px;
+  transform: translateX(-50%);
+  text-align: center;
+  font-size: 10px; letter-spacing: .3em; color: #7a6a55;
+  white-space: nowrap;
+  transition: opacity .25s ease;
+}
+#hint::before {
+  content: ""; display: block;
+  width: 24px; height: 1px;
+  background: rgba(122,106,85,.55);
+  margin: 0 auto 10px;
+}
+
+/* ---------- gallery ---------- */
+.door {
+  position: absolute; width: 380px; height: 640px; top: 220px;
+  cursor: pointer;
+  transition: opacity .3s ease, transform .3s ease;
+}
+.door .gcap {
+  position: absolute; left: 0; right: 0; top: 600px;
+  text-align: center;
+}
+.door .gname {
+  font-family: Didot, "Bodoni MT", Georgia, "Times New Roman", serif;
+  font-size: 15px; letter-spacing: .06em; color: #33261b;
+}
+.door .gkick {
+  margin-top: 5px;
+  font-size: 9.5px; letter-spacing: .16em; color: #7a6a55;
+  white-space: nowrap;
+}
+
+/* ---------- fade helpers (JS toggles) ---------- */
+.faded { opacity: 0 !important; }
+
+/* ---------- mobile ---------- */
+.mobile .card, .mobile #desc { display: none; }
+.mobile #title { font-size: 46px; width: 340px; }
+.mobile #kicker { width: 340px; white-space: normal; }
+.mobile nav { display: none; }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="ui">
+  <header class="top" id="hdr">
+    <div class="brand"><span class="seal"></span><span>SILK ATLAS</span></div>
+    <nav>
+      <a id="navHome" class="interactive">Home</a>
+      <a id="navDest" class="interactive">Destinations</a>
+      <span>Community</span>
+    </nav>
+  </header>
+  <div id="configure" class="interactive">Configure</div>
+
+  <div id="kicker"></div>
+  <div id="title"></div>
+  <div id="desc"></div>
+
+  <div id="cardL" class="card interactive">
+    <div class="frame"><canvas id="thumbL" width="168" height="112"></canvas></div>
+    <div class="cap" id="capL"></div>
+  </div>
+  <div id="cardR" class="card interactive">
+    <div class="frame"><canvas id="thumbR" width="168" height="112"></canvas></div>
+    <div class="cap" id="capR"></div>
+  </div>
+
+  <div id="hint">DRAG THROUGH THE CURTAIN</div>
+
+  <div id="doors"></div>
+</div>
+<script>
+'use strict';
+
+/* ============================================================
+   1. Utilities
+   ============================================================ */
+const W = 1848, H = 1080;            // design baseline
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp  = (a, b, t) => a + (b - a) * t;
+const easeInCubic  = t => t * t * t;
+const easeInQuad   = t => t * t;
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+const easeOutBack  = (t, s) => { s = s || 1.15; const u = t - 1; return 1 + (s + 1) * u * u * u + s * u * u; };
+const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+const REDUCED = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) || false;
+
+/* ============================================================
+   2. Stage, coordinate system, resize
+   ============================================================ */
+const stage = document.getElementById('stage');
+const ctx   = stage.getContext('2d');
+const ui    = document.getElementById('ui');
+
+let vw = 0, vh = 0, dpr = 1, scale = 1, ox = 0, oy = 0;
+let paperCanvas = null;
+let bgCanvas = null;   // full-window device-res background (letterbox + paper)
+
+function resize() {
+  vw = window.innerWidth; vh = window.innerHeight;
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  stage.width  = Math.max(1, Math.round(vw * dpr));
+  stage.height = Math.max(1, Math.round(vh * dpr));
+  stage.style.width  = vw + 'px';
+  stage.style.height = vh + 'px';
+  scale = Math.min(vw / W, vh / H);
+  ox = (vw - W * scale) / 2;
+  oy = (vh - H * scale) / 2;
+  ui.style.left = ox + 'px';
+  ui.style.top  = oy + 'px';
+  ui.style.transform = 'scale(' + scale + ')';
+  ui.classList.toggle('mobile', vw < 760);
+  buildPaper();
+  bgCanvas = document.createElement('canvas');
+  bgCanvas.width = stage.width; bgCanvas.height = stage.height;
+  const b = bgCanvas.getContext('2d');
+  b.setTransform(dpr, 0, 0, dpr, 0, 0);
+  b.fillStyle = '#d9ccb2';
+  b.fillRect(0, 0, vw, vh);
+  b.drawImage(paperCanvas, ox, oy, W * scale, H * scale);
+  // display-resolution caches must be rebuilt for the new scale
+  roofDispCache.clear();
+  sceneBgKey = null;
+  if (typeof curShadow !== 'undefined' && curShadow) curShadow.dirty = true;
+  if (typeof curCurtain !== 'undefined' && curCurtain) curCurtain.rebuildSprites();
+  if (typeof trans !== 'undefined' && trans && trans.fromCurtain) trans.fromCurtain.rebuildSprites();
+  if (typeof gallery !== 'undefined' && gallery) gallery.items.forEach(it => it.curtain.rebuildSprites());
+}
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(resize, 120);
+});
+
+/* Pointer (client px) -> design px */
+function toDesign(clientX, clientY) {
+  return { x: (clientX - ox) / scale, y: (clientY - oy) / scale };
+}
+
+/* ============================================================
+   3. Paper background (static grain, baked once per resize)
+   ============================================================ */
+function buildGrainTile() {
+  const t = document.createElement('canvas');
+  t.width = t.height = 256;
+  const c = t.getContext('2d');
+  const img = c.createImageData(256, 256);
+  const d = img.data;
+  const rnd = mulberry32(0x51A7);
+  for (let i = 0; i < d.length; i += 4) {
+    const r = rnd();
+    if (r > 0.986) {                 // sparse lighter fiber speck
+      d[i] = 255; d[i + 1] = 250; d[i + 2] = 236;
+      d[i + 3] = 14 + rnd() * 12;
+    } else {                         // fine dark grain
+      d[i] = 40; d[i + 1] = 30; d[i + 2] = 18;
+      d[i + 3] = rnd() * 14;
+    }
+  }
+  c.putImageData(img, 0, 0);
+  // a few short 1px fiber strokes
+  c.strokeStyle = 'rgba(96,76,50,0.07)';
+  c.lineWidth = 1;
+  for (let i = 0; i < 26; i++) {
+    const x = rnd() * 256, y = rnd() * 256;
+    const a = rnd() * TAU, l = 3 + rnd() * 9;
+    c.beginPath();
+    c.moveTo(x, y);
+    c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+    c.stroke();
+  }
+  return t;
+}
+const grainTile = buildGrainTile();
+
+function buildPaper() {
+  paperCanvas = document.createElement('canvas');
+  paperCanvas.width  = Math.max(2, Math.round(W * dpr));
+  paperCanvas.height = Math.max(2, Math.round(H * dpr));
+  const p = paperCanvas.getContext('2d');
+  p.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // vertical+radial hybrid base
+  const rg = p.createRadialGradient(W * 0.5, H * 0.42, H * 0.08, W * 0.5, H * 0.42, H * 0.95);
+  rg.addColorStop(0, '#eee6d3');
+  rg.addColorStop(0.62, '#e6dcc4');
+  rg.addColorStop(1, '#d9ccb2');
+  p.fillStyle = rg;
+  p.fillRect(0, 0, W, H);
+  const lg = p.createLinearGradient(0, H * 0.5, 0, H);
+  lg.addColorStop(0, 'rgba(120,95,60,0)');
+  lg.addColorStop(1, 'rgba(120,95,60,0.09)');
+  p.fillStyle = lg;
+  p.fillRect(0, 0, W, H);
+
+  // faint irregular warm stains
+  const rnd = mulberry32(0xBEEF);
+  for (let i = 0; i < 3; i++) {
+    const sx = W * (0.18 + rnd() * 0.64), sy = H * (0.15 + rnd() * 0.7);
+    const sr = 180 + rnd() * 320;
+    const sg = p.createRadialGradient(sx, sy, 0, sx, sy, sr);
+    sg.addColorStop(0, 'rgba(158,120,72,0.045)');
+    sg.addColorStop(1, 'rgba(158,120,72,0)');
+    p.fillStyle = sg;
+    p.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
+  }
+
+  // static grain pattern
+  p.fillStyle = p.createPattern(grainTile, 'repeat');
+  p.fillRect(0, 0, W, H);
+
+  // vignette
+  const vg = p.createRadialGradient(W / 2, H * 0.46, H * 0.34, W / 2, H * 0.52, H * 1.02);
+  vg.addColorStop(0, 'rgba(90,70,45,0)');
+  vg.addColorStop(1, 'rgba(90,70,45,0.16)');
+  p.fillStyle = vg;
+  p.fillRect(0, 0, W, H);
+}
+
+/* ============================================================
+   4. Procedural roofs (offscreen canvases @2x, reused by thumbs)
+   ============================================================ */
+const ROOF_SS = 2; // supersample factor -> crisp at DPR 2
+
+function roofCanvas(w, h) {
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(w * ROOF_SS);
+  cv.height = Math.round(h * ROOF_SS);
+  const c = cv.getContext('2d');
+  c.scale(ROOF_SS, ROOF_SS);
+  c.lineJoin = 'round';
+  c.lineCap = 'round';
+  return { cv, c };
+}
+/* soft silhouette edge so roofs sit INTO the paper */
+function featherRoof(raw, w, h) {
+  const out = document.createElement('canvas');
+  out.width = raw.width; out.height = raw.height;
+  const c = out.getContext('2d');
+  let blurred = false;
+  try {
+    c.filter = 'blur(1.1px)';
+    c.globalAlpha = 0.5;
+    c.drawImage(raw, 0, 0);
+    blurred = true;
+  } catch (e) { blurred = false; }
+  c.filter = 'none';
+  c.globalAlpha = 1;
+  c.drawImage(raw, 0, 0);
+  if (!blurred) { /* sharp only — still fine */ }
+  return out;
+}
+function sampleCurve(fn, n) {
+  const a = [];
+  for (let i = 0; i <= n; i++) a.push(fn(i / n));
+  return a;
+}
+function pathThrough(c, pts, close) {
+  c.beginPath();
+  c.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x, pts[i].y);
+  if (close) c.closePath();
+}
+function lerpPt(a, b, t) { return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) }; }
+
+/* ------------------------------------------------------------
+   4a. CHINA — double-eave golden palace roof (重檐)
+   bbox 680 x 300 (design px). Lower flying eave underside ~262,
+   curtain tucks in behind the shadow zone below it.
+   ------------------------------------------------------------ */
+function buildChinaRoof() {
+  const RW = 680, RH = 300;
+  const { cv, c } = roofCanvas(RW, RH);
+  const rnd = mulberry32(20240117);
+  const wob = () => (rnd() - 0.5) * 1.3;
+
+  /* ---- silhouette curves ---- */
+  // lower tier: top boundary (partially hidden behind band) and flying eave
+  const lTop = t => {
+    const u = Math.abs(t - 0.5) * 2;
+    return { x: lerp(22, 658, t), y: 178 + 26 * Math.pow(u, 3.0) };
+  };
+  const lEave = t => {
+    const u = Math.abs(t - 0.5) * 2;
+    return { x: lerp(6, 674, t), y: 252 - (12 * u + 34 * Math.pow(u, 6)) };
+  };
+  // upper tier (plane top tucks 4-6px UNDER the main ridge bar)
+  const uTop = t => {
+    const u = Math.abs(t - 0.5) * 2;
+    return { x: lerp(166, 514, t), y: 54 + 10 * Math.pow(u, 2.6) };
+  };
+  const uEave = t => {
+    const u = Math.abs(t - 0.5) * 2;
+    return { x: lerp(100, 580, t), y: 158 - (10 * u + 30 * Math.pow(u, 6)) };
+  };
+
+  /* ============ LOWER TIER roof plane ============ */
+  let pts = sampleCurve(lTop, 24);
+  const lEavePts = sampleCurve(lEave, 48);
+  c.beginPath();
+  c.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x, pts[i].y);
+  for (let i = lEavePts.length - 1; i >= 0; i--) c.lineTo(lEavePts[i].x, lEavePts[i].y);
+  c.closePath();
+  let g = c.createLinearGradient(0, 170, 0, 258);
+  g.addColorStop(0, '#e8b84b');
+  g.addColorStop(0.55, '#d39a33');
+  g.addColorStop(1, '#b57a22');
+  c.fillStyle = g;
+  c.fill();
+
+  /* tile ridge lines, fanning from top boundary to eave lip */
+  const NT = 116;
+  for (let i = 0; i < NT; i++) {
+    const t = (i + 0.5) / NT;
+    const p0 = lTop(t), p1 = lEave(t);
+    const out = (t - 0.5) * 2;                 // fan outward toward corners
+    const mx = (p0.x + p1.x) / 2 + out * 5 + wob();
+    const my = (p0.y + p1.y) / 2 + 7 + wob();  // concave sag of the slope
+    c.strokeStyle = i % 5 === 0 ? 'rgba(226,170,70,0.42)' : 'rgba(160,106,28,0.50)';
+    c.lineWidth = 1.15;
+    c.beginPath();
+    c.moveTo(p0.x + wob(), p0.y + wob());
+    c.quadraticCurveTo(mx, my, p1.x + wob(), p1.y + wob());
+    c.stroke();
+    // taper: fainter lower third
+    c.strokeStyle = 'rgba(160,106,28,0.22)';
+    const q0 = lerpPt(p0, p1, 0.62), q1 = lerpPt(p0, p1, 0.99);
+    c.beginPath();
+    c.moveTo(q0.x, q0.y);
+    c.quadraticCurveTo(lerp(mx, q1.x, 0.5), lerp(my, q1.y, 0.5), q1.x, q1.y);
+    c.stroke();
+  }
+  /* horizontal tile courses */
+  for (let k = 1; k <= 6; k++) {
+    const s = k / 7;
+    const row = [];
+    for (let i = 0; i <= 40; i++) {
+      const t = i / 40;
+      const p = lerpPt(lTop(t), lEave(t), s);
+      p.y += 4 * Math.sin(Math.PI * s);
+      row.push(p);
+    }
+    c.strokeStyle = 'rgba(138,90,26,0.25)';
+    c.lineWidth = 1;
+    pathThrough(c, row);
+    c.stroke();
+  }
+
+  /* lower hip ridges (visible wing top edges) + ridge beasts */
+  const drawLowerHip = (t0, t1) => {
+    const seg = [];
+    for (let i = 0; i <= 10; i++) seg.push(lTop(lerp(t0, t1, i / 10)));
+    c.strokeStyle = '#9a6a20';
+    c.lineWidth = 4.2;
+    pathThrough(c, seg); c.stroke();
+    c.strokeStyle = 'rgba(232,184,75,0.85)';
+    c.lineWidth = 1.4;
+    const segUp = seg.map(p => ({ x: p.x, y: p.y - 1.6 }));
+    pathThrough(c, segUp); c.stroke();
+    // beasts: small dots decreasing toward the corner + front figure
+    for (let b = 0; b < 5; b++) {
+      const bt = lerp(t0, t1, 0.3 + b * 0.14);
+      const p = lTop(bt);
+      const r = 3.1 - b * 0.38;
+      c.fillStyle = '#8a5c1c';
+      c.beginPath(); c.arc(p.x, p.y - 3.4, r, 0, TAU); c.fill();
+      c.fillStyle = 'rgba(232,184,75,0.7)';
+      c.beginPath(); c.arc(p.x - 0.7, p.y - 4.4, r * 0.4, 0, TAU); c.fill();
+    }
+    const pf = lTop(lerp(t0, t1, 0.12));
+    c.fillStyle = '#8a5c1c';
+    c.beginPath(); c.arc(pf.x, pf.y - 4.2, 3.8, 0, TAU); c.fill();   // immortal figure
+    c.fillRect(pf.x - 3, pf.y - 2.4, 6, 2.6);                        // its little base
+  };
+  drawLowerHip(0.005, 0.185);
+  drawLowerHip(0.815, 0.995);
+
+  /* eave-end dark band + semicircular tile-end caps */
+  const eaveBandPts = lEavePts.map(p => ({ x: p.x, y: p.y - 6 }));
+  c.strokeStyle = 'rgba(122,72,18,0.5)';
+  c.lineWidth = 9;
+  pathThrough(c, eaveBandPts); c.stroke();
+  for (let t = 0.012; t < 0.995; t += 0.0162) {
+    const p = lEave(t);
+    c.fillStyle = '#8a5a1a';
+    c.beginPath();
+    c.arc(p.x + wob() * 0.5, p.y - 2.4, 2.7, Math.PI, 0); // semicircle cap
+    c.fill();
+    c.strokeStyle = 'rgba(90,31,20,0.8)';
+    c.lineWidth = 1;
+    c.beginPath();                                    // drip tile hint
+    c.moveTo(p.x + 4.6, p.y - 1);
+    c.lineTo(p.x + 4.6, p.y + 2.6);
+    c.stroke();
+  }
+
+  /* fascia board + rafter ends under the lower eave */
+  const fasTop = lEavePts.map(p => ({ x: p.x, y: p.y + 1.5 }));
+  const fasBot = lEavePts.map(p => ({ x: p.x, y: p.y + 9.5 }));
+  c.beginPath();
+  c.moveTo(fasTop[0].x, fasTop[0].y);
+  for (let i = 1; i < fasTop.length; i++) c.lineTo(fasTop[i].x, fasTop[i].y);
+  for (let i = fasBot.length - 1; i >= 0; i--) c.lineTo(fasBot[i].x, fasBot[i].y);
+  c.closePath();
+  c.fillStyle = '#5a1f14';
+  c.fill();
+  for (let row = 0; row < 2; row++) {
+    const off = 13.5 + row * 5;
+    c.fillStyle = 'rgba(202,164,106,' + (0.72 - row * 0.22) + ')';
+    for (let t = 0.02; t < 0.99; t += 0.0098) {
+      const p = lEave(t);
+      c.beginPath();
+      c.arc(p.x, p.y + off, 1.15, 0, TAU);
+      c.fill();
+    }
+  }
+
+  /* ============ DOUGONG band (tucked UNDER the upper eave — no paper gap) ============ */
+  const bx0 = 134, bx1 = 546, by1 = 205;
+  const bandTopY = x => uEave((x - 100) / 480).y + 4;   // top edge follows the eave, tucked 4px under its lip
+  const topPts = [];
+  for (let x = bx0; x <= bx1; x += 6) topPts.push({ x, y: bandTopY(x) });
+  c.beginPath();
+  c.moveTo(bx0, topPts[0].y);
+  for (let i = 1; i < topPts.length; i++) c.lineTo(topPts[i].x, topPts[i].y);
+  c.lineTo(bx1 - 4, by1);
+  c.quadraticCurveTo((bx0 + bx1) / 2, by1 + 4, bx0 + 4, by1);
+  c.closePath();
+  c.fillStyle = '#7c2f1c';
+  c.fill();
+  c.save();
+  c.clip();
+  // deep warm shadow on the band's top portion (cast by the upper eave)
+  const ushad = c.createLinearGradient(0, 138, 0, 188);
+  ushad.addColorStop(0, 'rgba(42,13,6,0.68)');
+  ushad.addColorStop(0.55, 'rgba(42,13,6,0.35)');
+  ushad.addColorStop(1, 'rgba(42,13,6,0)');
+  c.fillStyle = ushad;
+  c.fillRect(bx0, 136, bx1 - bx0, 54);
+  // blue-green accent stripe following the curved top edge
+  c.strokeStyle = '#3d5a55';
+  c.lineWidth = 3.2;
+  pathThrough(c, topPts.map(p => ({ x: p.x, y: p.y + 10 })));
+  c.stroke();
+  c.strokeStyle = 'rgba(20,40,38,0.6)';
+  c.lineWidth = 1.2;
+  pathThrough(c, topPts.map(p => ({ x: p.x, y: p.y + 13.4 })));
+  c.stroke();
+  // bracket clusters, y following the curved top
+  const step = 16.4;
+  for (let x = bx0 + 12; x < bx1 - 6; x += step) {
+    const by0 = bandTopY(x) + 15;
+    c.fillStyle = '#b0522c';
+    c.fillRect(x - 7, by0 + 7, 14, 3.4);        // cap block
+    c.fillStyle = '#a04a28';
+    c.fillRect(x - 5.5, by0 + 11.4, 11, 3.1);   // corbel step 1
+    c.fillRect(x - 4, by0 + 15.4, 8, 3);        // corbel step 2
+    c.fillRect(x - 9.2, by0 + 12, 3.2, 2.4);    // arm L
+    c.fillRect(x + 6, by0 + 12, 3.2, 2.4);      // arm R
+    c.fillStyle = '#5a1c10';
+    c.fillRect(x - 3.2, by0 + 19.4, 6.4, 5);    // base block
+    c.fillStyle = 'rgba(232,150,90,0.35)';      // top edge light on cap
+    c.fillRect(x - 7, by0 + 7, 14, 1.1);
+    c.fillStyle = 'rgba(30,8,4,0.45)';          // gap shadow
+    c.fillRect(x + step / 2 - 1.1, by0 + 6, 1.6, by1 - by0 - 10);
+  }
+  // side shading
+  let bs = c.createLinearGradient(bx0, 0, bx0 + 60, 0);
+  bs.addColorStop(0, 'rgba(40,12,6,0.5)'); bs.addColorStop(1, 'rgba(40,12,6,0)');
+  c.fillStyle = bs; c.fillRect(bx0, 140, 60, by1 - 140 + 4);
+  bs = c.createLinearGradient(bx1, 0, bx1 - 60, 0);
+  bs.addColorStop(0, 'rgba(40,12,6,0.55)'); bs.addColorStop(1, 'rgba(40,12,6,0)');
+  c.fillStyle = bs; c.fillRect(bx1 - 60, 140, 60, by1 - 140 + 4);
+  c.fillStyle = 'rgba(30,8,4,0.8)';
+  c.fillRect(bx0 + 2, by1 - 1.6, bx1 - bx0 - 4, 1.8);   // band bottom line
+  c.restore();
+
+  /* ============ UPPER TIER roof plane ============ */
+  pts = sampleCurve(uTop, 20);
+  const uEavePts = sampleCurve(uEave, 40);
+  c.beginPath();
+  c.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x, pts[i].y);
+  for (let i = uEavePts.length - 1; i >= 0; i--) c.lineTo(uEavePts[i].x, uEavePts[i].y);
+  c.closePath();
+  g = c.createLinearGradient(0, 58, 0, 164);
+  g.addColorStop(0, '#eab94c');
+  g.addColorStop(0.55, '#d49c34');
+  g.addColorStop(1, '#b57a22');
+  c.fillStyle = g;
+  c.fill();
+
+  const NTU = 88;
+  for (let i = 0; i < NTU; i++) {
+    const t = (i + 0.5) / NTU;
+    const p0 = uTop(t), p1 = uEave(t);
+    const out = (t - 0.5) * 2;
+    const mx = (p0.x + p1.x) / 2 + out * 4 + wob();
+    const my = (p0.y + p1.y) / 2 + 6 + wob();
+    c.strokeStyle = i % 5 === 0 ? 'rgba(228,172,72,0.45)' : 'rgba(160,106,28,0.52)';
+    c.lineWidth = 1.1;
+    c.beginPath();
+    c.moveTo(p0.x + wob(), p0.y + wob());
+    c.quadraticCurveTo(mx, my, p1.x + wob(), p1.y + wob());
+    c.stroke();
+  }
+  for (let k = 1; k <= 4; k++) {
+    const s = k / 5;
+    const row = [];
+    for (let i = 0; i <= 32; i++) {
+      const t = i / 32;
+      const p = lerpPt(uTop(t), uEave(t), s);
+      p.y += 3 * Math.sin(Math.PI * s);
+      row.push(p);
+    }
+    c.strokeStyle = 'rgba(138,90,26,0.25)';
+    c.lineWidth = 1;
+    pathThrough(c, row); c.stroke();
+  }
+
+  /* upper hip ridges with beast rows */
+  const drawUpperHip = (x0, y0, cx0, cy0, x1, y1) => {
+    const seg = [];
+    for (let i = 0; i <= 12; i++) {
+      const t = i / 12, u = 1 - t;
+      seg.push({
+        x: u * u * x0 + 2 * u * t * cx0 + t * t * x1,
+        y: u * u * y0 + 2 * u * t * cy0 + t * t * y1
+      });
+    }
+    c.strokeStyle = '#9a6a20';
+    c.lineWidth = 4.6;
+    pathThrough(c, seg); c.stroke();
+    c.strokeStyle = 'rgba(232,184,75,0.9)';
+    c.lineWidth = 1.5;
+    pathThrough(c, seg.map(p => ({ x: p.x, y: p.y - 1.7 }))); c.stroke();
+    // 5 walking beasts decreasing toward corner + immortal at front
+    for (let b = 0; b < 5; b++) {
+      const p = seg[Math.round(lerp(4, 10, b / 4))];
+      const r = 3.2 - b * 0.4;
+      c.fillStyle = '#8a5c1c';
+      c.beginPath(); c.arc(p.x, p.y - 3.6, r, 0, TAU); c.fill();
+      c.fillStyle = 'rgba(232,184,75,0.75)';
+      c.beginPath(); c.arc(p.x - 0.7, p.y - 4.6, r * 0.42, 0, TAU); c.fill();
+    }
+    const pf = seg[11];
+    c.fillStyle = '#8a5c1c';
+    c.beginPath(); c.arc(pf.x, pf.y - 4.6, 4, 0, TAU); c.fill();
+    c.fillRect(pf.x - 3.2, pf.y - 2.6, 6.4, 2.8);
+  };
+  drawUpperHip(174, 62, 128, 90, 101, 120);
+  drawUpperHip(506, 62, 552, 90, 579, 120);
+
+  /* upper eave-end band + caps + fascia + rafters */
+  const uBandPts = uEavePts.map(p => ({ x: p.x, y: p.y - 5.5 }));
+  c.strokeStyle = 'rgba(122,72,18,0.5)';
+  c.lineWidth = 8;
+  pathThrough(c, uBandPts); c.stroke();
+  for (let t = 0.015; t < 0.99; t += 0.0205) {
+    const p = uEave(t);
+    c.fillStyle = '#8a5a1a';
+    c.beginPath();
+    c.arc(p.x + wob() * 0.5, p.y - 2.2, 2.5, Math.PI, 0);
+    c.fill();
+  }
+  const ufT = uEavePts.map(p => ({ x: p.x, y: p.y + 1.5 }));
+  const ufB = uEavePts.map(p => ({ x: p.x, y: p.y + 8.5 }));
+  c.beginPath();
+  c.moveTo(ufT[0].x, ufT[0].y);
+  for (let i = 1; i < ufT.length; i++) c.lineTo(ufT[i].x, ufT[i].y);
+  for (let i = ufB.length - 1; i >= 0; i--) c.lineTo(ufB[i].x, ufB[i].y);
+  c.closePath();
+  c.fillStyle = '#5a1f14';
+  c.fill();
+  /* soffit: dark warm underside hugging the upper eave along its FULL width,
+     thickening toward the flying corners — the overhang never floats over paper */
+  const sofB = uEavePts.map(p => {
+    const uu = Math.abs(p.x - 340) / 240;
+    return { x: p.x, y: p.y + 8 + 15 * Math.pow(uu, 3) };
+  });
+  c.beginPath();
+  c.moveTo(uEavePts[0].x, uEavePts[0].y + 7.5);
+  for (let i = 1; i < uEavePts.length; i++) c.lineTo(uEavePts[i].x, uEavePts[i].y + 7.5);
+  for (let i = sofB.length - 1; i >= 0; i--) c.lineTo(sofB[i].x, sofB[i].y);
+  c.closePath();
+  g = c.createLinearGradient(0, 148, 0, 180);
+  g.addColorStop(0, 'rgba(42,13,6,0.85)');
+  g.addColorStop(1, 'rgba(42,13,6,0.45)');
+  c.fillStyle = g;
+  c.fill();
+
+  /* extra AO cast down the recessed dougong band top (band width only) */
+  const aoT = [], aoB = [];
+  for (let x = bx0; x <= bx1; x += 8) {
+    aoT.push({ x, y: bandTopY(x) + 5 });
+    aoB.push({ x, y: bandTopY(x) + 27 });
+  }
+  c.beginPath();
+  c.moveTo(aoT[0].x, aoT[0].y);
+  for (let i = 1; i < aoT.length; i++) c.lineTo(aoT[i].x, aoT[i].y);
+  for (let i = aoB.length - 1; i >= 0; i--) c.lineTo(aoB[i].x, aoB[i].y);
+  c.closePath();
+  g = c.createLinearGradient(0, 150, 0, 198);
+  g.addColorStop(0, 'rgba(46,14,6,0.5)');
+  g.addColorStop(1, 'rgba(46,14,6,0)');
+  c.fillStyle = g;
+  c.fill();
+
+  /* rafter-tail dots ON the dark soffit */
+  c.fillStyle = 'rgba(202,164,106,0.65)';
+  for (let t = 0.025; t < 0.98; t += 0.0135) {
+    const p = uEave(t);
+    c.beginPath(); c.arc(p.x, p.y + 12, 1.05, 0, TAU); c.fill();
+  }
+
+  /* ============ main ridge + chiwen ============ */
+  const rx0 = 170, rx1 = 510, ry = 46;
+  c.beginPath();
+  c.moveTo(rx0, ry);
+  c.quadraticCurveTo((rx0 + rx1) / 2, ry - 4.5, rx1, ry);
+  c.lineTo(rx1, ry + 16);                                   // deep skirt: sits ON the plane
+  c.quadraticCurveTo((rx0 + rx1) / 2, ry + 11, rx0, ry + 16);
+  c.closePath();
+  g = c.createLinearGradient(0, ry - 4, 0, ry + 17);
+  g.addColorStop(0, '#a57422');
+  g.addColorStop(0.55, '#8a5c1a');
+  g.addColorStop(1, '#6e460e');
+  c.fillStyle = g;
+  c.fill();
+  c.strokeStyle = 'rgba(232,184,75,0.85)';
+  c.lineWidth = 1.6;
+  c.beginPath();
+  c.moveTo(rx0 + 2, ry - 0.5);
+  c.quadraticCurveTo((rx0 + rx1) / 2, ry - 5, rx1 - 2, ry - 0.5);
+  c.stroke();
+  c.strokeStyle = 'rgba(60,35,10,0.35)';                    // skirt bottom seam
+  c.lineWidth = 1.2;
+  c.beginPath();
+  c.moveTo(rx0 + 1, ry + 14.5);
+  c.quadraticCurveTo((rx0 + rx1) / 2, ry + 10, rx1 - 1, ry + 14.5);
+  c.stroke();
+  for (let x = rx0 + 26; x < rx1 - 10; x += 26) {   // ridge section ticks
+    c.strokeStyle = 'rgba(60,35,10,0.45)';
+    c.lineWidth = 1.4;
+    c.beginPath();
+    c.moveTo(x, ry + 1.5);
+    c.lineTo(x, ry + 13.5);
+    c.stroke();
+  }
+  const drawChiwen = (x, flip) => {
+    c.save();
+    c.translate(x, ry + 9);
+    c.scale(flip, 1);
+    c.beginPath();
+    c.moveTo(-11, 4);
+    c.quadraticCurveTo(-14, -8, -10, -20);
+    c.quadraticCurveTo(-6, -32, 4, -32.5);
+    c.quadraticCurveTo(11.5, -31, 10.5, -23.5);
+    c.quadraticCurveTo(9.5, -17, 3.5, -18);
+    c.quadraticCurveTo(7.5, -11, 8.5, -2);
+    c.lineTo(11, 4);
+    c.closePath();
+    g = c.createLinearGradient(0, -33, 0, 5);
+    g.addColorStop(0, '#a57422');
+    g.addColorStop(1, '#6e460e');
+    c.fillStyle = g;
+    c.fill();
+    c.strokeStyle = 'rgba(232,184,75,0.85)';
+    c.lineWidth = 1.4;
+    c.beginPath();
+    c.moveTo(-10.5, 2);
+    c.quadraticCurveTo(-13.2, -8, -9.4, -19.5);
+    c.quadraticCurveTo(-5.6, -30.8, 4, -31.4);
+    c.stroke();
+    c.strokeStyle = 'rgba(70,40,10,0.6)';          // inner curl groove
+    c.lineWidth = 1.2;
+    c.beginPath();
+    c.moveTo(8.5, -24);
+    c.quadraticCurveTo(5.5, -22, 4, -19);
+    c.stroke();
+    c.restore();
+  };
+  drawChiwen(rx0 + 2, 1);
+  drawChiwen(rx1 - 2, -1);
+
+  /* ============ global shading / lighting (clipped to silhouette) ============ */
+  c.globalCompositeOperation = 'source-atop';
+  // right-side warm shadow
+  let sg = c.createLinearGradient(RW * 0.3, 0, RW, 0);
+  sg.addColorStop(0, 'rgba(120,70,25,0)');
+  sg.addColorStop(1, 'rgba(84,42,12,0.20)');
+  c.fillStyle = sg;
+  c.fillRect(0, 0, RW, RH);
+  // left-top gentle light
+  sg = c.createLinearGradient(0, 0, RW * 0.45, RH * 0.4);
+  sg.addColorStop(0, 'rgba(255,238,196,0.10)');
+  sg.addColorStop(1, 'rgba(255,238,196,0)');
+  c.fillStyle = sg;
+  c.fillRect(0, 0, RW, RH);
+  c.globalCompositeOperation = 'source-over';
+  // deep shadow beneath the lower eave (curtain tucks in behind this)
+  const shPts = sampleCurve(lEave, 40).map(p => ({ x: p.x, y: p.y + 10 }));
+  c.beginPath();
+  c.moveTo(shPts[0].x, shPts[0].y);
+  for (let i = 1; i < shPts.length; i++) c.lineTo(shPts[i].x, shPts[i].y);
+  for (let i = shPts.length - 1; i >= 0; i--) c.lineTo(shPts[i].x, shPts[i].y + 34);
+  c.closePath();
+  sg = c.createLinearGradient(0, 258, 0, 306);
+  sg.addColorStop(0, 'rgba(58,20,8,0.62)');
+  sg.addColorStop(1, 'rgba(58,20,8,0)');
+  c.fillStyle = sg;
+  c.fill();
+  // flying-corner tips catch the light
+  c.strokeStyle = 'rgba(244,214,140,0.8)';
+  c.lineWidth = 2;
+  [[0.0, 0.05], [0.95, 1.0]].forEach(rg2 => {
+    const seg = [];
+    for (let i = 0; i <= 5; i++) {
+      const p = lEave(lerp(rg2[0], rg2[1], i / 5));
+      seg.push({ x: p.x, y: p.y - 3 });
+    }
+    pathThrough(c, seg); c.stroke();
+  });
+
+  return { canvas: featherRoof(cv, RW, RH), w: RW, h: RH };
+}
+
+/* ------------------------------------------------------------
+   4b. JAPAN — vermilion temple roof, thin & spreading
+   bbox 640 x 170. Eave underside ~local 138; AO extends to 160.
+   ------------------------------------------------------------ */
+function buildJapanRoof() {
+  const RW = 640, RH = 170;
+  const { cv, c } = roofCanvas(RW, RH);
+  const rnd = mulberry32(0x1E7A);
+  const wob = () => (rnd() - 0.5) * 1.1;
+
+  const jTop = t => {
+    const u = Math.abs(t - 0.5) * 2;
+    return { x: lerp(58, 582, t), y: 42 + 7 * Math.pow(u, 2.2) };
+  };
+  const jEave = t => {
+    const u = Math.abs(t - 0.5) * 2;
+    return { x: lerp(8, 632, t), y: 124 - (8 * u + 26 * Math.pow(u, 6)) };
+  };
+
+  /* roof plane */
+  const topPts = sampleCurve(jTop, 24);
+  const eavePts = sampleCurve(jEave, 48);
+  c.beginPath();
+  c.moveTo(topPts[0].x, topPts[0].y);
+  for (let i = 1; i < topPts.length; i++) c.lineTo(topPts[i].x, topPts[i].y);
+  for (let i = eavePts.length - 1; i >= 0; i--) c.lineTo(eavePts[i].x, eavePts[i].y);
+  c.closePath();
+  let g = c.createLinearGradient(0, 36, 0, 130);
+  g.addColorStop(0, '#c33a24');
+  g.addColorStop(0.6, '#a02a18');
+  g.addColorStop(1, '#8a2412');
+  c.fillStyle = g;
+  c.fill();
+
+  /* horizontal tile courses following the curve, slight undulation */
+  for (let k = 1; k <= 9; k++) {
+    const s = k / 10;
+    const row = [];
+    for (let i = 0; i <= 48; i++) {
+      const t = i / 48;
+      const p = lerpPt(jTop(t), jEave(t), s);
+      p.y += Math.sin(t * 38 + k * 2.1) * 1.0 + 3 * Math.sin(Math.PI * s);
+      row.push(p);
+    }
+    c.strokeStyle = 'rgba(116,28,14,' + (0.38 + 0.10 * (k % 2)) + ')';
+    c.lineWidth = 1.1;
+    pathThrough(c, row); c.stroke();
+  }
+  /* faint vertical seams */
+  c.strokeStyle = 'rgba(124,31,16,0.20)';
+  c.lineWidth = 1;
+  for (let i = 1; i < 26; i++) {
+    const t = i / 26;
+    const p0 = jTop(t), p1 = jEave(t);
+    c.beginPath();
+    c.moveTo(p0.x + wob(), p0.y + wob());
+    c.quadraticCurveTo((p0.x + p1.x) / 2, (p0.y + p1.y) / 2 + 4, p1.x + wob(), p1.y + wob());
+    c.stroke();
+  }
+  /* subtle material undulation patches */
+  for (let i = 0; i < 5; i++) {
+    const px = 80 + rnd() * 480, py = 55 + rnd() * 55, pr = 30 + rnd() * 40;
+    const pg = c.createRadialGradient(px, py, 0, px, py, pr);
+    pg.addColorStop(0, 'rgba(255,170,120,0.05)');
+    pg.addColorStop(1, 'rgba(255,170,120,0)');
+    c.fillStyle = pg;
+    c.fillRect(px - pr, py - pr, pr * 2, pr * 2);
+  }
+
+  /* main ridge — thick near-black bar with tile segmentation */
+  const rx0 = 52, rx1 = 588, ry = 26;
+  c.beginPath();
+  c.moveTo(rx0, ry + 2);
+  c.quadraticCurveTo((rx0 + rx1) / 2, ry - 3, rx1, ry + 2);
+  c.lineTo(rx1, ry + 15);
+  c.quadraticCurveTo((rx0 + rx1) / 2, ry + 11, rx0, ry + 15);
+  c.closePath();
+  c.fillStyle = '#241a14';
+  c.fill();
+  c.strokeStyle = 'rgba(120,80,55,0.5)';           // faint top light on black ridge
+  c.lineWidth = 1.4;
+  c.beginPath();
+  c.moveTo(rx0 + 3, ry + 1.4);
+  c.quadraticCurveTo((rx0 + rx1) / 2, ry - 3.4, rx1 - 3, ry + 1.4);
+  c.stroke();
+  for (let x = rx0 + 18; x < rx1 - 8; x += 18) {   // rounded ridge-tile ticks
+    c.strokeStyle = 'rgba(0,0,0,0.55)';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(x, ry + 3);
+    c.lineTo(x, ry + 13);
+    c.stroke();
+    c.strokeStyle = 'rgba(140,95,60,0.28)';
+    c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(x + 1.6, ry + 3);
+    c.lineTo(x + 1.6, ry + 13);
+    c.stroke();
+  }
+  /* onigawara stubs — small dark curls at ridge ends with gold edge */
+  const oni = (x, flip) => {
+    c.save();
+    c.translate(x, ry + 8);
+    c.scale(flip, 1);
+    c.beginPath();
+    c.moveTo(-7, 6);
+    c.quadraticCurveTo(-11, -4, -6, -12);
+    c.quadraticCurveTo(-1, -17, 5, -14);
+    c.quadraticCurveTo(1, -10, 1.5, -5);
+    c.lineTo(6, 6);
+    c.closePath();
+    c.fillStyle = '#241a14';
+    c.fill();
+    c.strokeStyle = '#c9982a';
+    c.lineWidth = 1.3;
+    c.beginPath();
+    c.moveTo(-6.4, 4);
+    c.quadraticCurveTo(-10, -4, -5.6, -11.4);
+    c.stroke();
+    c.restore();
+  };
+  oni(rx0 - 2, 1);
+  oni(rx1 + 2, -1);
+
+  /* under-eave dark band + tiny rafter dots */
+  const bT = eavePts.map(p => ({ x: p.x, y: p.y + 1 }));
+  const bB = eavePts.map(p => ({ x: p.x, y: p.y + 14 }));
+  c.beginPath();
+  c.moveTo(bT[0].x, bT[0].y);
+  for (let i = 1; i < bT.length; i++) c.lineTo(bT[i].x, bT[i].y);
+  for (let i = bB.length - 1; i >= 0; i--) c.lineTo(bB[i].x, bB[i].y);
+  c.closePath();
+  c.fillStyle = '#33150d';
+  c.fill();
+  c.fillStyle = 'rgba(210,160,110,0.5)';
+  for (let t = 0.03; t < 0.98; t += 0.012) {
+    const p = jEave(t);
+    c.beginPath(); c.arc(p.x, p.y + 9, 0.95, 0, TAU); c.fill();
+  }
+
+  /* gold crests at the two upturned corners */
+  [0.004, 0.996].forEach(t => {
+    const p = jEave(t);
+    c.fillStyle = '#c9982a';
+    c.beginPath(); c.arc(p.x, p.y - 3, 4, 0, TAU); c.fill();
+    c.strokeStyle = 'rgba(60,35,10,0.7)';
+    c.lineWidth = 1;
+    c.beginPath(); c.arc(p.x, p.y - 3, 4, 0, TAU); c.stroke();
+    c.fillStyle = '#8a5c1c';
+    c.beginPath(); c.arc(p.x, p.y - 3, 1.5, 0, TAU); c.fill();
+  });
+
+  /* shading: left light, right + underside dark (clipped to silhouette) */
+  c.globalCompositeOperation = 'source-atop';
+  let sg = c.createLinearGradient(0, 0, RW, 0);
+  sg.addColorStop(0, 'rgba(255,205,160,0.10)');
+  sg.addColorStop(0.5, 'rgba(255,205,160,0)');
+  sg.addColorStop(1, 'rgba(40,10,5,0.26)');
+  c.fillStyle = sg;
+  c.fillRect(0, 0, RW, RH);
+  c.globalCompositeOperation = 'source-over';
+  const shPts = eavePts.map(p => ({ x: p.x, y: p.y + 14 }));
+  c.beginPath();
+  c.moveTo(shPts[0].x, shPts[0].y);
+  for (let i = 1; i < shPts.length; i++) c.lineTo(shPts[i].x, shPts[i].y);
+  for (let i = shPts.length - 1; i >= 0; i--) c.lineTo(shPts[i].x, shPts[i].y + 22);
+  c.closePath();
+  sg = c.createLinearGradient(0, 132, 0, 168);
+  sg.addColorStop(0, 'rgba(40,12,6,0.5)');
+  sg.addColorStop(1, 'rgba(40,12,6,0)');
+  c.fillStyle = sg;
+  c.fill();
+
+  return { canvas: featherRoof(cv, RW, RH), w: RW, h: RH };
+}
+
+/* ------------------------------------------------------------
+   4c. KAZAKHSTAN — white yurt dome with shanyrak
+   bbox 560 x 262. Dome base ~local 250, band 218-250.
+   ------------------------------------------------------------ */
+function buildKazakhRoof() {
+  const RW = 560, RH = 262;
+  const { cv, c } = roofCanvas(RW, RH);
+  const rnd = mulberry32(0xCA2A);
+  const wob = () => (rnd() - 0.5) * 1.0;
+
+  const APEX = { x: 280, y: 34 };
+  const BASE_Y = 250, BL = 30, BR = 530;
+
+  /* dome silhouette: slightly pointed apex (khan yurt profile) */
+  const domePath = () => {
+    c.beginPath();
+    c.moveTo(BL, BASE_Y);
+    c.bezierCurveTo(58, 150, 168, 52, APEX.x - 8, APEX.y);
+    c.quadraticCurveTo(APEX.x, APEX.y - 3, APEX.x + 8, APEX.y);
+    c.bezierCurveTo(392, 52, 502, 150, BR, BASE_Y);
+    c.closePath();
+  };
+
+  domePath();
+  let g = c.createLinearGradient(60, 40, 520, 250);
+  g.addColorStop(0, '#f2ede2');
+  g.addColorStop(0.55, '#e6dfd0');
+  g.addColorStop(1, '#d8d2c2');
+  c.fillStyle = g;
+  c.fill();
+
+  c.save();
+  domePath();
+  c.clip();
+
+  /* soft light near upper-left */
+  let lg2 = c.createRadialGradient(220, 110, 10, 220, 110, 260);
+  lg2.addColorStop(0, 'rgba(255,252,242,0.5)');
+  lg2.addColorStop(1, 'rgba(255,252,242,0)');
+  c.fillStyle = lg2;
+  c.fillRect(0, 0, RW, RH);
+
+  /* felt speckle */
+  for (let i = 0; i < 900; i++) {
+    const x = rnd() * RW, y = rnd() * RH;
+    c.fillStyle = rnd() > 0.5 ? 'rgba(120,110,92,0.05)' : 'rgba(255,255,250,0.06)';
+    c.fillRect(x, y, 1.4, 1.4);
+  }
+  /* two large soft darker patches near base */
+  [[150, 225, 90], [410, 228, 100]].forEach(p => {
+    const pg = c.createRadialGradient(p[0], p[1], 0, p[0], p[1], p[2]);
+    pg.addColorStop(0, 'rgba(148,138,118,0.10)');
+    pg.addColorStop(1, 'rgba(148,138,118,0)');
+    c.fillStyle = pg;
+    c.fillRect(p[0] - p[2], p[1] - p[2], p[2] * 2, p[2] * 2);
+  });
+
+  /* shanyrak — skylight ring at apex (slight perspective ellipse) */
+  const SH = { x: APEX.x, y: APEX.y + 26, r: 34, ry: 28 };
+  // radiating uyk poles first (they pass under the ring)
+  const NPOLE = 13;
+  const poleBase = i => ({ x: lerp(48, 512, i / (NPOLE - 1)), y: BASE_Y + 2 });
+  for (let i = 0; i < NPOLE; i++) {
+    const a = lerp(Math.PI * 0.14, Math.PI * 0.86, i / (NPOLE - 1));
+    const rim = { x: SH.x + Math.cos(a) * (SH.r - 2), y: SH.y + Math.sin(a) * (SH.ry - 2) };
+    const base = poleBase(i);
+    const mid = { x: (rim.x + base.x) / 2 + (base.x - SH.x) * 0.10 + wob(), y: (rim.y + base.y) / 2 + 14 };
+    c.strokeStyle = 'rgba(168,152,128,0.8)';
+    c.lineWidth = 2.5;
+    c.beginPath();
+    c.moveTo(rim.x, rim.y);
+    c.quadraticCurveTo(mid.x, mid.y, base.x, base.y);
+    c.stroke();
+    // alternating faint lighter felt band between poles
+    if (i % 2 === 0) {
+      c.strokeStyle = 'rgba(255,255,255,0.10)';
+      c.lineWidth = 7;
+      const a2 = lerp(Math.PI * 0.14, Math.PI * 0.86, (i + 0.5) / (NPOLE - 1));
+      const rim2 = { x: SH.x + Math.cos(a2) * (SH.r + 4), y: SH.y + Math.sin(a2) * (SH.ry + 4) };
+      const base2 = poleBase(i + 0.5 < NPOLE ? i : i);
+      c.beginPath();
+      c.moveTo(rim2.x, rim2.y);
+      c.quadraticCurveTo((rim2.x + base2.x) / 2, (rim2.y + base2.y) / 2 + 14, base2.x, base2.y);
+      c.stroke();
+    }
+  }
+
+  /* waist band (baskur) with koshkar-muiz pattern */
+  c.save();
+  c.beginPath();
+  c.rect(0, 216, RW, BASE_Y - 216);
+  domePath();
+  c.clip('evenodd' in c ? undefined : undefined); // guard: older engines lack param
+  c.restore();
+  // simpler: draw band rect then re-clip to dome via intersection
+  c.save();
+  domePath();
+  c.clip();
+  const bandY0 = 218, bandY1 = BASE_Y;
+  c.fillStyle = '#8a3b22';
+  c.fillRect(BL - 4, bandY0, BR - BL + 8, bandY1 - bandY0);
+  // cream border lines
+  c.strokeStyle = '#e8dcc4';
+  c.lineWidth = 1.6;
+  c.beginPath(); c.moveTo(BL - 2, bandY0 + 2.4); c.lineTo(BR + 2, bandY0 + 2.4); c.stroke();
+  c.beginPath(); c.moveTo(BL - 2, bandY1 - 2.6); c.lineTo(BR + 2, bandY1 - 2.6); c.stroke();
+  // ram-horn zigzag: alternating triangles + stepped diamonds
+  c.fillStyle = '#e8dcc4';
+  const pw = 22;
+  for (let x = BL + 6, i = 0; x < BR - 10; x += pw, i++) {
+    const ymid = (bandY0 + bandY1) / 2;
+    if (i % 2 === 0) {
+      c.beginPath();                       // up triangle
+      c.moveTo(x, ymid + 7);
+      c.lineTo(x + 8, ymid - 7);
+      c.lineTo(x + 16, ymid + 7);
+      c.closePath(); c.fill();
+    } else {
+      c.beginPath();                       // stepped diamond
+      c.moveTo(x + 8, ymid - 7);
+      c.lineTo(x + 15, ymid);
+      c.lineTo(x + 8, ymid + 7);
+      c.lineTo(x + 1, ymid);
+      c.closePath(); c.fill();
+      c.fillStyle = '#8a3b22';
+      c.beginPath();                       // inner notch
+      c.moveTo(x + 8, ymid - 3);
+      c.lineTo(x + 11.5, ymid);
+      c.lineTo(x + 8, ymid + 3);
+      c.lineTo(x + 4.5, ymid);
+      c.closePath(); c.fill();
+      c.fillStyle = '#e8dcc4';
+    }
+  }
+  c.restore();
+
+  /* small hanging tassels below the band */
+  c.strokeStyle = 'rgba(107,68,38,0.75)';
+  c.lineWidth = 2;
+  for (let x = BL + 26; x < BR - 10; x += 40) {
+    c.beginPath();
+    c.moveTo(x, BASE_Y - 1);
+    c.lineTo(x + wob(), BASE_Y + 9);
+    c.stroke();
+    c.fillStyle = 'rgba(107,68,38,0.75)';
+    c.beginPath(); c.arc(x + wob(), BASE_Y + 10, 1.6, 0, TAU); c.fill();
+  }
+
+  /* right-side soft shadow + AO under band */
+  let sg = c.createLinearGradient(330, 0, BR + 10, 0);
+  sg.addColorStop(0, 'rgba(138,130,114,0)');
+  sg.addColorStop(1, 'rgba(138,130,114,0.25)');
+  c.save();
+  domePath(); c.clip();
+  c.fillStyle = sg;
+  c.fillRect(0, 0, RW, RH);
+  c.restore();
+  sg = c.createLinearGradient(0, BASE_Y, 0, BASE_Y + 12);
+  sg.addColorStop(0, 'rgba(90,70,50,0.22)');
+  sg.addColorStop(1, 'rgba(90,70,50,0)');
+  c.fillStyle = sg;
+  c.fillRect(BL, BASE_Y, BR - BL, 12);
+
+  /* shanyrak ring on top of poles */
+  c.strokeStyle = '#6b4426';
+  c.lineWidth = 7;
+  c.beginPath();
+  c.ellipse(SH.x, SH.y, SH.r, SH.ry, 0, 0, TAU);
+  c.stroke();
+  c.strokeStyle = 'rgba(160,116,70,0.8)';      // lit upper rim
+  c.lineWidth = 2;
+  c.beginPath();
+  c.ellipse(SH.x, SH.y - 1.2, SH.r - 3.5, SH.ry - 3.5, 0, Math.PI * 1.05, Math.PI * 1.95);
+  c.stroke();
+  // cross spokes
+  c.strokeStyle = '#6b4426';
+  c.lineWidth = 4;
+  for (let k = 0; k < 4; k++) {
+    const a = k * Math.PI / 2 + 0.32;
+    c.beginPath();
+    c.moveTo(SH.x + Math.cos(a) * 7, SH.y + Math.sin(a) * 6);
+    c.quadraticCurveTo(
+      SH.x + Math.cos(a + 0.35) * SH.r * 0.55, SH.y + Math.sin(a + 0.35) * SH.ry * 0.55,
+      SH.x + Math.cos(a) * (SH.r - 3), SH.y + Math.sin(a) * (SH.ry - 3));
+    c.stroke();
+  }
+  c.fillStyle = '#6b4426';
+  c.beginPath();
+  c.ellipse(SH.x, SH.y, 7, 6, 0, 0, TAU);
+  c.fill();
+
+  return { canvas: featherRoof(cv, RW, RH), w: RW, h: RH };
+}
+
+/* build once, reuse everywhere */
+const ROOFS = {
+  china: buildChinaRoof(),
+  japan: buildJapanRoof(),
+  kazakhstan: buildKazakhRoof()
+};
+
+/* thumbnails reuse the same offscreen roof source */
+function drawThumb(el, roof) {
+  const c = el.getContext('2d');
+  c.clearRect(0, 0, el.width, el.height);
+  const s = Math.min((el.width - 14) / (roof.w * ROOF_SS), (el.height - 10) / (roof.h * ROOF_SS));
+  const dw = roof.w * ROOF_SS * s, dh = roof.h * ROOF_SS * s;
+  c.drawImage(roof.canvas, (el.width - dw) / 2, (el.height - dh) / 2 - 2, dw, dh);
+}
+
+/* ============================================================
+   5. Text curtain — Verlet cloth of glyph sprites
+   ============================================================ */
+const CURTAIN_FONT_CJK = '"Songti SC","Noto Serif CJK SC","SimSun",Georgia,"Noto Serif",serif';
+const CURTAIN_FONT_JP  = '"Hiragino Mincho ProN","Yu Mincho","Noto Serif CJK JP","Noto Serif CJK SC",Georgia,serif';
+const CURTAIN_FONT_CY  = 'Georgia,"Times New Roman","Noto Serif",serif';
+
+/* sprite atlas: one offscreen per unique char, rendered at the exact
+   current display resolution -> per-frame drawImage is a 1:1 blit */
+function buildSprites(pool, fontSize, fontStack) {
+  const map = new Map();
+  const cell = fontSize * 1.38;                 // design cell size
+  const SS = Math.max(1, Math.min(2, dpr * scale));
+  const S = Math.max(4, Math.ceil(cell * SS));
+  for (const ch of pool) {
+    if (map.has(ch)) continue;
+    const cv = document.createElement('canvas');
+    cv.width = S; cv.height = S;
+    const c = cv.getContext('2d');
+    c.font = '500 ' + (fontSize * SS) + 'px ' + fontStack;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillStyle = '#3a2e24';
+    c.fillText(ch, S / 2, S / 2 + fontSize * SS * 0.04);
+    map.set(ch, { cv, cell });
+  }
+  return map;
+}
+
+/* lazily-built pre-rotated glyph variant (keeps per-frame draws as blits) */
+function makeRotatedSprite(spr, angle) {
+  const S2 = Math.ceil(spr.cv.width * 1.5);
+  const cv = document.createElement('canvas');
+  cv.width = S2; cv.height = S2;
+  const c = cv.getContext('2d');
+  c.translate(S2 / 2, S2 / 2);
+  c.rotate(angle);
+  c.drawImage(spr.cv, -spr.cv.width / 2, -spr.cv.height / 2);
+  return { cv, cell: spr.cell * 1.5 };
+}
+
+class Curtain {
+  /**
+   * cfg: { cols, rows, cx, topY, cw, gap, rest, pool, fontSize,
+   *        fontStack, seed, shadowScale }
+   */
+  constructor(cfg) {
+    this.cols = cfg.cols;
+    this.rows = cfg.rows;
+    this.cx = cfg.cx;
+    this.topY = cfg.topY;
+    this.gap = cfg.gap;
+    this.rest = cfg.rest;
+    this.fontSize = cfg.fontSize;
+    this.fontStack = cfg.fontStack;
+    this.seed = cfg.seed;
+    this.pool = cfg.pool;
+    this.sprites = buildSprites(cfg.pool, cfg.fontSize, cfg.fontStack);
+    this.pts = [];        // [col][row] -> {x,y,px,py}
+    this.chars = [];      // [col][row] -> sprite
+    this.alpha = [];      // [col][row] -> base alpha
+    this.lenF = [];       // [col] -> length factor 0.86..1
+    this.anchors = [];
+    const rnd = mulberry32(cfg.seed);
+    const x0 = cfg.cx - cfg.gap * (cfg.cols - 1) / 2;
+    for (let col = 0; col < cfg.cols; col++) {
+      const ax = x0 + col * cfg.gap;
+      this.anchors.push({ x: ax, y: cfg.topY });
+      this.lenF.push(0.82 + rnd() * 0.13);   // longest tails end ~y=1000
+      const colPts = [], colCh = [], colAl = [];
+      // each column reads the pool sequentially from a random offset
+      let idx = Math.floor(rnd() * cfg.pool.length);
+      for (let row = 0; row < cfg.rows; row++) {
+        colPts.push({ x: ax, y: cfg.topY + row * cfg.rest, px: ax, py: cfg.topY + row * cfg.rest });
+        colCh.push(cfg.pool[idx]);
+        colAl.push(0.72 + rnd() * 0.23);
+        idx = (idx + 1) % cfg.pool.length;
+      }
+      this.pts.push(colPts);
+      this.chars.push(colCh);
+      this.alpha.push(colAl);
+    }
+    // constant per-glyph bottom fade, precomputed once
+    this.fade = [];
+    for (let col = 0; col < cfg.cols; col++) {
+      const f = this.lenF[col], colF = [];
+      for (let row = 0; row < cfg.rows; row++) {
+        const t = row / (cfg.rows - 1);
+        const start = 0.62 * f;
+        colF.push(t <= start ? 1 : 1 - smoothstep(start, f, t));
+      }
+      this.fade.push(colF);
+    }
+    this.enterT = 0;
+    this.dirty = true;     // shadow needs rebuild
+    this._bbox = null;
+    this.rotCache = new Map();
+  }
+
+  reset() {
+    for (let col = 0; col < this.cols; col++) {
+      const ax = this.anchors[col].x, ay = this.anchors[col].y;
+      for (let row = 0; row < this.rows; row++) {
+        const p = this.pts[col][row];
+        p.x = p.px = ax;
+        p.y = p.py = ay + row * this.rest;
+      }
+    }
+    this.enterT = 0;
+    this.dirty = true;
+  }
+
+  rebuildSprites() {
+    this.sprites = buildSprites(this.pool, this.fontSize, this.fontStack);
+    this.rotCache.clear();
+  }
+
+  /* actor: {x,y,vx,vy} design-space pointer; force only while moving */
+  simulate(dt, actor, allowForce, breezeOn) {
+    this.enterT += dt;
+    const damp = 0.982, g = 1500;
+    const dt2 = dt * dt;
+    const dt60 = dt * 60;
+    const R = 175;
+    const sp = actor ? Math.hypot(actor.vx, actor.vy) : 0;
+    const forcing = allowForce && actor && sp > 30;
+    let nvx = 0, nvy = 0, spC = 0;
+    if (forcing) {
+      spC = Math.min(sp, 2400);
+      nvx = actor.vx / sp; nvy = actor.vy / sp;
+    }
+    let maxMove = 0;
+
+    for (let col = 0; col < this.cols; col++) {
+      const colPts = this.pts[col];
+      for (let row = 1; row < this.rows; row++) {   // row 0 is pinned
+        const p = colPts[row];
+        const ox0 = p.x, oy0 = p.y;
+        // 1. Verlet integrate
+        let vx = (p.x - p.px) * damp;
+        let vy = (p.y - p.py) * damp;
+        p.px = p.x; p.py = p.y;
+        p.x += vx;
+        p.y += vy + g * dt2;
+        const mv = Math.abs(p.x - ox0) + Math.abs(p.y - oy0);
+        if (mv > maxMove) maxMove = mv;
+      }
+    }
+
+    // 3. constraint iterations x4
+    for (let it = 0; it < 4; it++) {
+      // (a) strong vertical links
+      for (let col = 0; col < this.cols; col++) {
+        const colPts = this.pts[col];
+        const a = this.anchors[col];
+        colPts[0].x = a.x; colPts[0].y = a.y;      // pin
+        for (let row = 1; row < this.rows; row++) {
+          const p0 = colPts[row - 1], p1 = colPts[row];
+          let dx = p1.x - p0.x, dy = p1.y - p0.y;
+          let d = Math.sqrt(dx * dx + dy * dy) || 1e-4;
+          const diff = (d - this.rest) / d;
+          if (row === 1) {                          // anchored link: move p1 only
+            p1.x -= dx * diff;
+            p1.y -= dy * diff;
+          } else {
+            const hx = dx * diff * 0.5, hy = dy * diff * 0.5;
+            p0.x += hx; p0.y += hy;
+            p1.x -= hx; p1.y -= hy;
+          }
+        }
+      }
+      // (b) weak horizontal shear springs -> fabric coherence
+      const k = 0.028;
+      for (let row = 1; row < this.rows; row++) {
+        for (let col = 0; col < this.cols - 1; col++) {
+          const p0 = this.pts[col][row], p1 = this.pts[col + 1][row];
+          const dx = p1.x - p0.x;
+          const diff = (dx - this.gap) * k * 0.5;
+          p0.x += diff;
+          p1.x -= diff;
+        }
+      }
+      // (c) pins
+      for (let col = 0; col < this.cols; col++) {
+        this.pts[col][0].x = this.anchors[col].x;
+        this.pts[col][0].y = this.anchors[col].y;
+      }
+    }
+
+    // 2b. pointer force (only while pointer moves) — applied after the
+    // constraint pass so a fast stroke visibly carries the fabric;
+    // part of the impulse is deposited as momentum for the swing-back
+    if (forcing) {
+      for (let col = 0; col < this.cols; col++) {
+        const colPts = this.pts[col];
+        for (let row = 1; row < this.rows; row++) {
+          const p = colPts[row];
+          const dx = p.x - actor.x, dy = p.y - actor.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < R * R) {
+            const d = Math.sqrt(d2) || 1;
+            const fall = (1 - d / R) * (1 - d / R);
+            let dirx = dx / d * 0.45 + nvx * 0.9;
+            let diry = dy / d * 0.45 + nvy * 0.9;
+            const dl = Math.hypot(dirx, diry) || 1;
+            const imp = Math.min(fall * spC * 0.006 * dt60, 11);
+            const ix = dirx / dl * imp, iy = diry / dl * imp;
+            p.x += ix; p.y += iy;
+            p.px -= ix * 0.35; p.py -= iy * 0.35;   // momentum share
+            // perpendicular bias: strands part to BOTH sides of the stroke
+            const cross = actor.vx * dy - actor.vy * dx;
+            const sgn = cross >= 0 ? 1 : -1;
+            const perp = fall * spC * 0.013 * dt60;
+            p.x += (-nvy) * sgn * perp;
+            p.y += (nvx) * sgn * perp;
+          }
+        }
+      }
+      maxMove = Math.max(maxMove, 10);
+    }
+
+    // 4. barely-perceptible idle breeze (never in first 2s)
+    if (breezeOn && this.enterT > 2) {
+      const t = this.enterT;
+      for (let col = 0; col < this.cols; col++) {
+        for (let row = 2; row < this.rows; row++) {
+          const p = this.pts[col][row];
+          p.x += Math.sin(t * 0.7 + row * 0.15 + col * 0.3) * 0.05 * (row / this.rows);
+        }
+      }
+    }
+
+    // 5. velocity clamp
+    const vmax = 1100, vmaxDt = vmax * dt;
+    for (let col = 0; col < this.cols; col++) {
+      for (let row = 1; row < this.rows; row++) {
+        const p = this.pts[col][row];
+        let vx = p.x - p.px, vy = p.y - p.py;
+        const v = Math.hypot(vx, vy);
+        if (v > vmaxDt) {
+          const s = vmaxDt / v;
+          p.px = p.x - vx * s;
+          p.py = p.y - vy * s;
+        }
+      }
+    }
+
+    if (maxMove > 0.4) this.dirty = true;
+    return maxMove;
+  }
+
+  bottomFade(col, row) {
+    return this.fade[col][row];
+  }
+
+  bbox() {
+    if (this._bbox) return this._bbox;
+    let x0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (let col = 0; col < this.cols; col++) {
+      const a = this.anchors[col];
+      if (a.x < x0) x0 = a.x;
+      if (a.x > x1) x1 = a.x;
+    }
+    y1 = this.topY + this.rows * this.rest;
+    this._bbox = { x0, x1, y0: this.topY, y1 };
+    return this._bbox;
+  }
+
+  /* draw glyphs; sceneTX/sceneTY slide whole scene, opacity fades it */
+  draw(c, sceneTX, sceneTY, opacity) {
+    const a0 = dpr * scale;               // root uniform scale
+    const oxD = dpr * ox, oyD = dpr * oy;
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    let identity = true;
+    for (let col = 0; col < this.cols; col++) {
+      const colPts = this.pts[col], colCh = this.chars[col], colAl = this.alpha[col];
+      for (let row = 0; row < this.rows; row++) {
+        const fade = this.bottomFade(col, row);
+        if (fade <= 0.01) continue;
+        const p = colPts[row];
+        const spr = this.sprites.get(colCh[row]);
+        const cell = spr.cell;
+        const devX = oxD + (p.x + sceneTX) * a0;
+        const devY = oyD + (p.y + sceneTY) * a0;
+        c.globalAlpha = colAl[row] * fade * opacity;
+        // rotation from vertical-neighbor tangent
+        const up = row === 0 ? p : colPts[row - 1];
+        const dn = row === this.rows - 1 ? p : colPts[row + 1];
+        const th = Math.atan2(dn.y - up.y, dn.x - up.x) - Math.PI / 2;
+        // quantized angle buckets: 0 -> upright blit; else pre-rotated
+        // sprite variant (lazy cache) -> still a fast axis-aligned blit
+        const bucket = th > 0 ? Math.min(5, (th / 0.16 + 0.5) | 0)
+                            : Math.max(-5, (th / 0.16 - 0.5) | 0);
+        if (bucket === 0) {
+          const dc = cell * a0;
+          c.drawImage(spr.cv, devX - dc / 2, devY - dc / 2, dc, dc);
+        } else {
+          let variants = this.rotCache.get(colCh[row]);
+          if (!variants) {
+            variants = new Array(15);
+            this.rotCache.set(colCh[row], variants);
+            if (this.rotCache.size > 500) this.rotCache.clear();
+          }
+          let v = variants[bucket + 7];
+          if (!v) {
+            v = makeRotatedSprite(spr, bucket * 0.16);
+            variants[bucket + 7] = v;
+          }
+          const dc = v.cell * a0;
+          c.drawImage(v.cv, devX - dc / 2, devY - dc / 2, dc, dc);
+        }
+      }
+    }
+    c.globalAlpha = 1;
+  }
+
+  /* silhouette dots for the cast shadow (silCtx pre-scaled to design) */
+  drawSilhouette(sc, sceneTX, sceneTY) {
+    sc.fillStyle = '#5a4632';
+    for (let col = 0; col < this.cols; col++) {
+      const colPts = this.pts[col];
+      for (let row = 0; row < this.rows; row++) {
+        if (this.bottomFade(col, row) <= 0.12) continue;
+        const p = colPts[row];
+        sc.globalAlpha = 0.42 * this.alpha[col][row] * fadeSil(p.y + sceneTY);
+        sc.fillRect(p.x + sceneTX - 1.6, p.y + sceneTY - 1.6, 3.2, 3.2);
+      }
+    }
+    sc.globalAlpha = 1;
+  }
+}
+
+/* ============================================================
+   6. Shadows — long cast shadow + short roof contact shadow
+   ============================================================ */
+const SIL_S = 0.32;   // silhouette buffer scale (upsampling = free softness)
+
+function createShadowBuffer() {
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(W * SIL_S);
+  cv.height = Math.round(H * SIL_S);
+  return { cv, dirty: true, tx: null, ty: null };
+}
+
+/* directional fade along the shadow (design-y -> strength) */
+function fadeSil(y) {
+  if (y <= 118) return 0.42;
+  if (y < 604) return lerp(0.42, 0.92, (y - 118) / 486);
+  if (y < 918) return lerp(0.92, 0.85, (y - 604) / 314);
+  return lerp(0.85, 0.5, clamp((y - 918) / 162, 0, 1));
+}
+
+/* roof silhouette pre-baked once: warm tone + directional fade */
+const roofSilCache = new Map();
+function roofSil(key) {
+  let s = roofSilCache.get(key);
+  if (s) return s;
+  const r = ROOFS[key], place = SCENES[key].roofPlace;
+  const w = Math.max(2, Math.round(r.w * SIL_S));
+  const h = Math.max(2, Math.round(r.h * SIL_S));
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const c = cv.getContext('2d');
+  c.drawImage(r.canvas, 0, 0, w, h);
+  c.globalCompositeOperation = 'source-in';
+  c.fillStyle = '#5a4632';
+  c.fillRect(0, 0, w, h);
+  c.globalCompositeOperation = 'destination-in';
+  const g = c.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, 'rgba(0,0,0,' + fadeSil(place.py).toFixed(3) + ')');
+  g.addColorStop(1, 'rgba(0,0,0,' + fadeSil(place.py + r.h).toFixed(3) + ')');
+  c.fillStyle = g;
+  c.fillRect(0, 0, w, h);
+  roofSilCache.set(key, cv);
+  return cv;
+}
+
+/* rebuild the warm silhouette (roof + curtain dots), fade baked per element */
+function rebuildShadow(sh, key, roofEntry, curtain, tx, ty) {
+  const sc = sh.cv.getContext('2d');
+  sc.setTransform(1, 0, 0, 1, 0, 0);
+  sc.clearRect(0, 0, sh.cv.width, sh.cv.height);
+  sc.setTransform(SIL_S, 0, 0, SIL_S, 0, 0);
+  sc.translate(tx, ty);
+  sc.globalAlpha = SCENES[key].roofShadowAlpha || 0.9;
+  sc.drawImage(roofSil(key), roofEntry.px, roofEntry.py, roofEntry.w, roofEntry.h);
+  sc.globalAlpha = 1;
+  if (curtain) curtain.drawSilhouette(sc, 0, 0);
+  // content bbox (design coords, pre-shear) for clipped compositing
+  let x0 = roofEntry.px + tx, x1 = roofEntry.px + tx + roofEntry.w;
+  let y0 = roofEntry.py + ty, y1 = roofEntry.py + ty + roofEntry.h;
+  if (curtain) {
+    for (let col = 0; col < curtain.cols; col++) {
+      const cp = curtain.pts[col];
+      for (let row = 0; row < curtain.rows; row++) {
+        const p = cp[row];
+        if (p.x + tx < x0) x0 = p.x + tx;
+        if (p.x + tx > x1) x1 = p.x + tx;
+        if (p.y + ty < y0) y0 = p.y + ty;
+        if (p.y + ty > y1) y1 = p.y + ty;
+      }
+    }
+  }
+  sh.bx0 = x0; sh.bx1 = x1; sh.by0 = y0; sh.by1 = y1;
+  sh.dirty = false;
+  sh.tx = tx; sh.ty = ty;
+}
+
+/**
+ * Draw the long cast shadow onto the main ctx (root design transform active).
+ * Shear maps the silhouette down-right; groundY is the scene's "floor" line.
+ */
+/* phase 1: keep the silhouette buffer fresh (rebuild capped to every 2nd frame) */
+function updateShadowSil(sh, key, roofEntry, curtain, tx, ty) {
+  const moved = sh.tx !== tx || sh.ty !== ty;
+  if (sh.dirty || moved) {
+    // rebuild immediately on scene moves, else at most every 3rd frame
+    sh.skipN = ((sh.skipN || 0) + 1) % 3;
+    if (moved || sh.skipN === 0) {
+      rebuildShadow(sh, key, roofEntry, curtain, tx, ty);
+      return true;
+    }
+  }
+  return false;
+}
+
+/* phase 2: multiply-bl the silhouette into `target` (design-root transform set) */
+function blitShadow(target, sh, opacity, groundY) {
+  const E = 0.52 * groundY + 40;
+  const F = 0.30 * groundY + 10;
+  // sheared content quad (parallelogram clip: the shadow is a diagonal band)
+  const q = [
+    { x: sh.bx0 - 0.52 * sh.by0 + E, y: 0.70 * sh.by0 + F },
+    { x: sh.bx1 - 0.52 * sh.by0 + E, y: 0.70 * sh.by0 + F },
+    { x: sh.bx1 - 0.52 * sh.by1 + E, y: 0.70 * sh.by1 + F },
+    { x: sh.bx0 - 0.52 * sh.by1 + E, y: 0.70 * sh.by1 + F }
+  ];
+  const ccx = (q[0].x + q[1].x + q[2].x + q[3].x) / 4;
+  const ccy = (q[0].y + q[1].y + q[2].y + q[3].y) / 4;
+  target.save();
+  target.beginPath();
+  for (let i = 0; i < 4; i++) {
+    const vx0 = q[i].x - ccx, vy0 = q[i].y - ccy;
+    const vl = Math.hypot(vx0, vy0) || 1;
+    const vx = q[i].x + vx0 / vl * 46, vy = q[i].y + vy0 / vl * 46;  // softness margin
+    if (i === 0) target.moveTo(vx, vy); else target.lineTo(vx, vy);
+  }
+  target.closePath();
+  target.clip();
+  target.globalCompositeOperation = 'multiply';
+  target.globalAlpha = 0.42 * opacity;
+  target.imageSmoothingEnabled = true;
+  target.transform(1, 0, -0.52, 0.70, E, F);
+  target.drawImage(sh.cv, 0, 0, W, H);
+  target.restore();
+}
+
+function drawCastShadow(sh, key, roofEntry, curtain, tx, ty, opacity, groundY) {
+  updateShadowSil(sh, key, roofEntry, curtain, tx, ty);
+  blitShadow(ctx, sh, opacity, groundY);
+}
+
+/* steady-state hero: paper + cast shadow composited once, blitted per frame */
+let sceneBgCanvas = null, sceneBgKey = null;
+function compositeSceneBg(key) {
+  if (!bgCanvas || !curShadow) return;
+  if (!sceneBgCanvas) sceneBgCanvas = document.createElement('canvas');
+  if (sceneBgCanvas.width !== bgCanvas.width || sceneBgCanvas.height !== bgCanvas.height) {
+    sceneBgCanvas.width = bgCanvas.width;
+    sceneBgCanvas.height = bgCanvas.height;
+  }
+  const c = sceneBgCanvas.getContext('2d');
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.drawImage(bgCanvas, 0, 0);
+  c.setTransform(dpr * scale, 0, 0, dpr * scale, ox * dpr, oy * dpr);
+  blitShadow(c, curShadow, 1, SCENES[key].groundY);
+  sceneBgKey = key;
+}
+
+/* short soft contact shadow anchoring the roof to the curtain top */
+let contactCanvas = null;
+function drawContactShadow(cx, cy, rx, ry, opacity) {
+  if (!contactCanvas) {
+    contactCanvas = document.createElement('canvas');
+    contactCanvas.width = 256; contactCanvas.height = 64;
+    const c = contactCanvas.getContext('2d');
+    c.translate(128, 32);
+    c.scale(128, 32);
+    const g = c.createRadialGradient(0, 0, 0, 0, 0, 1);
+    g.addColorStop(0, 'rgba(90,70,50,0.30)');
+    g.addColorStop(0.7, 'rgba(90,70,50,0.14)');
+    g.addColorStop(1, 'rgba(90,70,50,0)');
+    c.fillStyle = g;
+    c.fillRect(-1, -1, 2, 2);
+  }
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.drawImage(contactCanvas, cx - rx, cy - ry, rx * 2, ry * 2);
+  ctx.restore();
+}
+
+/* ============================================================
+   7. Scenes & copy (verbatim per SPEC §8)
+   ============================================================ */
+const CX = W / 2;   // 924
+
+const SCENES = {
+  china: {
+    key: 'china', name: 'CHINA',
+    kicker: '缘分 · Fated Connection (Yuánfèn) · A destined meeting',
+    title: ['China —', 'golden', 'courtyards,', 'silk-road', 'myths, roofs', 'that refuse', 'gravity'],
+    desc: 'Golden roofs above courtyards where caravans once rested — silk, tea and stories carried west along the same road.',
+    pool: '明月出天山苍茫云海间长风几万里吹度玉门关大漠孤烟直长河落日圆黄河远上白云间一片孤城万仞山羌笛何须怨杨柳春风不度玉门关劝君更尽一杯酒西出阳关无故人青海长云暗雪山孤城遥望玉门关黄沙百战穿金甲不破楼兰终不还驼铃古道丝绸路胡马犹闻唐汉风长安古道马迟迟高柳乱蝉嘶',
+    fontStack: CURTAIN_FONT_CJK,
+    cols: 26, rows: 40, gap: 15.8, rest: 17, fontSize: 12.5,
+    topY: 384, seed: 101,
+    roofPlace: { px: CX - 340, py: 118 },
+    contact: { dx: 16, dy: 14, rx: 255, ry: 30 },
+    groundY: 1050
+  },
+  japan: {
+    key: 'japan', name: 'JAPAN',
+    kicker: '一期一会 · One Meeting, Once in a Lifetime (Ichigo ichie) · One time, one meeting',
+    title: ['Japan —', 'red eaves', 'in the mist,', 'stone paths,', 'and the', 'patience', 'of rain'],
+    desc: 'Vermilion eaves and mossy stone — a thousand torii gates of rain, each visit unrepeatable.',
+    pool: 'いろはにほへとちりぬるをわかよたれそつねならむうゐのおくやまけふこえてあさきゆめみしゑひもせすんあめつちほしそらやまかはみなつきかぜ旅路空寺山川雲霞石道雨雪桜松鳥音京奈良禅庭',
+    fontStack: CURTAIN_FONT_JP,
+    cols: 27, rows: 40, gap: 15, rest: 17, fontSize: 12,
+    topY: 350, seed: 202,
+    roofPlace: { px: CX - 320, py: 210 },
+    contact: { dx: 16, dy: 12, rx: 245, ry: 26 },
+    groundY: 1050
+  },
+  kazakhstan: {
+    key: 'kazakhstan', name: 'KAZAKHSTAN',
+    kicker: 'Жол (Jol) · The open road',
+    title: ['Kazakhstan —', 'steppe wind,', 'shanyrak', 'light, a home', 'that moves', 'with you'],
+    desc: 'A dome of felt under an enormous sky — the shanyrak ring carries the hearth wherever the herd goes.',
+    pool: 'ШАҢЫРАҚДАЛАЖЕЛЖОЛБОЗҮЙКҮНАЙЖЫЛҚЫДОМБЫРААЛТЫНСАҚАТҰРАНАТАБАБАЕЛОРДАКIЛЕТБЕЙНЕ',
+    fontStack: CURTAIN_FONT_CY,
+    cols: 25, rows: 40, gap: 16, rest: 17, fontSize: 13,
+    topY: 390, seed: 303,
+    roofPlace: { px: CX - 280, py: 150 },
+    contact: { dx: 14, dy: 10, rx: 210, ry: 26 },
+    groundY: 1050,
+    roofShadowAlpha: 0.55      // the white dome casts a gentler shadow
+  }
+};
+const ORDER = ['china', 'japan', 'kazakhstan'];
+
+function roofEntry(key) {
+  const s = SCENES[key], r = ROOFS[key];
+  return { canvas: r.canvas, w: r.w, h: r.h, px: s.roofPlace.px, py: s.roofPlace.py };
+}
+function makeCurtain(key) {
+  const s = SCENES[key];
+  return new Curtain({
+    cols: s.cols, rows: s.rows, cx: CX, topY: s.topY,
+    gap: s.gap, rest: s.rest, pool: s.pool,
+    fontSize: s.fontSize, fontStack: s.fontStack, seed: s.seed
+  });
+}
+
+/* ---------- DOM refs ---------- */
+const elKicker = document.getElementById('kicker');
+const elTitle  = document.getElementById('title');
+const elDesc   = document.getElementById('desc');
+const elHint   = document.getElementById('hint');
+const elCardL  = document.getElementById('cardL');
+const elCardR  = document.getElementById('cardR');
+const elCapL   = document.getElementById('capL');
+const elCapR   = document.getElementById('capR');
+const elThumbL = document.getElementById('thumbL');
+const elThumbR = document.getElementById('thumbR');
+const elDoors  = document.getElementById('doors');
+const FADEABLE = [elKicker, elTitle, elDesc, elCardL, elCardR, elHint];
+
+/* ---------- copy application ---------- */
+function applyCopy(key) {
+  const s = SCENES[key];
+  elKicker.textContent = s.kicker;
+  elTitle.innerHTML = s.title.join('<br>');
+  elDesc.textContent = s.desc;
+  const i = ORDER.indexOf(key);
+  const prev = ORDER[(i + ORDER.length - 1) % ORDER.length];
+  const next = ORDER[(i + 1) % ORDER.length];
+  elCapL.textContent = SCENES[prev].name;
+  elCapR.textContent = SCENES[next].name;
+  drawThumb(elThumbL, ROOFS[prev]);
+  drawThumb(elThumbR, ROOFS[next]);
+  elCardL.dataset.target = prev;
+  elCardR.dataset.target = next;
+  // NOTE: #hint is a single persistent element. Its text is only changed on
+  // gallery enter/leave — never rewritten per scene (avoids stale overlays).
+}
+
+function domFadeOut() {
+  FADEABLE.forEach(el => {
+    el.style.transitionDelay = '0s';
+    el.classList.add('faded');
+  });
+}
+function domFadeIn(stagger) {
+  const delays = stagger ? { kicker: 0.10, title: 0.25, desc: 0.40, card: 0.18, hint: 0.45 } :
+                             { kicker: 0, title: 0, desc: 0, card: 0, hint: 0 };
+  elKicker.style.transitionDelay = delays.kicker + 's';
+  elTitle.style.transitionDelay  = delays.title + 's';
+  elDesc.style.transitionDelay   = delays.desc + 's';
+  elCardL.style.transitionDelay  = delays.card + 's';
+  elCardR.style.transitionDelay  = delays.card + 's';
+  elHint.style.transitionDelay   = delays.hint + 's';
+  FADEABLE.forEach(el => el.classList.remove('faded'));
+  setTimeout(() => FADEABLE.forEach(el => { el.style.transitionDelay = '0s'; }), 1200);
+}
+
+/* ---------- gallery doorways (DOM hit areas + captions) ---------- */
+const DOOR_CENTERS = [480, 924, 1368];
+const doorEls = [];
+ORDER.forEach((key, i) => {
+  const d = document.createElement('div');
+  d.className = 'door interactive';
+  d.style.left = (DOOR_CENTERS[i] - 190) + 'px';
+  d.style.display = 'none';
+  d.innerHTML = '<div class="gcap"><div class="gname">' + SCENES[key].name +
+    '</div><div class="gkick">' + SCENES[key].kicker + '</div></div>';
+  d.addEventListener('click', () => { onUserGesture(); leaveGalleryTo(key); });
+  elDoors.appendChild(d);
+  doorEls.push(d);
+});
+function showDoors(show) {
+  doorEls.forEach((d, i) => {
+    d.style.display = show ? 'block' : 'none';
+    if (show) {
+      d.style.transitionDelay = (i * 0.09) + 's';
+      d.classList.add('faded');
+      d.style.transform = 'translateY(30px)';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        d.classList.remove('faded');
+        d.style.transform = 'translateY(0)';
+      }));
+      setTimeout(() => { d.style.transitionDelay = '0s'; }, 1200);
+    }
+  });
+}
+
+/* ============================================================
+   8. Scene manager — directional switching, gallery, routing
+   ============================================================ */
+const ROOF_ENTRIES = { china: roofEntry('china'), japan: roofEntry('japan'), kazakhstan: roofEntry('kazakhstan') };
+
+/* roof image pre-scaled to current display size -> fast device-space blit */
+const roofDispCache = new Map();
+function roofDisplay(key) {
+  const ck = key + '@' + dpr + 'x' + scale.toFixed(4);
+  let e = roofDispCache.get(ck);
+  if (!e) {
+    const r = ROOFS[key], s = SCENES[key];
+    const w = Math.max(2, Math.round(r.w * scale * dpr));
+    const h = Math.max(2, Math.round(r.h * scale * dpr));
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    cv.getContext('2d').drawImage(r.canvas, 0, 0, w, h);
+    e = { canvas: cv, px: s.roofPlace.px, py: s.roofPlace.py };
+    if (roofDispCache.size > 12) roofDispCache.clear();
+    roofDispCache.set(ck, e);
+  }
+  return e;
+}
+
+let mode = 'hero';              // 'hero' | 'gallery'
+let curKey = 'china';
+let lastHeroKey = 'china';
+let curCurtain = null;
+let curShadow = null;
+let trans = null;               // active hero->hero transition
+let gallery = null;             // gallery state
+let introT = -1;                // initial fade-in timer
+let inputLocked = false;
+
+function dirFor(key) {
+  return ORDER.indexOf(key) >= ORDER.indexOf(curKey) ? 1 : -1;
+}
+
+/* ---------- hero rendering ---------- */
+function renderHeroScene(key, curtain, shadow, tx, ty, opacity, skipShadow) {
+  if (!curtain || opacity <= 0) return;
+  const s = SCENES[key];
+  let t0 = performance.now();
+  if (!skipShadow) {
+    drawCastShadow(shadow, key, ROOF_ENTRIES[key], curtain, tx, ty, opacity, s.groundY);
+  }
+  prof('shadow', t0);
+  t0 = performance.now();
+  curtain.draw(ctx, tx, ty, opacity);
+  prof('curtain', t0);
+  // roof: display-cached device-space blit
+  const rd = roofDisplay(key);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = opacity;
+  ctx.drawImage(rd.canvas, dpr * (ox + (rd.px + tx) * scale), dpr * (oy + (rd.py + ty) * scale));
+  ctx.globalAlpha = 1;
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, ox * dpr, oy * dpr);
+  drawContactShadow(CX + s.contact.dx + tx, s.topY + s.contact.dy + ty,
+    s.contact.rx, s.contact.ry, opacity);
+}
+
+/* ---------- hero -> hero transition (SPEC §9) ---------- */
+function startTransition(toKey, dir) {
+  if (trans || toKey === curKey || mode !== 'hero') return;
+  inputLocked = true;
+  domFadeOut();
+  setHash('#' + toKey);
+  trans = {
+    dir, toKey, t: 0, swapped: false,
+    fromKey: curKey, fromCurtain: curCurtain, fromShadow: curShadow
+  };
+}
+
+function updateTransition(dt) {
+  if (!trans) return;
+  trans.t += dt;
+  const T = trans;
+  // Phase C start: swap content while invisible
+  if (T.t >= 0.78 && !T.swapped) {
+    T.swapped = true;
+    curKey = T.toKey;
+    lastHeroKey = curKey;
+    applyCopy(curKey);
+    curCurtain = makeCurtain(curKey);      // starts perfectly vertical, at rest
+    curShadow = createShadowBuffer();
+    elHint.textContent = 'DRAG THROUGH THE CURTAIN';  // restore after gallery
+    domFadeIn(true);                        // staggered text fade-in
+  }
+  if (T.t >= 1.5) {
+    T.fromCurtain = null;                   // drop exiting scene
+    T.fromShadow = null;
+    trans = null;
+    inputLocked = false;
+  }
+}
+
+function renderTransition() {
+  const T = trans;
+  const EXIT_X = W * 0.6;
+  if (T.t < 0.38) {
+    // Phase A: current building slides off toward -dir
+    const u = easeInQuad(T.t / 0.38);   // easeIn that still reads as "mid-slide" by 150ms
+    renderHeroScene(T.fromKey, T.fromCurtain, T.fromShadow,
+      -T.dir * u * EXIT_X, 0, 1 - 0.8 * u);
+  } else if (T.t < 0.78) {
+    // Phase B: paper-only empty beat — draw nothing
+  } else {
+    // Phase C: new scene enters from +dir with slight overshoot
+    const u = clamp((T.t - 0.78) / 0.72, 0, 1);
+    const x = T.dir * EXIT_X * (1 - easeOutBack(u, 1.15));
+    const op = clamp(u * 3, 0, 1);
+    renderHeroScene(curKey, curCurtain, curShadow, x, 0, op);
+  }
+}
+
+/* ---------- gallery ---------- */
+function makeMini(key, i) {
+  const s = SCENES[key], m = 0.42;
+  const cx = DOOR_CENTERS[i];
+  const topY = 300 + (s.topY - s.roofPlace.py) * m;
+  const curtain = new Curtain({
+    cols: 14, rows: 22, cx, topY,
+    gap: s.gap * m * (s.cols - 1) / 13, rest: s.rest * m,
+    pool: s.pool, fontSize: s.fontSize * m + 0.6,
+    fontStack: s.fontStack, seed: s.seed + 7
+  });
+  return { key, cx, curtain, shadow: createShadowBuffer(), groundY: topY + 22 * s.rest * m + 30 };
+}
+
+function enterGallery(instant) {
+  if (mode === 'gallery' || trans) return;
+  lastHeroKey = curKey;
+  inputLocked = true;
+  domFadeOut();
+  setHash('#gallery');
+  gallery = {
+    t: 0, state: 'in',
+    items: ORDER.map((key, i) => makeMini(key, i))
+  };
+  if (instant) gallery.t = 10;
+}
+
+function leaveGalleryTo(key) {
+  if (mode !== 'gallery' || !gallery || gallery.state !== 'in') return;
+  inputLocked = true;
+  showDoors(false);
+  elHint.classList.add('faded');
+  const dir = ORDER.indexOf(key) >= ORDER.indexOf(lastHeroKey) ? 1 : -1;
+  gallery.state = 'out';
+  gallery.t = 0;
+  _gTarget = key;
+  _gDir = dir;
+  setHash('#' + key);
+}
+
+function updateGallery(dt) {
+  if (!gallery) return;
+  gallery.t += dt;
+  if (gallery.state === 'in') {
+    if (gallery.t >= 0.4 && mode !== 'gallery') {
+      mode = 'gallery';
+      elHint.textContent = 'CLICK A DOORWAY TO ENTER';
+      elHint.classList.remove('faded');
+      showDoors(true);
+      inputLocked = false;
+    }
+    const breeze = true;
+    for (const it of gallery.items) it.curtain.simulate(dt, actor, mode === 'gallery' && !inputLocked, breeze && !REDUCED);
+  } else { // 'out'
+    if (gallery.t >= 0.35) {
+      mode = 'hero';
+      gallery = null;
+      showDoors(false);
+      // hero enters with a phase-C style slide
+      const key = galleryTarget();
+      trans = { dir: galleryDir(), toKey: key, t: 0.78, swapped: false, fromKey: null, fromCurtain: null, fromShadow: null };
+    }
+  }
+}
+let _gTarget = 'china', _gDir = 1;
+function galleryTarget() { return _gTarget; }
+function galleryDir() { return _gDir; }
+
+function renderGallery(dt) {
+  const g = gallery;
+  // hero fading away during entry
+  if (g.state === 'in' && g.t < 0.45 && mode !== 'gallery') {
+    const u = clamp(g.t / 0.4, 0, 1);
+    renderHeroScene(curKey, curCurtain, curShadow, 0, 0, 1 - u);
+  }
+  const leaving = g.state === 'out';
+  for (let i = 0; i < g.items.length; i++) {
+    const it = g.items[i];
+    let u;
+    if (leaving) u = 1 - clamp(g.t / 0.3, 0, 1);
+    else u = clamp((g.t - 0.4 - i * 0.09) / 0.4, 0, 1);
+    if (u <= 0) continue;
+    const dy = 30 * (1 - u);
+    const s = SCENES[it.key], m = 0.42;
+    const r = ROOFS[it.key];
+    const rw = r.w * m, rh = r.h * m;
+    const re = { canvas: r.canvas, w: rw, h: rh, px: it.cx - rw / 2, py: 300 };
+    drawCastShadow(it.shadow, it.key, re, it.curtain, 0, dy, u, it.groundY);
+    it.curtain.draw(ctx, 0, dy, u);
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, ox * dpr, oy * dpr); // reset after glyph loop
+    ctx.save();
+    ctx.globalAlpha = u;
+    ctx.drawImage(r.canvas, re.px, re.py + dy, rw, rh);
+    ctx.restore();
+    drawContactShadow(it.cx + s.contact.dx * m, it.curtain.topY + dy + s.contact.dy * m,
+      s.contact.rx * m, s.contact.ry * m, u);
+  }
+}
+
+/* ---------- routing ---------- */
+let suppressHash = false;
+function setHash(h) {
+  if (location.hash === h) return;
+  suppressHash = true;
+  location.hash = h;
+  setTimeout(() => { suppressHash = false; }, 60);
+}
+window.addEventListener('hashchange', () => {
+  if (suppressHash) return;
+  route(location.hash);
+});
+function route(h) {
+  h = (h || '').replace('#', '');
+  if (h === 'gallery') {
+    if (mode === 'hero' && !trans) enterGallery();
+  } else if (SCENES[h]) {
+    if (mode === 'gallery') { leaveGalleryTo(h); }
+    else if (h !== curKey && !trans) startTransition(h, dirFor(h));
+  }
+}
+
+/* ---------- chrome events ---------- */
+elCardL.addEventListener('click', () => { onUserGesture(); startTransition(elCardL.dataset.target, -1); });
+elCardR.addEventListener('click', () => { onUserGesture(); startTransition(elCardR.dataset.target, +1); });
+document.getElementById('navHome').addEventListener('click', () => {
+  onUserGesture();
+  if (mode === 'gallery') leaveGalleryTo(lastHeroKey);
+  else if (curKey !== 'china') startTransition('china', dirFor('china'));
+});
+document.getElementById('navDest').addEventListener('click', () => {
+  onUserGesture();
+  if (mode === 'hero') enterGallery();
+});
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && mode === 'gallery') leaveGalleryTo(lastHeroKey);
+});
+
+/* ---------- boot ---------- */
+function boot() {
+  resize();
+  const h = (location.hash || '').replace('#', '');
+  if (h === 'gallery') {
+    curKey = 'china'; lastHeroKey = 'china';
+    curCurtain = makeCurtain('china');
+    curShadow = createShadowBuffer();
+    applyCopy('china');
+    enterGallery(true);
+    mode = 'gallery';
+    showDoors(true);
+    elHint.textContent = 'CLICK A DOORWAY TO ENTER';
+    gallery.t = 10;
+    inputLocked = false;
+  } else {
+    curKey = SCENES[h] ? h : 'china';
+    lastHeroKey = curKey;
+    applyCopy(curKey);
+    curCurtain = makeCurtain(curKey);
+    curShadow = createShadowBuffer();
+    introT = 0;
+    FADEABLE.forEach(el => el.classList.add('faded'));
+    setTimeout(() => domFadeIn(false), 80);
+  }
+}
+
+/* ============================================================
+   9. Input, custom cursor, auto-demo ghost, main loop
+   ============================================================ */
+const pointer = { x: CX, y: H * 0.55, seen: false, overUI: false, type: 'mouse' };
+const actor = { x: CX, y: H * 0.55, vx: 0, vy: 0 };
+let ghostKilled = false;
+let lastInteract = -100;
+const ghost = { active: false, t: 0, nextAt: 9 };
+let nowSec = 0;
+
+function onUserGesture() {
+  ghostKilled = true;
+  ghost.active = false;
+  lastInteract = nowSec;
+}
+
+window.addEventListener('pointermove', e => {
+  const d = toDesign(e.clientX, e.clientY);
+  pointer.x = d.x; pointer.y = d.y;
+  pointer.seen = true;
+  pointer.type = e.pointerType === 'touch' ? 'touch' : 'mouse';
+  pointer.overUI = (e.target !== stage);
+  onUserGesture();
+}, { passive: true });
+window.addEventListener('pointerdown', e => {
+  const d = toDesign(e.clientX, e.clientY);
+  pointer.x = d.x; pointer.y = d.y;
+  pointer.seen = true;
+  pointer.type = e.pointerType === 'touch' ? 'touch' : 'mouse';
+  pointer.overUI = (e.target !== stage);
+  onUserGesture();
+}, { passive: true });
+window.addEventListener('pointerup', () => { /* curtain swings back naturally */ }, { passive: true });
+
+/* actor = real pointer OR ghost driver, with smoothed velocity */
+function updateActor(dt) {
+  let tx = pointer.x, ty = pointer.y, driven = false;
+  if (ghost.active) {
+    ghost.t += dt;
+    const dur = 1.7, u = ghost.t / dur;
+    if (u >= 1) {
+      ghost.active = false;
+      ghost.nextAt = nowSec + 7;
+    } else {
+      const e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+      const s = SCENES[curKey];
+      tx = CX - 300 + 600 * e;
+      ty = s.topY + 240 + Math.sin(u * Math.PI) * 80;
+      driven = true;
+    }
+  }
+  const dts = Math.max(dt, 1e-3);
+  let ivx = (tx - actor.x) / dts, ivy = (ty - actor.y) / dts;
+  if (!isFinite(ivx) || !isFinite(ivy)) { ivx = 0; ivy = 0; }
+  const blend = driven ? 0.5 : 0.45;
+  actor.vx = lerp(actor.vx, ivx, blend);
+  actor.vy = lerp(actor.vy, ivy, blend);
+  if (!isFinite(actor.vx) || !isFinite(actor.vy)) { actor.vx = 0; actor.vy = 0; }
+  if (Math.hypot(actor.vx, actor.vy) < 12) { actor.vx = 0; actor.vy = 0; }
+  actor.x = tx; actor.y = ty;
+}
+function maybeStartGhost() {
+  if (ghostKilled || REDUCED || ghost.active) return;
+  if (mode !== 'hero' || trans || inputLocked) return;
+  if (nowSec - lastInteract > 9 && nowSec >= ghost.nextAt) {
+    ghost.active = true;
+    ghost.t = 0;
+  }
+}
+
+/* ---------- custom cursor (canvas-drawn, restrained) ---------- */
+let cursorR = 14;
+function drawCursor() {
+  if (pointer.type !== 'mouse' || !pointer.seen || pointer.overUI) return;
+  if (ghost.active) return;
+  const sx = ox + pointer.x * scale, sy = oy + pointer.y * scale;
+  if (sx < 0 || sy < 0 || sx > vw || sy > vh) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  let over = false;
+  if (mode === 'hero' && curCurtain && !trans) {
+    const b = curCurtain.bbox();
+    over = pointer.x > b.x0 - 40 && pointer.x < b.x1 + 40 &&
+           pointer.y > b.y0 - 40 && pointer.y < b.y1 + 40;
+  } else if (gallery) {
+    over = true;
+  }
+  cursorR = lerp(cursorR, over ? 22 : 14, 0.18);
+  if (over) {
+    ctx.fillStyle = 'rgba(160,120,80,0.08)';
+    ctx.beginPath(); ctx.arc(sx, sy, 30, 0, TAU); ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(58,44,32,0.4)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(sx, sy, cursorR, 0, TAU); ctx.stroke();
+  ctx.fillStyle = '#3a2c20';
+  ctx.beginPath(); ctx.arc(sx, sy, 3, 0, TAU); ctx.fill();
+}
+
+/* ---------- update / render ---------- */
+function update(dt) {
+  maybeStartGhost();
+  updateActor(dt);
+  if (gallery) {
+    updateGallery(dt);
+    return;
+  }
+  if (mode === 'hero') {
+    if (trans) {
+      updateTransition(dt);
+      if (trans && trans.swapped && curCurtain) {
+        curCurtain.simulate(dt, actor, false, false);  // settle, no force
+      }
+    } else if (curCurtain) {
+      curCurtain.simulate(dt, actor, !inputLocked, !REDUCED);
+    }
+    if (introT >= 0 && introT < 1) {
+      introT = Math.min(1, introT + dt / 0.7);
+      if (introT >= 1) introT = -1;
+    }
+  }
+}
+
+const PROF = { on: false, acc: {}, n: 0 };
+window.__PROF = PROF;
+function prof(name, t0) { if (PROF.on) { PROF.acc[name] = (PROF.acc[name] || 0) + (performance.now() - t0); } }
+
+function render(dt) {
+  let t0 = performance.now();
+  // steady hero scene: paper + shadow precomposited -> single blit
+  const steadyHero = mode === 'hero' && !gallery && !trans && introT < 0 &&
+                     sceneBgKey === curKey && sceneBgCanvas;
+  if (steadyHero && updateShadowSil(curShadow, curKey, ROOF_ENTRIES[curKey], curCurtain, 0, 0)) {
+    compositeSceneBg(curKey);
+  }
+  prof('shadow', t0);
+
+  t0 = performance.now();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (steadyHero) ctx.drawImage(sceneBgCanvas, 0, 0);
+  else if (bgCanvas) ctx.drawImage(bgCanvas, 0, 0);
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, ox * dpr, oy * dpr);
+  prof('paper', t0);
+
+  t0 = performance.now();
+  if (gallery) {
+    renderGallery(dt);
+  } else if (mode === 'hero') {
+    if (trans) {
+      renderTransition();
+    } else if (steadyHero) {
+      renderHeroScene(curKey, curCurtain, curShadow, 0, 0, 1, true);
+    } else {
+      const op = introT >= 0 ? easeOutCubic(introT) : 1;
+      renderHeroScene(curKey, curCurtain, curShadow, 0, 0, op, false);
+      if (introT < 0 && !trans) compositeSceneBg(curKey);   // prime steady path
+    }
+  }
+  prof('scene', t0);
+  t0 = performance.now();
+  drawCursor();
+  prof('cursor', t0);
+  if (PROF.on) PROF.n++;
+}
+
+/* ---------- main loop with visibility pause ---------- */
+let lastTs = -1, running = true;
+function frame(ts) {
+  requestAnimationFrame(frame);
+  if (!running) { lastTs = -1; return; }
+  if (lastTs < 0) lastTs = ts;
+  const dt = clamp((ts - lastTs) / 1000, 0, 0.05);
+  lastTs = ts;
+  nowSec = ts / 1000;
+  const t0 = performance.now();
+  update(dt);
+  prof('update', t0);
+  render(dt);
+}
+document.addEventListener('visibilitychange', () => {
+  running = !document.hidden;
+});
+
+boot();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

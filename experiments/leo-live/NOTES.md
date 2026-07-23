@@ -1,9 +1,9 @@
 # Missing pieces
 
-This upload had the data/logic layer (hooks, lib, worker) but not the
-following, so `npm install && npm run dev` will not run as-is:
+Filled in so far: `vite.config.ts`, `components.json` (shadcn config).
 
-- `vite.config.ts` — needed for the `@/*` path alias and dev server config
+Still missing, so `npm install && npm run dev` will not run as-is:
+
 - `src/main.tsx` — React entry point
 - `src/App.tsx` (or equivalent) — the actual UI: the "LEO LIVE" panel with
   satellite counts, speed controls, search box, and the canvas host — seen

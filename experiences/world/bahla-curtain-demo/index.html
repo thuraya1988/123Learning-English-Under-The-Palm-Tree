@@ -28,13 +28,12 @@ html, body { width:100%; height:100%; background:#0a080d; font-family:'Segoe UI'
 #dimOverlay { position:absolute; inset:0; background:rgba(6,5,9,0.55); transition:opacity 0.6s ease; z-index:2; pointer-events:none; }
 
 #curtain { position:absolute; inset:0; z-index:10; }
-.strand { position:absolute; top:0; display:flex; flex-direction:column; align-items:center; }
-.letter { position:relative; width:34px; height:34px; margin-top:2px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; color:#e8d5b5; background:rgba(30,22,16,0.55); border:1px solid rgba(212,197,169,0.3); border-radius:6px; cursor:grab; user-select:none; touch-action:none; transition:transform 0.25s, opacity 0.4s; }
-.letter::before { content:''; position:absolute; top:-8px; left:50%; width:2px; height:8px; background:rgba(212,197,169,0.35); transform:translateX(-50%); }
+/* الحروف تتموضع فيزيائياً (Verlet) كل فريم عبر transform من JS — بدون CSS transition على transform حتى لا تتعارض */
+.letter { position:absolute; top:0; left:0; width:34px; height:34px; margin:-17px 0 0 -17px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; color:#e8d5b5; background:rgba(30,22,16,0.6); border:1px solid rgba(212,197,169,0.3); border-radius:6px; cursor:grab; user-select:none; touch-action:none; transition:opacity 0.4s, background 0.2s; will-change:transform; }
 .letter.target { border-color:rgba(0,212,170,0.55); box-shadow:0 0 8px rgba(0,212,170,0.15); }
-.letter.dragging { cursor:grabbing; z-index:50; transition:none; box-shadow:0 8px 20px rgba(0,0,0,0.5); }
-.letter.flying { pointer-events:none; }
-.letter.gone { opacity:0; transform:scale(0.3) rotate(180deg); pointer-events:none; }
+.letter.held { cursor:grabbing; z-index:50; background:rgba(0,212,170,0.18); box-shadow:0 8px 20px rgba(0,0,0,0.5); }
+.letter.flying { pointer-events:none; transition:none; }
+.letter.gone { opacity:0; pointer-events:none; }
 
 #trayWrap { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:60; display:flex; flex-direction:column; align-items:center; gap:10px; }
 #tray { display:flex; gap:6px; background:rgba(10,8,13,0.7); border:1px solid rgba(212,197,169,0.25); border-radius:14px; padding:10px 16px; direction:ltr; unicode-bidi:isolate; }
@@ -127,54 +126,163 @@ function renderTray() {
 }
 renderTray();
 
-// ===== توليد ستارة الحروف =====
+// ===== ستارة الحروف — فيزياء Verlet حقيقية (مقتبسة من محرك class Curtain
+// في experiments/silk-atlas/silk-atlas/index.html، مع إبقاء العرض عبر عناصر
+// DOM بدل الرسم على canvas حتى يسهل التفاعل والتنسيق) =====
 const curtainEl = document.getElementById('curtain');
 const NOISE = 'ETAOINSHRDLUCMFGYPWBVKJXQZ';
 const COLS = 16;
+const REST = 36;   // طول الوصلة بين حرفين متتاليين بنفس العمود
+const GRAVITY = 1500;
+const DAMP = 0.982;
+const FORCE_RADIUS = 110;
+
+let pts = [];    // pts[col] = [{x,y,px,py,el}, ...] — الصف 0 مثبّت دائماً
+let chars = [];  // chars[col] = ['B', 'X', ...]
+let anchors = [];
+let enterT = 0;
 
 function buildCurtain() {
   curtainEl.innerHTML = '';
+  pts = []; chars = []; anchors = []; enterT = 0;
+
   const needed = TARGET.replace(/ /g, '').split('');
   // عداد بدل Set — "BAHLA FORT" فيها حرفين A، وSet كان يدمجهم فيسبب حلقة لا نهائية
   let placedCount = 0;
-  const colWidth = window.innerWidth / COLS;
+  const gap = window.innerWidth / COLS;
+  const topY = -18;
 
   for (let c = 0; c < COLS; c++) {
-    const strand = document.createElement('div');
-    strand.className = 'strand';
-    strand.style.left = (c * colWidth + colWidth * 0.5 - 17) + 'px';
-    const rows = 6 + Math.floor(Math.random() * 5);
-    for (let r = 0; r < rows; r++) {
-      const el = document.createElement('div');
-      let ch;
-      if (placedCount < needed.length && Math.random() < 0.35) {
-        ch = needed[placedCount];
-        placedCount++;
-        el.classList.add('target');
-        el.dataset.letter = ch;
+    const ax = c * gap + gap * 0.5;
+    anchors.push({ x: ax, y: topY });
+    const rowCount = 6 + Math.floor(Math.random() * 5);
+    const colPts = [], colCh = [];
+    for (let r = 0; r < rowCount; r++) {
+      const y = topY + r * REST;
+      colPts.push({ x: ax, y, px: ax, py: y, el: null });
+      // الصف 0 مثبّت بالأعلى — ما نحط فيه حرف هدف حتى يقدر اللاعب يسحبه لاحقاً
+      let ch, isTarget = false;
+      if (r > 0 && placedCount < needed.length && Math.random() < 0.4) {
+        ch = needed[placedCount]; placedCount++; isTarget = true;
       } else {
         ch = NOISE[Math.floor(Math.random() * NOISE.length)];
-        el.dataset.letter = ch;
       }
-      el.className += ' letter';
-      el.textContent = ch;
-      strand.appendChild(el);
+      colCh.push({ ch, isTarget });
     }
-    curtainEl.appendChild(strand);
+    pts.push(colPts);
+    chars.push(colCh);
   }
   // لو فاضل حروف مطلوبة ما انحطت (نادراً)، نضيفها بعمود عشوائي مضمون
   while (placedCount < needed.length) {
-    const strand = curtainEl.children[Math.floor(Math.random() * COLS)];
-    const el = document.createElement('div');
-    const ch = needed[placedCount];
+    const c = Math.floor(Math.random() * COLS);
+    const rowCount = pts[c].length;
+    const y = topY + rowCount * REST;
+    pts[c].push({ x: anchors[c].x, y, px: anchors[c].x, py: y, el: null });
+    chars[c].push({ ch: needed[placedCount], isTarget: true });
     placedCount++;
-    el.className = 'letter target';
-    el.textContent = ch;
-    el.dataset.letter = ch;
-    strand.appendChild(el);
+  }
+
+  for (let c = 0; c < pts.length; c++) {
+    for (let r = 0; r < pts[c].length; r++) {
+      const el = document.createElement('div');
+      el.className = 'letter' + (chars[c][r].isTarget ? ' target' : '');
+      el.textContent = chars[c][r].ch;
+      el.dataset.letter = chars[c][r].ch;
+      el.dataset.col = c; el.dataset.row = r;
+      curtainEl.appendChild(el);
+      pts[c][r].el = el;
+    }
   }
 }
 buildCurtain();
+
+// خطوة محاكاة فيزيائية واحدة — نفس منطق Verlet integrate + قيود الحبل +
+// قوة المؤشر من silk-atlas، مطبّقة هنا على مصفوفة نقاط بدل شبكة قماش كاملة
+function simulateCurtain(dt, actor) {
+  enterT += dt;
+  const dt2 = dt * dt;
+  const dt60 = dt * 60;
+  const forcing = actor && Math.hypot(actor.vx, actor.vy) > 30;
+  const sp = forcing ? Math.min(Math.hypot(actor.vx, actor.vy), 2400) : 0;
+  const nvx = forcing ? actor.vx / Math.hypot(actor.vx, actor.vy) : 0;
+  const nvy = forcing ? actor.vy / Math.hypot(actor.vx, actor.vy) : 0;
+
+  for (let c = 0; c < pts.length; c++) {
+    const colPts = pts[c];
+    for (let r = 1; r < colPts.length; r++) {
+      if (colPts[r].held) continue;
+      const p = colPts[r];
+      const vx = (p.x - p.px) * DAMP;
+      const vy = (p.y - p.py) * DAMP;
+      p.px = p.x; p.py = p.y;
+      p.x += vx;
+      p.y += vy + GRAVITY * dt2;
+    }
+  }
+
+  // قيود الحبل (طول ثابت بين كل حرفين متتاليين) — 4 تكرارات للاستقرار
+  for (let it = 0; it < 4; it++) {
+    for (let c = 0; c < pts.length; c++) {
+      const colPts = pts[c];
+      if (!colPts.length) continue;
+      colPts[0].x = anchors[c].x; colPts[0].y = anchors[c].y;
+      for (let r = 1; r < colPts.length; r++) {
+        if (colPts[r].held) continue;
+        const p0 = colPts[r - 1], p1 = colPts[r];
+        let dx = p1.x - p0.x, dy = p1.y - p0.y;
+        let d = Math.sqrt(dx * dx + dy * dy) || 1e-4;
+        const diff = (d - REST) / d;
+        if (r === 1 || p0.held) {
+          p1.x -= dx * diff; p1.y -= dy * diff;
+        } else {
+          const hx = dx * diff * 0.5, hy = dy * diff * 0.5;
+          p0.x += hx; p0.y += hy;
+          p1.x -= hx; p1.y -= hy;
+        }
+      }
+    }
+  }
+
+  // قوة المؤشر — تنشر الحروف المجاورة أثناء السحب (إحساس "فرق الشعر")
+  if (forcing) {
+    for (let c = 0; c < pts.length; c++) {
+      for (let r = 1; r < pts[c].length; r++) {
+        const p = pts[c][r];
+        if (p.held) continue;
+        const dx = p.x - actor.x, dy = p.y - actor.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < FORCE_RADIUS * FORCE_RADIUS) {
+          const d = Math.sqrt(d2) || 1;
+          const fall = (1 - d / FORCE_RADIUS) * (1 - d / FORCE_RADIUS);
+          const dirx = dx / d * 0.45 + nvx * 0.9;
+          const diry = dy / d * 0.45 + nvy * 0.9;
+          const dl = Math.hypot(dirx, diry) || 1;
+          const imp = Math.min(fall * sp * 0.006 * dt60, 11);
+          p.x += dirx / dl * imp; p.y += diry / dl * imp;
+        }
+      }
+    }
+  }
+
+  // نسمة خفيفة مستمرة حتى الستارة ما تطلع جامدة وقت السكون
+  if (enterT > 1.5) {
+    for (let c = 0; c < pts.length; c++) {
+      for (let r = 2; r < pts[c].length; r++) {
+        const p = pts[c][r];
+        if (p.held) continue;
+        p.x += Math.sin(enterT * 0.7 + r * 0.15 + c * 0.3) * 0.06;
+      }
+    }
+  }
+
+  // عرض: نحدّث موضع كل عنصر DOM من نتيجة الفيزياء
+  for (let c = 0; c < pts.length; c++) {
+    for (let r = 0; r < pts[c].length; r++) {
+      const p = pts[c][r];
+      if (p.el) p.el.style.transform = `translate(${p.x}px, ${p.y}px)`;
+    }
+  }
+}
 
 // ===== صوت بسيط (نغمات مصنّعة تحاكي الضحك/الفرح — ما فيه ملفات صوت حقيقية بعد) =====
 let audioCtx = null;
@@ -225,77 +333,81 @@ function playFanfare() {
   } catch (e) { /* audio unavailable */ }
 }
 
-// ===== السحب والإفلات =====
-let dragEl = null, dragStartX = 0, dragStartY = 0, dragOX = 0, dragOY = 0;
+// ===== السحب — تمسك نقطة فيزيائية وتحركها مباشرة، والباقي يتبعها بالحبل =====
+let held = null; // { col, row, el }
+let lastPX = 0, lastPY = 0, actorVX = 0, actorVY = 0;
+let startY = 0;
 
 curtainEl.addEventListener('pointerdown', (e) => {
   const el = e.target.closest('.letter');
   if (!el || el.classList.contains('flying') || el.classList.contains('gone')) return;
-  dragEl = el;
-  const rect = el.getBoundingClientRect();
-  dragStartX = e.clientX; dragStartY = e.clientY;
-  dragOX = rect.left; dragOY = rect.top;
-  el.classList.add('dragging');
-  el.style.position = 'fixed';
-  el.style.left = rect.left + 'px';
-  el.style.top = rect.top + 'px';
+  const col = +el.dataset.col, row = +el.dataset.row;
+  const p = pts[col][row];
+  if (row === 0) return; // الصف 0 مثبّت دائماً، مو قابل للسحب
+  p.held = true;
+  held = { col, row, el };
+  startY = p.y;
+  lastPX = e.clientX; lastPY = e.clientY;
+  el.classList.add('held');
   el.setPointerCapture(e.pointerId);
 });
 
 curtainEl.addEventListener('pointermove', (e) => {
-  if (!dragEl) return;
-  const dx = e.clientX - dragStartX;
-  const dy = e.clientY - dragStartY;
-  dragEl.style.left = (dragOX + dx) + 'px';
-  dragEl.style.top = (dragOY + dy) + 'px';
+  if (!held) return;
+  const p = pts[held.col][held.row];
+  actorVX = (e.clientX - lastPX) * 60;
+  actorVY = (e.clientY - lastPY) * 60;
+  lastPX = e.clientX; lastPY = e.clientY;
+  p.x = e.clientX; p.y = e.clientY;
 });
 
 function endDrag(e) {
-  if (!dragEl) return;
-  const el = dragEl;
-  dragEl = null;
-  el.classList.remove('dragging');
+  if (!held) return;
+  const { col, row, el } = held;
+  const p = pts[col][row];
+  held = null;
+  el.classList.remove('held');
 
   const trayRect = trayEl.getBoundingClientRect();
-  const elRect = el.getBoundingClientRect();
-  const droppedOnTray = elRect.top < trayRect.bottom + 40 && elRect.bottom > trayRect.top - 40;
-  const draggedFarEnough = Math.abs(elRect.top - dragOY) > 40;
-
+  const droppedOnTray = p.y > trayRect.top - 60;
+  const draggedFarEnough = Math.abs(p.y - startY) > 40;
+  const isTarget = el.classList.contains('target');
   const letter = el.dataset.letter;
   const needed = letterSlots[nextIndex] ? letterSlots[nextIndex].ch : null;
 
-  if (droppedOnTray && draggedFarEnough && letter === needed) {
-    correctLetter(el);
+  if (droppedOnTray && draggedFarEnough && isTarget && letter === needed) {
+    collectLetter(col, row, el);
   } else if (droppedOnTray && draggedFarEnough) {
     playWrong();
-    snapBack(el);
+    p.held = false; // يترك للفيزياء يرجعه بحبل الوصلة تلقائياً
   } else {
-    snapBack(el);
+    p.held = false;
   }
 }
 curtainEl.addEventListener('pointerup', endDrag);
 curtainEl.addEventListener('pointercancel', endDrag);
 
-function snapBack(el) {
-  el.style.position = '';
-  el.style.left = '';
-  el.style.top = '';
-}
+// جمع حرف صحيح: يُفصل عن سلسلة العمود الفيزيائية (والحبل يعيد الالتحام
+// حول الفجوة تلقائياً)، ثم يطير بحركة بسيطة نحو خانته بلوحة التهجئة
+function collectLetter(col, row, el) {
+  pts[col].splice(row, 1);
+  chars[col].splice(row, 1);
+  for (let r = row; r < pts[col].length; r++) {
+    pts[col][r].el.dataset.row = r;
+  }
 
-function correctLetter(el) {
   el.classList.add('flying');
   const slotEls = trayEl.querySelectorAll('.slot');
   const targetSlot = slotEls[nextIndex];
   const tr = targetSlot.getBoundingClientRect();
-  el.style.left = (tr.left + tr.width / 2 - 17) + 'px';
-  el.style.top = (tr.top) + 'px';
+  el.style.transform = `translate(${tr.left + tr.width / 2}px, ${tr.top}px)`;
   playGiggle();
 
   letterSlots[nextIndex].filled = true;
   renderTray();
   nextIndex = letterSlots.findIndex(s => !s.filled);
 
-  setTimeout(() => { el.classList.add('gone'); }, 260);
+  setTimeout(() => { el.classList.add('gone'); setTimeout(() => el.remove(), 400); }, 260);
 
   // كشف تدريجي للصورة مع كل حرف صحيح
   const progress = letterSlots.filter(s => s.filled).length / letterSlots.length;
@@ -306,6 +418,17 @@ function correctLetter(el) {
     setTimeout(showSuccess, 500);
   }
 }
+
+// ===== حلقة الرسوم المتحركة =====
+let lastFrame = performance.now();
+function tick(now) {
+  const dt = Math.min((now - lastFrame) / 1000, 0.033);
+  lastFrame = now;
+  const actor = held ? { x: pts[held.col][held.row].x, y: pts[held.col][held.row].y, vx: actorVX, vy: actorVY } : null;
+  simulateCurtain(dt, actor);
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
 
 function showSuccess() {
   playFanfare();

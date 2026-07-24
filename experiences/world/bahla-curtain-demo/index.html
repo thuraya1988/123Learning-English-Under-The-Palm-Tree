@@ -32,11 +32,32 @@ html, body { width:100%; height:100%; background:#0a080d; font-family:'Segoe UI'
 /* الحروف تتموضع فيزيائياً (Verlet) كل فريم عبر transform من JS — بدون CSS transition على transform حتى لا تتعارض */
 /* حروف حرة معلّقة بلا صناديق — بنفس أسلوب أطلس الحرير (glyph عاري على "سلسلة" رفيعة) */
 .letter { position:absolute; top:0; left:0; width:34px; height:34px; margin:-17px 0 0 -17px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; font-family:Georgia,'Times New Roman',serif; color:#d4c5a9; text-shadow:0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.6); cursor:grab; user-select:none; touch-action:none; transition:opacity 0.4s, color 0.2s; will-change:transform; }
-.letter::before { content:''; position:absolute; top:-9px; left:50%; width:1px; height:9px; background:rgba(212,197,169,0.4); transform:translateX(-50%); }
+/* حلقة صغيرة تصل كل حرف بالي فوقه — إحساس "سلسلة" بدون صناديق حول الحرف نفسه */
+.letter::before { content:''; position:absolute; top:-10px; left:50%; width:6px; height:6px; border:1px solid rgba(212,197,169,0.45); border-radius:50%; transform:translateX(-50%); }
+.letter::after { content:''; position:absolute; top:-5px; left:50%; width:1px; height:5px; background:rgba(212,197,169,0.35); transform:translateX(-50%); }
 .letter.target { color:#00d4aa; text-shadow:0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(0,212,170,0.5); }
+.letter.target::before { border-color:rgba(0,212,170,0.5); }
 .letter.held { cursor:grabbing; z-index:50; color:#fff; transform-origin:center; text-shadow:0 2px 10px rgba(0,0,0,0.95); }
 .letter.flying { pointer-events:none; transition:none; }
 .letter.gone { opacity:0; pointer-events:none; }
+
+/* تسميات الأصوات الطايرة — تظهر لحظة تشغيل الصوت (ضحك/صريخ) مثل ملصقات
+   "CHILL LAUGHTER / CHIRPS / JOYFUL SCREAMS" بالتصميم المرجعي */
+.soundLabel { position:fixed; z-index:65; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; font-weight:700; color:#d4c5a9; text-shadow:0 2px 6px rgba(0,0,0,0.9); pointer-events:none; opacity:0; animation:soundLabelFloat 1.1s ease-out forwards; white-space:nowrap; }
+.soundLabel.good { color:#00d4aa; }
+.soundLabel.bad { color:#d63384; }
+@keyframes soundLabelFloat {
+  0% { opacity:0; transform:translate(-50%,-50%) translateY(0) scale(0.85); }
+  15% { opacity:1; transform:translate(-50%,-50%) translateY(-6px) scale(1); }
+  100% { opacity:0; transform:translate(-50%,-50%) translateY(-46px) scale(1.05); }
+}
+
+/* شارة العنوان — بنفس روح "OMAN ADVENTURE / LEVEL: UNCOVER THE HISTORY" بالتصميم
+   المرجعي، بدون حرق الكلمة السرية قبل حلها */
+#levelBadge { position:fixed; top:16px; left:16px; z-index:70; background:rgba(10,8,13,0.7); border:1px solid rgba(212,197,169,0.3); border-radius:10px; padding:8px 14px; direction:ltr; unicode-bidi:isolate; }
+#levelBadge .flag { font-size:13px; }
+#levelBadge .brand { font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#d4c5a9; font-weight:700; }
+#levelBadge .sub { font-size:10px; color:#8b7a5f; margin-top:2px; }
 
 #trayWrap { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:60; display:flex; flex-direction:column; align-items:center; gap:10px; }
 #tray { display:flex; gap:6px; background:rgba(10,8,13,0.7); border:1px solid rgba(212,197,169,0.25); border-radius:14px; padding:10px 16px; direction:ltr; unicode-bidi:isolate; }
@@ -85,6 +106,11 @@ html, body { width:100%; height:100%; background:#0a080d; font-family:'Segoe UI'
   <div id="curtain"></div>
 </div>
 <div id="photoCredit"></div>
+
+<div id="levelBadge">
+  <span class="flag">🇴🇲</span> <span class="brand">Palm Witnesses</span>
+  <div class="sub">Uncover the History</div>
+</div>
 
 <div class="top-hud">
   <button id="hintBtn">📜 Hint</button>
@@ -326,6 +352,19 @@ function simulateCurtain(dt, actor) {
   }
 }
 
+// ===== تسميات الأصوات الطايرة (نفس فكرة ملصقات CHILL LAUGHTER / CHIRPS بالتصميم المرجعي) =====
+const GOOD_SOUND_LABELS = ['Giggle', 'Chirp', 'Chill Laughter'];
+const BAD_SOUND_LABELS = ['Oops', 'Uh-oh'];
+function spawnSoundLabel(x, y, text, cls) {
+  const el = document.createElement('div');
+  el.className = 'soundLabel' + (cls ? ' ' + cls : '');
+  el.textContent = text;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+
 // ===== محرك الصوت (منقول من محرك الأصوات الحقيقي — ضحك/صريخ/نجاح مصنّعة عبر Web Audio API) =====
 let audioCtx = null;
 function ensureAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -445,6 +484,7 @@ function endDrag(e) {
     collectLetter(col, row, el);
   } else if (droppedOnTray && draggedFarEnough) {
     playWrong();
+    spawnSoundLabel(p.x, p.y, BAD_SOUND_LABELS[Math.floor(Math.random() * BAD_SOUND_LABELS.length)], 'bad');
     p.held = false; // يترك للفيزياء يرجعه بحبل الوصلة تلقائياً
   } else {
     p.held = false;
@@ -456,6 +496,8 @@ curtainEl.addEventListener('pointercancel', endDrag);
 // جمع حرف صحيح: يُفصل عن سلسلة العمود الفيزيائية (والحبل يعيد الالتحام
 // حول الفجوة تلقائياً)، ثم يطير بحركة بسيطة نحو خانته بلوحة التهجئة
 function collectLetter(col, row, el) {
+  const dropRect = el.getBoundingClientRect();
+
   pts[col].splice(row, 1);
   chars[col].splice(row, 1);
   for (let r = row; r < pts[col].length; r++) {
@@ -468,6 +510,8 @@ function collectLetter(col, row, el) {
   const tr = targetSlot.getBoundingClientRect();
   el.style.transform = `translate(${tr.left + tr.width / 2}px, ${tr.top}px)`;
   playGiggle();
+  spawnSoundLabel(dropRect.left + dropRect.width / 2, dropRect.top + dropRect.height / 2,
+    GOOD_SOUND_LABELS[Math.floor(Math.random() * GOOD_SOUND_LABELS.length)], 'good');
 
   letterSlots[nextIndex].filled = true;
   renderTray();
@@ -532,6 +576,13 @@ function showSuccess() {
   document.getElementById('photoBg').classList.add('revealed');
   document.getElementById('dimOverlay').style.opacity = '0';
   document.getElementById('successTitle').textContent = TARGET;
+
+  // انفجار ملصقات فرح متتالي — نفس إحساس "CHILL LAUGHTER / CHIRPS / JOYFUL SCREAMS"
+  const burst = ['Chill Laughter', 'Chirps', 'Joyful Screams'];
+  const cx = window.innerWidth * 0.7, cy = window.innerHeight * 0.35;
+  burst.forEach((label, i) => {
+    setTimeout(() => spawnSoundLabel(cx + i * 70, cy + i * 40, label, 'good'), i * 220);
+  });
 
   if (CARD) {
     const gender = getPlayerGender();

@@ -1127,7 +1127,9 @@ class TarotGame {
                 step++;
             } else {
                 clearInterval(interval);
-                setTimeout(() => this.showCameraPermission(), 500);
+                // نبدأ مباشرة باللمس/الماوس البسيط بدل ما نوقف اللاعب بشاشة اختيار
+                // كاميرا مربكة — تتبع اليد صعب يفهمونه وما يشتغل بثبات على الجوال
+                setTimeout(() => this.enableMouseMode(), 500);
             }
         }, 700);
     }
@@ -1353,6 +1355,10 @@ class TarotGame {
 
     onMouseClick(e) {
         if (!this.useMouse) return;
+        // على الجوال ما فيه mousemove قبل اللمس، فـ hoveredCard يطلع فاضي دايماً —
+        // نحسب البطاقة تحت نقطة الضغط مباشرة بدل الاعتماد على تحويم سابق
+        const rect = this.canvas.getBoundingClientRect();
+        this.checkCardHover(e.clientX - rect.left, e.clientY - rect.top);
         this.selectHoveredCard();
     }
 
@@ -1361,7 +1367,9 @@ class TarotGame {
     // ============================================
     createCards() {
         this.cards = [];
-        const cardIds = Object.keys(TarotCards).map(Number);
+        // بس البطاقات الجاهزة (محتوى عُماني حقيقي) — الباقي أسماء تاروت كلاسيكية
+        // (الساحر، الكاهنة العليا...) ما لها محل هنا وما تنسحب أبداً
+        const cardIds = Object.keys(TarotCards).map(Number).filter(id => TarotCards[id].isReady);
 
         // Shuffle
         for (let i = cardIds.length - 1; i > 0; i--) {
@@ -1779,7 +1787,7 @@ class TarotGame {
         if (!grid) return;
 
         grid.innerHTML = '';
-        Object.values(TarotCards).forEach(card => {
+        Object.values(TarotCards).filter(card => card.isReady).forEach(card => {
             const div = document.createElement('div');
             div.className = 'card-thumbnail';
             div.innerHTML = `

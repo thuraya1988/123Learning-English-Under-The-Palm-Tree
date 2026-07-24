@@ -9,9 +9,24 @@
 // TAROT CARD DATA - Major Arcana (22 cards)
 // ============================================
 const TarotCards = {
-    0: { id: 0, name: "The Fool", nameAr: "المغفل", emoji: "🃏", num: "0", 
+    0: { id: 0, name: "The Castle of Knowledge", nameAr: "حصن المعرفة", emoji: "🏰", num: "I",
          meaning: "New beginnings, innocence, spontaneity. A leap of faith into the unknown.",
-         meaningAr: "بدايات جديدة، براءة، تلقائية. قفزة إيمان في المجهول." },
+         meaningAr: "بدايات جديدة، براءة، تلقائية. قفزة إيمان في المجهول.",
+         isReady: true,
+         category: "place",
+         secretWord: "JABRIN CASTLE",
+         loreText: "Built in 1670 in the region of Al Dakhiliyah, this stronghold was never meant for war. Instead, scholars gathered within its high walls to study the stars, medicine, and law. Hidden staircases connect rooms painted with verses from the Quran — a place where knowledge, not conquest, was king. Even today, visitors climb narrow stairs to reach the room where a great Imam is said to be buried.",
+         vocabTargets: ["stronghold", "scholars", "staircases", "conquest"],
+         grammarTargets: ["was never meant", "is said to be"],
+         image: "assets/jabrin-castle.jpg",
+         questions: [
+           { q: 'What was this stronghold built for?', opts: ['War and conquest', 'Knowledge, medicine, and law', 'Trade and markets'], correct: 1 },
+           { q: 'What connects the rooms inside?', opts: ['Long tunnels', 'Hidden staircases', 'Glass bridges'], correct: 1 },
+           { q: 'What is painted on the walls?', opts: ['Verses from the Quran', 'Modern paintings', 'Old maps'], correct: 0 },
+           { q: 'In which region is it located?', opts: ['Al Dakhiliyah', 'Muscat', 'Salalah'], correct: 0 },
+           { q: 'Who is said to be buried in a room reached by narrow stairs?', opts: ['A famous trader', 'A great Imam', 'A foreign king'], correct: 1 }
+         ]
+       },
     1: { id: 1, name: "The Magician", nameAr: "الساحر", emoji: "🎩", num: "I",
          meaning: "Manifestation, resourcefulness, power. You have all the tools you need.",
          meaningAr: "تجسيد، موارد، قوة. عندك كل الأدوات اللي تحتاجها." },
@@ -162,6 +177,7 @@ class TarotGame {
             'spread-name','cards-grid','card-modal','modal-card','btn-close-modal',
             'hand-canvas','input-video','tarot-canvas'];
 
+        ids.push('btn-continue-journey');
         ids.forEach(id => {
             this.ui[id.replace(/-/g, '_')] = document.getElementById(id);
         });
@@ -817,10 +833,26 @@ class TarotGame {
             this.ui.reading_text.innerHTML = `
                 <h3>${this.language === 'ar' ? data.nameAr : data.name}</h3>
                 <p>${this.language === 'ar' ? data.meaningAr : data.meaning}</p>
+                ${data.isReady ? `<p style="margin-top:1rem; font-style:italic; direction:ltr; unicode-bidi:isolate;">${data.loreText}</p>
+                <p style="margin-top:0.6rem; font-size:0.75rem; color:#9a8b6b;">Read carefully — you'll need this to spell the secret word and answer questions on the falaj ride.</p>` : ''}
             `;
         }
 
+        if (this.ui.btn_continue_journey) {
+            if (data.isReady) {
+                this.ui.btn_continue_journey.classList.remove('hidden');
+                this.ui.btn_continue_journey.onclick = () => this.continueToJourney(data);
+            } else {
+                this.ui.btn_continue_journey.classList.add('hidden');
+            }
+        }
+
         this.ui.reading_panel?.classList.remove('hidden');
+    }
+
+    continueToJourney(data) {
+        sessionStorage.setItem('palmtree_currentCard', JSON.stringify(data));
+        window.location.href = '../../world/bahla-curtain-demo/index.html';
     }
 
     closeReading() {

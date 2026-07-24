@@ -13,7 +13,7 @@ html, body { width:100%; height:100%; background:#0a080d; font-family:'Segoe UI'
 #stage { position:fixed; inset:0; overflow:hidden; }
 
 /* صورة حقيقية لقلعة بهلا (Wikimedia Commons، CC BY-SA 4.0) */
-#photoBg { position:absolute; inset:0; background:url('assets/bahla-fort.jpg') center 60%/cover; filter:blur(18px) brightness(0.45); transition:filter 0.6s ease; }
+#photoBg { position:absolute; inset:0; background:linear-gradient(180deg,#3a3020,#241a12) center 60%/cover, url('assets/bahla-fort.jpg') center 60%/cover; filter:blur(18px) brightness(0.45); transition:filter 0.6s ease; }
 #photoBg.revealed { filter:blur(0px) brightness(1); }
 #photoCredit { position:fixed; bottom:6px; left:10px; font-size:10px; color:rgba(232,213,181,0.35); z-index:15; direction:ltr; unicode-bidi:isolate; }
 
@@ -50,7 +50,13 @@ html, body { width:100%; height:100%; background:#0a080d; font-family:'Segoe UI'
 #successScreen .icon { font-size:56px; margin-bottom:14px; }
 #successScreen h2 { color:#d4c5a9; font-size:24px; margin-bottom:10px; direction:ltr; unicode-bidi:isolate; }
 #successScreen p { color:#8b7a5f; font-size:13px; max-width:420px; margin-bottom:22px; direction:ltr; unicode-bidi:isolate; }
-#successScreen button { background:rgba(214,51,132,0.15); border:1px solid rgba(214,51,132,0.4); color:#f0e6d2; padding:10px 28px; border-radius:10px; cursor:pointer; font-size:13px; }
+#successScreen button { background:rgba(214,51,132,0.15); border:1px solid rgba(214,51,132,0.4); color:#f0e6d2; padding:10px 28px; border-radius:10px; cursor:pointer; font-size:13px; margin:6px; }
+.hidden { display:none !important; }
+#rewardLine { font-size:15px; color:#00d4aa; margin-bottom:14px; direction:ltr; unicode-bidi:isolate; }
+#reviewBox { max-width:480px; background:rgba(212,197,169,0.06); border:1px solid rgba(212,197,169,0.25); border-radius:12px; padding:18px; margin-bottom:16px; font-size:14px; line-height:1.8; color:#c9baa0; direction:ltr; unicode-bidi:isolate; text-align:left; }
+#reviewBox .legend { font-size:11px; color:#8b7a5f; margin-bottom:10px; direction:ltr; unicode-bidi:isolate; }
+.vocab-hl { color:#00d4aa; font-weight:700; }
+.grammar-hl { color:#d63384; font-weight:700; }
 </style>
 </head>
 <body>
@@ -62,7 +68,7 @@ html, body { width:100%; height:100%; background:#0a080d; font-family:'Segoe UI'
   <div id="dimOverlay"></div>
   <div id="curtain"></div>
 </div>
-<div id="photoCredit">Photo: Bahla Fort — Wikimedia Commons, CC BY-SA 4.0</div>
+<div id="photoCredit"></div>
 
 <div class="top-hud">
   <button id="hintBtn">📜 Hint</button>
@@ -80,15 +86,27 @@ html, body { width:100%; height:100%; background:#0a080d; font-family:'Segoe UI'
 </div>
 
 <div id="successScreen">
-  <div class="icon">🏰</div>
+  <div class="icon" id="successIcon">🏰</div>
   <h2 id="successTitle"></h2>
-  <p>Well done! You uncovered the fort by spelling its name letter by letter.</p>
+  <p id="successSub">Well done! You uncovered the fort by spelling its name letter by letter.</p>
+  <div id="rewardLine" class="hidden"></div>
+  <div id="reviewBox" class="hidden"></div>
+  <button id="reviewBtn" class="hidden">Review the Card</button>
+  <button id="continueBtn" class="hidden">Start the Falaj Ride →</button>
   <button id="restartBtn">Try Again</button>
 </div>
 
 <script>
-const TARGET = 'BAHLA FORT';
-const HINT = 'Built from mud brick and stone, this vast fortress rises from a desert oasis. For centuries it guarded a key trade route, its high walls and towers watching over the palm groves below. UNESCO once called it one of the finest examples of its kind in the whole region.';
+// إذا جاي من بطاقة التاروت (رحلة كاملة)، نستخدم بياناتها بدل بهلا الافتراضية
+const CARD = JSON.parse(sessionStorage.getItem('palmtree_currentCard') || 'null');
+const TARGET = CARD ? CARD.secretWord : 'BAHLA FORT';
+const HINT = CARD ? CARD.loreText : 'Built from mud brick and stone, this vast fortress rises from a desert oasis. For centuries it guarded a key trade route, its high walls and towers watching over the palm groves below. UNESCO once called it one of the finest examples of its kind in the whole region.';
+if (CARD && CARD.image) {
+  document.getElementById('photoBg').style.backgroundImage = `linear-gradient(180deg,#3a3020,#241a12), url('${CARD.image}')`;
+  document.getElementById('photoCredit').textContent = `Photo pending — placeholder for "${CARD.secretWord}"`;
+} else {
+  document.getElementById('photoCredit').textContent = 'Photo: Bahla Fort — Wikimedia Commons, CC BY-SA 4.0';
+}
 
 const letterSlots = TARGET.split('').map(ch => ({ ch, filled: ch === ' ' }));
 let nextIndex = letterSlots.findIndex(s => !s.filled);
@@ -453,11 +471,69 @@ function tick(now) {
 }
 requestAnimationFrame(tick);
 
+// جوائز حسب الجنس (مرة واحدة تُسأل وتُحفظ) — أدوات للأولاد أو فضة للبنات
+const BOY_REWARDS = [
+  { icon: '🌴', en: 'A basket of dates' },
+  { icon: '🗡️', en: 'An Omani khanjar (dagger)' },
+  { icon: '⚔️', en: 'A ceremonial sword' },
+  { icon: '🦯', en: 'A carved wooden cane' }
+];
+const GIRL_REWARD = { icon: '💍', en: 'A piece of Omani silver jewelry' };
+
+function getPlayerGender() {
+  let g = sessionStorage.getItem('palmtree_gender');
+  if (!g) {
+    g = confirm('Are you playing as a boy? (OK = boy, Cancel = girl)') ? 'boy' : 'girl';
+    sessionStorage.setItem('palmtree_gender', g);
+  }
+  return g;
+}
+
+function highlightLore(text, vocab, grammar) {
+  let html = text;
+  (grammar || []).forEach(phrase => {
+    const re = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    html = html.replace(re, m => `<span class="grammar-hl">${m}</span>`);
+  });
+  (vocab || []).forEach(word => {
+    const re = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    html = html.replace(re, m => `<span class="vocab-hl">${m}</span>`);
+  });
+  return html;
+}
+
 function showSuccess() {
   playFanfare();
   document.getElementById('photoBg').classList.add('revealed');
   document.getElementById('dimOverlay').style.opacity = '0';
-  document.getElementById('successTitle').textContent = 'BAHLA FORT';
+  document.getElementById('successTitle').textContent = TARGET;
+
+  if (CARD) {
+    const gender = getPlayerGender();
+    const reward = gender === 'girl' ? GIRL_REWARD : BOY_REWARDS[Math.floor(Math.random() * BOY_REWARDS.length)];
+    document.getElementById('successIcon').textContent = reward.icon;
+    document.getElementById('successSub').textContent = 'Well done! You uncovered the secret word letter by letter.';
+    const rewardLine = document.getElementById('rewardLine');
+    rewardLine.textContent = `You won: ${reward.icon} ${reward.en}`;
+    rewardLine.classList.remove('hidden');
+
+    const reviewBtn = document.getElementById('reviewBtn');
+    const reviewBox = document.getElementById('reviewBox');
+    reviewBtn.classList.remove('hidden');
+    reviewBtn.addEventListener('click', () => {
+      reviewBox.innerHTML = `<div class="legend"><span class="vocab-hl">■</span> vocabulary &nbsp; <span class="grammar-hl">■</span> grammar</div>` +
+        highlightLore(CARD.loreText, CARD.vocabTargets, CARD.grammarTargets);
+      reviewBox.classList.remove('hidden');
+      reviewBtn.classList.add('hidden');
+      document.getElementById('continueBtn').classList.remove('hidden');
+    }, { once: true });
+
+    document.getElementById('continueBtn').addEventListener('click', () => {
+      window.location.href = '../gufa-falaj-demo/index.html';
+    });
+    document.getElementById('restartBtn').classList.add('hidden');
+  }
+
   document.getElementById('successScreen').classList.add('show');
 }
 

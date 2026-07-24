@@ -38,9 +38,17 @@ canvas { display:block; width:100%; height:100%; }
 
 #endScreen { position:fixed; inset:0; z-index:50; background:rgba(5,4,10,0.95); display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px; }
 #endScreen.show { display:flex; }
-#endScreen h2 { color:#d4c5a9; font-size:28px; margin-bottom:10px; }
-#endScreen p { color:#8b7a5f; font-size:14px; margin-bottom:24px; max-width:420px; }
-.restart-btn { background:rgba(214,51,132,0.15); border:1px solid rgba(214,51,132,0.4); color:#f0e6d2; padding:10px 28px; border-radius:10px; cursor:pointer; font-size:13px; }
+#endScreen h2 { color:#d4c5a9; font-size:28px; margin-bottom:10px; direction:ltr; unicode-bidi:isolate; }
+#endScreen p { color:#8b7a5f; font-size:14px; margin-bottom:24px; max-width:420px; direction:ltr; unicode-bidi:isolate; }
+.restart-btn { background:rgba(214,51,132,0.15); border:1px solid rgba(214,51,132,0.4); color:#f0e6d2; padding:10px 28px; border-radius:10px; cursor:pointer; font-size:13px; margin:6px; }
+.hidden { display:none !important; }
+
+#skipBtn { margin-top:10px; background:none; border:1px solid rgba(212,197,169,0.3); color:#8b7a5f; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:12px; }
+#skipBtn:hover { background:rgba(212,197,169,0.08); }
+
+#countdownScreen { position:fixed; inset:0; z-index:60; background:rgba(5,4,10,0.95); display:none; align-items:center; justify-content:center; }
+#countdownScreen.show { display:flex; }
+#countdownText { font-size:64px; font-weight:700; color:#00d4aa; direction:ltr; unicode-bidi:isolate; }
 </style>
 </head>
 <body>
@@ -63,14 +71,18 @@ canvas { display:block; width:100%; height:100%; }
   <div class="timerBar"><div class="timerFill" id="timerFill"></div></div>
   <div class="q" id="quizQ"></div>
   <div class="qOpts" id="quizOpts"></div>
+  <button id="skipBtn">Skip this question</button>
 </div>
 
 <div id="feedback"></div>
 
+<div id="countdownScreen"><div id="countdownText">Ready</div></div>
+
 <div id="endScreen">
-  <h2>🌴 وصلتوا آخر الفلج!</h2>
-  <p>هذا عرض تجريبي لفكرة "اركبوا القفة، شاهدوا وتعلّموا، جاوبوا بسرعة قبل ما تطيحون بالماء". لو عجبتك الفكرة نطورها بمستويات حقيقية.</p>
-  <div>النقاط النهائية: <b id="finalScore" style="color:#00d4aa;"></b></div>
+  <h2 id="endTitle">🌴 وصلتوا آخر الفلج!</h2>
+  <p id="endSub">هذا عرض تجريبي لفكرة "اركبوا القفة، شاهدوا وتعلّموا، جاوبوا بسرعة قبل ما تطيحون بالماء". لو عجبتك الفكرة نطورها بمستويات حقيقية.</p>
+  <div>النقاط النهائية: <b id="finalScore" style="color:#00d4aa;"></b> &nbsp; <span id="finalPct" style="direction:ltr;unicode-bidi:isolate;color:#8b7a5f;"></span></div>
+  <button class="restart-btn hidden" id="continuePortalBtn" style="margin-top:18px;">Continue to the Portal →</button>
   <button class="restart-btn" id="restartBtn" style="margin-top:18px;">أعيدوا الرحلة</button>
 </div>
 
@@ -81,7 +93,11 @@ function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
 resize();
 window.addEventListener('resize', resize);
 
-const ROUNDS = [
+// لو جاي من رحلة بطاقة (تاروت → ستارة الحروف → هنا)، الأسئلة تكون عن نفس محتوى البطاقة تحديداً
+const CARD = JSON.parse(sessionStorage.getItem('palmtree_currentCard') || 'null');
+const PASS_THRESHOLD = 0.9;
+
+const DEFAULT_ROUNDS = [
   {
     caption: 'التمر ينضج على النخيل — موسم الحصاد بدأ في القرية.',
     q: 'What does "Harvest" mean?',
@@ -108,8 +124,15 @@ const ROUNDS = [
   },
 ];
 
+const ROUNDS = CARD && CARD.questions ? CARD.questions.map(q => ({
+  caption: 'فكّروا بالي قريتوه على البطاقة...',
+  q: q.q, opts: q.opts, correct: q.correct
+})) : DEFAULT_ROUNDS;
+
 let round = 0;
 let score = 0;
+let correctCount = 0;
+let answeredCount = 0;
 let flowOffset = 0;
 let capsized = false;
 let capsizeT = 0;
@@ -304,10 +327,21 @@ function openQuiz(r) {
     optsEl.appendChild(btn);
   });
 
+  const skipBtn = document.getElementById('skipBtn');
+  skipBtn.onclick = () => {
+    if (answered) return;
+    answered = true;
+    // السؤال يُتخطى بدون ما يُحسب صح أو خطأ بالنسبة المئوية
+    document.getElementById('quizBox').classList.remove('show');
+    setTimeout(() => { round++; startRound(); }, 300);
+  };
+
   box.classList.add('show');
 }
 
 function resolveRound(correct, r) {
+  answeredCount++;
+  if (correct) correctCount++;
   setTimeout(() => {
     document.getElementById('quizBox').classList.remove('show');
     if (correct) {
@@ -326,18 +360,58 @@ function resolveRound(correct, r) {
 }
 
 function endTrip() {
+  const pct = answeredCount > 0 ? correctCount / answeredCount : 1;
   document.getElementById('finalScore').textContent = score;
+
+  if (CARD) {
+    document.getElementById('finalPct').textContent = `(${Math.round(pct * 100)}% correct)`;
+    if (pct >= PASS_THRESHOLD) {
+      document.getElementById('endTitle').textContent = '🌴 Well done — you passed!';
+      document.getElementById('endSub').textContent = `You answered ${Math.round(pct * 100)}% correctly (need ${Math.round(PASS_THRESHOLD * 100)}%). The falaj is about to sweep you into the portal...`;
+      document.getElementById('continuePortalBtn').classList.remove('hidden');
+      document.getElementById('restartBtn').classList.add('hidden');
+    } else {
+      document.getElementById('endTitle').textContent = '💦 Almost there!';
+      document.getElementById('endSub').textContent = `You need ${Math.round(PASS_THRESHOLD * 100)}% correct to continue — you got ${Math.round(pct * 100)}%. Let's ride the falaj again.`;
+      document.getElementById('continuePortalBtn').classList.add('hidden');
+      document.getElementById('restartBtn').classList.remove('hidden');
+    }
+  }
+
   document.getElementById('endScreen').classList.add('show');
 }
 
+function runCountdown(cb) {
+  const screen = document.getElementById('countdownScreen');
+  const text = document.getElementById('countdownText');
+  const steps = ['Ready', '3', '2', '1', 'GO!'];
+  let i = 0;
+  screen.classList.add('show');
+  text.textContent = steps[0];
+  const iv = setInterval(() => {
+    i++;
+    if (i >= steps.length) {
+      clearInterval(iv);
+      screen.classList.remove('show');
+      cb();
+      return;
+    }
+    text.textContent = steps[i];
+  }, 500);
+}
+
 document.getElementById('restartBtn').addEventListener('click', () => {
-  round = 0; score = 0; capsized = false; capsizeT = 0;
+  round = 0; score = 0; correctCount = 0; answeredCount = 0; capsized = false; capsizeT = 0;
   document.getElementById('scoreVal').textContent = '0';
   document.getElementById('endScreen').classList.remove('show');
-  startRound();
+  runCountdown(startRound);
 });
 
-startRound();
+document.getElementById('continuePortalBtn').addEventListener('click', () => {
+  window.location.href = '../blackhole-transition-demo/index.html';
+});
+
+runCountdown(startRound);
 </script>
 
 </body>

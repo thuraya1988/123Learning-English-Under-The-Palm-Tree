@@ -1708,8 +1708,12 @@ class TarotGame {
     }
 
     continueToJourney(data) {
+        // ما نودّي للستارة مباشرة — نخزن البطاقة ونرجع لغرفة المكتبة حتى يضغط
+        // اللاعب هوت سبوت ٢ المتوهج بنفسه (بنفس تسلسل: كروت → ستارة → بلاك هول → فلج)
         sessionStorage.setItem('palmtree_currentCard', JSON.stringify(data));
-        window.location.href = '../../world/bahla-curtain-demo/index.html';
+        sessionStorage.setItem('palmtree_stage', 'hotspot2');
+        this.closeReading();
+        window.updateLibraryHotspots?.();
     }
 
     closeReading() {

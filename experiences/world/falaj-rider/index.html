@@ -701,11 +701,51 @@ const WaterSystem = {
   material: null,
   mesh: null,
 
+  // شريط ماء ضيق يتبع مسار الفلج بدل صفيحة مفتوحة بلا حدود — هذا الفرق الفعلي بين نهر وفلج
+  buildChannelGeometry(curve, halfWidth) {
+    const LENGTH_SEGMENTS = 300;
+    const WIDTH_SEGMENTS = 10;
+    const positions = [];
+    const uvs = [];
+    const indices = [];
+
+    for (let i = 0; i <= LENGTH_SEGMENTS; i++) {
+      const t = i / LENGTH_SEGMENTS;
+      const center = curve.getPointAt(t);
+      const tangent = curve.getTangentAt(t).normalize();
+      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+      for (let j = 0; j <= WIDTH_SEGMENTS; j++) {
+        const wT = j / WIDTH_SEGMENTS;
+        const offset = (wT - 0.5) * 2 * halfWidth;
+        const p = center.clone().add(side.clone().multiplyScalar(offset));
+        positions.push(p.x, 0, p.z);
+        uvs.push(wT, t * 40);
+      }
+    }
+
+    const rowLen = WIDTH_SEGMENTS + 1;
+    for (let i = 0; i < LENGTH_SEGMENTS; i++) {
+      for (let j = 0; j < WIDTH_SEGMENTS; j++) {
+        const a = i * rowLen + j;
+        const b = a + 1;
+        const c = a + rowLen;
+        const d = c + 1;
+        indices.push(a, c, b, b, c, d);
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    return geo;
+  },
+
   // إنشاء الماء
-  create(scene) {
-    // هندسة الماء
-    const geometry = new THREE.PlaneGeometry(500, 500, 256, 256);
-    geometry.rotateX(-Math.PI / 2);
+  create(scene, falajCurve) {
+    // هندسة الماء — شريط ضيق يتبع منحنى الفلج، بنفس عرض القناة بين الجدران
+    const geometry = this.buildChannelGeometry(falajCurve, 3.1);
 
     // الشادر
     const vertexShader = `
@@ -736,7 +776,8 @@ const WaterSystem = {
         vUv = uv;
         vec3 pos = position;
 
-        float sea = 0.25 + uSeaState * 1.5;
+        // فلج ضيق جارٍ — موج أهدأ بكثير من بحر مفتوح حتى وقت الهيجان
+        float sea = 0.08 + uSeaState * 0.7;
 
         // موجات متعددة
         vec3 wave1 = gerstnerWave(pos.xz, uTime, 0.15 * sea, 20.0, vec2(1.0, 0.0), 0.5);
@@ -766,9 +807,9 @@ const WaterSystem = {
       varying vec3 vNormal;
 
       void main() {
-        // لون الماء حسب الارتفاع والهيجان
-        vec3 deepColor = vec3(0.01, 0.15, 0.3);
-        vec3 shallowColor = vec3(0.0, 0.4, 0.6);
+        // لون ماء فلج صافي (فيروزي مائل للأخضر فوق قاع حجري) بدل أزرق بحر عميق
+        vec3 deepColor = vec3(0.04, 0.28, 0.26);
+        vec3 shallowColor = vec3(0.25, 0.62, 0.52);
         vec3 foamColor = vec3(0.9, 0.95, 1.0);
 
         float mixFactor = smoothstep(-1.0, 1.0, vElevation);
@@ -822,7 +863,7 @@ const WaterSystem = {
 
   // حساب ارتفاع الماء عند نقطة (للـ CPU)
   getHeight(x, z, time, seaState) {
-    const sea = 0.25 + (seaState / 100) * 1.5;
+    const sea = 0.08 + (seaState / 100) * 0.7;
     let y = 0;
 
     const waves = [
@@ -879,7 +920,8 @@ const Environment = {
     for (let i = 0; i < positions.length; i += 3) {
       const x = positions[i];
       const z = positions[i + 2];
-      positions[i + 1] = Math.sin(x * 0.05) * 2 + Math.cos(z * 0.03) * 1.5;
+      // تموّج خفيف — يبقى دايم تحت مستوى جدران الفلج حتى ما يخترقها
+      positions[i + 1] = Math.sin(x * 0.05) * 0.5 + Math.cos(z * 0.03) * 0.4;
     }
 
     geometry.computeVertexNormals();
@@ -890,8 +932,9 @@ const Environment = {
       flatShading: true
     });
 
+    // الأرض الآن مرئية فعلاً حول القناة (الماء صار شريط ضيق لا يغطي كل شي) — لازم ترتفع لمستوى الأرض
     this.terrain = new THREE.Mesh(geometry, material);
-    this.terrain.position.y = -2;
+    this.terrain.position.y = -1.0;
     scene.add(this.terrain);
   },
 
@@ -906,51 +949,43 @@ const Environment = {
       new THREE.Vector3(0, 6, 0),
     ]);
 
-    const trunkGeo = new THREE.TubeGeometry(trunkCurve, 20, 0.15 * scale, 8, false);
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B6914 });
+    const trunkGeo = new THREE.TubeGeometry(trunkCurve, 20, 0.18 * scale, 8, false);
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B6914, emissive: 0x1a1206, emissiveIntensity: 0.4, roughness: 0.9 });
     const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    trunk.castShadow = true;
     group.add(trunk);
 
+    // سعف فعلي بأشكال مخروطية مسطحة — الأنابيب الرفيعة السابقة كانت تطلع كخطوط سوداء رفيعة
+    const frondMat = new THREE.MeshStandardMaterial({ color: 0x4d7c2e, emissive: 0x14260c, emissiveIntensity: 0.5, roughness: 0.85, side: THREE.DoubleSide });
     for (let i = 0; i < 8; i++) {
       const angle = (i / 8) * Math.PI * 2;
-      const leafCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0, 6, 0),
-        new THREE.Vector3(
-          Math.cos(angle) * 2 * scale,
-          7,
-          Math.sin(angle) * 2 * scale
-        ),
-        new THREE.Vector3(
-          Math.cos(angle) * 4 * scale,
-          6.5,
-          Math.sin(angle) * 4 * scale
-        ),
-      ]);
-
-      const leafGeo = new THREE.TubeGeometry(leafCurve, 10, 0.05 * scale, 4, false);
-      const leafMat = new THREE.MeshStandardMaterial({
-        color: 0x6B8E23,
-        side: THREE.DoubleSide
-      });
-      const leaf = new THREE.Mesh(leafGeo, leafMat);
-      group.add(leaf);
+      const frondGeo = new THREE.ConeGeometry(0.55 * scale, 3.4 * scale, 4);
+      const frond = new THREE.Mesh(frondGeo, frondMat);
+      frond.position.set(Math.cos(angle) * 0.35 * scale, 6.3, Math.sin(angle) * 0.35 * scale);
+      frond.rotation.z = Math.cos(angle) * 1.0;
+      frond.rotation.x = Math.sin(angle) * 1.0 + 0.55;
+      frond.castShadow = true;
+      group.add(frond);
     }
 
-    group.position.set(x, -2, z);
+    group.position.set(x, -1, z);
     return group;
   },
 
-  // جدران/حواف الفلج — صفوف مكعبات تتبع مسار المنحنى على الجانبين، بدل بحر مفتوح بلا حدود
+  // جدران الفلج الحجرية — قناة ضيقة بجدارين مبنيين (حجر + غطاء علوي)، بدل نهر عريض مفتوح
   createFalajBanks(scene, falajCurve) {
     const SEGMENTS = 160;
-    const CHANNEL_HALF_WIDTH = 4.5;
-    const bankGeo = new THREE.BoxGeometry(1.1, 2.2, 4.2);
-    const bankMat = new THREE.MeshStandardMaterial({ color: 0x8B7355, roughness: 0.95 });
+    const CHANNEL_HALF_WIDTH = 3.3;
+    const wallGeo = new THREE.BoxGeometry(0.85, 1.8, 4.2);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xC9B896, roughness: 0.95 });
+    const capGeo = new THREE.BoxGeometry(1.15, 0.28, 4.3);
+    const capMat = new THREE.MeshStandardMaterial({ color: 0xAE9A76, roughness: 0.9 });
 
-    const leftBanks = new THREE.InstancedMesh(bankGeo, bankMat, SEGMENTS);
-    const rightBanks = new THREE.InstancedMesh(bankGeo, bankMat, SEGMENTS);
-    leftBanks.castShadow = true; leftBanks.receiveShadow = true;
-    rightBanks.castShadow = true; rightBanks.receiveShadow = true;
+    const leftWalls = new THREE.InstancedMesh(wallGeo, wallMat, SEGMENTS);
+    const rightWalls = new THREE.InstancedMesh(wallGeo, wallMat, SEGMENTS);
+    const leftCaps = new THREE.InstancedMesh(capGeo, capMat, SEGMENTS);
+    const rightCaps = new THREE.InstancedMesh(capGeo, capMat, SEGMENTS);
+    [leftWalls, rightWalls, leftCaps, rightCaps].forEach(m => { m.castShadow = true; m.receiveShadow = true; });
 
     const dummy = new THREE.Object3D();
     for (let i = 0; i < SEGMENTS; i++) {
@@ -961,21 +996,24 @@ const Environment = {
       const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
 
       const leftPos = pos.clone().add(side.clone().multiplyScalar(CHANNEL_HALF_WIDTH));
-      dummy.position.set(leftPos.x, -1.9, leftPos.z);
+      dummy.position.set(leftPos.x, -1.6, leftPos.z);
       dummy.rotation.set(0, angle, 0);
       dummy.updateMatrix();
-      leftBanks.setMatrixAt(i, dummy.matrix);
+      leftWalls.setMatrixAt(i, dummy.matrix);
+      dummy.position.set(leftPos.x, -0.55, leftPos.z);
+      dummy.updateMatrix();
+      leftCaps.setMatrixAt(i, dummy.matrix);
 
       const rightPos = pos.clone().add(side.clone().multiplyScalar(-CHANNEL_HALF_WIDTH));
-      dummy.position.set(rightPos.x, -1.9, rightPos.z);
+      dummy.position.set(rightPos.x, -1.6, rightPos.z);
       dummy.rotation.set(0, angle, 0);
       dummy.updateMatrix();
-      rightBanks.setMatrixAt(i, dummy.matrix);
+      rightWalls.setMatrixAt(i, dummy.matrix);
+      dummy.position.set(rightPos.x, -0.55, rightPos.z);
+      dummy.updateMatrix();
+      rightCaps.setMatrixAt(i, dummy.matrix);
     }
-    leftBanks.instanceMatrix.needsUpdate = true;
-    rightBanks.instanceMatrix.needsUpdate = true;
-    scene.add(leftBanks);
-    scene.add(rightBanks);
+    [leftWalls, rightWalls, leftCaps, rightCaps].forEach(m => { m.instanceMatrix.needsUpdate = true; scene.add(m); });
   },
 
   // مبانٍ حقيقية (موديلات ثلاثية الأبعاد فعلية بدل أشكال بدائية)
@@ -983,14 +1021,14 @@ const Environment = {
     gltfLoader.load('./assets/an-arab-mosque.glb', (gltf) => {
       const model = fitModelToFootprint(gltf.scene, 16);
       model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-      model.position.set(0, -2, -40);
+      model.position.set(0, -1, -40);
       scene.add(model);
     }, undefined, () => { /* village still reads fine without the mosque if this fails to load */ });
 
     gltfLoader.load('./assets/persian-city-fortress.glb', (gltf) => {
       const model = fitModelToFootprint(gltf.scene, 24);
       model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-      model.position.set(-55, -2, 30);
+      model.position.set(-55, -1, 30);
       scene.add(model);
     }, undefined, () => { /* village still reads fine without the fortress landmark if this fails to load */ });
 
@@ -1003,7 +1041,7 @@ const Environment = {
       housePositions.forEach(pos => {
         const model = fitModelToFootprint(gltf.scene.clone(true), 9);
         model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-        model.position.set(pos.x, -2, pos.z);
+        model.position.set(pos.x, -1, pos.z);
         model.rotation.y = Math.random() * Math.PI * 2;
         scene.add(model);
       });
@@ -1012,11 +1050,44 @@ const Environment = {
 
   // ===== السماء: نجوم، شمس، غيوم، جبال بعيدة، طيور =====
   buildSky(scene) {
-    const SKY_RADIUS = 220;
+    // قبة سماء متدرجة (أفق دافئ لصبح مشرق ← أزرق فوق) بدل لون واحد مسطح
+    const skyGeo = new THREE.SphereGeometry(280, 32, 16);
+    this.skyMat = new THREE.ShaderMaterial({
+      uniforms: {
+        topColor: { value: new THREE.Color(0x4a90c2) },
+        bottomColor: { value: new THREE.Color(0xffd9a0) },
+        offset: { value: 15 },
+        exponent: { value: 0.55 }
+      },
+      vertexShader: `
+        varying vec3 vWorldPosition;
+        void main() {
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPosition.xyz;
+          gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 topColor;
+        uniform vec3 bottomColor;
+        uniform float offset;
+        uniform float exponent;
+        varying vec3 vWorldPosition;
+        void main() {
+          float h = normalize(vWorldPosition + vec3(0.0, offset, 0.0)).y;
+          gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
+        }
+      `,
+      side: THREE.BackSide,
+      fog: false
+    });
+    this.skyDome = new THREE.Mesh(skyGeo, this.skyMat);
+    scene.add(this.skyDome);
 
     const starGeo = new THREE.BufferGeometry();
     const STAR_COUNT = 1200;
     const starPositions = new Float32Array(STAR_COUNT * 3);
+    const SKY_RADIUS = 220;
     for (let i = 0; i < STAR_COUNT; i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 0.85);
@@ -1025,26 +1096,42 @@ const Environment = {
       starPositions[i * 3 + 2] = SKY_RADIUS * Math.sin(phi) * Math.sin(theta);
     }
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    this.starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0, sizeAttenuation: false, toneMapped: false });
+    this.starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, transparent: true, opacity: 0, sizeAttenuation: false, toneMapped: false, fog: false });
     scene.add(new THREE.Points(starGeo, this.starMat));
 
-    const sunGeo = new THREE.SphereGeometry(9, 24, 24);
-    this.sunMat = new THREE.MeshBasicMaterial({ color: 0xfff2d0, transparent: true, opacity: 1, toneMapped: false });
+    // شمس منخفضة قرب الأفق (إحساس شروق/صباح) مع هالة توهج خلفها
+    const sunGeo = new THREE.SphereGeometry(7, 24, 24);
+    this.sunMat = new THREE.MeshBasicMaterial({ color: 0xfff2d0, transparent: true, opacity: 1, toneMapped: false, fog: false });
     const sun = new THREE.Mesh(sunGeo, this.sunMat);
-    sun.position.set(100, 85, -90);
+    sun.position.set(120, 26, -70);
     scene.add(sun);
-    this.sunGlow = new THREE.PointLight(0xffdba0, 1.2, 80);
+    this.sunGlow = new THREE.PointLight(0xffdba0, 1.8, 140);
     this.sunGlow.position.copy(sun.position);
     scene.add(this.sunGlow);
 
+    const haloCanvas = document.createElement('canvas');
+    haloCanvas.width = 256; haloCanvas.height = 256;
+    const hctx = haloCanvas.getContext('2d');
+    const hgrad = hctx.createRadialGradient(128, 128, 10, 128, 128, 128);
+    hgrad.addColorStop(0, 'rgba(255,224,168,0.9)');
+    hgrad.addColorStop(0.4, 'rgba(255,200,140,0.35)');
+    hgrad.addColorStop(1, 'rgba(255,200,140,0)');
+    hctx.fillStyle = hgrad;
+    hctx.fillRect(0, 0, 256, 256);
+    this.sunHaloMat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(haloCanvas), transparent: true, depthWrite: false, fog: false });
+    const sunHalo = new THREE.Sprite(this.sunHaloMat);
+    sunHalo.scale.set(60, 60, 1);
+    sunHalo.position.copy(sun.position);
+    scene.add(sunHalo);
+
     const mountainGroup = new THREE.Group();
-    const RING_RADIUS = 230;
+    const RING_RADIUS = 150;
     for (let i = 0; i < 18; i++) {
       const angle = (i / 18) * Math.PI * 2 + Math.random() * 0.15;
       const mHeight = 26 + Math.random() * 30;
       const mWidth = 28 + Math.random() * 26;
       const mGeo = new THREE.ConeGeometry(mWidth, mHeight, 4);
-      const mMat = new THREE.MeshStandardMaterial({ color: 0x6b5a45, roughness: 1, fog: true });
+      const mMat = new THREE.MeshStandardMaterial({ color: 0x7a6550, roughness: 1 });
       const mesh = new THREE.Mesh(mGeo, mMat);
       mesh.position.set(Math.cos(angle) * RING_RADIUS, mHeight / 2 - 4, Math.sin(angle) * RING_RADIUS);
       mesh.rotation.y = Math.random() * Math.PI;
@@ -1099,10 +1186,26 @@ const Environment = {
     const calm = seaState < 40;
     const stormy = seaState > 70;
     this.sunMat.opacity = stormy ? 0.15 : calm ? 1 : 0.6;
-    this.sunGlow.intensity = stormy ? 0.2 : calm ? 1.2 : 0.7;
+    this.sunHaloMat.opacity = stormy ? 0.1 : calm ? 1 : 0.5;
+    this.sunGlow.intensity = stormy ? 0.2 : calm ? 1.8 : 1;
     this.starMat.opacity = stormy ? 0.5 : 0;
     this.clouds.forEach(c => { c.material.opacity = stormy ? 0.85 : calm ? 0.35 : 0.6; });
     this.birds.forEach(b => { b.material.opacity = calm ? 0.9 : 0; });
+
+    if (stormy) {
+      this.skyMat.uniforms.topColor.value.setHex(0x2F4F4F);
+      this.skyMat.uniforms.bottomColor.value.setHex(0x4a5a5a);
+    } else if (calm) {
+      this.skyMat.uniforms.topColor.value.setHex(0x4a90c2);
+      this.skyMat.uniforms.bottomColor.value.setHex(0xffd9a0);
+    } else {
+      this.skyMat.uniforms.topColor.value.setHex(0x5D8AA8);
+      this.skyMat.uniforms.bottomColor.value.setHex(0xd8c0a0);
+    }
+  },
+
+  followCamera(camPos) {
+    if (this.skyDome) this.skyDome.position.set(camPos.x, 0, camPos.z);
   },
 
   updateSkyAnimation(delta, time) {
@@ -1356,8 +1459,8 @@ const Game = {
 
   init() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x87CEEB);
-    this.scene.fog = new THREE.Fog(0x87CEEB, 50, 200);
+    this.scene.background = new THREE.Color(0xF0C89A);
+    this.scene.fog = new THREE.Fog(0xF0C89A, 60, 190);
 
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
@@ -1368,11 +1471,12 @@ const Game = {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
 
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    // إضاءة صباحية دافئة — كانت خافتة جداً وتخلي الأشجار تطلع أسود بحت
+    const ambientLight = new THREE.AmbientLight(0x8a7a5f, 1.3);
     this.scene.add(ambientLight);
 
-    this.sunLight = new THREE.DirectionalLight(0xFFD700, 1);
-    this.sunLight.position.set(50, 100, 50);
+    this.sunLight = new THREE.DirectionalLight(0xFFE0A8, 1.4);
+    this.sunLight.position.set(90, 35, -50);
     this.sunLight.castShadow = true;
     this.scene.add(this.sunLight);
 
@@ -1383,7 +1487,7 @@ const Game = {
     this.clock = new THREE.Clock();
 
     this.createFalajPath();
-    WaterSystem.create(this.scene);
+    WaterSystem.create(this.scene, this.falajCurve);
     Environment.buildVillage(this.scene, this.falajCurve);
     this.createGates();
     this.setupControls();
@@ -1475,14 +1579,11 @@ const Game = {
   // تطبيق حالة البحر
   applySeaState(state) {
     if (state < 30) {
-      this.scene.background = new THREE.Color(0x87CEEB);
-      this.scene.fog.color.setHex(0x87CEEB);
+      this.scene.fog.color.setHex(0xF0C89A);
     } else if (state < 60) {
-      this.scene.background = new THREE.Color(0x5D8AA8);
-      this.scene.fog.color.setHex(0x5D8AA8);
+      this.scene.fog.color.setHex(0xB8A890);
     } else {
-      this.scene.background = new THREE.Color(0x2F4F4F);
-      this.scene.fog.color.setHex(0x2F4F4F);
+      this.scene.fog.color.setHex(0x3a4048);
     }
 
     AudioSystem.update(state);
@@ -1509,7 +1610,7 @@ const Game = {
     const tangent = this.falajCurve.getTangentAt(this.progress).normalize();
 
     const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-    pos.add(side.multiplyScalar(this.playerSteer * 2.5));
+    pos.add(side.multiplyScalar(this.playerSteer * 2.2));
 
     const waterY = WaterSystem.getHeight(pos.x, pos.z, time, this.currentSeaState);
     pos.y = waterY + 1.3; // ارتفاع عين الراكب فوق سطح الماء
@@ -1578,6 +1679,7 @@ const Game = {
     Environment.updateSkyAnimation(dt, time);
     QuestionSystem.updateGates(this.gates, time);
     this.updateRider(dt, time);
+    Environment.followCamera(this.camera.position);
 
     UISystem.updateHUD(
       this.score,

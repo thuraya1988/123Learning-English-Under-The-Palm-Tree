@@ -49,12 +49,12 @@ loader.load('assets/mansion-interiors.glb', (gltf) => {
 // y=0، تمتد من z=-140 إلى z=+15 تقريبًا — هذا هو المسار المسموح للاعب يمشي فيه
 const EYE_HEIGHT = 1.6;
 const BOUNDS = { xMin: -0.65, xMax: 0.65, zMin: -138, zMax: 13 };
-camera.position.set(0, EYE_HEIGHT, -108);
+camera.position.set(0, EYE_HEIGHT, -115);
 
 // ===================== الهوت سبوتات الثلاثة =====================
 const STAGES = ['hotspot1', 'hotspot2', 'hotspot3'];
 const HOTSPOT_DEFS = [
-  { stage: 'hotspot1', pos: [0.5, 1.3, -98], icon: '🃏', label: 'Cards' },
+  { stage: 'hotspot1', pos: [0, 1.5, -97], icon: '🃏', label: 'Cards' },
   { stage: 'hotspot2', pos: [-0.5, 1.3, -45], icon: '🧵', label: 'Curtain' },
   { stage: 'hotspot3', pos: [0.5, 1.3, 6], icon: '🕳️', label: 'Portal' },
 ];
@@ -142,7 +142,10 @@ document.getElementById('lib-interact')?.addEventListener('click', () => tryInte
 function isDown(code) { return !!(keys[code] || touchMove[code]); }
 
 // نظرة حرة — سحب بالماوس (قفل مؤشر بالديسكتوب) أو باللمس بالجوال، بدون كاميرا حقيقية
-let yaw = 0, pitch = 0;
+// السبب الحقيقي إن الهوت سبوت ما كان يبين: هوت سبوت ١ عند z=-98 وهو أكبر من
+// نقطة بداية اللاعب z=-108 — يعني هوت سبوت ١ كان خلف اللاعب فعليًا عند yaw=0
+// (الأمام = z أصغر)، لازم يلتفت بالكامل عشان يشوفه. نبدأ الآن ملتفتين نحوه مباشرة
+let yaw = Math.PI, pitch = 0;
 const LOOK_SENS = 0.0028, TOUCH_LOOK_SENS = 0.0048;
 canvas.addEventListener('click', () => {
   if (!('ontouchstart' in window) && document.pointerLockElement !== canvas) canvas.requestPointerLock();

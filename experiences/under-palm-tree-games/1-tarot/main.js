@@ -1113,7 +1113,7 @@ class TarotGame {
         const steps = [
             { progress: 15, text: 'Awakening the cards...', textAr: 'استيقاظ البطاقات...' },
             { progress: 35, text: 'Connecting to the desert spirits...', textAr: 'التواصل مع أرواح الصحراء...' },
-            { progress: 55, text: 'Preparing hand tracking...', textAr: 'تحضير تتبع اليد...' },
+            { progress: 55, text: 'Lighting the library...', textAr: 'إضاءة المكتبة...' },
             { progress: 75, text: 'Channeling ancient wisdom...', textAr: 'استقبال الحكمة القديمة...' },
             { progress: 100, text: 'The cards are ready...', textAr: 'البطاقات جاهزة...' },
         ];
@@ -1165,8 +1165,10 @@ class TarotGame {
         this.useMouse = true;
         this.ui.camera_permission?.classList.add('hidden');
         this.ui.loading_screen?.classList.add('hidden');
-        this.showMenu();
-        this.updateGestureFeedback('🖱️', 'Use your mouse to interact with the cards');
+        // الافتراضي الحين المكتبة الثلاثية الأبعاد (اللاعب يمشي فيها) —
+        // مو القائمة المسطحة؛ القائمة تفتح بس لما يوصل هوت سبوت الكروت
+        this.state = GameState.MENU;
+        window.libraryShow3D?.();
     }
 
     async initHandTracking() {
@@ -1716,17 +1718,25 @@ class TarotGame {
     }
 
     continueToJourney(data) {
-        // ما نودّي للستارة مباشرة — نخزن البطاقة ونرجع لغرفة المكتبة حتى يضغط
-        // اللاعب هوت سبوت ٢ المتوهج بنفسه (بنفس تسلسل: كروت → ستارة → بلاك هول → فلج)
+        // ما نودّي للستارة مباشرة — نخزن البطاقة ونرجع لغرفة المكتبة حتى يمشي
+        // اللاعب لهوت سبوت ٢ المتوهج بنفسه (بنفس تسلسل: كروت → ستارة → بلاك هول → فلج)
         sessionStorage.setItem('palmtree_currentCard', JSON.stringify(data));
         sessionStorage.setItem('palmtree_stage', 'hotspot2');
-        this.closeReading();
-        window.updateLibraryHotspots?.();
+        this.returnToLibrary();
     }
 
     closeReading() {
         this.ui.reading_panel?.classList.add('hidden');
-        this.state = GameState.PLAYING;
+        this.returnToLibrary();
+    }
+
+    // يرجع اللاعب لغرفة المكتبة الثلاثية الأبعاد (يمشي فيها) بدل القائمة المسطحة
+    returnToLibrary() {
+        this.ui.reading_panel?.classList.add('hidden');
+        this.ui.game_area?.classList.add('hidden');
+        this.ui.main_menu?.classList.add('hidden');
+        this.state = GameState.MENU;
+        window.libraryShow3D?.();
     }
 
     // ============================================
@@ -1902,5 +1912,6 @@ class TarotGame {
 // START GAME
 // ============================================
 const game = new TarotGame();
+window.game = game;
 
 export default game;

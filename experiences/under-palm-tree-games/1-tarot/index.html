@@ -26,18 +26,20 @@
     <canvas id="mansion-bg"></canvas>
     <div id="mansion-credit">This work is based on "The Mansion interiors" (sketchfab.com/3d-models/the-mansion-interiors-a6a788778bb047929c69a09621099e29) by Veterock (sketchfab.com/windofglass) licensed under CC-BY-4.0 (creativecommons.org/licenses/by/4.0/)</div>
 
-    <!-- هوت سبوتات المكتبة الثلاثة — يتوهج بس اللي بدوره (كروت → ستارة → بلاك هول)
-         حتى ما يتوه اللاعب بين الخطوات -->
-    <div id="libraryHotspots">
-        <button class="hotspot" data-stage="hotspot1" id="hotspotCards">
-            <span class="num">1</span><span class="icon">🃏</span><span class="label">Cards</span>
-        </button>
-        <button class="hotspot" data-stage="hotspot2" id="hotspotCurtain">
-            <span class="num">2</span><span class="icon">🧵</span><span class="label">Curtain</span>
-        </button>
-        <button class="hotspot" data-stage="hotspot3" id="hotspotPortal">
-            <span class="num">3</span><span class="icon">🕳️</span><span class="label">Portal</span>
-        </button>
+    <!-- المكتبة ثلاثية الأبعاد — اللاعب فعليًا يمشي جوا الردهة (WASD/أسهم + سحب
+         للنظر)، والهوت سبوتات مضيئة بالفضاء نفسه مو بشريط مسطح -->
+    <div id="lib-crosshair"></div>
+    <div id="lib-prompt" class="hidden">اضغطوا E أو زر التفاعل</div>
+    <div id="lib-controls">
+        <div id="lib-dpad">
+            <button class="lib-btn" id="lib-up">▲</button>
+            <div class="lib-dpad-row">
+                <button class="lib-btn" id="lib-left">◀</button>
+                <button class="lib-btn" id="lib-down">▼</button>
+                <button class="lib-btn" id="lib-right">▶</button>
+            </div>
+        </div>
+        <button class="lib-btn lib-interact" id="lib-interact">✋</button>
     </div>
 
     <!-- Loading Screen -->
@@ -127,20 +129,19 @@
         <!-- Video Input (Hidden) -->
         <video id="input-video" class="hidden" playsinline></video>
 
-        <!-- Hand Tracking Canvas -->
-        <canvas id="hand-canvas"></canvas>
+        <!-- Hand Tracking Canvas (غير مستخدم — اللعبة تعتمد على اللمس/الكليك بس) -->
+        <canvas id="hand-canvas" class="hidden"></canvas>
 
         <!-- Main Tarot Canvas -->
         <canvas id="tarot-canvas"></canvas>
 
-        <!-- Gesture Feedback -->
-        <div class="gesture-feedback" id="gesture-feedback">
+        <!-- Gesture Feedback / Hand Status: مخفية بالكامل — قررنا نشيل فكرة الكاميرا
+             وتتبع اليد لأنها كانت مربكة وغير مستقرة على الجوال -->
+        <div class="gesture-feedback hidden" id="gesture-feedback">
             <div class="gesture-icon" id="gesture-icon">✋</div>
             <div class="gesture-text" id="gesture-text" data-en="Show your hand to begin" data-ar="أظهر يدك للبدء">Show your hand to begin</div>
         </div>
-
-        <!-- Hand Tracking Status -->
-        <div class="hand-status" id="hand-status">
+        <div class="hand-status hidden" id="hand-status">
             <div class="status-dot" id="status-dot"></div>
             <span class="status-text" id="status-text" data-en="Camera Off" data-ar="الكاميرا مغلقة">Camera Off</span>
         </div>
@@ -169,7 +170,7 @@
             </div>
 
             <div class="hud-bottom">
-                <div class="gesture-legend">
+                <div class="gesture-legend hidden">
                     <div class="gesture-item">
                         <span class="gesture-emoji">✋</span>
                         <span data-en="Show hand to hover" data-ar="أظهر يدك للتحويم">Show hand to hover</span>
@@ -278,32 +279,27 @@
     <script type="module" src="mansion-bg.js"></script>
     <script type="module" src="main.js"></script>
     <script>
-    (function () {
-        var STAGES = ['hotspot1', 'hotspot2', 'hotspot3'];
-        function getStage() { return sessionStorage.getItem('palmtree_stage') || 'hotspot1'; }
-        function render() {
-            var stageIdx = STAGES.indexOf(getStage());
-            document.querySelectorAll('.hotspot').forEach(function (btn) {
-                var idx = STAGES.indexOf(btn.dataset.stage);
-                btn.classList.toggle('active', idx === stageIdx);
-                btn.classList.toggle('done', idx < stageIdx);
-            });
-        }
-        document.getElementById('hotspotCards').addEventListener('click', function () {
-            if (getStage() !== 'hotspot1') return;
-            document.getElementById('btn-single-draw')?.click();
-        });
-        document.getElementById('hotspotCurtain').addEventListener('click', function () {
-            if (getStage() !== 'hotspot2') return;
+    // يربط هوت سبوتات المكتبة الثلاثية الأبعاد (mansion-bg.js) بمنطق اللعبة
+    // (main.js) — يضغط اللاعب E أو زر التفاعل وهو واقف جنب الهوت سبوت المضيء
+    window.libraryEnterHotspot = function (stage) {
+        if (stage === 'hotspot1') {
+            document.getElementById('mansion-bg').classList.add('hidden');
+            document.getElementById('lib-crosshair').classList.add('hidden');
+            document.getElementById('lib-prompt').classList.add('hidden');
+            document.getElementById('lib-controls').classList.add('hidden');
+            window.game?.startSpread('single'); // SpreadType.SINGLE
+        } else if (stage === 'hotspot2') {
             window.location.href = '../../world/bahla-curtain-demo/index.html';
-        });
-        document.getElementById('hotspotPortal').addEventListener('click', function () {
-            if (getStage() !== 'hotspot3') return;
+        } else if (stage === 'hotspot3') {
             window.location.href = '../../world/blackhole-transition-demo/index.html';
-        });
-        window.updateLibraryHotspots = render;
-        render();
-    })();
+        }
+    };
+    window.libraryShow3D = function () {
+        document.getElementById('mansion-bg').classList.remove('hidden');
+        document.getElementById('lib-crosshair').classList.remove('hidden');
+        document.getElementById('lib-controls').classList.remove('hidden');
+        window.libraryRefreshHotspots?.();
+    };
     </script>
 </body>
 </html>

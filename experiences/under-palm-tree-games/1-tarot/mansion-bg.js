@@ -14,7 +14,9 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 const canvas = document.getElementById('mansion-bg');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1f140a);
-scene.fog = new THREE.Fog(0x1f140a, 8, 55);
+// ضباب أبعد (كان يقطع الرؤية عند ٥٥ وحدة بس) — حتى تبين الردهة ممتدة وفيها
+// أكثر من غرفة وحدة، مو تحس إنها صندوق مقفول
+scene.fog = new THREE.Fog(0x1f140a, 10, 95);
 
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.05, 300);
 
@@ -75,15 +77,17 @@ function makeLabelSprite(text) {
   const tex = new THREE.CanvasTexture(c);
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
   const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(0.9, 0.45, 1);
+  sprite.scale.set(1.4, 0.7, 1);
   return sprite;
 }
 
+// كانت الهوت سبوتات صغيرة (نصف قطر ٠.١٦) وما فيه أي طريقة تضغطونها غير زر
+// يدوي منفصل — الحين أكبر، وتنضغط باللمس/الكليك مباشرة عليها (نطاق تسامح كبير)
 const hotspots = HOTSPOT_DEFS.map((def, i) => {
   const group = new THREE.Group();
   group.position.set(def.pos[0], def.pos[1], def.pos[2]);
 
-  const geo = new THREE.IcosahedronGeometry(0.16, 1);
+  const geo = new THREE.IcosahedronGeometry(0.32, 1);
   const mat = new THREE.MeshStandardMaterial({
     color: 0x00d4aa, emissive: 0x00d4aa, emissiveIntensity: 1.2,
     roughness: 0.3, transparent: true, opacity: 0.95
@@ -91,11 +95,11 @@ const hotspots = HOTSPOT_DEFS.map((def, i) => {
   const mesh = new THREE.Mesh(geo, mat);
   group.add(mesh);
 
-  const glow = new THREE.PointLight(0x00d4aa, 1.4, 5);
+  const glow = new THREE.PointLight(0x00d4aa, 2.2, 8);
   group.add(glow);
 
   const label = makeLabelSprite(String(i + 1));
-  label.position.set(0, 0.45, 0);
+  label.position.set(0, 0.6, 0);
   group.add(label);
 
   group.visible = false;
@@ -147,7 +151,26 @@ function isDown(code) { return !!(keys[code] || touchMove[code]); }
 // (الأمام = z أصغر)، لازم يلتفت بالكامل عشان يشوفه. نبدأ الآن ملتفتين نحوه مباشرة
 let yaw = Math.PI, pitch = 0;
 const LOOK_SENS = 0.0028, TOUCH_LOOK_SENS = 0.0048;
-canvas.addEventListener('click', () => {
+let dragDist = 0; // نفرّق بين لمسة/كليك ثابتة (نعتبرها ضغطة) وسحب حقيقي للنظر
+
+// الضغط/اللمس مباشرة على الرقم المضيء يفعّل التفاعل — بدل ما يعتمد بس على
+// زر منفصل صغير. نستخدم مسافة على الشاشة (مو raycast دقيق) عشان يكون فيه
+// تسامح كبير باللمس على الجوال
+function tryHotspotTap(clientX, clientY) {
+  const h = activeHotspot();
+  if (!h) return false;
+  const rect = canvas.getBoundingClientRect();
+  const v = h.group.position.clone().project(camera);
+  if (v.z > 1) return false; // خلف الكاميرا
+  const sx = (v.x * 0.5 + 0.5) * rect.width + rect.left;
+  const sy = (-v.y * 0.5 + 0.5) * rect.height + rect.top;
+  const dist = Math.hypot(clientX - sx, clientY - sy);
+  if (dist < 70) { tryInteract(); return true; }
+  return false;
+}
+
+canvas.addEventListener('click', (e) => {
+  if (dragDist < 12 && tryHotspotTap(e.clientX, e.clientY)) return;
   if (!('ontouchstart' in window) && document.pointerLockElement !== canvas) canvas.requestPointerLock();
 });
 document.addEventListener('mousemove', (e) => {
@@ -164,13 +187,16 @@ canvas.addEventListener('touchstart', (e) => {
   if (lookTouch.id !== null) return;
   const t = e.changedTouches[0];
   lookTouch.id = t.identifier; lookTouch.lastX = t.clientX; lookTouch.lastY = t.clientY;
+  dragDist = 0;
 }, { passive: true });
 canvas.addEventListener('touchmove', (e) => {
   for (const t of e.changedTouches) {
     if (t.identifier === lookTouch.id) {
-      yaw -= (t.clientX - lookTouch.lastX) * TOUCH_LOOK_SENS;
-      pitch -= (t.clientY - lookTouch.lastY) * TOUCH_LOOK_SENS;
+      const dx = t.clientX - lookTouch.lastX, dy = t.clientY - lookTouch.lastY;
+      yaw -= dx * TOUCH_LOOK_SENS;
+      pitch -= dy * TOUCH_LOOK_SENS;
       pitch = Math.max(-0.9, Math.min(0.9, pitch));
+      dragDist += Math.hypot(dx, dy);
       lookTouch.lastX = t.clientX; lookTouch.lastY = t.clientY;
     }
   }

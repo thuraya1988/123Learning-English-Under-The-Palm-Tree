@@ -218,10 +218,18 @@ const velocity = new THREE.Vector3();
 let lastTime = performance.now();
 const promptEl = document.getElementById('lib-prompt');
 
+// كان الحلقة تكمل تشتغل بالخلفية حتى بعد فتح شاشة الكروت المسطحة (٢D) —
+// فتلمّح "اضغطوا E" ترجع تبين فوق شاشة القراءة لأن الحلقة نفسها تعيد إظهارها
+// كل فريم حسب المسافة، بدون ما تعرف إن المشهد الثلاثي مو ظاهر أصلاً
+let libraryActive = true;
+window.libraryPause = () => { libraryActive = false; promptEl?.classList.add('hidden'); };
+window.libraryResume = () => { libraryActive = true; };
+
 function animate(now) {
   requestAnimationFrame(animate);
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
+  if (!libraryActive) { renderer.render(scene, camera); return; }
 
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const right = new THREE.Vector3(fwd.z, 0, -fwd.x);

@@ -9,6 +9,8 @@
 html, body { width:100%; height:100%; background:#0a0705; font-family:'Segoe UI', Tahoma, sans-serif; color:#e8d5b5; overflow:hidden; }
 #stage { position:relative; width:100%; height:100vh; }
 canvas { display:block; width:100%; height:100%; }
+#splashFlash { position:fixed; inset:0; z-index:5; background:radial-gradient(circle,rgba(120,200,230,0.35),rgba(10,30,40,0.55)); opacity:0; pointer-events:none; transition:opacity 0.15s; }
+#splashFlash.show { opacity:1; transition:opacity 0.02s; }
 
 #hud { position:fixed; top:0; left:0; right:0; padding:16px 20px; display:flex; justify-content:space-between; z-index:10; pointer-events:none; }
 .hud-panel { background:rgba(10,8,6,0.8); border:1px solid #8b1a3a; border-radius:10px; padding:8px 16px; font-size:13px; }
@@ -56,6 +58,7 @@ canvas { display:block; width:100%; height:100%; }
 <div id="stage">
   <canvas id="canvas"></canvas>
 </div>
+<div id="splashFlash"></div>
 
 <div id="hud">
   <div class="hud-panel"><div class="label">Score</div><div id="scoreVal">0</div></div>
@@ -86,12 +89,111 @@ canvas { display:block; width:100%; height:100%; }
   <button class="restart-btn" id="restartBtn" style="margin-top:18px;">أعيدوا الرحلة</button>
 </div>
 
-<script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// نفس الفكرة القديمة (تشوفون القفة والراكب من برّه) صارت فيرست بيرسون —
+// الكاميرا نفسها جوه القفة تتمايل مع الماء، بدون ما نشوف "شخص" يمثّلنا
 const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
-resize();
+const scene = new THREE.Scene();
+const skyTop = new THREE.Color(0x1a2438), skyHorizon = new THREE.Color(0x3a4a5a);
+scene.background = skyTop;
+scene.fog = new THREE.Fog(skyHorizon.getHex(), 15, 90);
+
+const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 300);
+camera.position.set(0, 0.6, 6);
+camera.lookAt(0, 0.5, -40);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+function resize() {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}
 window.addEventListener('resize', resize);
+
+// قبة سماء متدرجة (نفس لوني التدرج القديم بالضبط)
+const skyGeo = new THREE.SphereGeometry(250, 24, 16);
+const skyCanvas = document.createElement('canvas');
+skyCanvas.width = 2; skyCanvas.height = 256;
+const skyCtx = skyCanvas.getContext('2d');
+const skyGrad = skyCtx.createLinearGradient(0, 0, 0, 256);
+skyGrad.addColorStop(0, '#1a2438');
+skyGrad.addColorStop(1, '#3a4a5a');
+skyCtx.fillStyle = skyGrad;
+skyCtx.fillRect(0, 0, 2, 256);
+const skyTex = new THREE.CanvasTexture(skyCanvas);
+const skyMat = new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false });
+scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+scene.add(new THREE.AmbientLight(0xd4c5a9, 1.1));
+const moonLight = new THREE.DirectionalLight(0xaeb8d4, 0.7);
+moonLight.position.set(-10, 20, -10);
+scene.add(moonLight);
+
+// الماء — بلاطة كبيرة بنسيج خطوط جريان متحركة (نفس فكرة flow lines بالنسخة القديمة)
+const waterCanvas = document.createElement('canvas');
+waterCanvas.width = 64; waterCanvas.height = 64;
+const waterCtx = waterCanvas.getContext('2d');
+waterCtx.fillStyle = '#0d3a4a';
+waterCtx.fillRect(0, 0, 64, 64);
+waterCtx.strokeStyle = 'rgba(0,212,170,0.35)';
+waterCtx.lineWidth = 2;
+for (let i = 0; i < 4; i++) {
+  waterCtx.beginPath();
+  waterCtx.moveTo(0, i * 16 + 6);
+  waterCtx.lineTo(24, i * 16 + 6);
+  waterCtx.stroke();
+}
+const waterTex = new THREE.CanvasTexture(waterCanvas);
+waterTex.wrapS = waterTex.wrapT = THREE.RepeatWrapping;
+waterTex.repeat.set(6, 40);
+const waterGeo = new THREE.PlaneGeometry(30, 300, 1, 1);
+const waterMat = new THREE.MeshStandardMaterial({ map: waterTex, color: 0x0d3a4a, roughness: 0.35, metalness: 0.1 });
+const water = new THREE.Mesh(waterGeo, waterMat);
+water.rotation.x = -Math.PI / 2;
+water.position.set(0, 0, -120);
+scene.add(water);
+
+// ضفتان حجريتان + نخيل يمر جنب اللاعب على الجانبين
+const bankMat = new THREE.MeshStandardMaterial({ color: 0x2a1f16, roughness: 0.9 });
+[-8.5, 8.5].forEach(x => {
+  const bank = new THREE.Mesh(new THREE.BoxGeometry(3, 0.4, 300), bankMat);
+  bank.position.set(x, -0.1, -120);
+  scene.add(bank);
+});
+
+function makePalm(x, z) {
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 2.4, 6),
+    new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 1 }));
+  trunk.position.y = 1.2;
+  g.add(trunk);
+  const frondMat = new THREE.MeshStandardMaterial({ color: 0x1c3320, roughness: 1 });
+  for (let i = 0; i < 6; i++) {
+    const frond = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.6, 4), frondMat);
+    frond.position.y = 2.5;
+    frond.rotation.z = Math.PI / 2.3;
+    frond.rotation.y = (i / 6) * Math.PI * 2;
+    g.add(frond);
+  }
+  g.position.set(x, 0, z);
+  return g;
+}
+for (let i = 0; i < 22; i++) {
+  const z = -i * 14 - 4;
+  scene.add(makePalm(-10.5 - Math.random() * 2, z));
+  scene.add(makePalm(10.5 + Math.random() * 2, z));
+}
 
 // لو جاي من رحلة بطاقة (تاروت → ستارة الحروف → هنا)، الأسئلة تكون عن نفس محتوى البطاقة تحديداً
 const CARD = JSON.parse(sessionStorage.getItem('palmtree_currentCard') || 'null');
@@ -133,123 +235,42 @@ let round = 0;
 let score = 0;
 let correctCount = 0;
 let answeredCount = 0;
-let flowOffset = 0;
 let capsized = false;
 let capsizeT = 0;
 let running = true;
 
-function drawScene() {
-  const w = canvas.width, h = canvas.height;
-  const waterY = h * 0.62;
-
-  // sky
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, waterY);
-  skyGrad.addColorStop(0, '#1a2438');
-  skyGrad.addColorStop(1, '#3a4a5a');
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, w, waterY);
-
-  // distant palms silhouette
-  ctx.fillStyle = 'rgba(20,30,20,0.6)';
-  for (let i = 0; i < 8; i++) {
-    const x = ((i * 180 - flowOffset * 0.3) % (w + 200) + w + 200) % (w + 200) - 100;
-    const trunkH = 60;
-    ctx.fillRect(x, waterY - trunkH, 6, trunkH);
-    ctx.beginPath();
-    ctx.ellipse(x + 3, waterY - trunkH, 30, 14, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // stone banks
-  ctx.fillStyle = '#2a1f16';
-  ctx.fillRect(0, waterY - 10, w, 14);
-
-  // water
-  const waterGrad = ctx.createLinearGradient(0, waterY, 0, h);
-  waterGrad.addColorStop(0, '#0d3a4a');
-  waterGrad.addColorStop(1, '#082530');
-  ctx.fillStyle = waterGrad;
-  ctx.fillRect(0, waterY, w, h - waterY);
-
-  // water flow lines
-  ctx.strokeStyle = 'rgba(0,212,170,0.25)';
-  ctx.lineWidth = 2;
-  for (let i = 0; i < 14; i++) {
-    const x = ((i * 90 - flowOffset) % (w + 100) + w + 100) % (w + 100) - 50;
-    ctx.beginPath();
-    ctx.moveTo(x, waterY + 20 + (i % 3) * 22);
-    ctx.lineTo(x + 40, waterY + 20 + (i % 3) * 22);
-    ctx.stroke();
-  }
-
-  // gufa (woven basket boat) + rider
-  const gufaX = w * 0.28;
-  let gufaY = waterY + 6;
-  let gufaAngle = Math.sin(Date.now() / 400) * 0.06;
-  if (capsized) {
-    gufaAngle = Math.min(Math.PI * 0.55, capsizeT * 3.2);
-    gufaY += capsizeT * 40;
-  }
-
-  ctx.save();
-  ctx.translate(gufaX, gufaY);
-  ctx.rotate(gufaAngle);
-
-  // gufa body — round woven basket shape
-  ctx.fillStyle = '#8b6a3f';
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 46, 20, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#5a4526';
-  ctx.lineWidth = 2;
-  for (let i = -3; i <= 3; i++) {
-    ctx.beginPath();
-    ctx.moveTo(i * 13, -16);
-    ctx.lineTo(i * 13, 14);
-    ctx.stroke();
-  }
-  ctx.beginPath();
-  ctx.ellipse(0, -6, 44, 12, 0, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // rider (simple figure)
-  if (!capsized || capsizeT < 0.4) {
-    ctx.fillStyle = '#d4c5a9';
-    ctx.beginPath();
-    ctx.ellipse(0, -30, 12, 18, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#c8a880';
-    ctx.beginPath();
-    ctx.arc(0, -48, 9, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#8b1a3a';
-    ctx.beginPath();
-    ctx.arc(0, -52, 9.5, Math.PI, 0);
-    ctx.fill();
-  }
-  ctx.restore();
-
-  // splash particles when capsized
-  if (capsized && capsizeT > 0.3 && capsizeT < 1.2) {
-    ctx.fillStyle = 'rgba(150,220,255,0.8)';
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2;
-      const d = (capsizeT - 0.3) * 60;
-      ctx.beginPath();
-      ctx.arc(gufaX + Math.cos(a) * d, gufaY + 10 + Math.sin(a) * d * 0.5, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-}
-
-function loop() {
+// حلقة الرسم — فيرست بيرسون: الكاميرا نفسها تتمايل مثل حد قاعد جوا القفة،
+// وبدل ما نشوف القفة "تنقلب" من برّه، الكاميرا نفسها تميل وتنزل وقت الغلط
+const splashFlash = document.getElementById('splashFlash');
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
   if (!running) return;
-  flowOffset += 1.2;
-  if (capsized) capsizeT += 0.02;
-  drawScene();
-  requestAnimationFrame(loop);
+  const t = clock.getElapsedTime();
+  waterTex.offset.y -= 0.006;
+
+  const bobY = Math.sin(t * 2.1) * 0.05;
+  const bobRoll = Math.sin(t * 1.3) * 0.025;
+  const bobPitch = Math.sin(t * 1.7) * 0.012;
+
+  if (capsized) {
+    capsizeT += 0.02;
+    const tilt = Math.min(0.5, capsizeT * 2.6);
+    camera.position.y = 0.6 + bobY - Math.min(0.35, capsizeT * 0.5);
+    camera.rotation.z = bobRoll + tilt;
+    camera.rotation.x = -bobPitch - Math.min(0.25, capsizeT * 0.4);
+    splashFlash.classList.toggle('show', capsizeT < 1.1);
+  } else {
+    camera.position.y = 0.6 + bobY;
+    camera.rotation.z = bobRoll;
+    camera.rotation.x = -bobPitch;
+    splashFlash.classList.remove('show');
+  }
+  camera.rotation.order = 'YXZ';
+
+  renderer.render(scene, camera);
 }
-loop();
+animate();
 
 function showCaption(text) {
   const el = document.getElementById('caption');

@@ -6,7 +6,8 @@
 <title>عرض تجريبي — ركوب القفة بالفلج</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-html, body { width:100%; height:100%; background:#0a0705; font-family:'Segoe UI', Tahoma, sans-serif; color:#e8d5b5; overflow:hidden; }
+html, body { width:100%; height:100%; background:#0a0705; font-family:'Segoe UI', Tahoma, sans-serif; color:#e8d5b5; overflow:hidden; user-select:none; }
+canvas { touch-action:none; cursor:grab; }
 #stage { position:relative; width:100%; height:100vh; }
 canvas { display:block; width:100%; height:100%; }
 #splashFlash { position:fixed; inset:0; z-index:5; background:radial-gradient(circle,rgba(120,200,230,0.35),rgba(10,30,40,0.55)); opacity:0; pointer-events:none; transition:opacity 0.15s; }
@@ -241,15 +242,47 @@ let capsized = false;
 let capsizeT = 0;
 let running = true;
 
-// حلقة الرسم — فيرست بيرسون: الكاميرا نفسها تتمايل مثل حد قاعد جوا القفة،
-// وبدل ما نشوف القفة "تنقلب" من برّه، الكاميرا نفسها تميل وتنزل وقت الغلط
+// يلفّون ويدورون بالنظر (سحب بالماوس أو باللمس) وهم ماشين — زي لعبة ملاهي
+// حقيقية، مو بس يشاهدون شاشة ثابتة
+let lookYaw = 0, lookPitch = 0;
+const LOOK_SENS = 0.0032;
+let dragId = null, dragLastX = 0, dragLastY = 0;
+function dragStart(x, y, id) { dragId = id; dragLastX = x; dragLastY = y; }
+function dragMove(x, y, id) {
+  if (id !== dragId) return;
+  lookYaw -= (x - dragLastX) * LOOK_SENS;
+  lookPitch = Math.max(-0.5, Math.min(0.5, lookPitch - (y - dragLastY) * LOOK_SENS));
+  dragLastX = x; dragLastY = y;
+}
+function dragEnd(id) { if (id === dragId) dragId = null; }
+canvas.addEventListener('mousedown', (e) => { e.preventDefault(); dragStart(e.clientX, e.clientY, 'mouse'); });
+window.addEventListener('mousemove', (e) => dragMove(e.clientX, e.clientY, 'mouse'));
+window.addEventListener('mouseup', () => dragEnd('mouse'));
+canvas.addEventListener('touchstart', (e) => {
+  const t = e.changedTouches[0];
+  dragStart(t.clientX, t.clientY, t.identifier);
+}, { passive: true });
+canvas.addEventListener('touchmove', (e) => {
+  const t = e.changedTouches[0];
+  dragMove(t.clientX, t.clientY, t.identifier);
+}, { passive: true });
+canvas.addEventListener('touchend', (e) => dragEnd(e.changedTouches[0].identifier));
+
+// حلقة الرسم — فيرست بيرسون: الكاميرا نفسها تتمايل مثل حد قاعد جوا القفة
+// وتنزلق للأمام ببطء طول الوقت (إحساس ركوب حقيقي)، وبدل ما نشوف القفة
+// "تنقلب" من برّه، الكاميرا نفسها تميل وتنزل وقت الغلط
 const splashFlash = document.getElementById('splashFlash');
 const clock = new THREE.Clock();
+const RIDE_SPEED = 0.55;
+let elapsed = 0;
 function animate() {
   requestAnimationFrame(animate);
   if (!running) return;
-  const t = clock.getElapsedTime();
+  const dt = Math.min(clock.getDelta(), 0.05);
+  elapsed += dt;
+  const t = elapsed;
   waterTex.offset.y -= 0.006;
+  camera.position.z -= RIDE_SPEED * dt;
 
   const bobY = Math.sin(t * 2.1) * 0.05;
   const bobRoll = Math.sin(t * 1.3) * 0.025;
@@ -260,14 +293,15 @@ function animate() {
     const tilt = Math.min(0.5, capsizeT * 2.6);
     camera.position.y = 0.6 + bobY - Math.min(0.35, capsizeT * 0.5);
     camera.rotation.z = bobRoll + tilt;
-    camera.rotation.x = -bobPitch - Math.min(0.25, capsizeT * 0.4);
+    camera.rotation.x = -bobPitch - Math.min(0.25, capsizeT * 0.4) + lookPitch;
     splashFlash.classList.toggle('show', capsizeT < 1.1);
   } else {
     camera.position.y = 0.6 + bobY;
     camera.rotation.z = bobRoll;
-    camera.rotation.x = -bobPitch;
+    camera.rotation.x = -bobPitch + lookPitch;
     splashFlash.classList.remove('show');
   }
+  camera.rotation.y = lookYaw;
   camera.rotation.order = 'YXZ';
 
   renderer.render(scene, camera);
@@ -291,17 +325,28 @@ function showFeedback(text, good) {
 }
 
 let timerInterval = null;
+const RIDE_BREATHER = 3000; // فترة استراحة بين كل سؤال وسؤال — يلفّون ويدورون وهم يركبون بس
+
 function startRound() {
   if (round >= ROUNDS.length) { endTrip(); return; }
   const r = ROUNDS[round];
   document.getElementById('progressVal').textContent = `${toArabicDigits(round + 1)} / ${toArabicDigits(ROUNDS.length)}`;
   capsized = false; capsizeT = 0;
-  showCaption(r.caption);
 
-  setTimeout(() => {
-    hideCaption();
-    openQuiz(r);
-  }, 2200);
+  function showQuestion() {
+    showCaption(r.caption);
+    setTimeout(() => {
+      hideCaption();
+      openQuiz(r);
+    }, 2200);
+  }
+
+  if (round === 0) {
+    showQuestion();
+  } else {
+    // بس ركوب واستمتاع بالمنظر — بدون سؤال ولا نص، يلفّون بالنظر لين الاستراحة تخلص
+    setTimeout(showQuestion, RIDE_BREATHER);
+  }
 }
 
 function toArabicDigits(n) {

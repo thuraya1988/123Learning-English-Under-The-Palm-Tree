@@ -153,9 +153,9 @@ let yaw = Math.PI, pitch = 0;
 const LOOK_SENS = 0.0028, TOUCH_LOOK_SENS = 0.0048;
 let dragDist = 0; // نفرّق بين لمسة/كليك ثابتة (نعتبرها ضغطة) وسحب حقيقي للنظر
 
-// الضغط/اللمس مباشرة على الرقم المضيء يفعّل التفاعل — بدل ما يعتمد بس على
-// زر منفصل صغير. نستخدم مسافة على الشاشة (مو raycast دقيق) عشان يكون فيه
-// تسامح كبير باللمس على الجوال
+// الضغط/اللمس مباشرة على الرقم المضيء يفعّل التفاعل فورًا — بدون شرط مسافة
+// ٣ وحدات (اللي كان يخلي الضغطة "ما تنضغط" بصمت لو اللاعب لسه ما وصل وقريب
+// كفاية، بدون أي رسالة توضح السبب). الضغطة المقصودة على الأيقونة كافية وحدها
 function tryHotspotTap(clientX, clientY) {
   const h = activeHotspot();
   if (!h) return false;
@@ -165,7 +165,7 @@ function tryHotspotTap(clientX, clientY) {
   const sx = (v.x * 0.5 + 0.5) * rect.width + rect.left;
   const sy = (-v.y * 0.5 + 0.5) * rect.height + rect.top;
   const dist = Math.hypot(clientX - sx, clientY - sy);
-  if (dist < 70) { tryInteract(); return true; }
+  if (dist < 90) { window.libraryEnterHotspot?.(h.def.stage); return true; }
   return false;
 }
 
@@ -208,10 +208,7 @@ canvas.addEventListener('touchend', (e) => {
 function tryInteract() {
   const h = activeHotspot();
   if (!h) return;
-  const d = camera.position.distanceTo(h.group.position);
-  if (d < 3) {
-    window.libraryEnterHotspot?.(h.def.stage);
-  }
+  window.libraryEnterHotspot?.(h.def.stage);
 }
 
 const velocity = new THREE.Vector3();
@@ -265,7 +262,7 @@ function animate(now) {
   const active = activeHotspot();
   if (active && promptEl) {
     const d = camera.position.distanceTo(active.group.position);
-    promptEl.classList.toggle('hidden', d >= 3);
+    promptEl.classList.toggle('hidden', d >= 10);
   }
 
   renderer.render(scene, camera);

@@ -47,10 +47,17 @@ loader.load('assets/mansion-interiors.glb', (gltf) => {
 }, undefined, () => { /* still walkable (empty hallway) without the model if this fails to load */ });
 
 // ===================== الردهة القابلة للمشي فيها =====================
-// تأكدنا فيزيائيًا (raycast) إن فيه ردهة خشبية ضيقة بعرض ~١.٧ وحدة، أرضيتها
-// y=0، تمتد من z=-140 إلى z=+15 تقريبًا — هذا هو المسار المسموح للاعب يمشي فيه
+// كانت العرض ثابت (~١.٧ وحدة) بطول كل الممر — يعني حتى إذا فيه غرف حقيقية
+// أوسع بالنموذج (تأكدنا منها بالـraycast)، اللاعب كان محبوس بممر ضيق طول
+// الوقت وما يقدر يدخلها فعليًا. الحين العرض يتغير حسب z: غرفتين حقيقيتين
+// (عند بداية المسار وعند نهايته) بعرض أكبر، وممر ضيق بينهم يوصل بينهم
 const EYE_HEIGHT = 1.6;
-const BOUNDS = { xMin: -0.65, xMax: 0.65, zMin: -138, zMax: 13 };
+const BOUNDS = { zMin: -138, zMax: 20 };
+function xBoundsAt(z) {
+  if (z <= -108 && z >= -128) return { xMin: -4, xMax: 6 };   // الغرفة الأولى (الثريا والسجادة)
+  if (z >= -3) return { xMin: -4, xMax: 4 };                   // الغرفة الثانية (نهاية المسار)
+  return { xMin: -0.65, xMax: 0.65 };                          // الممر الضيق بينهم
+}
 camera.position.set(0, EYE_HEIGHT, -115);
 
 // ===================== الهوت سبوتات الثلاثة =====================
@@ -242,8 +249,10 @@ function animate(now) {
 
   const nextX = camera.position.x + velocity.x * dt;
   const nextZ = camera.position.z + velocity.z * dt;
-  camera.position.x = Math.max(BOUNDS.xMin, Math.min(BOUNDS.xMax, nextX));
-  camera.position.z = Math.max(BOUNDS.zMin, Math.min(BOUNDS.zMax, nextZ));
+  const clampedZ = Math.max(BOUNDS.zMin, Math.min(BOUNDS.zMax, nextZ));
+  const xb = xBoundsAt(clampedZ);
+  camera.position.x = Math.max(xb.xMin, Math.min(xb.xMax, nextX));
+  camera.position.z = clampedZ;
 
   camera.rotation.order = 'YXZ';
   camera.rotation.y = yaw;

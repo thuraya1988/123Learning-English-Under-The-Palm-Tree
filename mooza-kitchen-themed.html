@@ -41,12 +41,12 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
 .hidden{display:none!important}
 
-.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s var(--ease),transform .5s var(--ease);z-index:10;background:var(--bg);overflow-y:auto;}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s var(--ease),transform .5s var(--ease);z-index:10;background:rgba(245,237,216,0.5);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);overflow-y:auto;}
 
 /* 3D kitchen backdrop — a Three.js scene showing Mooza's kitchen room, visible through
    the entrance and gameplay screens that represent being physically in the kitchen. */
 #scene3d{position:fixed;inset:0;z-index:1;touch-action:none;}
-.screen.scene3d-bg{background:transparent;}
+.screen.scene3d-bg{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;}
 
 /* The main-menu screen sits above the 3D canvas even when its panel is hidden — without this,
    its full-viewport hit area would swallow every click/drag meant for the walkable room. */
@@ -694,16 +694,17 @@ addEventListener('resize', () => {
 });
 
 // Warm, sand-toned lighting to match the site's earthy theme (no dark/neon palette here).
-// This particular model's material doesn't pick up texture color well in three.js, so the
-// lighting is pushed warmer/brighter than usual to keep the room reading as an inviting kitchen
-// rather than flat grey.
-scene.add(new THREE.AmbientLight(0xF5E0B8, 2.0));
-const keyLight = new THREE.DirectionalLight(0xE8C088, 1.6);
+scene.add(new THREE.AmbientLight(0xF5E0B8, 1.4));
+const keyLight = new THREE.DirectionalLight(0xE8C088, 1.4);
 keyLight.position.set(1, 3, 1);
 scene.add(keyLight);
-const fillLight = new THREE.PointLight(0xC9AA80, 1.2, 8);
+const fillLight = new THREE.PointLight(0xC9AA80, 1.1, 9);
 fillLight.position.set(0.3, 1.8, -0.8);
 scene.add(fillLight);
+// A cooler accent from the "window" side, so the room isn't a flat monochrome wash.
+const accentLight = new THREE.PointLight(0xDCEAF0, 0.7, 8);
+accentLight.position.set(-1.4, 1.6, -1.6);
+scene.add(accentLight);
 
 const gltfLoader = new GLTFLoader();
 gltfLoader.setMeshoptDecoder(MeshoptDecoder);
@@ -722,7 +723,17 @@ function fitModel(root, targetWidth) {
 
 gltfLoader.load('public/assets/mooza-kitchen/kitchen-in-rent-flat.glb', (gltf) => {
   const model = fitModel(gltf.scene, 5.5);
-  model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  model.traverse(o => {
+    if (o.isMesh) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+      // The model's single "Room" material is metalness:1 / roughness:1 with no texture —
+      // a pure-metal shader with no environment map reflects almost nothing but direct
+      // highlights, which is why the room rendered nearly black. Making it a matte, non-metal
+      // surface lets it actually pick up the warm/cool lights below as diffuse colour.
+      if (o.material) { o.material.metalness = 0; o.material.roughness = 0.82; o.material.color.set(0xEFE3C8); }
+    }
+  });
   scene.add(model);
 }, undefined, () => { /* the entrance/gameplay screens still work fine without the room if this fails to load */ });
 

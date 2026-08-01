@@ -742,6 +742,75 @@ gltfLoader.load('public/assets/mooza-kitchen/kitchen-in-rent-flat.glb', (gltf) =
   scene.add(model);
 }, undefined, () => { /* the entrance/gameplay screens still work fine without the room if this fails to load */ });
 
+// The kitchen model is one flat, untextured mesh with no colour of its own — a real limit of
+// this asset. These small hand-built props sit on the counter to give the room actual colour.
+function makeJar(color, x, z, height) {
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.045, 0.05, height, 12),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.05 })
+  );
+  body.position.y = height / 2;
+  group.add(body);
+  const lid = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 0.02, 12),
+    new THREE.MeshStandardMaterial({ color: 0x4A3520, roughness: 0.6 })
+  );
+  lid.position.y = height + 0.01;
+  group.add(lid);
+  group.position.set(x, 1.0, z);
+  group.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return group;
+}
+
+function makeDatesBowl(x, z) {
+  const group = new THREE.Group();
+  const bowl = new THREE.Mesh(
+    new THREE.SphereGeometry(0.13, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0x6B4423, roughness: 0.7 })
+  );
+  group.add(bowl);
+  for (let i = 0; i < 7; i++) {
+    const date = new THREE.Mesh(
+      new THREE.SphereGeometry(0.028, 8, 6),
+      new THREE.MeshStandardMaterial({ color: 0x3A1F0E, roughness: 0.5 })
+    );
+    const a = (i / 7) * Math.PI * 2;
+    date.position.set(Math.cos(a) * 0.06, 0.06, Math.sin(a) * 0.06);
+    date.scale.set(1, 0.8, 1.3);
+    group.add(date);
+  }
+  group.position.set(x, 1.0, z);
+  group.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return group;
+}
+
+function makeDallah(x, z) {
+  const group = new THREE.Group();
+  const brassMat = new THREE.MeshStandardMaterial({ color: 0xC08A3E, roughness: 0.3, metalness: 0.75 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.18, 12), brassMat);
+  body.position.y = 0.11;
+  group.add(body);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.08, 10), brassMat);
+  neck.position.y = 0.24;
+  group.add(neck);
+  const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 0.16, 8), brassMat);
+  spout.position.set(0.09, 0.16, 0);
+  spout.rotation.z = Math.PI / 3.2;
+  group.add(spout);
+  group.position.set(x, 1.0, z);
+  group.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return group;
+}
+
+const kitchenProps = new THREE.Group();
+kitchenProps.add(makeDallah(0.6, -1.85));
+kitchenProps.add(makeDatesBowl(0.2, -1.85));
+kitchenProps.add(makeJar(0xA1372B, -0.35, -1.85, 0.14));   // paprika — terracotta red
+kitchenProps.add(makeJar(0xC9942E, -0.55, -1.85, 0.12));   // turmeric — muted mustard
+kitchenProps.add(makeJar(0x5C7A4A, -0.75, -1.85, 0.13));   // cardamom — sage green
+scene.add(kitchenProps);
+
 // ── A single glowing hotspot, roughly where the old static camera used to gaze — walk up
 // and interact to open the level select, same as before but now reached by actually walking there.
 function makeLabelSprite(icon) {

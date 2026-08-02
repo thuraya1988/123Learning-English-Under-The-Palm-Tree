@@ -58,9 +58,6 @@ js/
   ui/map.js           painted village map, progressive unlock, travel
   ui/tutorial.js      4-step bilingual onboarding
   ui/dialogue.js      narrative beat panel
-scripts/
-  check-assets.js     verifies every asset path in the manifest (fallback-safe)
-  playthrough.mjs     headless Chromium full playthrough validation
 ```
 
 ## Assets
@@ -77,9 +74,9 @@ audio) when the tab is hidden.
 
 ## Validation
 - `node --check` passes on all modules.
-- `node scripts/check-assets.js` reports present/missing assets (no hard 404s).
-- `node scripts/playthrough.mjs` — headless Chromium: Begin → audio
-  `state === 'running'`, tutorial, key + click walking, one puzzle of each
-  type, smoky spirit reveal, journal thumbnails, map travel to district 2,
-  AR/EN toggle, persistence across reload — **23/23 checks, zero console
-  errors**. Screenshots land in `shots/`.
+- Manually played through the Falaj Quarter end to end (headless Chromium):
+  splash → tutorial → walking (click and keyboard) → all four puzzle types
+  (hidden-spot, symbol sequence, listen, restore) → journal → map → spirit
+  reveal → Great Relic → next district unlocked — zero console errors.
+  Found and fixed one real bug along the way: the on-screen control-pad
+  toggle button's label stayed in Arabic after switching to English.

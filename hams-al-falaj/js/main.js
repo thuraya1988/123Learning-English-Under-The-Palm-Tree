@@ -87,6 +87,8 @@ function applyLang() {
   $('begin-btn').textContent = state.found.length ? UI.continue[l] : UI.begin[l];
   $('splash-title').textContent = UI.title[l];
   $('splash-sub').textContent = UI.subtitle[l];
+  const padToggleBtn = $('pad-toggle');
+  if (padToggleBtn) { padToggleBtn.textContent = UI.padToggle[l]; padToggleBtn.setAttribute('aria-label', UI.padToggle[l]); }
   refreshDistrictUI();
 }
 function toggleLang() {

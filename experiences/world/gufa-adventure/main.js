@@ -111,6 +111,8 @@ const state = {
   tokCorrect: 0,         // correct tokens collected this segment
   tokWrong: 0,           // wrong tokens hit this segment
   tokSpawnDist: 0,       // spawn cursor ahead of the boat
+  qIndex: 0,             // rotates through the level's questions, one per token wave
+  currentQuestion: null, // the question the current wave of tokens answers
   surge: false,          // target met: speed burst to the gate
   drop: 0,               // ramp-drop airtime timer (0 = inactive)
   dropY: 0,
@@ -1422,34 +1424,6 @@ function tokenColor(tok) {
   }
 }
 
-// question-derived vocabulary
-function correctLabelsFor(levelData) {
-  const out = [];
-  for (const q of levelData.questions) {
-    if (q.choices && typeof q.answer === 'number' && q.choices[q.answer]) {
-      out.push(shortLabel(q.choices[q.answer]));
-    }
-  }
-  return out.length ? out : ['falaj water'];
-}
-let distractorCache = null;
-function distractorLabels() {
-  if (distractorCache) return distractorCache;
-  const set = new Set();
-  const bank = window.QUESTION_BANK || [];
-  for (const L of bank) {
-    for (const q of (L.questions || [])) {
-      if (!q.choices) continue;
-      q.choices.forEach((c, i) => { if (i !== q.answer) set.add(shortLabel(c)); });
-      if (set.size > 900) break;
-    }
-    if (set.size > 900) break;
-  }
-  distractorCache = Array.from(set);
-  if (!distractorCache.length) distractorCache = ['sand dune', 'high mountain', 'deep well'];
-  return distractorCache;
-}
-
 function freeToken() {
   for (const t of tokenPool) if (!t.active) return t;
   return null;
@@ -1464,11 +1438,11 @@ function placeToken(tok) {
   tok.mesh.rotation.y = Math.atan2(_tt.x, _tt.z);
 }
 
-// Spawn a loose pattern of tokens ahead of the boat between d0..d1.
+// Spawn a loose pattern of tokens ahead of the boat between d0..d1. Each wave belongs to ONE
+// concrete question from the level (state.currentQuestion): the correct token is that question's
+// answer, the wrong tokens are that SAME question's other choices — not random phrases pulled
+// from the whole 100-level bank, which is what made it unclear what you were even collecting.
 function spawnTokensAhead() {
-  const levelData = quiz.levelData || getLevel(state.gateIndex + 1);
-  const good = correctLabelsFor(levelData);
-  const bad = distractorLabels();
   const wrongRatio = wrongRatioFor(state.gateIndex + 1);
   const ahead0 = state.dist + 55, ahead1 = state.dist + 260;
   const gateD = state.gateIndex < NUM_LEVELS ? gateDists[state.gateIndex] - 18 : curveLen - 10;
@@ -1476,6 +1450,12 @@ function spawnTokensAhead() {
   const LANES = [-2.0, 0, 2.0];
   while (state.tokSpawnDist < Math.min(ahead1, gateD)) {
     const d = state.tokSpawnDist;
+    if (!state.currentQuestion) pickQuestion();
+    const q = state.currentQuestion;
+    if (!q) { state.tokSpawnDist += 20; continue; }
+    const good = [shortLabel(q.choices[q.answer])];
+    const bad = q.choices.filter((c, i) => i !== q.answer).map((c) => shortLabel(c));
+    const qText = q.q;
     // pattern: 1-3 tokens per wave in loose lanes, with a gentle weave
     const wave = Math.floor(d / 14);
     const nTok = randInt(1, rng() < 0.55 ? 2 : 3);
@@ -1489,9 +1469,11 @@ function spawnTokensAhead() {
       tok.active = true;
       tok.correct = isCorrect;
       tok.fade = 0;
+      tok.dodged = false;
       tok.dist = d + rand(-2, 2);
       tok.lat = clampf(lanes[k] + Math.sin(wave * 0.9 + k) * 0.9 + rand(-0.3, 0.3), -CHANNEL_HALF_WIDTH + 0.9, CHANNEL_HALF_WIDTH - 0.9);
       tok.text = isCorrect ? good[randInt(0, good.length - 1)] : bad[randInt(0, bad.length - 1)];
+      tok.qText = qText;
       tok.bob = rand(0, 6.28);
       tokenColor(tok);
       drawLabel(tok);
@@ -1499,6 +1481,7 @@ function spawnTokensAhead() {
       tok.mesh.visible = true;
     }
     state.tokSpawnDist += rand(16, 25); // wider gaps between waves — more time to react
+    pickQuestion(); // next wave answers a different question
   }
 }
 
@@ -1594,14 +1577,16 @@ function triggerJump() {
   if (!state.running || state.inQuiz || state.paused || state.finished) return;
   if (state.drop > 0) return; // already airborne
   state.drop = 0.0001;
-  AudioSys.whoosh();
+  AudioSys.jump();
 }
 
 const _tv = new THREE.Vector3();
+let shownQText = null;
 function updateTokens(dt) {
   if (!state.running || state.inQuiz || state.finished) return;
   spawnTokensAhead();
   const magnet = state.wind > 0.25;    // khamaseen pulls tokens to the boat
+  let nearestQ = null, nearestQDist = Infinity;
   for (const tok of tokenPool) {
     if (!tok.active) continue;
     const rel = tok.dist - state.dist;
@@ -1612,14 +1597,23 @@ function updateTokens(dt) {
     placeToken(tok);
     // gentle spin/bob animation on the orb itself
     tok.orb.rotation.y += dt * 1.5;
+    // track the closest upcoming correct token so the caption always shows what's next,
+    // not whichever wave happened to be pre-spawned furthest ahead
+    if (tok.correct && rel > -2 && rel < nearestQDist) { nearestQDist = rel; nearestQ = tok.qText; }
     if (rel < 1.2) {
       if (Math.abs(tok.lat - state.lateral) < 1.45) {
         // a jump lets you sail clean over a wrong token instead of just steering around it
         if (tok.correct || state.drop <= 0.05) collectToken(tok);
+        else if (!tok.dodged) { tok.dodged = true; AudioSys.dodge(); }
       } else if (rel < -4) {
         tok.active = false; tok.mesh.visible = false;   // missed, no penalty
       }
     }
+  }
+  if (nearestQ && nearestQ !== shownQText) {
+    shownQText = nearestQ;
+    const el = $('hud-question');
+    if (el) el.textContent = nearestQ;
   }
 }
 
@@ -2038,6 +2032,37 @@ const AudioSys = {
     src.connect(bp).connect(g).connect(this.master);
     src.start(t0); src.stop(t0 + 7.8);
   },
+  // quick rising lift for the player's own jump — short and snappy, not the long khamaseen gust
+  jump() {
+    if (!this.ctx || state.muted) return;
+    const t0 = this.ctx.currentTime;
+    const o = this.ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(260, t0);
+    o.frequency.exponentialRampToValueAtTime(620, t0 + 0.18);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(0.22, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.28);
+    o.connect(g).connect(this.master);
+    o.start(t0); o.stop(t0 + 0.3);
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.playbackRate.value = 1.8;
+    const hp = this.ctx.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 1800;
+    const ng = this.ctx.createGain();
+    ng.gain.setValueAtTime(0, t0);
+    ng.gain.linearRampToValueAtTime(0.08, t0 + 0.02);
+    ng.gain.exponentialRampToValueAtTime(0.001, t0 + 0.2);
+    src.connect(hp).connect(ng).connect(this.master);
+    src.start(t0); src.stop(t0 + 0.22);
+  },
+  // light airy chime for clearing a wrong token by jumping over it — distinct from collectChime
+  dodge() {
+    this.tone(880, 0.14, 'sine', 0.12);
+    this.tone(1320, 0.18, 'sine', 0.08, 0.05);
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -2405,9 +2430,26 @@ function startSegment() {
   state.tokCorrect = 0;
   state.tokWrong = 0;
   state.surge = false;
+  state.qIndex = 0;
+  state.currentQuestion = null;
+  shownQText = null;
+  $('hud-question').textContent = '';
   // clear leftover tokens from the previous segment
   for (const tok of tokenPool) { tok.active = false; tok.mesh.visible = false; }
   state.tokSpawnDist = state.dist + 50;
+  pickQuestion();
+}
+
+// Rotates to the next question in the level and shows it as a caption, so the
+// tokens in the coming wave answer something concrete instead of just loosely
+// matching the segment's topic word.
+function pickQuestion() {
+  const qs = (quiz.levelData && quiz.levelData.questions) || [];
+  if (!qs.length) { state.currentQuestion = null; return; }
+  state.currentQuestion = qs[state.qIndex % qs.length];
+  state.qIndex++;
+  // the HUD caption itself is driven by updateTokens(), which shows whichever
+  // question the NEAREST upcoming token belongs to, not whatever was last pre-spawned
 }
 
 let toastTimer = null;
@@ -2826,7 +2868,7 @@ function update(dt, tSec) {
       for (const dd of dropDists) {
         if (state.dist >= dd && state.dist - state.speed * dt < dd) {
           state.drop = 0.0001;
-          AudioSys.whoosh();
+          AudioSys.jump(); // scripted ramp airtime — same short lift sound as a player jump
           break;
         }
       }

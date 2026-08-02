@@ -66,6 +66,10 @@ const HOTSPOT_DEFS = [
   { stage: 'hotspot1', pos: [0, 1.5, -97], icon: '🃏', label: 'Cards' },
   { stage: 'hotspot2', pos: [-0.5, 1.3, -45], icon: '🧵', label: 'Curtain' },
   { stage: 'hotspot3', pos: [0.5, 1.3, 6], icon: '🕳️', label: 'Portal' },
+  // A second, independent doorway — always lit regardless of where the card reading is in its
+  // own sequence, so the library reads as a hub with more than one game behind its doors.
+  { stage: 'gufaDoor', pos: [4.5, 1.5, -115], icon: '🛶', label: 'Falaj', alwaysOn: true, color: 0x8b1a3a,
+    action: () => { window.location.href = '../../world/gufa-adventure/index.html'; } },
 ];
 
 function makeLabelSprite(text) {
@@ -93,19 +97,20 @@ function makeLabelSprite(text) {
 const hotspots = HOTSPOT_DEFS.map((def, i) => {
   const group = new THREE.Group();
   group.position.set(def.pos[0], def.pos[1], def.pos[2]);
+  const color = def.color ?? 0x00d4aa;
 
   const geo = new THREE.IcosahedronGeometry(0.32, 1);
   const mat = new THREE.MeshStandardMaterial({
-    color: 0x00d4aa, emissive: 0x00d4aa, emissiveIntensity: 1.2,
+    color, emissive: color, emissiveIntensity: 1.2,
     roughness: 0.3, transparent: true, opacity: 0.95
   });
   const mesh = new THREE.Mesh(geo, mat);
   group.add(mesh);
 
-  const glow = new THREE.PointLight(0x00d4aa, 2.2, 8);
+  const glow = new THREE.PointLight(color, 2.2, 8);
   group.add(glow);
 
-  const label = makeLabelSprite(String(i + 1));
+  const label = makeLabelSprite(def.icon && def.alwaysOn ? def.icon : String(i + 1));
   label.position.set(0, 0.6, 0);
   group.add(label);
 
@@ -116,13 +121,29 @@ const hotspots = HOTSPOT_DEFS.map((def, i) => {
 
 function refreshHotspots() {
   const stage = sessionStorage.getItem('palmtree_stage') || 'hotspot1';
-  hotspots.forEach(h => { h.group.visible = h.def.stage === stage; });
+  hotspots.forEach(h => { h.group.visible = h.def.alwaysOn || h.def.stage === stage; });
 }
 refreshHotspots();
 window.libraryRefreshHotspots = refreshHotspots;
 
+// More than one hotspot can be visible at once now (the always-on doorway plus whichever
+// card-reading stage is active), so pick whichever visible one is nearest the crosshair
+// instead of just the first in the list.
 function activeHotspot() {
-  return hotspots.find(h => h.group.visible) || null;
+  const visible = hotspots.filter(h => h.group.visible);
+  if (!visible.length) return null;
+  if (visible.length === 1) return visible[0];
+  const cx = canvas.clientWidth / 2, cy = canvas.clientHeight / 2;
+  let best = null, bestDist = Infinity;
+  for (const h of visible) {
+    const v = h.group.position.clone().project(camera);
+    if (v.z > 1) continue;
+    const sx = (v.x * 0.5 + 0.5) * canvas.clientWidth;
+    const sy = (-v.y * 0.5 + 0.5) * canvas.clientHeight;
+    const d = Math.hypot(sx - cx, sy - cy);
+    if (d < bestDist) { bestDist = d; best = h; }
+  }
+  return best || visible[0];
 }
 
 // ===================== الإدخال (لمس/كيبورد) — بدون كاميرا ولا تتبع يد =====================
@@ -172,7 +193,7 @@ function tryHotspotTap(clientX, clientY) {
   const sx = (v.x * 0.5 + 0.5) * rect.width + rect.left;
   const sy = (-v.y * 0.5 + 0.5) * rect.height + rect.top;
   const dist = Math.hypot(clientX - sx, clientY - sy);
-  if (dist < 90) { window.libraryEnterHotspot?.(h.def.stage); return true; }
+  if (dist < 90) { (h.def.action || (() => window.libraryEnterHotspot?.(h.def.stage)))(); return true; }
   return false;
 }
 
@@ -215,7 +236,7 @@ canvas.addEventListener('touchend', (e) => {
 function tryInteract() {
   const h = activeHotspot();
   if (!h) return;
-  window.libraryEnterHotspot?.(h.def.stage);
+  (h.def.action || (() => window.libraryEnterHotspot?.(h.def.stage)))();
 }
 
 const velocity = new THREE.Vector3();

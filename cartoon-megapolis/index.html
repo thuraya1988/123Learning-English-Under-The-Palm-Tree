@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CARTOON MEGAPOLIS — Web-Swing Edition</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600;700&display=swap');
+
+  :root {
+    --burgundy: #6B1A2F;
+    --burgundy-light: #9B2C4A;
+    --earth-dark: #3D2817;
+    --earth-mid: #8B6F47;
+    --earth-light: #C4A77D;
+    --cream: #F5F0E6;
+    --accent: #E85D4E;
+    --sky-dusk: #2B1D3B;
+    --sky-day: #5B9BD5;
+    --sky-night: #0A0A1A;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Fredoka', sans-serif;
+    background: var(--sky-dusk);
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+    user-select: none;
+  }
+
+  #canvas-container {
+    position: fixed; inset: 0;
+    z-index: 1;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* ===== LOADING SCREEN ===== */
+  #loading-screen {
+    position: fixed; inset: 0; z-index: 1000;
+    background: linear-gradient(135deg, var(--sky-dusk) 0%, var(--burgundy) 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: opacity 0.8s ease;
+  }
+  #loading-screen.hidden { opacity: 0; pointer-events: none; }
+  .loader-title {
+    font-size: clamp(2rem, 5vw, 4rem); font-weight: 700;
+    color: var(--cream); text-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    letter-spacing: 2px; margin-bottom: 1rem;
+  }
+  .loader-sub { color: var(--earth-light); font-size: 1.1rem; margin-bottom: 2rem; }
+  .loader-bar-wrap {
+    width: min(400px, 80vw); height: 12px;
+    background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .loader-bar { width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent), var(--burgundy-light));
+    border-radius: 6px; transition: width 0.3s ease;
+  }
+  .loader-status { color: var(--cream); margin-top: 1rem; font-size: 0.9rem; opacity: 0.8; }
+  .loader-hint { position: absolute; bottom: 2rem; color: var(--earth-light); font-size: 0.85rem; opacity: 0.6; }
+
+  /* ===== CHARACTER MENU ===== */
+  #char-menu {
+    position: fixed; inset: 0; z-index: 500;
+    background: linear-gradient(180deg, rgba(43,29,59,0.95) 0%, rgba(107,26,47,0.9) 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: opacity 0.6s ease;
+  }
+  #char-menu.hidden { opacity: 0; pointer-events: none; }
+  .menu-title {
+    font-size: clamp(1.8rem, 4vw, 3rem); color: var(--cream);
+    font-weight: 700; margin-bottom: 0.5rem; text-align: center;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  }
+  .menu-sub { color: var(--earth-light); font-size: 1rem; margin-bottom: 2.5rem; }
+  .char-grid {
+    display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center;
+    max-width: 900px; padding: 0 1rem;
+  }
+  .char-card {
+    width: 260px; background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15); border-radius: 20px;
+    padding: 1.5rem; text-align: center; cursor: pointer;
+    transition: all 0.3s ease; backdrop-filter: blur(10px);
+    position: relative; overflow: hidden;
+  }
+  .char-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(232,93,78,0.2), transparent 70%);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .char-card:hover { transform: translateY(-8px); border-color: var(--accent); }
+  .char-card:hover::before { opacity: 1; }
+  .char-card.selected { border-color: var(--accent); background: rgba(232,93,78,0.15); }
+  .char-preview {
+    width: 120px; height: 160px; margin: 0 auto 1rem;
+    border-radius: 12px; position: relative;
+    background: rgba(0,0,0,0.2);
+  }
+  .char-name { font-size: 1.4rem; font-weight: 600; color: var(--cream); margin-bottom: 0.3rem; }
+  .char-desc { font-size: 0.85rem; color: var(--earth-light); line-height: 1.4; }
+  .char-stats { display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; }
+  .stat { text-align: center; }
+  .stat-val { font-size: 1.1rem; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: 0.7rem; color: var(--earth-light); text-transform: uppercase; }
+  .play-btn {
+    margin-top: 2.5rem; padding: 1rem 3rem;
+    background: linear-gradient(135deg, var(--accent), var(--burgundy-light));
+    border: none; border-radius: 50px; color: var(--cream);
+    font-family: inherit; font-size: 1.2rem; font-weight: 600;
+    cursor: pointer; transition: all 0.3s; letter-spacing: 1px;
+    box-shadow: 0 4px 20px rgba(232,93,78,0.4);
+  }
+  .play-btn:hover { transform: scale(1.05); box-shadow: 0 6px 30px rgba(232,93,78,0.6); }
+  .play-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .quality-select {
+    margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center;
+    color: var(--earth-light); font-size: 0.9rem;
+  }
+  .quality-select select {
+    background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
+    color: var(--cream); padding: 0.4rem 1rem; border-radius: 8px;
+    font-family: inherit; cursor: pointer;
+  }
+
+  /* ===== HUD ===== */
+  #hud {
+    position: fixed; inset: 0; z-index: 50; pointer-events: none;
+    display: none;
+  }
+  #hud.active { display: block; }
+  .hud-top {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 1.2rem 1.5rem;
+    background: linear-gradient(180deg, rgba(0,0,0,0.4), transparent);
+  }
+  .hud-left, .hud-right { display: flex; flex-direction: column; gap: 0.5rem; }
+  .hud-badge {
+    background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 12px;
+    padding: 0.5rem 1rem; color: var(--cream); font-size: 0.9rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .hud-badge .icon { font-size: 1.1rem; }
+  .speed-bar {
+    width: 120px; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden;
+  }
+  .speed-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #FFD700);
+    border-radius: 3px; transition: width 0.1s;
+  }
+  .hud-center {
+    position: absolute; top: 1.2rem; left: 50%; transform: translateX(-50%);
+    text-align: center;
+  }
+  .time-display {
+    font-size: 1.5rem; font-weight: 700; color: var(--cream);
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .zone-display { font-size: 0.8rem; color: var(--earth-light); margin-top: 0.2rem; }
+  .hud-bottom {
+    position: absolute; bottom: 1.5rem; left: 1.5rem;
+    display: flex; flex-direction: column; gap: 0.4rem;
+  }
+  .control-hint {
+    background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+    border-radius: 8px; padding: 0.3rem 0.8rem;
+    color: var(--earth-light); font-size: 0.75rem;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .control-hint kbd {
+    background: rgba(255,255,255,0.15); padding: 0.1rem 0.4rem; border-radius: 4px;
+    font-family: inherit; color: var(--cream); font-size: 0.7rem;
+  }
+
+  /* Crosshair */
+  .crosshair {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 20px; height: 20px; pointer-events: none;
+  }
+  .crosshair::before, .crosshair::after {
+    content: ''; position: absolute; background: rgba(255,255,255,0.8);
+  }
+  .crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
+  .crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
+  .crosshair.dot {
+    width: 6px; height: 6px; background: var(--accent); border-radius: 50%;
+    box-shadow: 0 0 10px var(--accent);
+  }
+  .crosshair.dot::before, .crosshair.dot::after { display: none; }
+
+  /* ===== PAUSE MENU ===== */
+  #pause-menu {
+    position: fixed; inset: 0; z-index: 600;
+    background: rgba(10,10,30,0.85); backdrop-filter: blur(12px);
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+  }
+  #pause-menu.active { display: flex; }
+  .pause-title { font-size: 2.5rem; color: var(--cream); font-weight: 700; margin-bottom: 2rem; }
+  .pause-btn {
+    width: 240px; padding: 0.9rem; margin: 0.4rem 0;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 12px; color: var(--cream); font-family: inherit; font-size: 1.1rem;
+    cursor: pointer; transition: all 0.2s; text-align: center;
+  }
+  .pause-btn:hover { background: rgba(232,93,78,0.3); border-color: var(--accent); transform: scale(1.02); }
+
+  /* ===== NOTIFICATIONS ===== */
+  #notification-area {
+    position: fixed; top: 6rem; right: 1.5rem; z-index: 60;
+    display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;
+  }
+  .toast {
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0;
+    padding: 0.8rem 1.2rem; color: var(--cream); font-size: 0.9rem;
+    transform: translateX(120%); animation: slideIn 0.4s forwards;
+    max-width: 300px;
+  }
+  @keyframes slideIn { to { transform: translateX(0); } }
+  @keyframes fadeOut { to { opacity: 0; transform: translateX(120%); } }
+
+  /* ===== WEB INDICATOR ===== */
+  .web-indicator {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 40px; height: 40px; border: 2px solid var(--accent);
+    border-radius: 50%; opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .web-indicator.active { opacity: 1; animation: pulse 0.8s infinite; }
+  @keyframes pulse { 0%,100%{transform:translate(-50%,-50%) scale(1);} 50%{transform:translate(-50%,-50%) scale(1.2);} }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .char-grid { flex-direction: column; align-items: center; }
+    .hud-top { padding: 0.8rem; }
+    .control-hint { display: none; }
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div id="loading-screen">
+  <div class="loader-title">CARTOON MEGAPOLIS</div>
+  <div class="loader-sub">Web-Swing Edition</div>
+  <div class="loader-bar-wrap"><div class="loader-bar" id="loader-bar"></div></div>
+  <div class="loader-status" id="loader-status">Initializing engine...</div>
+  <div class="loader-hint">Desktop Chrome / Edge / Firefox recommended</div>
+</div>
+
+<!-- Character Menu -->
+<div id="char-menu" class="hidden">
+  <div class="menu-title">Choose Your Hero</div>
+  <div class="menu-sub">The city awaits. Select a character to begin traversal.</div>
+  <div class="char-grid">
+    <div class="char-card" data-char="thuraya">
+      <div class="char-preview" id="preview-thuraya"></div>
+      <div class="char-name">Thuraya</div>
+      <div class="char-desc">Agile and fearless. Born in the old city's winding alleys. Excels at wall-running and aerial recovery.</div>
+      <div class="char-stats">
+        <div class="stat"><div class="stat-val">A</div><div class="stat-label">Speed</div></div>
+        <div class="stat"><div class="stat-val">B</div><div class="stat-label">Swing</div></div>
+        <div class="stat"><div class="stat-val">S</div><div class="stat-label">Wallrun</div></div>
+      </div>
+    </div>
+    <div class="char-card" data-char="alex">
+      <div class="char-preview" id="preview-alex"></div>
+      <div class="char-name">Alex</div>
+      <div class="char-desc">Strong and calculated. A former engineer who knows every rooftop. Superior zip-line control and dive stability.</div>
+      <div class="char-stats">
+        <div class="stat"><div class="stat-val">B</div><div class="stat-label">Speed</div></div>
+        <div class="stat"><div class="stat-val">A</div><div class="stat-label">Swing</div></div>
+        <div class="stat"><div class="stat-val">A</div><div class="stat-label">Zip</div></div>
+      </div>
+    </div>
+  </div>
+  <button class="play-btn" id="play-btn" disabled>ENTER THE CITY</button>
+  <div class="quality-select">
+    <label>Quality:</label>
+    <select id="quality-select">
+      <option value="high">High</option>
+      <option value="medium" selected>Medium</option>
+      <option value="low">Low</option>
+    </select>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-top">
+    <div class="hud-left">
+      <div class="hud-badge"><span class="icon">⚡</span><span id="hud-speed">0</span> km/h</div>
+      <div class="hud-badge"><span class="icon">📏</span><span id="hud-alt">0</span> m</div>
+    </div>
+    <div class="hud-center">
+      <div class="time-display" id="time-display">18:30</div>
+      <div class="zone-display" id="zone-display">Downtown Core</div>
+    </div>
+    <div class="hud-right">
+      <div class="hud-badge"><span class="icon">🎯</span><span id="hud-anchor">None</span></div>
+      <div class="hud-badge"><span class="icon">🌡️</span><span id="hud-fps">60</span> FPS</div>
+    </div>
+  </div>
+  <div class="crosshair" id="crosshair"></div>
+  <div class="web-indicator" id="web-indicator"></div>
+  <div class="hud-bottom">
+    <div class="control-hint"><kbd>WASD</kbd> Move &nbsp; <kbd>SPACE</kbd> Jump / WallRun &nbsp; <kbd>SHIFT</kbd> Sprint</div>
+    <div class="control-hint"><kbd>RMB</kbd> Web Swing &nbsp; <kbd>E</kbd> Zip Target &nbsp; <kbd>Q</kbd> Dive &nbsp; <kbd>ESC</kbd> Pause</div>
+  </div>
+</div>
+
+<!-- Notification Area -->
+<div id="notification-area"></div>
+
+<!-- Pause Menu -->
+<div id="pause-menu">
+  <div class="pause-title">PAUSED</div>
+  <button class="pause-btn" id="btn-resume">Resume</button>
+  <button class="pause-btn" id="btn-restart">Restart at Checkpoint</button>
+  <button class="pause-btn" id="btn-quality">Cycle Quality</button>
+  <button class="pause-btn" id="btn-menu">Main Menu</button>
+</div>
+
+<!-- Canvas -->
+<div id="canvas-container"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

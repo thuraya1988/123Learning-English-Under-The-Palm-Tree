@@ -36,6 +36,7 @@ export class Game {
     this.ui.onPlay = (char, quality) => this.startGame(char, quality);
     this.ui.onQualityChange = (q) => this.setQuality(q);
     this.ui.onRestart = () => this.restart();
+    this.ui.onPause = () => { if (this.state === 'PLAY') this.togglePause(); };
 
     // Boot phase
     this.ui.setLoadingProgress(10, 'Initializing renderer...');

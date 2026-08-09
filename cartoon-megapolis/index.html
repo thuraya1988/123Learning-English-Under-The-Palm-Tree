@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>CARTOON MEGAPOLIS — Web-Swing Edition</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600;700&display=swap');
@@ -67,6 +67,8 @@
     background: linear-gradient(180deg, rgba(43,29,59,0.95) 0%, rgba(107,26,47,0.9) 100%);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     transition: opacity 0.6s ease;
+    overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;
+    padding: 1.5rem 0;
   }
   #char-menu.hidden { opacity: 0; pointer-events: none; }
   .menu-title {
@@ -196,6 +198,8 @@
     position: fixed; inset: 0; z-index: 600;
     background: rgba(10,10,30,0.85); backdrop-filter: blur(12px);
     display: none; flex-direction: column; align-items: center; justify-content: center;
+    overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;
+    padding: 1.5rem 0;
   }
   #pause-menu.active { display: flex; }
   .pause-title { font-size: 2.5rem; color: var(--cream); font-weight: 700; margin-bottom: 2rem; }
@@ -237,6 +241,55 @@
     .char-grid { flex-direction: column; align-items: center; }
     .hud-top { padding: 0.8rem; }
     .control-hint { display: none; }
+  }
+
+  /* ===== TOUCH CONTROLS (phones/tablets only — see Input.js isTouch) ===== */
+  #touch-look-layer, #touch-joystick, #touch-actions, #touch-pause-btn { display: none; }
+  body.is-touch .control-hint { display: none; }
+  body.is-touch #touch-look-layer { display: block; }
+  body.is-touch #touch-joystick { display: block; }
+  body.is-touch #touch-actions { display: flex; }
+  body.is-touch #touch-pause-btn { display: flex; }
+
+  /* #hud is pointer-events:none so its readouts never block canvas drags —
+     every touch-interactive element here must opt back in explicitly. */
+  #touch-look-layer {
+    position: absolute; inset: 0; z-index: 1; touch-action: none;
+    pointer-events: auto;
+  }
+  #touch-joystick {
+    position: absolute; left: 1.5rem; bottom: 1.5rem; z-index: 5;
+    width: 112px; height: 112px; border-radius: 50%;
+    background: rgba(0,0,0,0.35); border: 2px solid rgba(255,255,255,0.25);
+    touch-action: none; pointer-events: auto;
+  }
+  #touch-joystick-knob {
+    position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px;
+    border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--burgundy-light));
+    box-shadow: 0 2px 10px rgba(0,0,0,0.4); pointer-events: none;
+  }
+  #touch-actions {
+    position: absolute; right: 1.2rem; bottom: 1.5rem; z-index: 5;
+    align-items: center; gap: 0.5rem; pointer-events: auto;
+  }
+  .touch-btn-col { display: flex; flex-direction: column; gap: 0.5rem; }
+  .touch-btn {
+    width: 54px; height: 54px; border-radius: 50%;
+    background: rgba(0,0,0,0.45); border: 2px solid rgba(255,255,255,0.25);
+    color: var(--cream); display: flex; align-items: center; justify-content: center;
+    font-family: inherit; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.3px;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .touch-btn:active { background: rgba(232,93,78,0.55); border-color: var(--accent); }
+  .touch-btn-jump { width: 74px; height: 74px; font-size: 0.75rem; }
+  #touch-pause-btn {
+    position: absolute; top: 5.6rem; right: 1.1rem; z-index: 6;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);
+    color: var(--cream); align-items: center; justify-content: center;
+    font-size: 0.9rem; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    pointer-events: auto;
   }
 </style>
 <script type="importmap">
@@ -318,6 +371,22 @@
     <div class="control-hint"><kbd>WASD</kbd> Move &nbsp; <kbd>SPACE</kbd> Jump / WallRun &nbsp; <kbd>SHIFT</kbd> Sprint</div>
     <div class="control-hint"><kbd>RMB</kbd> Web Swing &nbsp; <kbd>E</kbd> Zip Target &nbsp; <kbd>Q</kbd> Dive &nbsp; <kbd>ESC</kbd> Pause</div>
   </div>
+
+  <!-- Touch controls: shown only on touch devices (Input.js adds body.is-touch) -->
+  <div id="touch-look-layer"></div>
+  <div id="touch-joystick"><div id="touch-joystick-knob"></div></div>
+  <div id="touch-actions">
+    <div class="touch-btn-col">
+      <div class="touch-btn" id="btn-swing">WEB</div>
+      <div class="touch-btn" id="btn-sprint">RUN</div>
+    </div>
+    <div class="touch-btn touch-btn-jump" id="btn-jump">JUMP</div>
+    <div class="touch-btn-col">
+      <div class="touch-btn" id="btn-zip">ZIP</div>
+      <div class="touch-btn" id="btn-dive">DIVE</div>
+    </div>
+  </div>
+  <button id="touch-pause-btn" aria-label="Pause">⏸</button>
 </div>
 
 <!-- Notification Area -->

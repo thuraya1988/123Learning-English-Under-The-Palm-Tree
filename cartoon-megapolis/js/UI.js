@@ -28,10 +28,38 @@ export class UI {
     this.lastFpsTime = performance.now();
   }
 
+  // iOS Safari (and some Android webviews) can silently drop the synthetic
+  // 'click' after a touch that also ended a momentum-scroll — the tap looks
+  // like nothing happened. Handle touchend ourselves (ignoring touches that
+  // moved, so real scroll/drag gestures aren't mistaken for taps) and
+  // suppress the follow-up click so the handler never double-fires.
+  _bindTap(el, handler) {
+    let startX = 0, startY = 0, dragged = false, handledByTouch = false;
+    el.addEventListener('touchstart', e => {
+      const t = e.touches[0];
+      startX = t.clientX; startY = t.clientY; dragged = false;
+    }, { passive: true });
+    el.addEventListener('touchmove', e => {
+      const t = e.touches[0];
+      if (Math.abs(t.clientX - startX) > 10 || Math.abs(t.clientY - startY) > 10) dragged = true;
+    }, { passive: true });
+    el.addEventListener('touchend', e => {
+      if (dragged) return;
+      handledByTouch = true;
+      e.preventDefault();
+      handler(e);
+      setTimeout(() => { handledByTouch = false; }, 400);
+    });
+    el.addEventListener('click', e => {
+      if (handledByTouch) return;
+      handler(e);
+    });
+  }
+
   _setupEvents() {
     // Character selection
     document.querySelectorAll('.char-card').forEach(card => {
-      card.addEventListener('click', () => {
+      this._bindTap(card, () => {
         document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         this.selectedChar = card.dataset.char;
@@ -40,7 +68,8 @@ export class UI {
     });
 
     // Play button
-    this.elements.playBtn.addEventListener('click', () => {
+    this._bindTap(this.elements.playBtn, () => {
+      if (this.elements.playBtn.disabled) return;
       if (this.selectedChar && this.onPlay) {
         this.onPlay(this.selectedChar, this.elements.qualitySelect.value);
       }
@@ -52,12 +81,12 @@ export class UI {
     });
 
     // Pause buttons
-    document.getElementById('btn-resume').addEventListener('click', () => this.hidePause());
-    document.getElementById('btn-restart').addEventListener('click', () => {
+    this._bindTap(document.getElementById('btn-resume'), () => this.hidePause());
+    this._bindTap(document.getElementById('btn-restart'), () => {
       this.hidePause();
       if (this.onRestart) this.onRestart();
     });
-    document.getElementById('btn-quality').addEventListener('click', () => {
+    this._bindTap(document.getElementById('btn-quality'), () => {
       const opts = ['low', 'medium', 'high'];
       const cur = this.elements.qualitySelect.value;
       const next = opts[(opts.indexOf(cur) + 1) % opts.length];
@@ -65,14 +94,14 @@ export class UI {
       if (this.onQualityChange) this.onQualityChange(next);
       this.notify(`Quality: ${next.toUpperCase()}`);
     });
-    document.getElementById('btn-menu').addEventListener('click', () => {
+    this._bindTap(document.getElementById('btn-menu'), () => {
       location.reload();
     });
 
     // Touch-only pause button (mirrors the ESC key for devices with no keyboard)
     const touchPause = document.getElementById('touch-pause-btn');
     if (touchPause) {
-      touchPause.addEventListener('click', () => { if (this.onPause) this.onPause(); });
+      this._bindTap(touchPause, () => { if (this.onPause) this.onPause(); });
     }
   }
 

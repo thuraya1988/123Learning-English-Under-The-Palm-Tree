@@ -105,6 +105,8 @@ export class PhysicsController {
     if (input.isDown('KeyS')) moveDir.z += 1;
     if (input.isDown('KeyA')) moveDir.x -= 1;
     if (input.isDown('KeyD')) moveDir.x += 1;
+    if (input.touchMove) { moveDir.x += input.touchMove.x; moveDir.z += input.touchMove.z; }
+    if (moveDir.length() > 1) moveDir.normalize();
 
     const isSprint = input.isDown('ShiftLeft') || input.isDown('ShiftRight');
     const wantsJump = input.isPressed('Space');

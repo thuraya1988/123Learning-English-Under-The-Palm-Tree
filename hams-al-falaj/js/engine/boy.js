@@ -58,12 +58,12 @@ export class Boy {
   }
 
   async _loadSprites() {
-    // probe quietly first: a fetch 404 doesn't log a console error, so the
-    // code-drawn fallback stays clean when sprites are absent
-    try {
-      const probe = await fetch(SPRITE_BASE + 'idle.png', { method: 'HEAD' });
-      if (!probe.ok) return;
-    } catch { return; }
+    // Load the real frames directly rather than pre-checking with a HEAD
+    // request first: some static hosts/CDNs (e.g. the raw.githack.com preview
+    // used to test unmerged branches) don't handle HEAD the same as GET, so
+    // that probe could fail even though the sprite files themselves load
+    // fine — which silently forced the plain code-drawn fallback the whole
+    // time instead of the painted sprite.
     const jobs = [];
     const walk = [];
     for (let i = 1; i <= WALK_FRAMES; i++) walk.push(null);

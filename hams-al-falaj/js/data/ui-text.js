@@ -38,4 +38,5 @@ export const UI = {
               en: 'Gather all seven relics of a district and its spirit will rise from the smoke, returning its old glow — then a new district opens on the map.' } },
   ],
   dlgHint: { ar: 'انقر أو اضغط إدخال للمتابعة', en: 'Click or press Enter to continue' },
+  padToggle: { ar: 'أزرار', en: 'Controls' },
 };

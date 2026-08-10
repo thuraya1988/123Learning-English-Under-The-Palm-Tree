@@ -68,6 +68,12 @@ export class UI {
     document.getElementById('btn-menu').addEventListener('click', () => {
       location.reload();
     });
+
+    // Touch-only pause button (mirrors the ESC key for devices with no keyboard)
+    const touchPause = document.getElementById('touch-pause-btn');
+    if (touchPause) {
+      touchPause.addEventListener('click', () => { if (this.onPause) this.onPause(); });
+    }
   }
 
   setLoadingProgress(pct, status) {

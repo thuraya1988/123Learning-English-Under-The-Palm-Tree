@@ -1,14 +1,16 @@
-// Painted scene renderer: THREE hand-painted layers (far / mid / fore) with
-// cohesive Lost-in-Play-style parallax. ALL drift & pan motion flows in ONE
-// unified direction: the world slides gently LEFTWARD past the camera
-// (camera pans right), never reversing. The mid layer is the gameplay plane
-// and stays locked to the camera (1.0) so the boy, hotspots and spirits keep
-// perfect registration; far/fore parallax ratios follow 0.15 / 0.45 / 0.85
-// relative to the camera, normalized so mid = 1.0.
+// Painted scene renderer: one hand-painted mid layer (the gameplay plane,
+// locked to the camera at 1.0 so the boy/hotspots/spirits keep perfect
+// registration) plus a far layer derived from it on the fly (blurred +
+// desaturated, panning slower) for a hazy sense of distance. The far and
+// fore layer image assets that originally shipped with each district were
+// dropped: far turned out to be a near-duplicate of mid at full detail
+// (drawing both produced a ghosting double-image, not real depth) and fore
+// was a fully transparent PNG in every district (drew nothing at all).
+// ALL drift & pan motion flows in ONE unified direction: the world slides
+// gently LEFTWARD past the camera (camera pans right), never reversing.
 
 const REL_FAR  = 0.15 / 0.45;  // ≈ 0.33  — slowest, atmospheric
 const REL_MID  = 1.0;          // gameplay plane (boy / hotspots / spirits)
-const REL_FORE = 0.85 / 0.45;  // ≈ 1.89  — fastest, closest to viewer
 
 const IDLE_DRIFT_PX_S = 14;    // gentle constant LEFTWARD world slide when idle
 
@@ -57,18 +59,23 @@ export class Scene {
 
   setDistrict(district, onload) {
     this.district = district;
-    // derive layer paths: ./assets/v4/district-<id>.jpg -> layer-<id>-{far,mid,fore}.png
+    // derive layer path: ./assets/v4/district-<id>.jpg -> layer-<id>-mid.jpg
+    // Only the mid (gameplay-plane) layer is loaded as a real painted image.
+    // The far and fore layer assets that shipped with this district turned
+    // out to be a near-duplicate of the mid scene (far) and a fully
+    // transparent PNG in every district (fore) — drawing them added nothing
+    // but a ghosting double-image effect, which read as "the background is
+    // one flat photo, not real depth". The far layer is now always a
+    // blurred/desaturated derivative of mid (see draw()), which gives a
+    // genuine hazy-distance look without needing new artwork; the empty
+    // fore layer is simply skipped.
     const m = /district-([a-z]+)\./.exec(district.img || '');
     const id = m ? m[1] : null;
-    let pending = 3;
-    const done = () => { if (--pending === 0 && onload) onload(); };
-    for (const name of ['far', 'mid', 'fore']) {
-      const layer = { img: new Image(), ok: false };
-      layer.img.onload = () => { layer.ok = true; done(); };
-      layer.img.onerror = () => { layer.ok = false; done(); };
-      layer.img.src = id ? `./assets/v4/layer-${id}-${name}.${name === 'fore' ? 'png' : 'jpg'}` : '';
-      this.layers[name] = layer;
-    }
+    const layer = { img: new Image(), ok: false };
+    layer.img.onload = () => { layer.ok = true; if (onload) onload(); };
+    layer.img.onerror = () => { layer.ok = false; if (onload) onload(); };
+    layer.img.src = id ? `./assets/v4/layer-${id}-mid.jpg` : '';
+    this.layers = { far: { img: null, ok: false }, mid: layer, fore: { img: null, ok: false } };
     this.bloom = 0;
     this._bloomTarget = 0;
   }
@@ -110,15 +117,13 @@ export class Scene {
     const ctx = this.ctx;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, this.vw, this.vh);
-    const { far, mid, fore } = this.layers;
+    const { mid } = this.layers;
     const camRange = Math.max(1, this.worldW - this.vw);
 
-    // ---- far layer: parallax 0.33, hazy atmospheric treatment baked in ----
+    // ---- far layer: parallax 0.33, a blurred/hazy derivative of mid ----
     const farCam = this.camX * REL_FAR;
     const farW = this.vw + camRange * REL_FAR;   // exactly covers its travel
-    if (far.ok) {
-      ctx.drawImage(far.img, -farCam, 0, farW, this.vh);
-    } else if (mid.ok) {
+    if (mid.ok) {
       ctx.save();
       ctx.filter = 'blur(3px) saturate(0.85) brightness(1.1)';
       ctx.drawImage(mid.img, -farCam, 0, farW, this.vh);
@@ -147,13 +152,6 @@ export class Scene {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, this.vw, this.vh);
       ctx.restore();
-    }
-
-    // ---- fore layer: parallax 1.89 — painted silhouettes pass in FRONT ----
-    if (fore.ok) {
-      const foreCam = this.camX * REL_FORE;
-      const foreW = this.vw + camRange * REL_FORE;
-      ctx.drawImage(fore.img, -foreCam, 0, foreW, this.vh);
     }
 
     // ---- vignette ----

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gufa Folklore Adventure — Under the Palm Tree</title>
+<link rel="icon" href="data:,">
+<style>
+  :root{
+    /* "Under the Palm Tree" identity: warm earth only + one burgundy accent */
+    --panel-bg: rgba(30, 22, 15, 0.86);
+    --panel-edge: rgba(216, 201, 168, 0.28);
+    --accent: #9c4453;          /* restrained burgundy */
+    --accent-soft: rgba(156, 68, 83, 0.28);
+    --sand: #d8c9a8;            /* linen */
+    --clay: #b98a63;
+    --bronze: #a0744f;          /* muted badge tier */
+    --text: #efe6d4;            /* linen text */
+    --text-dim: #c4b294;
+  }
+  *{ box-sizing: border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#16100b; font-family:"Segoe UI", Tahoma, Arial, sans-serif; color:var(--text); }
+  #game-canvas{ position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+
+  /* ---------- Loading ---------- */
+  #loading-screen{ position:fixed; inset:0; z-index:60; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background: radial-gradient(ellipse at 50% 40%, #2b2013 0%, #16100b 70%); transition:opacity .6s ease; }
+  #loading-screen.hidden{ opacity:0; pointer-events:none; }
+  #loading-screen h1{ font-size:clamp(26px,5vw,46px); letter-spacing:3px; color:var(--sand); text-shadow:0 2px 18px rgba(0,0,0,.5); margin-bottom:6px; }
+  #loading-screen h1 span{ color:var(--accent); }
+  #loading-screen p.sub{ color:var(--text-dim); margin-bottom:28px; font-size:clamp(13px,2vw,16px); }
+  #loading-bar-wrap{ width:min(420px,80vw); height:14px; border:1px solid var(--panel-edge); border-radius:8px; overflow:hidden; background:rgba(255,255,255,.05); }
+  #loading-bar{ height:100%; width:0%; background:linear-gradient(90deg,#6b4a32,var(--accent)); transition:width .25s ease; }
+  #loading-status{ margin-top:12px; font-size:13px; color:var(--text-dim); min-height:18px; }
+
+  /* ---------- Error ---------- */
+  #error-screen{ position:fixed; inset:0; z-index:70; display:none; align-items:center; justify-content:center; background:#14100c; text-align:center; padding:24px; }
+  #error-screen .card{ max-width:560px; border:1px solid #6b3a3a; background:#241a14; padding:32px; border-radius:14px; }
+  #error-screen h2{ color:#e2a08e; margin-bottom:12px; }
+  #error-screen p{ line-height:1.6; color:#d8cfc4; font-size:15px; }
+  #error-screen code{ background:#000; padding:2px 6px; border-radius:4px; color:var(--sand); }
+
+  /* ---------- HUD ---------- */
+  #hud{ position:fixed; inset:0; z-index:20; pointer-events:none; display:none; }
+  #hud.visible{ display:block; }
+  .hud-chip{ position:absolute; background:var(--panel-bg); border:1px solid var(--panel-edge); border-radius:10px;
+    padding:8px 14px; font-size:14px; backdrop-filter: blur(6px); }
+  #hud-level{ top:14px; left:14px; font-weight:600; color:var(--sand); }
+  #hud-score{ top:14px; left:50%; transform:translateX(-50%); }
+  #hud-best{ top:14px; right:14px; }
+  #hud-fps{ bottom:14px; right:14px; font-size:12px; color:var(--text-dim); }
+  #hud-streak{ top:56px; right:14px; font-size:12px; color:var(--clay); }
+  #hud-streak.hot{ color:#e0a06a; font-weight:700; text-shadow:0 0 10px rgba(224,140,80,.55); }
+  #hud-speed{ bottom:14px; left:14px; font-size:12px; color:var(--text-dim); }
+  /* Topic word: engraved stone style, large top-center */
+  #hud-topic{ position:absolute; top:44px; left:50%; transform:translateX(-50%); text-align:center; pointer-events:none; }
+  #hud-topic .lbl{ font-size:10px; letter-spacing:4px; color:var(--clay); text-transform:uppercase; margin-bottom:2px; }
+  #hud-topic .word{ font-size:clamp(22px,4.2vw,38px); font-weight:800; letter-spacing:5px; text-transform:uppercase;
+    color:#e9dcc0; text-shadow:0 2px 0 rgba(0,0,0,.8), 0 -1px 1px rgba(238,224,192,.22), 0 4px 22px rgba(0,0,0,.6); }
+  #hud-topic .sub{ font-size:11px; color:var(--text-dim); margin-top:2px; }
+  /* Live question caption: what the current wave of tokens actually answers */
+  #hud-question{ position:absolute; top:130px; left:50%; transform:translateX(-50%); z-index:20;
+    max-width:min(90vw,520px); text-align:center; pointer-events:none;
+    background:var(--panel-bg); border:1px solid var(--panel-edge); border-radius:10px;
+    padding:6px 16px; font-size:13px; color:var(--text); line-height:1.4; }
+  #hud-question:empty{ display:none; }
+  /* full-screen wrong-token ripple flash */
+  #ripple-fx{ position:fixed; inset:0; z-index:25; pointer-events:none; opacity:0;
+    background:radial-gradient(ellipse at 50% 60%, rgba(120,60,55,0) 40%, rgba(120,60,55,.38) 100%); }
+  #ripple-fx.flash{ animation:rippleflash .55s ease-out; }
+  @keyframes rippleflash{ 0%{opacity:1; transform:scale(1);} 100%{opacity:0; transform:scale(1.06);} }
+  /* khamaseen wind banner + haze */
+  #wind-fx{ position:fixed; inset:0; z-index:24; pointer-events:none; opacity:0; transition:opacity 1.2s;
+    background:linear-gradient(90deg, rgba(196,150,90,.16), rgba(216,180,120,.05) 40%, rgba(196,150,90,.2)); }
+  #wind-fx.visible{ opacity:1; }
+  #wind-banner{ position:fixed; top:110px; left:50%; transform:translateX(-50%); z-index:26; pointer-events:none;
+    background:var(--panel-bg); border:1px solid var(--panel-edge); border-radius:10px; padding:8px 20px;
+    font-size:14px; letter-spacing:2px; color:var(--sand); opacity:0; transition:opacity .5s; }
+  #wind-banner.visible{ opacity:1; }
+  .badge{ font-weight:700; }
+  .badge.bronze{ color:var(--bronze); }
+  .badge.linen{ color:var(--sand); }
+  .badge.burgundy{ color:#c76a7a; }
+  #progress-wrap{ position:absolute; bottom:14px; left:50%; transform:translateX(-50%); width:min(460px,70vw); height:10px;
+    background:rgba(255,255,255,.06); border:1px solid var(--panel-edge); border-radius:6px; overflow:hidden; }
+  #progress-bar{ height:100%; width:0%; background:linear-gradient(90deg,#6b4a32,var(--accent)); transition:width .3s linear; }
+  #hud-hint{ bottom:36px; left:50%; transform:translateX(-50%); font-size:12px; color:var(--text-dim); opacity:.85; text-align:center; }
+
+  #pause-btn{ position:fixed; top:96px; right:14px; z-index:31; display:none; pointer-events:auto; }
+  #pause-btn.visible{ display:block; }
+
+  /* ---------- Subtitles (narrator accessibility) ---------- */
+  #subtitle-bar{ position:fixed; bottom:64px; left:50%; transform:translateX(-50%); z-index:36; max-width:min(680px,88vw);
+    background:rgba(20,14,9,.88); border:1px solid var(--panel-edge); border-radius:10px; padding:10px 18px;
+    font-size:15px; line-height:1.5; color:var(--text); text-align:center; opacity:0; transition:opacity .35s; pointer-events:none; }
+  #subtitle-bar.visible{ opacity:1; }
+  #subtitle-bar .who{ color:var(--accent); font-weight:600; margin-right:8px; text-transform:uppercase; font-size:11px; letter-spacing:2px; }
+
+  /* ---------- Controls panel ---------- */
+  #controls-panel{ position:fixed; top:100px; left:14px; z-index:30; width:250px; background:var(--panel-bg);
+    border:1px solid var(--panel-edge); border-radius:12px; padding:14px 16px; backdrop-filter:blur(8px); display:none; }
+  #controls-panel.visible{ display:block; }
+  #controls-panel h3{ font-size:13px; color:var(--sand); margin-bottom:10px; letter-spacing:1px; text-transform:uppercase; }
+  .ctrl-row{ margin-bottom:12px; font-size:12px; }
+  .ctrl-row label{ display:flex; justify-content:space-between; margin-bottom:4px; color:var(--text-dim); }
+  .ctrl-row input[type=range]{ width:100%; accent-color:var(--accent); }
+  .ctrl-btns{ display:flex; gap:6px; flex-wrap:wrap; }
+  .ctrl-btns button, .pill-btn{ pointer-events:auto; cursor:pointer; background:rgba(255,255,255,.06); color:var(--text);
+    border:1px solid var(--panel-edge); border-radius:8px; padding:5px 10px; font-size:12px; }
+  .ctrl-btns button.active{ background:var(--accent); color:#f6ead8; border-color:var(--accent); font-weight:600; }
+  .ctrl-btns button:hover, .pill-btn:hover{ background:rgba(255,255,255,.14); }
+  .ctrl-btns button.active:hover{ background:var(--accent); }
+  #toggle-panel-btn{ position:fixed; top:100px; left:14px; z-index:31; display:none; }
+  #toggle-panel-btn.visible{ display:block; }
+
+  /* ---------- Touch steer + jump controls (Subway-Surfers style) ---------- */
+  #touch-controls{ position:fixed; inset:0; z-index:29; pointer-events:none; display:none; }
+  @media (pointer:coarse){ #touch-controls{ display:block; } }
+  .touch-steer{ position:fixed; bottom:26px; width:64px; height:64px; border-radius:50%;
+    background:var(--panel-bg); border:1px solid var(--panel-edge); color:var(--text);
+    font-size:26px; display:flex; align-items:center; justify-content:center; pointer-events:auto; user-select:none; -webkit-user-select:none; touch-action:none; }
+  #touch-left{ left:20px; }
+  #touch-right{ left:96px; }
+  .touch-steer:active, .touch-steer.pressed{ background:var(--accent); border-color:var(--accent); }
+  #touch-jump{ position:fixed; bottom:26px; right:20px; width:76px; height:76px; border-radius:50%;
+    background:var(--panel-bg); border:1px solid var(--panel-edge); color:var(--text);
+    font-size:14px; font-weight:700; letter-spacing:.05em; display:flex; align-items:center; justify-content:center;
+    pointer-events:auto; user-select:none; -webkit-user-select:none; touch-action:none; }
+  #touch-jump:active, #touch-jump.pressed{ background:var(--accent); border-color:var(--accent); }
+
+  /* ---------- Quiz overlay: carved-stone riddle gate ---------- */
+  #quiz-overlay{ position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; background:rgba(12,8,5,.6); backdrop-filter:blur(3px); }
+  #quiz-overlay.visible{ display:flex; }
+  #quiz-card{ width:min(640px,92vw); max-height:88vh; overflow-y:auto;
+    background:linear-gradient(160deg,#33261a,#231a11);
+    border:1px solid var(--panel-edge); border-radius:16px; padding:26px 30px; box-shadow:0 18px 60px rgba(0,0,0,.65), inset 0 1px 0 rgba(216,201,168,.12); }
+  #quiz-level-title{ color:var(--sand); font-size:20px; margin-bottom:2px; }
+  #quiz-theme{ color:var(--clay); font-size:12px; text-transform:uppercase; letter-spacing:2px; margin-bottom:14px; }
+  #quiz-meta{ display:flex; justify-content:space-between; font-size:12px; color:var(--text-dim); margin-bottom:12px; }
+  /* engraved-look typography: question appears carved into the stone */
+  #quiz-question{ font-size:18px; line-height:1.55; margin-bottom:16px; min-height:48px; letter-spacing:.4px;
+    color:#e9dcc0; text-shadow:0 1px 0 rgba(0,0,0,.75), 0 -1px 1px rgba(238,224,192,.18);
+    border-top:1px solid rgba(0,0,0,.5); border-bottom:1px solid rgba(216,201,168,.14); padding:12px 2px; }
+  .quiz-choice{ display:block; width:100%; text-align:left; margin-bottom:8px; padding:12px 14px; font-size:15px;
+    background:rgba(255,255,255,.05); color:var(--text); border:1px solid rgba(216,201,168,.16); border-radius:10px; cursor:pointer; transition:background .15s; }
+  .quiz-choice:hover:not(:disabled), .quiz-choice:focus-visible{ background:var(--accent-soft); border-color:var(--accent); outline:none; }
+  .quiz-choice .key{ display:inline-block; width:22px; height:22px; line-height:22px; text-align:center; margin-right:10px;
+    border-radius:6px; background:rgba(216,201,168,.12); font-size:12px; color:var(--sand); }
+  .quiz-choice.correct{ background:rgba(216,201,168,.22); border-color:var(--sand); }
+  .quiz-choice.wrong{ background:rgba(80,34,28,.5); border-color:#6e3a30; color:#b9a58c; text-decoration:line-through; }
+  .quiz-choice:disabled{ cursor:default; }
+  #quiz-feedback{ margin-top:12px; font-size:14px; line-height:1.5; min-height:40px; color:#e8ddc8; }
+  #quiz-feedback .lore{ color:var(--sand); font-style:italic; }
+  #quiz-feedback .hint{ color:#c9a0a9; font-style:italic; }
+  #quiz-next-btn{ margin-top:10px; width:100%; padding:12px; font-size:15px; font-weight:600; background:var(--accent); color:#f6ead8;
+    border:none; border-radius:10px; cursor:pointer; display:none; }
+  #quiz-next-btn.visible{ display:block; }
+  #quiz-next-btn:hover{ background:#b05262; }
+  #quiz-result{ text-align:center; }
+  #quiz-result h2{ color:var(--sand); margin-bottom:8px; }
+  #quiz-result p{ margin-bottom:16px; color:var(--text-dim); line-height:1.6; }
+
+  /* ---------- Pause overlay ---------- */
+  #pause-overlay{ position:fixed; inset:0; z-index:45; display:none; align-items:center; justify-content:center; background:rgba(12,8,5,.62); backdrop-filter:blur(4px); }
+  #pause-overlay.visible{ display:flex; }
+  #pause-overlay .card{ background:var(--panel-bg); border:1px solid var(--panel-edge); border-radius:16px; padding:30px 40px; text-align:center; }
+  #pause-overlay h2{ color:var(--sand); margin-bottom:8px; letter-spacing:2px; }
+  #pause-overlay p{ color:var(--text-dim); font-size:14px; margin-bottom:18px; }
+
+  /* ---------- Resume (save) overlay ---------- */
+  #resume-overlay{ position:fixed; inset:0; z-index:55; display:none; align-items:center; justify-content:center; background:rgba(12,8,5,.72); }
+  #resume-overlay.visible{ display:flex; }
+  #resume-overlay .card{ max-width:480px; background:linear-gradient(160deg,#33261a,#231a11); border:1px solid var(--panel-edge);
+    border-radius:16px; padding:30px 34px; text-align:center; }
+  #resume-overlay h2{ color:var(--sand); margin-bottom:10px; }
+  #resume-overlay p{ color:var(--text-dim); font-size:14px; line-height:1.6; margin-bottom:20px; }
+  #resume-overlay .row{ display:flex; gap:10px; justify-content:center; }
+  .big-btn{ pointer-events:auto; cursor:pointer; padding:11px 20px; font-size:15px; border-radius:10px; border:1px solid var(--panel-edge);
+    background:rgba(255,255,255,.06); color:var(--text); }
+  .big-btn.primary{ background:var(--accent); border-color:var(--accent); color:#f6ead8; font-weight:600; }
+  .big-btn:hover{ background:rgba(255,255,255,.14); }
+  .big-btn.primary:hover{ background:#b05262; }
+
+  /* ---------- Toast ---------- */
+  #toast{ position:fixed; top:70px; left:50%; transform:translateX(-50%); z-index:35; background:var(--panel-bg);
+    border:1px solid var(--panel-edge); border-radius:10px; padding:10px 20px; font-size:14px; opacity:0; transition:opacity .4s; pointer-events:none; }
+  #toast.visible{ opacity:1; }
+</style>
+</head>
+<body>
+<canvas id="game-canvas" aria-label="Gufa Folklore Adventure 3D game canvas"></canvas>
+
+<div id="loading-screen" role="status" aria-live="polite">
+  <h1>GUFA <span>FOLKLORE</span> ADVENTURE</h1>
+  <p class="sub">Under the Palm Tree — a woven-boat journey through a living Omani village</p>
+  <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
+  <div id="loading-status">Starting…</div>
+</div>
+
+<div id="error-screen">
+  <div class="card">
+    <h2>WebGPU Not Available</h2>
+    <p id="error-message">This game needs a browser with <b>WebGPU</b> support.<br><br>
+    Please use <b>Chrome</b> or <b>Edge</b> version 113 or newer (on desktop or Android),
+    or Safari 18+ / Firefox 141+ with WebGPU enabled, then reload this page.<br><br>
+    If you already use one of these, check that hardware acceleration is enabled and your GPU drivers are up to date.</p>
+  </div>
+</div>
+
+<div id="hud" aria-hidden="false">
+  <div class="hud-chip" id="hud-level">Level 1 / 100</div>
+  <div class="hud-chip" id="hud-score">Score: 0</div>
+  <div class="hud-chip" id="hud-best" aria-label="best badge this gate">Best: —</div>
+  <div class="hud-chip" id="hud-streak">Streak: 0</div>
+  <div class="hud-chip" id="hud-fps">FPS: --</div>
+  <div class="hud-chip" id="hud-speed">Speed: 0</div>
+  <div id="hud-topic" aria-label="current topic"><div class="lbl">Collect what belongs to</div><div class="word" id="hud-topic-word">—</div><div class="sub" id="hud-topic-sub"></div></div>
+  <div id="hud-question" aria-label="current question" aria-live="polite"></div>
+  <div id="progress-wrap" aria-label="distance to the next gate"><div id="progress-bar"></div></div>
+  <div class="hud-chip" id="hud-hint">Click to look around · A / D or ◀ ▶ to steer · Space / ▲ to jump · Ride the current, collect the warm orbs, dodge the cold ones · Esc pauses</div>
+</div>
+
+<button id="pause-btn" class="pill-btn" aria-label="pause game">⏸ Pause</button>
+
+<div id="touch-controls" aria-hidden="true">
+  <button id="touch-left" class="touch-steer" aria-label="steer left">◀</button>
+  <button id="touch-right" class="touch-steer" aria-label="steer right">▶</button>
+  <button id="touch-jump" aria-label="jump">JUMP</button>
+</div>
+
+<div id="subtitle-bar" role="status" aria-live="polite"><span class="who">Narrator</span><span id="subtitle-text"></span></div>
+
+<button id="toggle-panel-btn" class="pill-btn" aria-label="toggle settings panel">☰ Settings</button>
+<div id="controls-panel" role="region" aria-label="game settings">
+  <h3>Settings</h3>
+  <div class="ctrl-row">
+    <label>Time of day <span id="tod-label">Day</span></label>
+    <input type="range" id="tod-slider" min="0" max="100" value="30" aria-label="time of day">
+  </div>
+  <div class="ctrl-row">
+    <label>Water flow</label>
+    <div class="ctrl-btns" id="flow-btns">
+      <button data-flow="0" aria-label="calm water">Calm</button>
+      <button data-flow="1" aria-label="flowing water">Flowing</button>
+      <button data-flow="2" class="active" aria-label="rushing water">Rushing</button>
+    </div>
+  </div>
+  <div class="ctrl-row">
+    <label>Boat speed <span id="speed-label">1.0x</span></label>
+    <input type="range" id="speed-slider" min="30" max="200" value="100" aria-label="boat drift speed">
+  </div>
+  <div class="ctrl-row">
+    <label>Sound</label>
+    <div class="ctrl-btns">
+      <button id="sound-btn" class="active" aria-label="toggle sound">On</button>
+      <button id="narrator-btn" class="active" aria-label="toggle narrator voice">Narrator: On</button>
+      <button id="quality-btn" aria-label="toggle render quality">Quality: High</button>
+    </div>
+  </div>
+</div>
+
+<div id="quiz-overlay" role="dialog" aria-modal="true" aria-labelledby="quiz-level-title">
+  <div id="quiz-card">
+    <div id="quiz-main">
+      <div id="quiz-level-title">Level 1</div>
+      <div id="quiz-theme">proverbs</div>
+      <div id="quiz-meta"><span id="quiz-counter">Question 1 / 10</span><span id="quiz-correct">Solved: 0 · Need 7 to pass</span></div>
+      <div id="quiz-question">…</div>
+      <div id="quiz-choices"></div>
+      <div id="quiz-feedback" aria-live="polite"></div>
+      <button id="quiz-next-btn">Next riddle ➜</button>
+      <button id="quiz-skip-btn" class="quiz-choice" style="text-align:center;margin-top:10px">Skip the bonus riddles and ride on ➜</button>
+    </div>
+    <div id="quiz-result" style="display:none">
+      <h2 id="quiz-result-title">Gate Open!</h2>
+      <p id="quiz-result-text"></p>
+      <button id="quiz-continue-btn" class="quiz-choice" style="text-align:center">Continue journey ➜</button>
+    </div>
+  </div>
+</div>
+
+<div id="pause-overlay" role="dialog" aria-modal="true">
+  <div class="card">
+    <h2>⏸ PAUSED</h2>
+    <p>The gufa drifts gently at anchor. Take a breath under the palms.</p>
+    <button id="resume-btn" class="big-btn primary">Resume journey ➜</button>
+  </div>
+</div>
+
+<div id="resume-overlay" role="dialog" aria-modal="true">
+  <div class="card">
+    <h2>Welcome back, traveller</h2>
+    <p id="resume-text">Continue your journey from Level 2?</p>
+    <div class="row">
+      <button id="resume-continue-btn" class="big-btn primary">Continue ➜</button>
+      <button id="resume-new-btn" class="big-btn">Start anew</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+<div id="ripple-fx"></div>
+<div id="wind-fx"></div>
+<div id="wind-banner" role="status">🌬 KHAMASEEN WIND — ride the surge, the orbs drift to you!</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
+    "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
+    "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<script src="questions.js"></script>
+<script type="module" src="main.js"></script>
+</body>
+</html>

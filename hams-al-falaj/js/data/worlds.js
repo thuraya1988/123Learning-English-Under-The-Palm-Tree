@@ -397,34 +397,24 @@ Object.assign(DISTRICTS.falaj, {
   palms: [ { x: 0.50 }, { x: 0.672 }, { x: 0.717 } ], // big painted trunks: central palm + pair by the east channel
 });
 Object.assign(DISTRICTS.fort, {
-  // stone quay promenade above the water, steps down near the middle
-  path: [[0.00,0.814],[0.15,0.817],[0.30,0.822],[0.45,0.826],[0.55,0.837],
-         [0.65,0.845],[0.75,0.853],[0.85,0.860],[1.00,0.876]],
-  landmarks: [
-    { kind: 'mosque', x0: 0.77, x1: 0.87, caption: { ar: 'مسجد الحي', en: 'Village Mosque' } },
-    { kind: 'shop',   x0: 0.87, x1: 0.99, caption: { ar: 'دكان سالم', en: 'Salem\u2019s Shop' } },
-  ],
-  palms: [ { x: 0.221 }, { x: 0.944 } ], // leaning trunk by the west door, big palm above Salem's shop
+  // castle-wall scene (new art): flat sandy ground, no mosque/shop/palms in view - the old
+  // path/landmarks/palms here were tuned for a different painting and no longer lined up
+  // with anything visible, which is exactly what made walking/climbing look wrong
+  path: [[0.00,0.86],[1.00,0.86]],
+  landmarks: [],
+  palms: [],
 });
 Object.assign(DISTRICTS.souq, {
-  // quay edge past the stalls, then the stone street sloping toward the sea opening
-  path: [[0.00,0.837],[0.15,0.845],[0.30,0.848],[0.40,0.860],[0.50,0.868],
-         [0.60,0.876],[0.70,0.884],[0.80,0.860],[0.90,0.884],[1.00,0.899]],
-  landmarks: [
-    { kind: 'mosque', x0: 0.69, x1: 0.77, caption: { ar: 'مسجد الحي', en: 'Village Mosque' } },
-    { kind: 'shop',   x0: 0.82, x1: 0.92, caption: { ar: 'دكان سالم', en: 'Salem\u2019s Shop' } },
-  ],
-  palms: [ { x: 0.780 }, { x: 0.822 } ], // thin trunk by the sea opening + big trunk over Salem's shop
+  // market-street scene (new art): flat sandy ground in front of the shop row
+  path: [[0.00,0.86],[1.00,0.86]],
+  landmarks: [],
+  palms: [],
 });
 Object.assign(DISTRICTS.school, {
-  // sandy schoolyard, dips slightly, stone paving by the far benches
-  path: [[0.00,0.853],[0.15,0.860],[0.30,0.853],[0.45,0.845],[0.60,0.868],
-         [0.70,0.884],[0.80,0.899],[0.90,0.915],[1.00,0.922]],
-  landmarks: [
-    { kind: 'mosque', x0: 0.83, x1: 0.89, caption: { ar: 'مسجد الحي', en: 'Village Mosque' } },
-    { kind: 'shop',   x0: 0.89, x1: 0.99, caption: { ar: 'دكان سالم', en: 'Salem\u2019s Shop' } },
-  ],
-  palms: [ { x: 0.767 }, { x: 0.814 }, { x: 0.948 } ], // tall palm right of the chalkboard wall, mosque palm, far-right palm
+  // playground-swing scene (new art): flat sandy ground
+  path: [[0.00,0.86],[1.00,0.86]],
+  landmarks: [],
+  palms: [],
 });
 Object.assign(DISTRICTS.harbor, {
   // stone quay past the crates, onto the wooden pier planks on the right
@@ -437,14 +427,10 @@ Object.assign(DISTRICTS.harbor, {
   palms: [ { x: 0.203 }, { x: 0.606 }, { x: 0.660 } ], // mast+palm by the lighthouse quarter + pair below the mosque
 });
 Object.assign(DISTRICTS.wadi, {
-  // sandy bank along the pools, rises over the rocks mid-way, stone path by the shop
-  path: [[0.00,0.860],[0.15,0.868],[0.30,0.860],[0.42,0.853],[0.50,0.837],
-         [0.60,0.829],[0.70,0.845],[0.80,0.853],[0.90,0.876],[1.00,0.891]],
-  landmarks: [
-    { kind: 'mosque', x0: 0.77, x1: 0.87, caption: { ar: 'مسجد الحي', en: 'Village Mosque' } },
-    { kind: 'shop',   x0: 0.88, x1: 0.99, caption: { ar: 'دكان سالم', en: 'Salem\u2019s Shop' } },
-  ],
-  palms: [ { x: 0.503 }, { x: 0.565 }, { x: 0.895 } ], // the two big central trunks + mosque palm on the east bank
+  // desert-dune scene (new art): flat sandy ground, no mosque/shop/palms in view
+  path: [[0.00,0.86],[1.00,0.86]],
+  landmarks: [],
+  palms: [],
 });
 
 export const OUTRO = {

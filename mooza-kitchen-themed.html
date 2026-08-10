@@ -41,12 +41,27 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
 .hidden{display:none!important}
 
-.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s var(--ease),transform .5s var(--ease);z-index:10;background:var(--bg);overflow-y:auto;}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s var(--ease),transform .5s var(--ease);z-index:10;background:rgba(245,237,216,0.5);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);overflow-y:auto;}
 
 /* 3D kitchen backdrop — a Three.js scene showing Mooza's kitchen room, visible through
    the entrance and gameplay screens that represent being physically in the kitchen. */
-#scene3d{position:fixed;inset:0;z-index:1;}
-.screen.scene3d-bg{background:transparent;}
+#scene3d{position:fixed;inset:0;z-index:1;touch-action:none;}
+.screen.scene3d-bg{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;}
+
+/* The main-menu screen sits above the 3D canvas even when its panel is hidden — without this,
+   its full-viewport hit area would swallow every click/drag meant for the walkable room. */
+#mainMenu{pointer-events:none;}
+#mainMenuPanel{pointer-events:auto;}
+
+/* Walkable-room HUD — crosshair, interact prompt, mobile controls */
+#room-crosshair{position:fixed;top:50%;left:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;border:1.5px solid rgba(245,237,216,.85);box-shadow:0 0 6px rgba(74,53,32,.5);z-index:20;pointer-events:none;}
+#room-prompt{position:fixed;left:50%;bottom:22%;transform:translateX(-50%);z-index:20;background:var(--soil);color:var(--sand);font-family:var(--font-b);font-size:.72rem;font-weight:700;letter-spacing:.05em;padding:.55em 1.1em;border-radius:100px;box-shadow:0 8px 22px rgba(74,53,32,.3);pointer-events:none;white-space:nowrap;}
+#room-controls{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:space-between;align-items:flex-end;padding:0 1em 1.1em;pointer-events:none;}
+.room-dpad{display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(2,42px);gap:4px;pointer-events:auto;}
+.room-btn{background:rgba(74,53,32,.72);border:1.5px solid rgba(245,237,216,.35);border-radius:10px;color:var(--sand);font-size:1rem;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:none;}
+.room-interact{pointer-events:auto;width:64px;height:64px;border-radius:50%;background:var(--earth);border:2px solid var(--sand);color:var(--sand);font-size:1.4rem;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(74,53,32,.4);}
+#room-menu-btn{position:fixed;top:52px;right:14px;z-index:25;width:38px;height:38px;border-radius:50%;background:rgba(74,53,32,.72);border:1.5px solid rgba(245,237,216,.35);color:var(--sand);font-size:1.1rem;display:flex;align-items:center;justify-content:center;}
+@media (min-width:900px) and (hover:hover){#room-controls{display:none;}}
 .screen.out{opacity:0;transform:scale(1.03);pointer-events:none}
 .screen.in{opacity:1;transform:scale(1)}
 
@@ -71,6 +86,11 @@ p{font-family:var(--font-b);font-size:clamp(0.85rem,2.2vw,1rem);line-height:1.75
 
 /* LAYOUT */
 .palm-wrap{position:relative;z-index:5;width:min(500px,92vw);padding:1.5rem 0 2rem;text-align:center;}
+
+/* The cooking screen docks to the bottom of the view instead of filling it, so Mooza's
+   kitchen stays visible above while you work — you're still standing in the room, not
+   looking at a page that replaced it. */
+#kitchenGame{justify-content:flex-end;}
 
 /* DECO */
 .deco-line{width:50px;height:1px;background:linear-gradient(90deg,transparent,var(--clay),transparent);margin:1rem auto;}
@@ -194,6 +214,18 @@ p{font-family:var(--font-b);font-size:clamp(0.85rem,2.2vw,1rem);line-height:1.75
 
 <canvas id="scene3d"></canvas>
 
+<!-- Walkable-room HUD (only meaningful while mainMenu / the kitchen room is showing) -->
+<div id="room-crosshair"></div>
+<div id="room-prompt" class="hidden"></div>
+<button id="room-menu-btn" title="Menu">☰</button>
+<div id="room-controls">
+  <div class="room-dpad">
+    <div></div><button class="room-btn" id="room-up">▲</button><div></div>
+    <button class="room-btn" id="room-left">◀</button><button class="room-btn" id="room-down">▼</button><button class="room-btn" id="room-right">▶</button>
+  </div>
+  <button class="room-interact" id="room-interact">✋</button>
+</div>
+
 <!-- HEADER -->
 <header class="palm-header">
   <div class="palm-header__site">
@@ -205,7 +237,8 @@ p{font-family:var(--font-b);font-size:clamp(0.85rem,2.2vw,1rem);line-height:1.75
 
 <!-- MAIN MENU -->
 <div id="mainMenu" class="screen in scene3d-bg" style="padding-top:44px;">
-  <div class="palm-wrap">
+  <div id="mainMenuPanel" class="palm-wrap hidden" style="background:var(--bg);border-radius:16px;">
+    <button class="btn" id="mainMenuCloseBtn" style="margin-bottom:1em;font-size:0.72rem;padding:0.5em 1.2em;">✕ Back to the kitchen</button>
     <div class="au" style="margin-top:1rem;">
       <h3>Al-Qurawashiyah Village · Samail · 1973</h3>
       <h1 style="margin:0.4rem 0 0.2rem;">Mooza's Kitchen</h1>
@@ -267,7 +300,7 @@ p{font-family:var(--font-b);font-size:clamp(0.85rem,2.2vw,1rem);line-height:1.75
     <div class="hud-level" id="kitchenHudInfo">Level 1</div>
     <div class="hud-bar"><div class="hud-fill" id="kitchenProgressFill" style="width:0%"></div></div>
   </div>
-  <div id="kitchenGameContent" style="width:min(500px,92vw);padding:1rem 0 2rem;overflow-y:auto;max-height:calc(100vh - 88px);"></div>
+  <div id="kitchenGameContent" style="width:min(500px,94vw);padding:1.3rem 1.3rem 1.6rem;overflow-y:auto;max-height:60vh;margin:0 auto;background:rgba(237,224,196,.95);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:20px 20px 0 0;box-shadow:0 -14px 40px rgba(74,53,32,.28);border-top:1px solid var(--line);"></div>
 </div>
 
 <!-- CELEBRATION -->
@@ -374,7 +407,24 @@ function showScreen(id) {
     setTimeout(() => target.classList.remove('in'), 500);
   }, 200);
   if (id === 'kitchenMenu') renderKitchenMenu();
+  if (id === 'mainMenu') {
+    document.getElementById('mainMenuPanel')?.classList.add('hidden');
+    window.roomResume?.();
+  } else {
+    window.roomPause?.();
+  }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('room-menu-btn')?.addEventListener('click', () => {
+    document.getElementById('mainMenuPanel')?.classList.remove('hidden');
+    window.roomPause?.();
+  });
+  document.getElementById('mainMenuCloseBtn')?.addEventListener('click', () => {
+    document.getElementById('mainMenuPanel')?.classList.add('hidden');
+    window.roomResume?.();
+  });
+});
 
 function starSVG() {
   return `<svg viewBox="0 0 24 24" fill="var(--earth)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>`;
@@ -633,9 +683,10 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xF5EDD8); // --sand
 scene.fog = new THREE.Fog(0xF5EDD8, 7, 16);
 
+const EYE_HEIGHT = 1.4;
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.05, 100);
-camera.position.set(0, 1.4, 0);
-camera.lookAt(0.5, 1.4, -1);
+camera.rotation.order = 'YXZ';
+camera.position.set(0, EYE_HEIGHT, 0);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(innerWidth, innerHeight);
@@ -648,16 +699,17 @@ addEventListener('resize', () => {
 });
 
 // Warm, sand-toned lighting to match the site's earthy theme (no dark/neon palette here).
-// This particular model's material doesn't pick up texture color well in three.js, so the
-// lighting is pushed warmer/brighter than usual to keep the room reading as an inviting kitchen
-// rather than flat grey.
-scene.add(new THREE.AmbientLight(0xF5E0B8, 2.0));
-const keyLight = new THREE.DirectionalLight(0xE8C088, 1.6);
+scene.add(new THREE.AmbientLight(0xF5E0B8, 1.4));
+const keyLight = new THREE.DirectionalLight(0xE8C088, 1.4);
 keyLight.position.set(1, 3, 1);
 scene.add(keyLight);
-const fillLight = new THREE.PointLight(0xC9AA80, 1.2, 8);
+const fillLight = new THREE.PointLight(0xC9AA80, 1.1, 9);
 fillLight.position.set(0.3, 1.8, -0.8);
 scene.add(fillLight);
+// A cooler accent from the "window" side, so the room isn't a flat monochrome wash.
+const accentLight = new THREE.PointLight(0xDCEAF0, 0.7, 8);
+accentLight.position.set(-1.4, 1.6, -1.6);
+scene.add(accentLight);
 
 const gltfLoader = new GLTFLoader();
 gltfLoader.setMeshoptDecoder(MeshoptDecoder);
@@ -676,15 +728,238 @@ function fitModel(root, targetWidth) {
 
 gltfLoader.load('public/assets/mooza-kitchen/kitchen-in-rent-flat.glb', (gltf) => {
   const model = fitModel(gltf.scene, 5.5);
-  model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  model.traverse(o => {
+    if (o.isMesh) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+      // The model's single "Room" material is metalness:1 / roughness:1 with no texture —
+      // a pure-metal shader with no environment map reflects almost nothing but direct
+      // highlights, which is why the room rendered nearly black. Making it a matte, non-metal
+      // surface lets it actually pick up the warm/cool lights below as diffuse colour.
+      if (o.material) { o.material.metalness = 0; o.material.roughness = 0.82; o.material.color.set(0xEFE3C8); }
+    }
+  });
   scene.add(model);
 }, undefined, () => { /* the entrance/gameplay screens still work fine without the room if this fails to load */ });
 
-let t = 0;
+// The kitchen model is one flat, untextured mesh with no colour of its own — a real limit of
+// this asset. These small hand-built props sit on the counter to give the room actual colour.
+function makeJar(color, x, z, height) {
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.045, 0.05, height, 12),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.05 })
+  );
+  body.position.y = height / 2;
+  group.add(body);
+  const lid = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 0.02, 12),
+    new THREE.MeshStandardMaterial({ color: 0x4A3520, roughness: 0.6 })
+  );
+  lid.position.y = height + 0.01;
+  group.add(lid);
+  group.position.set(x, 1.015, z);
+  group.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return group;
+}
+
+function makeDatesBowl(x, z) {
+  const group = new THREE.Group();
+  const bowl = new THREE.Mesh(
+    new THREE.SphereGeometry(0.13, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0x6B4423, roughness: 0.7 })
+  );
+  group.add(bowl);
+  for (let i = 0; i < 7; i++) {
+    const date = new THREE.Mesh(
+      new THREE.SphereGeometry(0.028, 8, 6),
+      new THREE.MeshStandardMaterial({ color: 0x3A1F0E, roughness: 0.5 })
+    );
+    const a = (i / 7) * Math.PI * 2;
+    date.position.set(Math.cos(a) * 0.06, 0.06, Math.sin(a) * 0.06);
+    date.scale.set(1, 0.8, 1.3);
+    group.add(date);
+  }
+  group.position.set(x, 1.015, z);
+  group.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return group;
+}
+
+function makeDallah(x, z) {
+  const group = new THREE.Group();
+  const brassMat = new THREE.MeshStandardMaterial({ color: 0xC08A3E, roughness: 0.3, metalness: 0.75 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.18, 12), brassMat);
+  body.position.y = 0.11;
+  group.add(body);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.08, 10), brassMat);
+  neck.position.y = 0.24;
+  group.add(neck);
+  const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 0.16, 8), brassMat);
+  spout.position.set(0.09, 0.16, 0);
+  spout.rotation.z = Math.PI / 3.2;
+  group.add(spout);
+  group.position.set(x, 1.015, z);
+  group.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return group;
+}
+
+const kitchenProps = new THREE.Group();
+// Positions verified by raycasting the actual counter surface — it only runs flat and solid
+// from x=-0.7 to x=0.3 at this z (a stove gap sits just past -0.75, a cabinet edge past 0.3),
+// so every prop is kept inside that span with margin to stop the earlier floating/clipping look.
+kitchenProps.add(makeDallah(0.2, -1.85));
+kitchenProps.add(makeDatesBowl(-0.02, -1.85));
+kitchenProps.add(makeJar(0xA1372B, -0.22, -1.85, 0.13));   // paprika — terracotta red
+kitchenProps.add(makeJar(0xC9942E, -0.4, -1.85, 0.12));    // turmeric — muted mustard
+kitchenProps.add(makeJar(0x5C7A4A, -0.58, -1.85, 0.13));   // cardamom — sage green
+scene.add(kitchenProps);
+
+// ── A single glowing hotspot, roughly where the old static camera used to gaze — walk up
+// and interact to open the level select, same as before but now reached by actually walking there.
+function makeLabelSprite(icon) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.font = '76px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(icon, 64, 68);
+  const tex = new THREE.CanvasTexture(c);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+  sprite.scale.set(0.5, 0.5, 1);
+  return sprite;
+}
+
+const HOTSPOT_POS = { x: 0.5, y: 1.6, z: -1.0 };
+const hotspotGroup = new THREE.Group();
+hotspotGroup.position.set(HOTSPOT_POS.x, HOTSPOT_POS.y, HOTSPOT_POS.z);
+const hotspotGlow = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(0.13, 1),
+  new THREE.MeshStandardMaterial({ color: 0x8C6A3F, emissive: 0x8C6A3F, emissiveIntensity: 0.75, roughness: 0.3 })
+);
+hotspotGroup.add(hotspotGlow);
+const hotspotLight = new THREE.PointLight(0xC9AA80, 1.3, 4);
+hotspotGroup.add(hotspotLight);
+const hotspotSprite = makeLabelSprite('🍲');
+hotspotSprite.position.y = 0.34;
+hotspotGroup.add(hotspotSprite);
+scene.add(hotspotGroup);
+
+function screenPosOf(worldPos) {
+  const v = worldPos.clone().project(camera);
+  if (v.z > 1) return null;
+  return { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight };
+}
+function hotspotNear(x, y, radius) {
+  const sp = screenPosOf(hotspotGroup.position);
+  if (!sp) return false;
+  return Math.hypot(sp.x - x, sp.y - y) < radius;
+}
+function activeHotspot() { return hotspotNear(innerWidth / 2, innerHeight / 2, 130); }
+function tryInteract() { if (activeHotspot()) showScreen('kitchenMenu'); }
+
+// ── First-person walk controller: WASD/arrows + drag-look, mobile d-pad + hand button ──
+// The kitchen model's exact wall positions aren't mapped yet, so movement is kept to a modest
+// bubble around the spawn point that stays clear of the counters in every direction tested.
+const BOUNDS = { xMin: -0.9, xMax: 0.9, zMin: -1.3, zMax: 0.9 };
+const keys = {};
+addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyE') tryInteract(); });
+addEventListener('keyup', e => { keys[e.code] = false; });
+function isDown(code) { return !!keys[code]; }
+
+let yaw = -0.4636, pitch = 0;
+let dragging = false, lastX = 0, lastY = 0, dragDist = 0;
+function dragStart(x, y) { dragging = true; lastX = x; lastY = y; dragDist = 0; }
+function dragMove(x, y) {
+  if (!dragging) return;
+  const dx = x - lastX, dy = y - lastY;
+  dragDist += Math.abs(dx) + Math.abs(dy);
+  yaw -= dx * 0.0032;
+  pitch = Math.max(-0.85, Math.min(0.85, pitch - dy * 0.0032));
+  lastX = x; lastY = y;
+}
+function dragEnd() { dragging = false; }
+canvas.addEventListener('mousedown', e => { e.preventDefault(); dragStart(e.clientX, e.clientY); });
+addEventListener('mousemove', e => dragMove(e.clientX, e.clientY));
+addEventListener('mouseup', () => dragEnd());
+canvas.addEventListener('touchstart', e => { const t = e.touches[0]; dragStart(t.clientX, t.clientY); }, { passive: true });
+canvas.addEventListener('touchmove', e => { const t = e.touches[0]; dragMove(t.clientX, t.clientY); }, { passive: true });
+canvas.addEventListener('touchend', () => dragEnd());
+canvas.addEventListener('click', e => {
+  if (dragDist < 12 && hotspotNear(e.clientX, e.clientY, 80)) showScreen('kitchenMenu');
+});
+
+function bindHold(el, code) {
+  if (!el) return;
+  const on = e => { e.preventDefault(); keys[code] = true; };
+  const off = () => { keys[code] = false; };
+  el.addEventListener('touchstart', on, { passive: false });
+  el.addEventListener('touchend', off);
+  el.addEventListener('mousedown', on);
+  el.addEventListener('mouseup', off);
+  el.addEventListener('mouseleave', off);
+}
+bindHold(document.getElementById('room-up'), 'RoomUp');
+bindHold(document.getElementById('room-down'), 'RoomDown');
+bindHold(document.getElementById('room-left'), 'RoomLeft');
+bindHold(document.getElementById('room-right'), 'RoomRight');
+document.getElementById('room-interact')?.addEventListener('click', e => { e.preventDefault(); tryInteract(); });
+
+const vel = { x: 0, z: 0 };
+function updateMovement(dt) {
+  let mx = 0, mz = 0;
+  if (isDown('KeyW') || isDown('ArrowUp') || isDown('RoomUp')) mz -= 1;
+  if (isDown('KeyS') || isDown('ArrowDown') || isDown('RoomDown')) mz += 1;
+  if (isDown('KeyA') || isDown('ArrowLeft') || isDown('RoomLeft')) mx -= 1;
+  if (isDown('KeyD') || isDown('ArrowRight') || isDown('RoomRight')) mx += 1;
+  const mlen = Math.hypot(mx, mz);
+  if (mlen > 0) { mx /= mlen; mz /= mlen; }
+  const fwdX = -Math.sin(yaw), fwdZ = -Math.cos(yaw);
+  const rightX = fwdZ, rightZ = -fwdX;
+  const targetX = (fwdX * -mz + rightX * mx) * 1.8;
+  const targetZ = (fwdZ * -mz + rightZ * mx) * 1.8;
+  vel.x += (targetX - vel.x) * 0.2;
+  vel.z += (targetZ - vel.z) * 0.2;
+  camera.position.x = Math.max(BOUNDS.xMin, Math.min(BOUNDS.xMax, camera.position.x + vel.x * dt));
+  camera.position.z = Math.max(BOUNDS.zMin, Math.min(BOUNDS.zMax, camera.position.z + vel.z * dt));
+}
+
+let roomActive = true;
+window.roomPause = () => {
+  roomActive = false;
+  document.getElementById('room-prompt')?.classList.add('hidden');
+  document.getElementById('room-crosshair')?.classList.add('hidden');
+  document.getElementById('room-controls')?.classList.add('hidden');
+  document.getElementById('room-menu-btn')?.classList.add('hidden');
+};
+window.roomResume = () => {
+  roomActive = true;
+  document.getElementById('room-crosshair')?.classList.remove('hidden');
+  document.getElementById('room-controls')?.classList.remove('hidden');
+  document.getElementById('room-menu-btn')?.classList.remove('hidden');
+};
+
+const promptEl = document.getElementById('room-prompt');
+const clock = new THREE.Clock();
 function animateScene3d() {
   requestAnimationFrame(animateScene3d);
-  t += 0.0015;
-  camera.lookAt(0.5 + Math.sin(t) * 0.4, 1.4, -1);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (!roomActive) { renderer.render(scene, camera); return; }
+
+  updateMovement(dt);
+  camera.rotation.x = pitch;
+  camera.rotation.y = yaw;
+  camera.rotation.z = 0;
+
+  hotspotGlow.rotation.y += dt * 1.2;
+
+  if (activeHotspot()) {
+    promptEl.textContent = 'Tap to enter the Kitchen';
+    promptEl.classList.remove('hidden');
+  } else {
+    promptEl.classList.add('hidden');
+  }
+
   renderer.render(scene, camera);
 }
 animateScene3d();

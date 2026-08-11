@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🌊 مغامرة أعماق المحيط — تعلّم تحت شجرة النخيل</title>
+<link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="public/favicon.png">
+<link rel="apple-touch-icon" href="public/apple-touch-icon.png">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#000814; font-family:"Almarai","Segoe UI",Tahoma,Arial,sans-serif; }
+  #game { display:block; width:100%; height:100%; }
+
+  /* PALM TREE HEADER — matches the rest of the site */
+  .palm-header{position:fixed;top:0;left:0;right:0;background:#4A3520;padding:0.7rem 1.5rem;display:flex;align-items:center;justify-content:space-between;z-index:100;border-bottom:2px solid #360304;}
+  .palm-header__title{font-family:'Almarai',sans-serif;font-size:0.9rem;color:#F5EDD8;}
+  .palm-header__tag{font-family:'Almarai',sans-serif;font-size:0.62rem;letter-spacing:0.08em;color:#EDE0C4;opacity:0.7;}
+  .palm-header__back{font-family:'Almarai',sans-serif;font-size:0.7rem;color:#F5EDD8;opacity:.8;padding:.3em .7em;border:1px solid rgba(245,237,216,.35);border-radius:100px;text-decoration:none;}
+
+  #hud { position:fixed; top:54px; right:10px; left:10px; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none; z-index:5; flex-wrap:wrap; gap:8px; }
+  .panel { background:rgba(2,15,35,.65); border:1px solid rgba(80,200,255,.35); border-radius:12px; padding:8px 14px; color:#bfefff; font-size:15px; backdrop-filter:blur(4px); box-shadow:0 0 14px rgba(0,150,255,.15); }
+  .panel b { color:#ffd76a; font-size:18px; }
+  .barwrap { width:170px; height:12px; background:#04121f; border-radius:6px; overflow:hidden; margin-top:4px; border:1px solid rgba(120,220,255,.25); }
+  .bar { height:100%; width:100%; transition:width .15s; border-radius:6px; }
+  #o2bar { background:linear-gradient(90deg,#38e8ff,#1fa9ff); }
+  #hpbar { background:linear-gradient(90deg,#7CFF6B,#2ecc71); }
+  .lbl { font-size:12px; color:#8fd4ff; }
+
+  #vignette { position:fixed; inset:0; pointer-events:none; box-shadow:inset 0 0 180px rgba(255,0,0,.85); opacity:0; transition:opacity .4s; z-index:4; }
+
+  .overlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at center, rgba(4,25,55,.9), rgba(0,4,12,.97)); z-index:10; color:#dff4ff; text-align:center; padding:20px; }
+  .overlay h1 { font-size:clamp(28px,5.5vw,54px); color:#7fe3ff; text-shadow:0 0 25px rgba(80,200,255,.8); margin-bottom:14px; }
+  .overlay p { max-width:640px; line-height:1.9; font-size:clamp(14px,2.4vw,18px); color:#a8d8f0; }
+  .controls { margin:18px 0; font-size:15px; color:#ffd76a; line-height:2.1; }
+  .controls span { background:rgba(255,255,255,.08); border:1px solid rgba(255,215,106,.4); border-radius:8px; padding:3px 10px; margin:0 4px; }
+  .btn { margin-top:16px; font-size:22px; padding:14px 48px; border:none; border-radius:50px; cursor:pointer;
+    background:linear-gradient(135deg,#ffb340,#ff7a18); color:#211200; font-weight:bold; box-shadow:0 0 30px rgba(255,150,40,.5); transition:transform .15s; }
+  .btn:hover { transform:scale(1.08); }
+  #finalScore { font-size:40px; color:#ffd76a; margin:10px 0; text-shadow:0 0 20px rgba(255,215,106,.6); }
+  .hidden { display:none !important; }
+
+  #touch { position:fixed; inset:0; z-index:6; pointer-events:none; display:none; }
+  body.touch #touch { display:block; }
+  .tbtn { position:absolute; width:64px; height:64px; border-radius:50%; background:rgba(60,180,255,.18);
+    border:2px solid rgba(120,220,255,.5); color:#cff4ff; font-size:26px; display:flex; align-items:center; justify-content:center; pointer-events:auto; user-select:none; }
+  #tUp{bottom:170px;left:80px} #tDown{bottom:40px;left:80px} #tLeft{bottom:105px;left:14px} #tRight{bottom:105px;left:146px}
+  #tFire{bottom:80px;right:24px;width:90px;height:90px;background:rgba(255,120,40,.25);border-color:rgba(255,170,80,.7);font-size:16px;font-weight:bold;}
+</style>
+</head>
+<body>
+
+<header class="palm-header">
+  <a class="palm-header__back" href="games-skills.html">← رجوع</a>
+  <span class="palm-header__title">مغامرة أعماق المحيط</span>
+  <span class="palm-header__tag">Submarine Adventure</span>
+</header>
+
+<canvas id="game"></canvas>
+<div id="vignette"></div>
+
+<div id="hud" class="hidden">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <div class="panel">🏆 النقاط: <b id="score">0</b></div>
+    <div class="panel">🌡️ العمق: <b id="depth">0</b> م</div>
+    <div class="panel">🚀 الطوربيدات: <b id="torps">8</b></div>
+  </div>
+  <div class="panel">
+    <div class="lbl">🫧 الأكسجين</div><div class="barwrap"><div class="bar" id="o2bar"></div></div>
+    <div class="lbl" style="margin-top:5px;">🛡️ سلامة الهيكل</div><div class="barwrap"><div class="bar" id="hpbar"></div></div>
+  </div>
+</div>
+
+<div id="touch">
+  <div class="tbtn" id="tUp">▲</div><div class="tbtn" id="tDown">▼</div>
+  <div class="tbtn" id="tLeft">◀</div><div class="tbtn" id="tRight">▶</div>
+  <div class="tbtn" id="tFire">إطلاق</div>
+</div>
+
+<div class="overlay" id="menu">
+  <h1>🌊 مغامرة أعماق المحيط</h1>
+  <p>قُد غوّاصتك في عالمٍ سحيق مليء بالأسرار: اصطد الكائنات البحرية، اجمع الكنوز والصناديق الغارقة، تجنّب القناديل والقروش المفترسة، وراقب مخزون الأكسجين قبل أن ينفد!</p>
+  <div class="controls">
+    <span>⬆⬇⬅➡ / WASD</span> الحركة &nbsp;|&nbsp; <span>Space</span> إطلاق الطوربيد &nbsp;|&nbsp; <span>Shift</span> تسريع
+    <br>💡 الطوربيدات تُعاد تعبئتها تلقائياً — اطفُ قرب السطح لتجديد الأكسجين
+  </div>
+  <button class="btn" id="startBtn">🚀 ابدأ المغامرة</button>
+</div>
+
+<div class="overlay hidden" id="gameover">
+  <h1>💥 غرقت الغواصة!</h1>
+  <div id="finalScore">0</div>
+  <p id="bestScore"></p>
+  <button class="btn" id="retryBtn">🔄 مغامرة جديدة</button>
+</div>
+
+<script>
+"use strict";
+/* ================== أساسيات ================== */
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const lightCanvas=document.createElement('canvas'),lctx=lightCanvas.getContext('2d');
+let W=innerWidth,H=innerHeight;
+function resize(){W=innerWidth;H=innerHeight;canvas.width=W;canvas.height=H;lightCanvas.width=W;lightCanvas.height=H;}
+resize();addEventListener('resize',resize);
+
+const WORLD={w:7200,h:3600,SURFACE:150};
+const rand=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const dist=(x1,y1,x2,y2)=>Math.hypot(x2-x1,y2-y1);
+
+let state='menu',time=0,shake=0,cam={x:0,y:0};
+let score=0,best=+localStorage.getItem('deepBest')||0;
+
+/* ================== الصوت ================== */
+let AC=null,noiseBuf=null;
+function initAudio(){
+  if(AC)return; AC=new (window.AudioContext||window.webkitAudioContext)();
+  noiseBuf=AC.createBuffer(1,AC.sampleRate*1,AC.sampleRate);
+  const d=noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  // همهمة المحيط
+  const o=AC.createOscillator(),g=AC.createGain(),lfo=AC.createOscillator(),lg=AC.createGain();
+  o.frequency.value=52; g.gain.value=.025; lfo.frequency.value=.13; lg.gain.value=.012;
+  lfo.connect(lg); lg.connect(g.gain); o.connect(g); g.connect(AC.destination); o.start(); lfo.start();
+}
+function sfxNoise(dur,freq,vol,type='lowpass'){
+  if(!AC)return; const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();
+  s.buffer=noiseBuf; f.type=type; f.frequency.value=freq; g.gain.setValueAtTime(vol,AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+dur);
+  s.connect(f); f.connect(g); g.connect(AC.destination); s.start(); s.stop(AC.currentTime+dur);
+}
+function sfxTone(freq,dur,vol,type='sine',slide=0){
+  if(!AC)return; const o=AC.createOscillator(),g=AC.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq,AC.currentTime);
+  if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,freq+slide),AC.currentTime+dur);
+  g.gain.setValueAtTime(vol,AC.currentTime); g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+dur);
+  o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime+dur);
+}
+const sndShoot=()=>{sfxNoise(.25,900,.18,'highpass');sfxTone(300,.2,.12,'square',-180);};
+const sndBoom=()=>{sfxNoise(.6,400,.5);sfxTone(90,.5,.3,'sine',-60);};
+const sndCoin=()=>{sfxTone(880,.12,.15,'sine');setTimeout(()=>sfxTone(1320,.18,.15,'sine'),80);};
+const sndHurt=()=>{sfxTone(160,.3,.25,'sawtooth',-90);};
+const sndChest=()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>sfxTone(f,.2,.14,'triangle'),i*90));};
+
+/* ================== الإدخال ================== */
+const keys={};
+addEventListener('keydown',e=>{
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();
+  keys[e.code]=true;
+  if(e.code==='Space'&&!e.repeat&&state==='playing')fire();
+});
+addEventListener('keyup',e=>keys[e.code]=false);
+if('ontouchstart'in window)document.body.classList.add('touch');
+function bindTouch(id,code,isFire){
+  const el=document.getElementById(id);
+  const on=e=>{e.preventDefault();keys[code]=true;if(isFire&&state==='playing')fire();};
+  const off=e=>{e.preventDefault();keys[code]=false;};
+  el.addEventListener('touchstart',on);el.addEventListener('touchend',off);el.addEventListener('touchcancel',off);
+}
+bindTouch('tUp','ArrowUp');bindTouch('tDown','ArrowDown');bindTouch('tLeft','ArrowLeft');bindTouch('tRight','ArrowRight');bindTouch('tFire','Space',true);
+
+/* ================== التضاريس والديكور ================== */
+const STEP=40,floor=[];
+for(let i=0;i<=WORLD.w/STEP;i++){
+  const x=i*STEP;
+  floor[i]=WORLD.h-260+Math.sin(x*.002)*90+Math.sin(x*.0007+2)*130+Math.sin(x*.011)*24;
+}
+function floorY(x){
+  const i=clamp(Math.floor(x/STEP),0,floor.length-2),t=(x/STEP)-i;
+  return floor[i]*(1-t)+floor[i+1]*t;
+}
+const kelps=[],corals=[],rocks=[],vents=[],wreck={x:rand(2500,4200)};
+for(let i=0;i<70;i++)kelps.push({x:rand(0,WORLD.w),h:rand(90,260),ph:rand(0,7),hue:rand(90,160)});
+for(let i=0;i<55;i++)corals.push({x:rand(0,WORLD.w),s:rand(14,42),hue:[340,20,280,45][Math.floor(rand(0,4))],type:Math.floor(rand(0,2))});
+for(let i=0;i<45;i++)rocks.push({x:rand(0,WORLD.w),s:rand(18,70)});
+for(let i=0;i<5;i++)vents.push({x:rand(500,WORLD.w-500)});
+vents.forEach(v=>v.y=floorY(v.x));
+
+/* ================== الكائنات ================== */
+let fishes=[],jellies=[],sharks=[],anglers=[],squids=[],turtles=[],torps=[],parts=[],pickups=[],floats=[],chests=[],snow=[];
+for(let i=0;i<110;i++)snow.push({x:rand(0,W),y:rand(0,H),r:rand(.6,2.2),s:rand(6,22),d:rand(-6,6)});
+
+const FISH_COLORS=['#ff8c42','#ffd166','#06d6a0','#4cc9f0','#f472b6','#a78bfa','#ff5e5b'];
+function addFish(deep){
+  const deepFish=deep||Math.random()<.35;
+  const y=deepFish?rand(1500,3200):rand(250,1600);
+  fishes.push({x:rand(0,WORLD.w),y,hx:0,hy:0,vx:rand(-40,40),vy:0,size:rand(9,17),
+    color:deepFish?(Math.random()<.5?'#67f7ff':'#b0ff67'):FISH_COLORS[Math.floor(rand(0,FISH_COLORS.length))],
+    glow:deepFish,ph:rand(0,7),dead:false});
+  const f=fishes[fishes.length-1]; f.hx=f.x; f.hy=f.y;
+}
+function addJelly(){jellies.push({x:rand(0,WORLD.w),y:rand(600,2600),r:rand(16,34),ph:rand(0,7),hue:rand(260,320),vx:rand(-8,8)});}
+function addShark(){const y=rand(800,2300);sharks.push({x:rand(0,WORLD.w),y,vx:0,dir:Math.random()<.5?-1:1,hp:3,t:0,dead:false});}
+function addAngler(){anglers.push({x:rand(0,WORLD.w),y:rand(1900,3300),dir:1,hp:2,t:rand(0,7),dead:false});}
+function addSquid(){squids.push({x:rand(0,WORLD.w),y:rand(2700,3400),dir:1,hp:6,t:rand(0,7),dead:false});}
+function addTurtle(){turtles.push({x:rand(0,WORLD.w),y:rand(220,900),dir:Math.random()<.5?-1:1,t:rand(0,7)});}
+function spawnAll(){
+  fishes=[];jellies=[];sharks=[];anglers=[];squids=[];turtles=[];
+  for(let i=0;i<34;i++)addFish(false); for(let i=0;i<16;i++)addFish(true);
+  for(let i=0;i<12;i++)addJelly();
+  for(let i=0;i<5;i++)addShark(); for(let i=0;i<4;i++)addAngler();
+  addSquid(); for(let i=0;i<4;i++)addTurtle();
+  chests=[]; for(let i=0;i<8;i++){const x=rand(300,WORLD.w-300);chests.push({x,y:floorY(x)+8,open:false,ph:rand(0,7)});}
+}
+
+/* ================== الغواصة ================== */
+const sub={x:600,y:400,vx:0,vy:0,dir:1,hp:100,o2:100,ammo:8,ammoT:0,prop:0,inv:0};
+function resetGame(){
+  score=0; sub.x=600;sub.y=400;sub.vx=0;sub.vy=0;sub.dir=1;sub.hp=100;sub.o2=100;sub.ammo=8;sub.inv=0;
+  torps=[];parts=[];pickups=[];floats=[]; spawnAll();
+}
+
+/* ================== الطوربيدات والأسلحة ================== */
+function fire(){
+  if(sub.ammo<=0)return;
+  sub.ammo--; sndShoot(); shake=Math.min(shake+3,8);
+  torps.push({x:sub.x+sub.dir*55,y:sub.y-4,vx:sub.dir*640+sub.vx*.5,vy:0,life:1.7});
+  for(let i=0;i<8;i++)parts.push({x:sub.x+sub.dir*50,y:sub.y,vx:sub.dir*rand(60,160),vy:rand(-40,40),life:.4,r:rand(2,5),c:'rgba(255,200,120,',type:'spark'});
+}
+function explode(x,y,big){
+  sndBoom(); shake=Math.min(shake+(big?12:7),16);
+  const n=big?42:24;
+  for(let i=0;i<n;i++){const a=rand(0,Math.PI*2),sp=rand(40,big?320:220);
+    parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:rand(.3,.8),r:rand(2,big?7:5),c:Math.random()<.5?'rgba(255,150,40,':'rgba(255,220,90,',type:'spark'});}
+  for(let i=0;i<10;i++)parts.push({x,y,vx:rand(-30,30),vy:rand(-60,-10),life:rand(.6,1.4),r:rand(6,14),c:'rgba(60,60,70,',type:'smoke'});
+  parts.push({x,y,life:.35,r:big?110:70,type:'flash'});
+}
+function addFloat(x,y,txt,c='#ffd76a'){floats.push({x,y,txt,c,life:1.2});}
+function dropLoot(x,y,big){
+  const coins=big?8:3;
+  for(let i=0;i<coins;i++)pickups.push({x:x+rand(-20,20),y:y+rand(-20,20),type:'coin',vy:rand(-40,0),val:big?10:5});
+  if(Math.random()<(big?.5:.2))pickups.push({x,y,type:'o2',vy:-30});
+}
+function hurt(d){
+  if(sub.inv>0)return;
+  sub.hp-=d; sub.inv=1.2; sndHurt(); shake=Math.min(shake+8,16);
+  document.getElementById('vignette').style.opacity=.9;
+  setTimeout(()=>document.getElementById('vignette').style.opacity=0,350);
+  if(sub.hp<=0){sub.hp=0;endGame();}
+}
+
+/* ================== التحديث ================== */
+function update(dt){
+  time+=dt;
+  // === الغواصة ===
+  const boost=keys.ShiftLeft||keys.ShiftRight?1.65:1;
+  const acc=520*boost;
+  let ax=0,ay=0;
+  if(keys.ArrowLeft||keys.KeyA){ax-=1;sub.dir=-1;}
+  if(keys.ArrowRight||keys.KeyD){ax+=1;sub.dir=1;}
+  if(keys.ArrowUp||keys.KeyW)ay-=1;
+  if(keys.ArrowDown||keys.KeyS)ay+=1;
+  sub.vx+=ax*acc*dt; sub.vy+=ay*acc*dt;
+  sub.vx*=Math.pow(.35,dt); sub.vy*=Math.pow(.35,dt);
+  const maxV=250*boost;
+  sub.vx=clamp(sub.vx,-maxV,maxV); sub.vy=clamp(sub.vy,-maxV,maxV);
+  sub.x+=sub.vx*dt; sub.y+=sub.vy*dt;
+  sub.x=clamp(sub.x,70,WORLD.w-70);
+  sub.y=clamp(sub.y,WORLD.SURFACE+45,floorY(sub.x)-42);
+  sub.prop+=dt*(6+Math.abs(sub.vx)*.05+Math.abs(sub.vy)*.03);
+  if(sub.inv>0)sub.inv-=dt;
+  // فقاعات الغواصة
+  if(Math.random()<dt*14)parts.push({x:sub.x-sub.dir*48,y:sub.y+rand(-8,8),vx:-sub.dir*20+rand(-10,10),vy:rand(-50,-25),life:rand(.8,1.6),r:rand(1.5,4),type:'bubble'});
+  // أكسجين
+  if(sub.y<WORLD.SURFACE+220){sub.o2=Math.min(100,sub.o2+26*dt);}
+  else sub.o2-=1.15*dt;
+  if(sub.o2<=0){sub.o2=0;sub.hp-=6*dt;if(sub.hp<=0){sub.hp=0;endGame();}}
+  // ذخيرة
+  sub.ammoT+=dt; if(sub.ammoT>1.35&&sub.ammo<8){sub.ammo++;sub.ammoT=0;}
+
+  // === الطوربيدات ===
+  for(const t of torps){
+    t.x+=t.vx*dt; t.y+=t.vy*dt; t.life-=dt;
+    if(Math.random()<dt*40)parts.push({x:t.x-Math.sign(t.vx)*14,y:t.y,vx:rand(-15,15),vy:rand(-30,-5),life:.5,r:rand(1,3),type:'bubble'});
+    if(t.y>floorY(t.x)-4){explode(t.x,t.y,false);t.life=0;continue;}
+    // اصطدام بالكائنات
+    for(const f of fishes)if(!f.dead&&dist(t.x,t.y,f.x,f.y)<f.size+10){f.dead=true;score+=10;addFloat(f.x,f.y,'+10');explode(t.x,t.y,false);dropLoot(f.x,f.y,false);t.life=0;break;}
+    if(t.life<=0)continue;
+    for(const j of jellies)if(dist(t.x,t.y,j.x,j.y)<j.r+8){j.dead=true;score+=15;addFloat(j.x,j.y,'+15');explode(t.x,t.y,false);t.life=0;break;}
+    if(t.life<=0)continue;
+    for(const s of sharks)if(!s.dead&&dist(t.x,t.y,s.x,s.y)<48){s.hp--;explode(t.x,t.y,false);t.life=0;
+      if(s.hp<=0){s.dead=true;score+=100;addFloat(s.x,s.y,'+100','#ff7043');dropLoot(s.x,s.y,true);}break;}
+    if(t.life<=0)continue;
+    for(const a of anglers)if(!a.dead&&dist(t.x,t.y,a.x,a.y)<34){a.hp--;explode(t.x,t.y,false);t.life=0;
+      if(a.hp<=0){a.dead=true;score+=150;addFloat(a.x,a.y,'+150','#67f7ff');dropLoot(a.x,a.y,true);}break;}
+    if(t.life<=0)continue;
+    for(const q of squids)if(!q.dead&&dist(t.x,t.y,q.x,q.y)<70){q.hp--;explode(t.x,t.y,false);t.life=0;
+      if(q.hp<=0){q.dead=true;score+=400;addFloat(q.x,q.y,'+400','#f472b6');dropLoot(q.x,q.y,true);dropLoot(q.x,q.y,true);}break;}
+  }
+  torps=torps.filter(t=>t.life>0);
+
+  // === الأسماك ===
+  for(const f of fishes){
+    if(f.dead)continue;
+    f.ph+=dt*3;
+    const dSub=dist(f.x,f.y,sub.x,sub.y);
+    if(dSub<170){f.vx+=((f.x-sub.x)/dSub)*300*dt;f.vy+=((f.y-sub.y)/dSub)*200*dt;}
+    else{
+      f.vx+=((f.hx-f.x)*.4+(Math.sin(f.ph)*30-f.vx))*dt;
+      f.vy+=((f.hy-f.y)*.4+(Math.cos(f.ph*1.3)*22-f.vy))*dt;
+      if(Math.random()<dt*.3){f.hx=clamp(f.hx+rand(-250,250),50,WORLD.w-50);f.hy=clamp(f.hy+rand(-150,150),220,3300);}
+    }
+    f.vx=clamp(f.vx,-130,130);f.vy=clamp(f.vy,-90,90);
+    f.x+=f.vx*dt;f.y+=f.vy*dt;
+    f.y=clamp(f.y,200,floorY(f.x)-20);
+  }
+  fishes=fishes.filter(f=>!f.dead);
+  while(fishes.length<48)addFish(fishes.length>34);
+
+  // === القناديل ===
+  for(const j of jellies){
+    j.ph+=dt*2.2; j.y+=Math.sin(j.ph)*14*dt-6*dt; j.x+=j.vx*dt;
+    if(j.y<500)j.y=500; if(j.y>2700)j.y=2700;
+    if(dist(j.x,j.y,sub.x,sub.y)<j.r+34){hurt(6);sub.vx+=(sub.x-j.x)*2;sub.vy+=(sub.y-j.y)*2;}
+  }
+  jellies=jellies.filter(j=>!j.dead);
+  while(jellies.length<12)addJelly();
+
+  // === القروش ===
+  for(const s of sharks){
+    if(s.dead)continue;
+    s.t+=dt;
+    const dS=dist(s.x,s.y,sub.x,sub.y);
+    if(dS<520){ // مطاردة
+      s.vx+=((sub.x-s.x)/dS)*220*dt; s.dir=sub.x>s.x?1:-1;
+    }else{
+      s.vx+= (s.dir*70-s.vx)*dt;
+      if(s.x<200||s.x>WORLD.w-200)s.dir*=-1;
+      s.y+= (1500+Math.sin(s.t*.4)*500-s.y)*.15*dt;
+    }
+    s.vx=clamp(s.vx,-160,160);
+    s.x+=s.vx*dt; s.y+=Math.sin(s.t*1.7)*22*dt;
+    s.y=clamp(s.y,700,2400);
+    if(dS<58){hurt(15);sub.vx+=(sub.x-s.x)*3;sub.vy+=(sub.y-s.y)*3;}
+  }
+  sharks=sharks.filter(s=>!s.dead);
+  while(sharks.length<5)addShark();
+
+  // === سمكة الشص ===
+  for(const a of anglers){
+    if(a.dead)continue;
+    a.t+=dt;
+    const dS=dist(a.x,a.y,sub.x,sub.y);
+    if(dS<300){a.x+=((sub.x-a.x)/dS)*55*dt;a.y+=((sub.y-a.y)/dS)*45*dt;a.dir=sub.x>a.x?1:-1;}
+    else{a.x+=Math.sin(a.t*.7)*20*dt;a.y+=Math.cos(a.t*.5)*14*dt;}
+    a.y=clamp(a.y,1800,floorY(a.x)-40);
+    if(dS<44)hurt(12);
+  }
+  anglers=anglers.filter(a=>!a.dead);
+  while(anglers.length<4)addAngler();
+
+  // === الحبار العملاق ===
+  for(const q of squids){
+    if(q.dead)continue;
+    q.t+=dt;
+    const dS=dist(q.x,q.y,sub.x,sub.y);
+    if(dS<420&&sub.y>2400){q.x+=((sub.x-q.x)/dS)*80*dt;q.y+=((sub.y-q.y)/dS)*60*dt;q.dir=sub.x>q.x?1:-1;}
+    else{q.x+=Math.sin(q.t*.4)*30*dt;q.y+=Math.cos(q.t*.3)*20*dt;}
+    q.y=clamp(q.y,2500,floorY(q.x)-60);
+    if(dS<80)hurt(20);
+  }
+  while(squids.length<2)addSquid();
+
+  // === السلاحف ===
+  for(const t of turtles){t.t+=dt;t.x+=t.dir*35*dt;t.y+=Math.sin(t.t)*12*dt;if(t.x<100||t.x>WORLD.w-100)t.dir*=-1;}
+
+  // === الكنوز والمقتنيات ===
+  for(const c of chests){
+    if(!c.open&&dist(c.x,c.y,sub.x,sub.y)<75){
+      c.open=true;score+=250;addFloat(c.x,c.y-30,'+250','#ffd76a');sndChest();
+      for(let i=0;i<14;i++)parts.push({x:c.x,y:c.y-10,vx:rand(-90,90),vy:rand(-160,-40),life:rand(.5,1),r:rand(2,4),c:'rgba(255,215,90,',type:'spark'});
+      dropLoot(c.x,c.y-20,true);
+    }
+  }
+  for(const p of pickups){
+    p.vy-=20*dt; p.y+=p.vy*dt;
+    const d=dist(p.x,p.y,sub.x,sub.y);
+    if(d<140){p.x+=(sub.x-p.x)/d*260*dt;p.y+=(sub.y-p.y)/d*260*dt;}
+    if(d<34){p.got=true;if(p.type==='coin'){score+=p.val;sndCoin();addFloat(p.x,p.y,'+'+p.val);}else{sub.o2=Math.min(100,sub.o2+22);sndCoin();addFloat(p.x,p.y,'O₂','#4cc9f0');}}
+  }
+  pickups=pickups.filter(p=>!p.got&&p.y>WORLD.SURFACE);
+
+  // === الجسيمات ===
+  for(const p of parts){
+    p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
+    if(p.type==='spark'){p.vy+=180*dt;}
+    if(p.type==='bubble'){p.vy-=60*dt;p.x+=Math.sin(time*6+p.r)*12*dt;}
+    if(p.type==='smoke'){p.r+=8*dt;}
+  }
+  parts=parts.filter(p=>p.life>0);
+  if(parts.length>500)parts.splice(0,parts.length-500);
+
+  for(const f of floats){f.life-=dt;f.y-=40*dt;}
+  floats=floats.filter(f=>f.life>0);
+
+  // === الثلج البحري ===
+  for(const s of snow){s.y+=s.s*dt;s.x+=s.d*dt;if(s.y>H+5){s.y=-5;s.x=rand(0,W);}}
+
+  // فتحات حرارية
+  for(const v of vents)if(Math.abs(v.x-sub.x)<W)for(let i=0;i<2;i++)if(Math.random()<dt*22)
+    parts.push({x:v.x+rand(-12,12),y:v.y,vx:rand(-12,12),vy:rand(-90,-50),life:rand(1,2.4),r:rand(5,12),c:'rgba(90,70,60,',type:'smoke'});
+
+  // === الكاميرا ===
+  cam.x=clamp(sub.x-W/2,0,WORLD.w-W);
+  cam.y=clamp(sub.y-H/2,-160,WORLD.h-H);
+  shake=Math.max(0,shake-dt*30);
+
+  // === HUD ===
+  document.getElementById('score').textContent=score;
+  document.getElementById('depth').textContent=Math.max(0,Math.round((sub.y-WORLD.SURFACE)/8));
+  document.getElementById('torps').textContent='▮'.repeat(sub.ammo)+'▯'.repeat(8-sub.ammo);
+  document.getElementById('o2bar').style.width=sub.o2+'%';
+  const hb=document.getElementById('hpbar');
+  hb.style.width=sub.hp+'%';
+  hb.style.background=sub.hp>50?'linear-gradient(90deg,#7CFF6B,#2ecc71)':sub.hp>25?'linear-gradient(90deg,#ffd166,#f4a261)':'linear-gradient(90deg,#ff5e5b,#d90429)';
+}
+
+/* ================== الرسم ================== */
+function drawFish(f){
+  const d=f.vx>=0?1:-1;
+  ctx.save();ctx.translate(f.x,f.y);ctx.scale(d,1);
+  if(f.glow){ctx.shadowColor=f.color;ctx.shadowBlur=14;}
+  ctx.fillStyle=f.color;
+  ctx.beginPath();ctx.ellipse(0,0,f.size,f.size*.55,0,0,7);ctx.fill();
+  const wag=Math.sin(time*10+f.ph)*f.size*.4;
+  ctx.beginPath();ctx.moveTo(-f.size,0);ctx.lineTo(-f.size*1.7,-f.size*.5+wag);ctx.lineTo(-f.size*1.7,f.size*.5+wag);ctx.closePath();ctx.fill();
+  ctx.shadowBlur=0;ctx.fillStyle='#04121f';ctx.beginPath();ctx.arc(f.size*.5,-f.size*.15,f.size*.14,0,7);ctx.fill();
+  ctx.restore();
+}
+function drawJelly(j){
+  const pulse=1+Math.sin(j.ph)*.15;
+  ctx.save();ctx.translate(j.x,j.y);
+  ctx.shadowColor=`hsl(${j.hue},90%,70%)`;ctx.shadowBlur=20;
+  ctx.fillStyle=`hsla(${j.hue},85%,68%,.55)`;
+  ctx.beginPath();ctx.ellipse(0,0,j.r*pulse,j.r*.8*pulse,0,Math.PI,0);ctx.fill();
+  ctx.shadowBlur=0;ctx.strokeStyle=`hsla(${j.hue},85%,75%,.5)`;ctx.lineWidth=2;
+  for(let i=-2;i<=2;i++){
+    ctx.beginPath();ctx.moveTo(i*j.r*.3,0);
+    ctx.quadraticCurveTo(i*j.r*.3+Math.sin(time*3+i)*8,j.r*.9,i*j.r*.3+Math.sin(time*3+i+1)*12,j.r*1.7);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawShark(s){
+  const d=s.vx>=0?1:-1;
+  ctx.save();ctx.translate(s.x,s.y);ctx.scale(d,1);
+  const grad=ctx.createLinearGradient(0,-26,0,26);grad.addColorStop(0,'#5c7a99');grad.addColorStop(.6,'#3a5068');grad.addColorStop(1,'#8fa8bf');
+  ctx.fillStyle=grad;
+  ctx.beginPath();ctx.ellipse(0,0,52,20,0,0,7);ctx.fill();
+  ctx.beginPath();ctx.moveTo(40,0);ctx.quadraticCurveTo(66,-4,72,-14);ctx.quadraticCurveTo(64,4,52,10);ctx.closePath();ctx.fill(); // ذيل
+  ctx.beginPath();ctx.moveTo(-4,-18);ctx.lineTo(8,-42);ctx.lineTo(20,-16);ctx.closePath();ctx.fill(); // زعنفة ظهرية
+  ctx.beginPath();ctx.moveTo(60,0);ctx.lineTo(78,-16);ctx.lineTo(78,16);ctx.closePath();ctx.fill(); // ذيل ثانوي
+  const wag=Math.sin(time*6+s.t)*8;
+  ctx.beginPath();ctx.moveTo(-52,0);ctx.lineTo(-70,-14+wag);ctx.lineTo(-66,10+wag);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#0a1420';ctx.beginPath();ctx.arc(34,-6,3.4,0,7);ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(30,8);ctx.quadraticCurveTo(42,10,50,4);ctx.stroke(); // فم
+  ctx.restore();
+}
+function drawAngler(a){
+  ctx.save();ctx.translate(a.x,a.y);ctx.scale(a.dir,1);
+  ctx.fillStyle='#1a1030';
+  ctx.beginPath();ctx.ellipse(0,0,34,24,0,0,7);ctx.fill();
+  ctx.fillStyle='#fff';
+  for(let i=0;i<6;i++){ctx.beginPath();ctx.moveTo(18+i*2,8);ctx.lineTo(20+i*2,16);ctx.lineTo(23+i*2,8);ctx.closePath();ctx.fill();}
+  ctx.strokeStyle='#3d2a66';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(16,-18);ctx.quadraticCurveTo(30,-46,44,-38);ctx.stroke();
+  const glow=.6+Math.sin(time*5+a.t)*.4;
+  ctx.shadowColor='#aef7ff';ctx.shadowBlur=24*glow;
+  ctx.fillStyle=`rgba(190,250,255,${glow})`;ctx.beginPath();ctx.arc(44,-38,6,0,7);ctx.fill();
+  ctx.shadowBlur=0;ctx.fillStyle='#ff5e5b';ctx.beginPath();ctx.arc(14,-8,4,0,7);ctx.fill();
+  ctx.restore();
+}
+function drawSquid(q){
+  ctx.save();ctx.translate(q.x,q.y);ctx.scale(q.dir,1);
+  const g=ctx.createLinearGradient(-70,0,50,0);g.addColorStop(0,'#c0264f');g.addColorStop(1,'#7a1236');
+  ctx.fillStyle=g;
+  ctx.beginPath();ctx.ellipse(-20,0,52,30,0,0,7);ctx.fill(); // جسم
+  ctx.beginPath();ctx.moveTo(-72,0);ctx.lineTo(-96,-26);ctx.lineTo(-88,0);ctx.lineTo(-96,26);ctx.closePath();ctx.fill(); // زعانف
+  ctx.strokeStyle='#a01f44';ctx.lineWidth=7;ctx.lineCap='round';
+  for(let i=0;i<6;i++){
+    const off=(i-2.5)*9,w1=Math.sin(time*3+i)*16,w2=Math.cos(time*2.6+i)*22;
+    ctx.beginPath();ctx.moveTo(26,off);
+    ctx.quadraticCurveTo(60,off+w1,95,off+w2);ctx.stroke();
+  }
+  ctx.fillStyle='#ffe066';ctx.shadowColor='#ffe066';ctx.shadowBlur=12;
+  ctx.beginPath();ctx.arc(-2,-10,7,0,7);ctx.fill();
+  ctx.shadowBlur=0;ctx.fillStyle='#000';ctx.beginPath();ctx.arc(-2,-10,3,0,7);ctx.fill();
+  ctx.restore();
+}
+function drawTurtle(t){
+  ctx.save();ctx.translate(t.x,t.y);ctx.scale(t.dir,1);
+  ctx.fillStyle='#3f7d4e';ctx.beginPath();ctx.ellipse(0,0,30,20,0,0,7);ctx.fill();
+  ctx.strokeStyle='#2c5a38';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(-20,-8);ctx.lineTo(20,-8);ctx.moveTo(-24,0);ctx.lineTo(24,0);ctx.moveTo(-20,8);ctx.lineTo(20,8);ctx.stroke();
+  ctx.fillStyle='#5aa66b';
+  ctx.beginPath();ctx.arc(34,0,9,0,7);ctx.fill(); // رأس
+  const fl=Math.sin(time*4+t.t)*.5;
+  ctx.save();ctx.translate(8,-16);ctx.rotate(-.6+fl);ctx.beginPath();ctx.ellipse(0,0,16,6,0,0,7);ctx.fill();ctx.restore();
+  ctx.save();ctx.translate(8,16);ctx.rotate(.6-fl);ctx.beginPath();ctx.ellipse(0,0,16,6,0,0,7);ctx.fill();ctx.restore();
+  ctx.fillStyle='#04121f';ctx.beginPath();ctx.arc(37,-2,2,0,7);ctx.fill();
+  ctx.restore();
+}
+function drawSub(){
+  ctx.save();
+  ctx.translate(sub.x,sub.y);
+  ctx.rotate(clamp(sub.vy*.0009,-.25,.25));
+  ctx.scale(sub.dir,1);
+  if(sub.inv>0&&Math.floor(time*14)%2===0)ctx.globalAlpha=.4;
+  // مخروط الضوء الأمامي (يرسم مع الغواصة)
+  const dark=clamp((sub.y-500)/2200,0,1);
+  if(dark>.15){
+    const lg=ctx.createLinearGradient(50,0,420,0);
+    lg.addColorStop(0,`rgba(255,250,200,${.28*dark})`);lg.addColorStop(1,'rgba(255,250,200,0)');
+    ctx.fillStyle=lg;ctx.beginPath();ctx.moveTo(48,-6);ctx.lineTo(430,-120);ctx.lineTo(430,120);ctx.lineTo(48,10);ctx.closePath();ctx.fill();
+  }
+  // بدن الغواصة
+  const hg=ctx.createLinearGradient(0,-30,0,32);
+  hg.addColorStop(0,'#ffcf4d');hg.addColorStop(.45,'#f5a623');hg.addColorStop(1,'#a35d0a');
+  ctx.fillStyle=hg;
+  ctx.beginPath();ctx.ellipse(0,0,58,26,0,0,7);ctx.fill();
+  ctx.strokeStyle='#7a4406';ctx.lineWidth=2;ctx.stroke();
+  // برج القيادة
+  ctx.fillStyle='#e09a1c';
+  ctx.beginPath();ctx.moveTo(-18,-24);ctx.quadraticCurveTo(-14,-44,4,-44);ctx.quadraticCurveTo(18,-44,20,-24);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#7a4406';ctx.stroke();
+  ctx.strokeStyle='#5c3a05';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(2,-44);ctx.lineTo(2,-58);ctx.lineTo(14,-58);ctx.stroke(); // بيريسكوب
+  // نافذة زجاجية متوهجة
+  ctx.shadowColor='#9fe8ff';ctx.shadowBlur=16;
+  const wg=ctx.createRadialGradient(16,-4,2,16,-4,13);
+  wg.addColorStop(0,'#eaffff');wg.addColorStop(.5,'#8fe0ff');wg.addColorStop(1,'#1f7fb5');
+  ctx.fillStyle=wg;ctx.beginPath();ctx.arc(16,-4,13,0,7);ctx.fill();
+  ctx.shadowBlur=0;ctx.strokeStyle='#7a4406';ctx.lineWidth=3;ctx.stroke();
+  // براشيم
+  ctx.fillStyle='#7a4406';
+  for(let i=-2;i<=2;i++){ctx.beginPath();ctx.arc(i*18,14,2,0,7);ctx.fill();}
+  // زعانف
+  ctx.fillStyle='#c07d10';
+  ctx.beginPath();ctx.moveTo(-48,-10);ctx.lineTo(-72,-26);ctx.lineTo(-58,-2);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(-48,10);ctx.lineTo(-72,26);ctx.lineTo(-58,2);ctx.closePath();ctx.fill();
+  // المروحة الدوارة
+  ctx.save();ctx.translate(-62,0);
+  ctx.strokeStyle='#ffd76a';ctx.lineWidth=4;ctx.lineCap='round';
+  for(let i=0;i<3;i++){
+    const a=sub.prop+i*2.094,len=Math.cos(a)*16;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,Math.sin(a)*16);ctx.stroke();
+    ctx.globalAlpha=.35;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,len);ctx.stroke();ctx.globalAlpha=1;
+  }
+  ctx.restore();
+  // أنبوب الطوربيد
+  ctx.fillStyle='#5c3a05';ctx.fillRect(42,2,14,7);
+  ctx.restore();
+}
+function draw(){
+  // خلفية حسب العمق
+  const depthT=clamp((sub.y-100)/3000,0,1);
+  const g=ctx.createLinearGradient(0,0,0,H);
+  const topC=[Math.round(14*(1-depthT)),Math.round(110-70*depthT),Math.round(170-120*depthT)];
+  g.addColorStop(0,`rgb(${topC[0]},${topC[1]},${topC[2]})`);
+  g.addColorStop(1,`rgb(${Math.round(2)},${Math.round(8-6*depthT)},${Math.round(26-18*depthT)})`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+  ctx.save();
+  const sx=shake?rand(-shake,shake):0,sy=shake?rand(-shake,shake):0;
+  ctx.translate(-cam.x+sx,-cam.y+sy);
+
+  // السطح والسماء
+  if(cam.y<WORLD.SURFACE+100){
+    ctx.fillStyle='#7ec8ff';ctx.fillRect(cam.x,-200,W,WORLD.SURFACE+200);
+    const sun=ctx.createRadialGradient(WORLD.w*.3,0,10,WORLD.w*.3,0,260);
+    sun.addColorStop(0,'rgba(255,255,220,.9)');sun.addColorStop(1,'rgba(255,255,220,0)');
+    ctx.fillStyle=sun;ctx.fillRect(cam.x,-200,W,WORLD.SURFACE+200);
+    ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=3;
+    ctx.beginPath();
+    for(let x=cam.x;x<cam.x+W;x+=8)ctx.lineTo(x,WORLD.SURFACE+Math.sin(x*.02+time*2)*5);
+    ctx.stroke();
+    // أشعة ضوء
+    for(let i=0;i<6;i++){
+      const rx=cam.x+((i*997+time*26)%(W+400))-200;
+      ctx.fillStyle='rgba(180,230,255,.06)';
+      ctx.beginPath();ctx.moveTo(rx,WORLD.SURFACE);ctx.lineTo(rx+90,WORLD.SURFACE);ctx.lineTo(rx+260,WORLD.SURFACE+900);ctx.lineTo(rx+120,WORLD.SURFACE+900);ctx.closePath();ctx.fill();
+    }
+  }
+
+  // تلال خلفية (بارالاكس)
+  ctx.save();
+  ctx.translate(cam.x*.55,0);
+  ctx.fillStyle='rgba(6,20,45,.55)';
+  ctx.beginPath();ctx.moveTo(0,WORLD.h);
+  for(let x=0;x<=W*1.2+80;x+=80){const wx=x+cam.x*.55;ctx.lineTo(x,WORLD.h-620+Math.sin(wx*.0011)*180+Math.sin(wx*.004)*60);}
+  ctx.lineTo(W*1.2+80,WORLD.h);ctx.closePath();ctx.fill();
+  ctx.restore();
+
+  // قاع البحر
+  ctx.beginPath();ctx.moveTo(cam.x-50,WORLD.h+50);
+  for(let x=cam.x-50;x<=cam.x+W+50;x+=STEP)ctx.lineTo(x,floorY(x));
+  ctx.lineTo(cam.x+W+50,WORLD.h+50);ctx.closePath();
+  const fg=ctx.createLinearGradient(0,WORLD.h-450,0,WORLD.h);
+  fg.addColorStop(0,'#2b2417');fg.addColorStop(1,'#0d0a06');
+  ctx.fillStyle=fg;ctx.fill();
+  ctx.strokeStyle='rgba(120,100,60,.4)';ctx.lineWidth=3;
+  ctx.beginPath();for(let x=cam.x-50;x<=cam.x+W+50;x+=STEP)ctx.lineTo(x,floorY(x));ctx.stroke();
+
+  // صخور
+  for(const r of rocks){
+    if(r.x<cam.x-100||r.x>cam.x+W+100)continue;
+    const y=floorY(r.x);
+    ctx.fillStyle='#332b1e';
+    ctx.beginPath();ctx.ellipse(r.x,y-r.s*.3,r.s,r.s*.65,0,Math.PI,0);ctx.fill();
+  }
+  // أعشاب بحرية متمايلة
+  for(const k of kelps){
+    if(k.x<cam.x-100||k.x>cam.x+W+100)continue;
+    const y=floorY(k.x);
+    ctx.strokeStyle=`hsla(${k.hue},60%,32%,.9)`;ctx.lineWidth=6;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(k.x,y);
+    const sway1=Math.sin(time*1.4+k.ph)*22,sway2=Math.sin(time*1.4+k.ph+1)*34;
+    ctx.quadraticCurveTo(k.x+sway1,y-k.h*.5,k.x+sway2,y-k.h);
+    ctx.stroke();
+  }
+  // مرجان
+  for(const c of corals){
+    if(c.x<cam.x-80||c.x>cam.x+W+80)continue;
+    const y=floorY(c.x);
+    ctx.fillStyle=`hsl(${c.hue},75%,55%)`;
+    if(c.type===0){for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(c.x,y);ctx.quadraticCurveTo(c.x+i*c.s*.35,y-c.s*.7,c.x+i*c.s*.55,y-c.s);ctx.lineWidth=c.s*.22;ctx.strokeStyle=`hsl(${c.hue},75%,55%)`;ctx.lineCap='round';ctx.stroke();}}
+    else{ctx.beginPath();ctx.ellipse(c.x,y-c.s*.3,c.s,c.s*.5,0,0,7);ctx.fill();}
+  }
+  // حطام سفينة
+  {
+    const wx=wreck.x,wy=floorY(wx);
+    ctx.save();ctx.translate(wx,wy);ctx.rotate(-.12);
+    ctx.fillStyle='#241a10';
+    ctx.beginPath();ctx.moveTo(-160,0);ctx.quadraticCurveTo(-140,-70,0,-75);ctx.quadraticCurveTo(150,-70,180,-10);ctx.lineTo(150,0);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#3a2c1a';ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(-40,-70);ctx.lineTo(-40,-190);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-40,-170);ctx.lineTo(60,-140);ctx.lineTo(-40,-120);ctx.closePath();
+    ctx.fillStyle='rgba(200,190,160,.25)';ctx.fill();
+    ctx.restore();
+  }
+  // فتحات حرارية متوهجة
+  for(const v of vents){
+    if(v.x<cam.x-200||v.x>cam.x+W+200)continue;
+    ctx.fillStyle='#1c1610';
+    ctx.beginPath();ctx.moveTo(v.x-34,v.y);ctx.lineTo(v.x-10,v.y-46);ctx.lineTo(v.x+10,v.y-46);ctx.lineTo(v.x+34,v.y);ctx.closePath();ctx.fill();
+    const vg=ctx.createRadialGradient(v.x,v.y-46,2,v.x,v.y-46,40);
+    vg.addColorStop(0,`rgba(255,120,30,${.5+Math.sin(time*3+v.x)*.2})`);vg.addColorStop(1,'rgba(255,120,30,0)');
+    ctx.fillStyle=vg;ctx.beginPath();ctx.arc(v.x,v.y-46,40,0,7);ctx.fill();
+  }
+  // صناديق الكنز
+  for(const c of chests){
+    if(c.x<cam.x-100||c.x>cam.x+W+100)continue;
+    ctx.save();ctx.translate(c.x,c.y);
+    if(!c.open){
+      const gp=.5+Math.sin(time*3+c.ph)*.3;
+      ctx.shadowColor='#ffd76a';ctx.shadowBlur=18*gp;
+    }
+    ctx.fillStyle='#5c3a12';ctx.fillRect(-20,-16,40,16);
+    ctx.fillStyle=c.open?'#3a2408':'#7a4a16';
+    ctx.beginPath();ctx.ellipse(0,-16,20,10,0,Math.PI,0);ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#ffd76a';ctx.fillRect(-3,-16,6,10);
+    ctx.restore();
+  }
+
+  // الكائنات
+  for(const t of turtles)if(t.x>cam.x-150&&t.x<cam.x+W+150)drawTurtle(t);
+  for(const f of fishes)if(!f.dead&&f.x>cam.x-60&&f.x<cam.x+W+60)drawFish(f);
+  for(const j of jellies)if(j.x>cam.x-80&&j.x<cam.x+W+80)drawJelly(j);
+  for(const a of anglers)if(a.x>cam.x-100&&a.x<cam.x+W+100)drawAngler(a);
+  for(const s of sharks)if(!s.dead&&s.x>cam.x-150&&s.x<cam.x+W+150)drawShark(s);
+  for(const q of squids)if(!q.dead&&q.x>cam.x-200&&q.x<cam.x+W+200)drawSquid(q);
+
+  // الطوربيدات
+  for(const t of torps){
+    ctx.save();ctx.translate(t.x,t.y);
+    ctx.shadowColor='#ffb340';ctx.shadowBlur=12;
+    ctx.fillStyle='#d9dde3';
+    ctx.beginPath();ctx.ellipse(0,0,14,4.5,0,0,7);ctx.fill();
+    ctx.fillStyle='#ff7a18';
+    ctx.beginPath();ctx.ellipse(Math.sign(t.vx)*11,0,4,3.5,0,0,7);ctx.fill();
+    ctx.shadowBlur=0;ctx.restore();
+  }
+
+  // الغواصة
+  drawSub();
+
+  // المقتنيات
+  for(const p of pickups){
+    ctx.save();ctx.translate(p.x,p.y);
+    if(p.type==='coin'){
+      ctx.shadowColor='#ffd76a';ctx.shadowBlur=10;ctx.fillStyle='#ffd76a';
+      ctx.beginPath();ctx.arc(0,0,7,0,7);ctx.fill();
+      ctx.shadowBlur=0;ctx.fillStyle='#a37b10';ctx.font='bold 9px sans-serif';ctx.textAlign='center';ctx.fillText('$',0,3);
+    }else{
+      ctx.shadowColor='#4cc9f0';ctx.shadowBlur=14;
+      ctx.fillStyle='rgba(120,220,255,.7)';
+      ctx.beginPath();ctx.arc(0,0,10+Math.sin(time*5)*2,0,7);ctx.fill();
+      ctx.shadowBlur=0;ctx.fillStyle='#fff';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillText('O₂',0,3);
+    }
+    ctx.restore();
+  }
+
+  // الجسيمات
+  for(const p of parts){
+    if(p.type==='flash'){
+      const fg2=ctx.createRadialGradient(p.x,p.y,2,p.x,p.y,p.r*(1-p.life*2));
+      fg2.addColorStop(0,`rgba(255,240,190,${p.life*2})`);fg2.addColorStop(1,'rgba(255,240,190,0)');
+      ctx.fillStyle=fg2;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();
+    }else if(p.type==='bubble'){
+      ctx.strokeStyle=`rgba(200,235,255,${p.life*.6})`;ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.stroke();
+    }else if(p.type==='smoke'){
+      ctx.fillStyle=(p.c||'rgba(80,80,80,')+Math.min(.4,p.life*.3)+')';
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();
+    }else{
+      ctx.fillStyle=(p.c||'rgba(255,200,80,')+Math.min(1,p.life*2)+')';
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();
+    }
+  }
+
+  // نصوص النقاط الطافية
+  ctx.textAlign='center';ctx.font='bold 20px sans-serif';
+  for(const f of floats){
+    ctx.globalAlpha=Math.min(1,f.life);
+    ctx.fillStyle=f.c;ctx.fillText(f.txt,f.x,f.y);
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+
+  // === الإضاءة والظلام ===
+  const dark=clamp((sub.y-500)/2200,0,1)*.93;
+  if(dark>.02){
+    lctx.clearRect(0,0,W,H);
+    lctx.fillStyle=`rgba(1,4,16,${dark})`;lctx.fillRect(0,0,W,H);
+    lctx.globalCompositeOperation='destination-out';
+    const px=sub.x-cam.x,py=sub.y-cam.y;
+    let rg=lctx.createRadialGradient(px,py,30,px,py,250);
+    rg.addColorStop(0,'rgba(0,0,0,.95)');rg.addColorStop(1,'rgba(0,0,0,0)');
+    lctx.fillStyle=rg;lctx.beginPath();lctx.arc(px,py,250,0,7);lctx.fill();
+    // توهج الكائنات المضيئة
+    for(const f of fishes)if(f.glow){const gx=f.x-cam.x,gy=f.y-cam.y;
+      if(gx>-60&&gx<W+60){const g2=lctx.createRadialGradient(gx,gy,2,gx,gy,55);g2.addColorStop(0,'rgba(0,0,0,.5)');g2.addColorStop(1,'rgba(0,0,0,0)');lctx.fillStyle=g2;lctx.beginPath();lctx.arc(gx,gy,55,0,7);lctx.fill();}}
+    for(const a of anglers){const gx=a.x+a.dir*44-cam.x,gy=a.y-38-cam.y;
+      if(gx>-80&&gx<W+80){const g2=lctx.createRadialGradient(gx,gy,2,gx,gy,90);g2.addColorStop(0,'rgba(0,0,0,.7)');g2.addColorStop(1,'rgba(0,0,0,0)');lctx.fillStyle=g2;lctx.beginPath();lctx.arc(gx,gy,90,0,7);lctx.fill();}}
+    for(const t of torps){const gx=t.x-cam.x,gy=t.y-cam.y;
+      const g2=lctx.createRadialGradient(gx,gy,2,gx,gy,50);g2.addColorStop(0,'rgba(0,0,0,.6)');g2.addColorStop(1,'rgba(0,0,0,0)');lctx.fillStyle=g2;lctx.beginPath();lctx.arc(gx,gy,50,0,7);lctx.fill();}
+    for(const p of parts)if(p.type==='flash'){const gx=p.x-cam.x,gy=p.y-cam.y;
+      const g2=lctx.createRadialGradient(gx,gy,5,gx,gy,p.r*1.6);g2.addColorStop(0,'rgba(0,0,0,.9)');g2.addColorStop(1,'rgba(0,0,0,0)');lctx.fillStyle=g2;lctx.beginPath();lctx.arc(gx,gy,p.r*1.6,0,7);lctx.fill();}
+    lctx.globalCompositeOperation='source-over';
+    ctx.drawImage(lightCanvas,0,0);
+  }
+
+  // الثلج البحري
+  ctx.fillStyle='rgba(210,230,245,.35)';
+  for(const s of snow){ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill();}
+
+  // === السونار ===
+  const sR=72,sX=sR+18,sY=H-sR-18;
+  ctx.save();
+  ctx.fillStyle='rgba(2,20,14,.75)';ctx.strokeStyle='rgba(60,255,150,.6)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(sX,sY,sR,0,7);ctx.fill();ctx.stroke();
+  ctx.strokeStyle='rgba(60,255,150,.2)';
+  for(let i=1;i<=2;i++){ctx.beginPath();ctx.arc(sX,sY,sR*i/3,0,7);ctx.stroke();}
+  const ang=time*2.2;
+  const sg=ctx.createConicGradient?null:null;
+  ctx.strokeStyle='rgba(90,255,170,.9)';
+  ctx.beginPath();ctx.moveTo(sX,sY);ctx.lineTo(sX+Math.cos(ang)*sR,sY+Math.sin(ang)*sR);ctx.stroke();
+  const scale=sR/900;
+  function dot(wx,wy,c,r=2.4){
+    const dx=(wx-sub.x)*scale,dy=(wy-sub.y)*scale;
+    if(dx*dx+dy*dy<sR*sR*.92){ctx.fillStyle=c;ctx.beginPath();ctx.arc(sX+dx,sY+dy,r,0,7);ctx.fill();}
+  }
+  for(const f of fishes)dot(f.x,f.y,'rgba(120,255,170,.8)',1.5);
+  for(const s of sharks)if(!s.dead)dot(s.x,s.y,'#ff5e5b',3.5);
+  for(const a of anglers)if(!a.dead)dot(a.x,a.y,'#ff9e42',3);
+  for(const q of squids)if(!q.dead)dot(q.x,q.y,'#ff4288',4.5);
+  for(const c of chests)if(!c.open)dot(c.x,c.y,'#ffd76a',3);
+  ctx.fillStyle='#7fe3ff';ctx.beginPath();ctx.arc(sX,sY,3.5,0,7);ctx.fill();
+  ctx.fillStyle='rgba(120,255,190,.8)';ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillText('سونار',sX,sY-sR-6);
+  ctx.restore();
+}
+
+/* ================== حلقة اللعبة ================== */
+let last=performance.now();
+function loop(now){
+  const dt=Math.min((now-last)/1000,.033);last=now;
+  if(state==='playing')update(dt); else time+=dt;
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ================== الشاشات ================== */
+function startGame(){
+  initAudio(); AC.resume&&AC.resume();
+  resetGame(); state='playing';
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('gameover').classList.add('hidden');
+  document.getElementById('hud').classList.remove('hidden');
+}
+function endGame(){
+  state='over'; sndBoom(); explode(sub.x,sub.y,true);
+  best=Math.max(best,score); localStorage.setItem('deepBest',best);
+  document.getElementById('finalScore').textContent='🏆 '+score+' نقطة';
+  document.getElementById('bestScore').textContent='أفضل نتيجة: '+best;
+  setTimeout(()=>{
+    document.getElementById('gameover').classList.remove('hidden');
+    document.getElementById('hud').classList.add('hidden');
+  },900);
+}
+document.getElementById('startBtn').onclick=startGame;
+document.getElementById('retryBtn').onclick=startGame;
+spawnAll(); // عالم حي خلف شاشة البداية
+</script>
+</body>
+</html>

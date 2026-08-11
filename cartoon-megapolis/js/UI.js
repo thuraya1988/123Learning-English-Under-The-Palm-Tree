@@ -20,7 +20,6 @@ export class UI {
       qualitySelect: document.getElementById('quality-select')
     };
 
-    this.selectedChar = null;
     this.onPlay = null;
     this.onQualityChange = null;
     this._setupEvents();
@@ -57,22 +56,9 @@ export class UI {
   }
 
   _setupEvents() {
-    // Character selection
-    document.querySelectorAll('.char-card').forEach(card => {
-      this._bindTap(card, () => {
-        document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        this.selectedChar = card.dataset.char;
-        this.elements.playBtn.disabled = false;
-      });
-    });
-
-    // Play button
+    // Play button — no character selection anymore, there's only Malexa
     this._bindTap(this.elements.playBtn, () => {
-      if (this.elements.playBtn.disabled) return;
-      if (this.selectedChar && this.onPlay) {
-        this.onPlay(this.selectedChar, this.elements.qualitySelect.value);
-      }
+      if (this.onPlay) this.onPlay(this.elements.qualitySelect.value);
     });
 
     // Quality

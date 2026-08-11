@@ -33,7 +33,7 @@ export class Game {
 
   async init() {
     this.ui = new UI();
-    this.ui.onPlay = (char, quality) => this.startGame(char, quality);
+    this.ui.onPlay = (quality) => this.startGame(quality);
     this.ui.onQualityChange = (q) => this.setQuality(q);
     this.ui.onRestart = () => this.restart();
     this.ui.onPause = () => { if (this.state === 'PLAY') this.togglePause(); };
@@ -52,16 +52,10 @@ export class Game {
     this.city = new City(this.engine.scene, this.engine.preset);
     this.city.generate();
 
-    this.ui.setLoadingProgress(80, 'Building characters...');
-    // Pre-build characters for menu preview
-    this.charThuraya = new Character('thuraya');
-    this.charAlex = new Character('alex');
-
-    // Add preview characters to scene (hidden initially)
-    this.engine.scene.add(this.charThuraya.mesh);
-    this.engine.scene.add(this.charAlex.mesh);
-    this.charThuraya.mesh.visible = false;
-    this.charAlex.mesh.visible = false;
+    this.ui.setLoadingProgress(80, 'Building Malexa...');
+    this.character = new Character();
+    this.engine.scene.add(this.character.mesh);
+    this.character.mesh.visible = false;
 
     this.ui.setLoadingProgress(100, 'Ready');
 
@@ -73,7 +67,7 @@ export class Game {
     }, 800);
   }
 
-  startGame(charType, quality) {
+  startGame(quality) {
     this.quality = quality;
     this.engine.setQuality(quality);
 
@@ -81,11 +75,6 @@ export class Game {
     this.ui.showHUD();
     this.ui.notify('Welcome to Cartoon Megapolis!');
 
-    // Setup character
-    this.charThuraya.mesh.visible = false;
-    this.charAlex.mesh.visible = false;
-
-    this.character = charType === 'thuraya' ? this.charThuraya : this.charAlex;
     this.character.mesh.visible = true;
     this.character.setPosition(0, 5, 0);
 
@@ -125,25 +114,20 @@ export class Game {
   _menuLoop() {
     if (this.state !== 'MENU') return;
 
-    // Rotate preview characters slowly
+    // Rotate the preview character slowly, centered
     const time = performance.now() * 0.001;
-    if (this.charThuraya && this.charAlex) {
-      this.charThuraya.mesh.visible = true;
-      this.charAlex.mesh.visible = true;
-      this.charThuraya.mesh.position.set(-3, 2, 0);
-      this.charThuraya.mesh.rotation.y = time * 0.5;
-      this.charThuraya.update(0.016, 0, 'idle');
-
-      this.charAlex.mesh.position.set(3, 2, 0);
-      this.charAlex.mesh.rotation.y = time * 0.5 + Math.PI;
-      this.charAlex.update(0.016, 0, 'idle');
+    if (this.character) {
+      this.character.mesh.visible = true;
+      this.character.mesh.position.set(0, 2, 0);
+      this.character.mesh.rotation.y = time * 0.5;
+      this.character.update(0.016, 0, 'idle');
     }
 
     // Camera orbit
-    const camX = Math.sin(time * 0.3) * 8;
-    const camZ = Math.cos(time * 0.3) * 8;
-    this.engine.camera.position.set(camX, 4, camZ);
-    this.engine.camera.lookAt(0, 2, 0);
+    const camX = Math.sin(time * 0.3) * 6;
+    const camZ = Math.cos(time * 0.3) * 6;
+    this.engine.camera.position.set(camX, 3.5, camZ);
+    this.engine.camera.lookAt(0, 1.6, 0);
 
     this.engine.render();
     requestAnimationFrame(() => this._menuLoop());

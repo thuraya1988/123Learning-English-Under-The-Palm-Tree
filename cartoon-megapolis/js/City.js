@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // City generation with instancing for performance
 export class City {
@@ -12,18 +13,21 @@ export class City {
     this.chunkSize = 100;
     this.citySize = 1200;
 
-    // Districts
+    // Districts. Heights were originally up to 220 units against a ~2.4-unit-
+    // tall character and a close (~6.5-unit) third-person camera — buildings
+    // loomed and filled the whole view. Scaled down ~3x so the tallest
+    // Skyline towers still read as skyscrapers but don't blot out the sky.
     this.districts = [
-      { name: 'Slums', x: -400, z: -400, w: 300, d: 300, 
-        bldgH: [8, 25], bldgW: [6, 12], colors: [0x8B7355, 0xA08060, 0x6B5B45, 0x9B8B6B] },
-      { name: 'Downtown', x: -100, z: -100, w: 400, d: 400, 
-        bldgH: [30, 120], bldgW: [15, 40], colors: [0x5B7FA3, 0x7A9BBF, 0x4A6B8A, 0x8BAAC9] },
-      { name: 'Skyline', x: 150, z: 150, w: 300, d: 300, 
-        bldgH: [80, 220], bldgW: [20, 50], colors: [0x3D5A80, 0x5C7A9E, 0x2E4A66, 0x6B8FA8] },
-      { name: 'Old Town', x: -500, z: 100, w: 250, d: 250, 
-        bldgH: [15, 40], bldgW: [10, 20], colors: [0xA07850, 0x8B6F47, 0xB08860, 0x9B7D55] },
-      { name: 'Port', x: 200, z: -400, w: 300, d: 250, 
-        bldgH: [10, 35], bldgW: [12, 30], colors: [0x6B8E7B, 0x8BA89B, 0x5A7A6A, 0x7A9A8A] }
+      { name: 'Slums', x: -400, z: -400, w: 300, d: 300,
+        bldgH: [6, 16], bldgW: [6, 12], colors: [0x8B7355, 0xA08060, 0x6B5B45, 0x9B8B6B] },
+      { name: 'Downtown', x: -100, z: -100, w: 400, d: 400,
+        bldgH: [12, 42], bldgW: [15, 40], colors: [0x5B7FA3, 0x7A9BBF, 0x4A6B8A, 0x8BAAC9] },
+      { name: 'Skyline', x: 150, z: 150, w: 300, d: 300,
+        bldgH: [24, 62], bldgW: [20, 50], colors: [0x3D5A80, 0x5C7A9E, 0x2E4A66, 0x6B8FA8] },
+      { name: 'Old Town', x: -500, z: 100, w: 250, d: 250,
+        bldgH: [10, 24], bldgW: [10, 20], colors: [0xA07850, 0x8B6F47, 0xB08860, 0x9B7D55] },
+      { name: 'Port', x: 200, z: -400, w: 300, d: 250,
+        bldgH: [8, 20], bldgW: [12, 30], colors: [0x6B8E7B, 0x8BA89B, 0x5A7A6A, 0x7A9A8A] }
     ];
   }
 
@@ -108,6 +112,41 @@ export class City {
     }
   }
 
+  // A tileable window-grid facade, baked per district color instead of a
+  // flat fill — the old flat-colored boxes read as placeholder blocks.
+  // RepeatWrapping means every building in the instanced mesh shows the
+  // same tile count regardless of its actual size (windows scale with the
+  // building rather than staying a fixed size), which isn't perfectly
+  // realistic but is a big step up from a solid color for near-zero cost.
+  _buildFacadeTexture(baseHex) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    const base = new THREE.Color(baseHex);
+    ctx.fillStyle = `#${base.getHexString()}`;
+    ctx.fillRect(0, 0, 256, 512);
+
+    const shade = ctx.createLinearGradient(0, 0, 0, 512);
+    shade.addColorStop(0, 'rgba(0,0,0,0.16)');
+    shade.addColorStop(0.5, 'rgba(0,0,0,0)');
+    shade.addColorStop(1, 'rgba(0,0,0,0.28)');
+    ctx.fillStyle = shade; ctx.fillRect(0, 0, 256, 512);
+
+    const cols = 5, rows = 12;
+    const cw = 256 / cols, ch = 512 / rows, padX = cw * 0.24, padY = ch * 0.28;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const lit = Math.random() < 0.32;
+        ctx.fillStyle = lit ? 'rgba(255,222,150,0.95)' : 'rgba(0,0,0,0.5)';
+        ctx.fillRect(c * cw + padX, r * ch + padY, cw - padX * 2, ch - padY * 2);
+      }
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
   _generateBuildings() {
     const maxBuildings = this.preset.instanceCount.buildings;
     const boxGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -118,10 +157,16 @@ export class City {
     for (const district of this.districts) {
       const count = Math.floor(maxBuildings / this.districts.length);
       const colors = district.colors;
+      const avgW = (district.bldgW[0] + district.bldgW[1]) / 2;
+      const avgH = (district.bldgH[0] + district.bldgH[1]) / 2;
+      const repeatX = Math.min(6, Math.max(2, Math.round(avgW / 6)));
+      const repeatY = Math.min(10, Math.max(3, Math.round(avgH / 8)));
 
       for (let c = 0; c < colors.length; c++) {
-        const mat = new THREE.MeshStandardMaterial({ 
-          color: colors[c], roughness: 0.7, metalness: 0.1 
+        const tex = this._buildFacadeTexture(colors[c]);
+        tex.repeat.set(repeatX, repeatY);
+        const mat = new THREE.MeshStandardMaterial({
+          map: tex, roughness: 0.78, metalness: 0.12
         });
         const mesh = new THREE.InstancedMesh(boxGeo, mat, Math.ceil(count / colors.length));
         mesh.castShadow = true; mesh.receiveShadow = true;
@@ -343,30 +388,61 @@ export class City {
     }
   }
 
+  // Shared shapes for every car: a body+cabin shell (2 material groups, so
+  // paint color and glass tint are separate) plus a wheel cluster. Built
+  // once and reused — only the paint material differs per car. Canonical
+  // orientation faces +Z; placement rotates 90° for X-axis roads instead of
+  // scaling a plain box, since a compound shape can't be axis-swapped by
+  // scale alone the way the old flat box could.
+  _buildCarGeometries() {
+    const bodyGeo = new THREE.BoxGeometry(2.0, 0.7, 4.2);
+    bodyGeo.translate(0, 0.7, 0);
+    const cabinGeo = new THREE.BoxGeometry(1.4, 0.55, 2.1);
+    cabinGeo.translate(0, 1.325, -0.2);
+    this._carShellGeo = mergeGeometries([bodyGeo, cabinGeo], true);
+
+    const wheelGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.26, 10);
+    wheelGeo.rotateZ(Math.PI / 2);
+    const wx = 1.05, wz = 1.5;
+    const wheelGeos = [[wx, wz], [-wx, wz], [wx, -wz], [-wx, -wz]].map(([x, z]) => {
+      const g = wheelGeo.clone(); g.translate(x, 0.34, z); return g;
+    });
+    this._carWheelGeo = mergeGeometries(wheelGeos);
+    this._carWheelMat = new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.6, metalness: 0.2 });
+    this._carGlassMat = new THREE.MeshStandardMaterial({ color: 0x1c2530, roughness: 0.25, metalness: 0.6 });
+  }
+
   _generateCars() {
-    const carGeo = new THREE.BoxGeometry(1, 1, 1);
-    const carColors = [0xCC4444, 0x44AA44, 0x4444CC, 0xCCCC44, 0xFFFFFF, 0x333333];
+    if (!this._carShellGeo) this._buildCarGeometries();
+    const carColors = [0xCC4444, 0x44AA44, 0x4444CC, 0xCCCC44, 0xF2F2F2, 0x333333, 0xE8A23A];
     this.cars = [];
 
     for (let i = 0; i < this.preset.instanceCount.cars; i++) {
-      const color = carColors[Math.floor(Math.random() * carColors.length)];
-      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.4 });
-      const car = new THREE.Mesh(carGeo, mat);
+      const paintMat = new THREE.MeshStandardMaterial({
+        color: carColors[Math.floor(Math.random() * carColors.length)], roughness: 0.35, metalness: 0.5
+      });
+      const body = new THREE.Mesh(this._carShellGeo, [paintMat, this._carGlassMat]);
+      body.castShadow = true; body.receiveShadow = true;
+      const wheels = new THREE.Mesh(this._carWheelGeo, this._carWheelMat);
+      wheels.castShadow = true;
+
+      const group = new THREE.Group();
+      group.add(body); group.add(wheels);
 
       const roadIdx = Math.floor(Math.random() * 20) - 10;
       const isX = Math.random() > 0.5;
       const lane = (Math.random() - 0.5) * 8;
+      const dir = Math.random() > 0.5 ? 1 : -1;
 
-      car.position.set(
+      group.position.set(
         isX ? (Math.random() - 0.5) * 800 : roadIdx * 60 + lane,
-        1.2,
+        0,
         isX ? roadIdx * 60 + lane : (Math.random() - 0.5) * 800
       );
-      car.scale.set(isX ? 4.5 : 2.2, 1.5, isX ? 2.2 : 4.5);
-      car.castShadow = true;
-      car.userData = { speed: 10 + Math.random() * 15, axis: isX ? 'x' : 'z', dir: Math.random() > 0.5 ? 1 : -1 };
-      this.scene.add(car);
-      this.cars.push(car);
+      group.rotation.y = (isX ? Math.PI / 2 : 0) + (dir === -1 ? Math.PI : 0);
+      group.userData = { speed: 10 + Math.random() * 15, axis: isX ? 'x' : 'z', dir };
+      this.scene.add(group);
+      this.cars.push(group);
     }
   }
 

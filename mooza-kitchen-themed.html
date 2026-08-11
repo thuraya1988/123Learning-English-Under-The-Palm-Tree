@@ -158,6 +158,25 @@ p{font-family:var(--font-b);font-size:clamp(0.85rem,2.2vw,1rem);line-height:1.75
 .step-btn.correct{border-color:var(--earth);background:rgba(140,106,63,0.15);color:var(--soil);}
 .step-btn.wrong{border-color:var(--burgundy);background:var(--burg-soft);color:var(--burgundy);animation:shake .4s ease;}
 
+/* DISH PLATE — click-to-place cooking (replaces plain text-choice buttons) */
+.dish-plate{position:relative;width:170px;height:170px;border-radius:50%;margin:0.8rem auto 1rem;
+  background:radial-gradient(circle at 42% 38%,var(--linen),var(--clay) 80%);
+  border:2px solid var(--clay);box-shadow:inset 0 3px 10px rgba(74,53,32,.18),0 10px 24px rgba(74,53,32,.14);
+  overflow:hidden;}
+.dish-marker{position:absolute;font-size:1.6rem;transform:translate(-50%,-50%);
+  animation:dishDrop .45s cubic-bezier(.34,1.56,.64,1) both;filter:drop-shadow(0 2px 3px rgba(74,53,32,.35));}
+@keyframes dishDrop{0%{opacity:0;transform:translate(-50%,-50%) scale(0) translateY(-14px)}
+  70%{transform:translate(-50%,-50%) scale(1.15) translateY(1px)}
+  100%{opacity:1;transform:translate(-50%,-50%) scale(1) translateY(0)}}
+.action-chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:1em 0;}
+.action-chip{width:74px;padding:10px 6px 8px;border-radius:12px;border:1.5px solid var(--line);
+  background:var(--bg-card);color:var(--soil);font-family:var(--font-b);font-size:0.6rem;line-height:1.25;
+  cursor:pointer;transition:all .25s;text-align:center;}
+.action-chip .chip-icon{font-size:1.6rem;display:block;margin-bottom:3px;}
+.action-chip:hover{border-color:var(--earth);transform:translateY(-2px);box-shadow:0 6px 14px rgba(74,53,32,.14);}
+.action-chip.correct{border-color:var(--earth);background:rgba(140,106,63,0.15);pointer-events:none;}
+.action-chip.wrong{border-color:var(--burgundy);background:var(--burg-soft);color:var(--burgundy);animation:shake .4s ease;}
+
 /* PROGRESS */
 .palm-bar{height:5px;background:var(--line);border-radius:100px;overflow:hidden;}
 .palm-bar__fill{height:100%;background:var(--earth);border-radius:100px;transition:width .5s var(--ease);}
@@ -464,11 +483,23 @@ function renderKitchenMenu() {
 
 function startKitchenLevel(level) {
   currentKitchenLevel = level;
-  kitchenGameState = { phase:'intro', selectedIngredients:[], stepIndex:0, score:0, mistakes:0 };
+  kitchenGameState = { phase:'intro', selectedIngredients:[], stepIndex:0, score:0, mistakes:0, dishMarkers:[] };
   showScreen('kitchenGame');
   document.getElementById('kitchenHudInfo').textContent = `Level ${level.id} · ${level.name}`;
   document.getElementById('kitchenProgressFill').style.width = '0%';
   renderKitchenPhase();
+}
+
+// Picks an emoji for a cooking-step action by matching its words against the
+// level's ingredient list (e.g. "Pour water" -> the Water ingredient's icon);
+// falls back to the dish's own icon when nothing matches (e.g. "Combine and knead").
+function actionIcon(action, lv) {
+  const text = action.text.toLowerCase();
+  for (const ing of lv.ingredients) {
+    const words = ing.name.toLowerCase().split(/\s+/);
+    if (words.some(w => w.length > 2 && text.includes(w))) return ing.icon;
+  }
+  return lv.icon;
 }
 
 function renderKitchenPhase() {
@@ -554,24 +585,49 @@ function renderKitchenPhase() {
       <div class="step-container asi">
         <h3>Step ${gs.stepIndex + 2} — Cooking</h3>
         <div class="deco-line"></div>
-        <div style="font-size:2.4rem;margin:0.5rem 0;">${lv.icon}</div>
         <div class="step-instruction">"${step.instruction}"</div>
-        <p style="font-size:0.68rem;color:var(--earth);opacity:0.6;margin-bottom:1rem;font-style:italic;">— Mooza</p>
-        <div class="step-action" id="kitchenStepActions"></div>
-        <p style="font-size:0.72rem;margin-top:0.8rem;min-height:1.5rem;" id="kitchenStepFeedback"></p>
+        <p style="font-size:0.68rem;color:var(--earth);opacity:0.6;margin-bottom:0.4rem;font-style:italic;">— Mooza</p>
+        <div class="dish-plate" id="kitchenDish"></div>
+        <p style="font-size:0.7rem;color:var(--earth);opacity:0.7;margin-bottom:0.6rem;">Tap the right ingredient to add it to the dish</p>
+        <div class="action-chips" id="kitchenStepActions"></div>
+        <p style="font-size:0.72rem;margin-top:0.6rem;min-height:1.5rem;" id="kitchenStepFeedback"></p>
       </div>`;
+
+    const dish = document.getElementById('kitchenDish');
+    gs.dishMarkers.forEach((m, i) => {
+      const el = document.createElement('div');
+      el.className = 'dish-marker';
+      el.textContent = m;
+      // golden-angle spiral so markers spread out across the plate instead of piling up
+      const ang = i * 137.5 * Math.PI / 180;
+      const rad = 14 + i * 11;
+      el.style.left = (50 + Math.cos(ang) * rad * 0.35) + '%';
+      el.style.top = (50 + Math.sin(ang) * rad * 0.35) + '%';
+      dish.appendChild(el);
+    });
 
     const actionsDiv = document.getElementById('kitchenStepActions');
     const shuffledActions = [...step.actions].sort(() => Math.random() - 0.5);
     shuffledActions.forEach(action => {
-      const btn = document.createElement('button');
-      btn.className = 'step-btn';
-      btn.textContent = action.text;
-      btn.onclick = () => {
-        if (btn.classList.contains('correct') || btn.classList.contains('wrong')) return;
+      const icon = actionIcon(action, lv);
+      const chip = document.createElement('button');
+      chip.className = 'action-chip';
+      chip.innerHTML = `<span class="chip-icon">${icon}</span>${action.text}`;
+      chip.onclick = () => {
+        if (chip.classList.contains('correct') || chip.classList.contains('wrong')) return;
         if (action.correct) {
-          btn.classList.add('correct');
+          chip.classList.add('correct');
           gs.score++;
+          gs.dishMarkers.push(icon);
+          const marker = document.createElement('div');
+          marker.className = 'dish-marker';
+          marker.textContent = icon;
+          const i = gs.dishMarkers.length - 1;
+          const ang = i * 137.5 * Math.PI / 180;
+          const rad = 14 + i * 11;
+          marker.style.left = (50 + Math.cos(ang) * rad * 0.35) + '%';
+          marker.style.top = (50 + Math.sin(ang) * rad * 0.35) + '%';
+          dish.appendChild(marker);
           const fb = document.getElementById('kitchenStepFeedback');
           fb.textContent = 'Mashallah — correct.';
           fb.style.color = 'var(--earth)';
@@ -585,15 +641,15 @@ function renderKitchenPhase() {
             renderKitchenPhase();
           }, 1200);
         } else {
-          btn.classList.add('wrong');
+          chip.classList.add('wrong');
           gs.mistakes++;
           const fb = document.getElementById('kitchenStepFeedback');
           fb.textContent = 'Not quite — try again, slowly.';
           fb.style.color = 'var(--burgundy)';
-          setTimeout(() => { btn.classList.remove('wrong'); }, 600);
+          setTimeout(() => { chip.classList.remove('wrong'); }, 600);
         }
       };
-      actionsDiv.appendChild(btn);
+      actionsDiv.appendChild(chip);
     });
   }
 

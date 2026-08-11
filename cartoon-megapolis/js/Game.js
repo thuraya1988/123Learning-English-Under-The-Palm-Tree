@@ -20,7 +20,7 @@ export class Game {
     this.ui = null;
     this.sky = null;
 
-    this.timeOfDay = 0.5; // Start at dusk
+    this.timeOfDay = 0.3; // Start at day — dusk was reading as plain darkness
     this.timeScale = 0.02; // Day/night cycle speed
     this.zone = 'Downtown Core';
 

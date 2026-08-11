@@ -19,8 +19,10 @@ export class Character {
   _buildRig() {
     const isThuraya = this.type === 'thuraya';
     const skinColor = isThuraya ? 0xD4A574 : 0xC4916C;
-    const shirtColor = isThuraya ? 0x6B1A2F : 0x2E5A7C; // Burgundy vs Teal
-    const pantsColor = isThuraya ? 0x3D2817 : 0x1E3A50;
+    // Brighter, more saturated than the original dark burgundy/navy — those
+    // read as near-identical dark blobs once the scene lighting dims them.
+    const shirtColor = isThuraya ? 0x9B2C4A : 0x1E9AA8; // Burgundy vs Teal
+    const pantsColor = isThuraya ? 0x5A3A22 : 0x2A4A66;
     const hairColor = isThuraya ? 0x2A1A10 : 0x1A1A2E;
 
     // Materials

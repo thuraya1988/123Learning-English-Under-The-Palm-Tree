@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 
-// Procedural rigged cartoon character with animation states
+// Procedural rigged cartoon character with animation states.
+// Malexa merges what used to be two separate playable characters (Thuraya's
+// speed/wallrun, Alex's swing/zip) into one — there is no longer a
+// character-select step, so she carries the best of both traversal stats.
 export class Character {
-  constructor(type = 'thuraya') {
-    this.type = type;
+  constructor() {
     this.mesh = new THREE.Group();
     this.bones = {};
     this.animations = {};
@@ -17,13 +19,13 @@ export class Character {
   }
 
   _buildRig() {
-    const isThuraya = this.type === 'thuraya';
-    const skinColor = isThuraya ? 0xD4A574 : 0xC4916C;
-    // Brighter, more saturated than the original dark burgundy/navy — those
-    // read as near-identical dark blobs once the scene lighting dims them.
-    const shirtColor = isThuraya ? 0x9B2C4A : 0x1E9AA8; // Burgundy vs Teal
-    const pantsColor = isThuraya ? 0x5A3A22 : 0x2A4A66;
-    const hairColor = isThuraya ? 0x2A1A10 : 0x1A1A2E;
+    const skinColor = 0xD4A574;
+    // Burgundy shirt (the site's own brand color) with a teal wristband/
+    // shoe trim as a small nod to the two merged characters' old palettes.
+    const shirtColor = 0x9B2C4A;
+    const pantsColor = 0x5A3A22;
+    const hairColor = 0x2A1A10;
+    const trimColor = 0x1E9AA8;
 
     // Materials
     const skinMat = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.6 });
@@ -103,6 +105,16 @@ export class Character {
     const handR = new THREE.Mesh(handGeo, skinMat);
     handR.position.y = -1.2;
     this.bones.armR.add(handR);
+
+    // Wristbands (teal trim)
+    const trimMat = new THREE.MeshStandardMaterial({ color: trimColor, roughness: 0.6 });
+    const bandGeo = new THREE.CylinderGeometry(0.14, 0.14, 0.1, 8);
+    const bandL = new THREE.Mesh(bandGeo, trimMat);
+    bandL.position.y = -1.0;
+    this.bones.armL.add(bandL);
+    const bandR = new THREE.Mesh(bandGeo, trimMat);
+    bandR.position.y = -1.0;
+    this.bones.armR.add(bandR);
 
     // Legs
     this.bones.legL = new THREE.Group();

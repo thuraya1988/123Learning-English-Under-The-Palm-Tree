@@ -4,7 +4,20 @@ import * as THREE from 'three';
    RACING ADVENTURE — سباق الصحراء
    Core structure: car customization + paint editor + endless
    desert road with traffic dodging + tornado hazard.
-   Educational content (vocabulary/questions) wires in later.
+
+   Educational content: grounded in the real "Uncle Nasser's
+   Pickup" scene (Palm Four — The Morning Departure to the Souq)
+   from Palm_Tree_ENGLISH-TTS.html, where Uncle Nasser drives the
+   children down the unpaved road to Samail market, passing a
+   wadi, a flock of goats, palm groves, a man on a donkey, and
+   Umm Salim walking with a bundle on her head. Linguistic focus:
+   prepositions of place & direction — the player STEERS into the
+   lane holding the correct preposition as three road-signs
+   approach, instead of tapping/shooting like the other games.
+   The six "Did You Know?" facts are taken from the real dyk-card
+   entries in that same chapter cluster (flag, souq, Zanzibar
+   trade, ghaf tree, Jibreen Castle, the 1970 road-building
+   renaissance) — none reused from Tank Adventure's six.
    ============================================================ */
 
 const $ = (sel) => document.querySelector(sel);
@@ -14,6 +27,30 @@ function showScreen(id) {
   $$('.screen').forEach((s) => s.classList.remove('active'));
   $('#' + id).classList.add('active');
 }
+
+/* ---------------- PREPOSITIONS OF PLACE/DIRECTION (grounded in the truck-ride scene) ---------------- */
+const PREP_ROUNDS = [
+  { sentence: 'Uncle Nasser drove the truck ___ the bumpy road to Samail.', correct: 'along', decoys: ['under', 'behind'] },
+  { sentence: 'They passed ___ the ancient palm groves.', correct: 'through', decoys: ['behind', 'above'] },
+  { sentence: 'The flock of goats moved ___ the edge of the road.', correct: 'to', decoys: ['under', 'behind'] },
+  { sentence: "The truck's wheels raised a cloud of dust ___ them.", correct: 'beneath', decoys: ['above', 'beside'] },
+  { sentence: 'Uncle Nasser raised his hand ___ the man on the donkey.', correct: 'at', decoys: ['under', 'behind'] },
+  { sentence: 'Safiya sat ___ Ahmed in the back of the truck.', correct: 'beside', decoys: ['under', 'through'] },
+  { sentence: 'The red mountains stood ___ them as they drove closer.', correct: 'in front of', decoys: ['behind', 'beneath'] },
+  { sentence: 'Umm Salim was walking ___ the road, a bundle balanced on her head.', correct: 'along', decoys: ['above', 'behind'] },
+  { sentence: 'The truck finally arrived ___ Samail market.', correct: 'at', decoys: ['under', 'through'] },
+  { sentence: 'The children climbed down ___ the truck.', correct: 'from', decoys: ['at', 'beside'] },
+];
+
+/* ---------------- REAL OMANI FACTS (from the same chapter cluster, none reused from Tank Adventure) ---------------- */
+const ROUTE_FACTS = [
+  { title: 'علم عُمان', text: 'رفعت السفياء والمعلمين علم عُمان أمام المدرسة — والعلم فعلاً حديث نسبيًا: أعلنه السلطان قابوس في 17 ديسمبر 1970. الأبيض للسلام، والأخضر للأرض الخصبة والجبل الأخضر، والأحمر للمعارك اللي دافع فيها العُمانيون عن بلدهم.' },
+  { title: 'سوق مطرح التاريخي', text: 'سوق مطرح اللي تاه فيه منصور مو سوق عادي — أجزاء منه عمرها أكثر من ألف سنة، وكان مركز تجارة التوابل واللبان بين الهند وأفريقيا والجزيرة العربية. يسمونه محليًا "السوق المظلم" لأن أزقته الضيقة المسقوفة ما يدخلها ضوء النهار.' },
+  { title: 'عُمان وزنجبار', text: 'اللي التاجر الزنجباري قابل جون وصوفيا فيه في ميناء مطرح مو خيال — عُمان فعلاً حكمت زنجبار لعقود. سنة 1832 نقل السلطان سعيد بن سلطان عاصمته من مسقط إلى زنجبار، وازدهرت تجارة التوابل والعاج بين الساحلين لين انقسمت السلطنتان بعد وفاته سنة 1856.' },
+  { title: 'شجرة الغاف', text: 'تجتمع الفصول تحت شجرة الغاف القديمة، "كأنها فصل بلا جدران". هذه الشجرة تعيش في عُمان والخليج من آلاف السنين، تتحمل الجفاف الشديد وتبقى خضراء رغم الحر — بعضها يعيش أكثر من 120 سنة، وتوفر الظل والغذاء للناس والحيوانات.' },
+  { title: 'قلعة جبرين', text: 'قلعة جبرين اللي زارها الأطفال حقيقية، موجودة في ولاية بهلاء، بُنيت سنة 1675م بأمر الإمام بلعرب بن سلطان اليعربي. ما كانت بس مقر حكم — كانت مركز تعليم للفلك والطب والفقه، ومشهورة بسقوفها المزخرفة ونظام تبريدها بالفلج.' },
+  { title: 'نهضة عُمان الحديثة', text: 'كلام جون "يفتحون مدارس، يبنون طرق، شي جديد يبدأ" وصف حقيقي لعُمان السبعينات. لما تولى السلطان قابوس، كان في البلد بس 3 مدارس لـ900 طالب، و9 مراكز صحية، و6 أميال بس طرق مرصوفة. خلال سنوات قليلة وصلت المدارس والمستشفيات والطرق لكل ركن من عُمان — فيما عُرف بـ"النهضة المباركة".' },
+];
 
 /* ---------------- CAR STATE ---------------- */
 const carState = {
@@ -347,6 +384,62 @@ function buildCarMesh(type, colorHex, skin) {
   return group;
 }
 
+/* ---------------- ROAD-SIGN LABEL (canvas texture on a sprite) ---------------- */
+function makeGateLabelSprite() {
+  const c = document.createElement('canvas');
+  c.width = 220; c.height = 100;
+  const ctx = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  sp.scale.set(2.0, 0.9, 1);
+  sp.userData.canvas = c;
+  sp.userData.ctx = ctx;
+  sp.userData.tex = tex;
+  return sp;
+}
+function setGateLabelText(sprite, text, state) {
+  const c = sprite.userData.canvas;
+  const ctx = sprite.userData.ctx;
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = state === 'correct' ? 'rgba(46,125,79,.92)' : state === 'wrong' ? 'rgba(163,42,42,.92)' : 'rgba(74,53,32,.88)';
+  ctx.beginPath();
+  ctx.roundRect(4, 4, c.width - 8, c.height - 8, 14);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(245,237,216,.7)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.font = '700 40px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#F5EDD8';
+  ctx.fillText(text, c.width / 2, c.height / 2 + 2);
+  sprite.userData.tex.needsUpdate = true;
+}
+
+/* ---------------- ROAD-SIGN GATE POOL (prepositions round) ---------------- */
+function buildGate() {
+  const g = new THREE.Group();
+  const postMat = new THREE.MeshStandardMaterial({ color: 0x4A3520, roughness: 0.8 });
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.1, 8), postMat);
+  post.position.y = 1.05;
+  g.add(post);
+  const label = makeGateLabelSprite();
+  label.position.y = 2.15;
+  g.add(label);
+  g.userData.label = label;
+  return g;
+}
+function buildGatePool() {
+  const items = [];
+  for (let i = 0; i < 3; i++) {
+    const g = buildGate();
+    g.visible = false;
+    scene.add(g);
+    items.push({ g, active: false, word: '', isCorrect: false, lane: 0 });
+  }
+  return items;
+}
+
 /* ---------------- TORNADO HAZARD ---------------- */
 function createTornado() {
   const group = new THREE.Group();
@@ -388,7 +481,7 @@ function createTornado() {
 
 /* ---------------- GAME ---------------- */
 let renderer, scene, camera, clock;
-let playerCar, road, decorPool = [], trafficPool = [], tornado;
+let playerCar, road, decorPool = [], trafficPool = [], tornado, gatePool = [];
 let animFrameId = null;
 let audioCtx, engineOsc, engineFilter, engineGain;
 
@@ -409,11 +502,19 @@ function startRace() {
     playerX: 0,
     distance: 0,
     score: 0,
+    bonus: 0,
     braking: false,
     tornadoActive: false,
     tornadoTimer: 8 + Math.random() * 4,
     tornadoWarned: false,
     trafficTimer: 2,
+    prepIndex: 0,
+    usedRecentPrep: [],
+    roundsCleared: 0,
+    lastFactAt: 0,
+    round: null,
+    roundTimer: 0,
+    gateCooldown: 3,
   };
 
   clock = new THREE.Clock();
@@ -453,6 +554,7 @@ function startRace() {
   road = buildRoadPool();
   decorPool = buildDecorPool();
   trafficPool = buildTrafficPool();
+  gatePool = buildGatePool();
   tornado = createTornado();
   tornado.visible = false;
   scene.add(tornado);
@@ -467,6 +569,80 @@ function startRace() {
   addEventListener('resize', onResize);
 
   animFrameId = requestAnimationFrame(loop);
+}
+
+/* ---------------- PREPOSITION ROUND LOGIC (steer into the correct lane sign) ---------------- */
+function nextPrepRound() {
+  let pick;
+  do {
+    pick = PREP_ROUNDS[gs.prepIndex % PREP_ROUNDS.length];
+    gs.prepIndex++;
+  } while (PREP_ROUNDS.length > 3 && gs.usedRecentPrep.includes(pick.sentence));
+  gs.usedRecentPrep.push(pick.sentence);
+  if (gs.usedRecentPrep.length > 3) gs.usedRecentPrep.shift();
+
+  $('#ruleLabel').textContent = pick.sentence.replace('___', '▁▁▁');
+
+  const options = [
+    { word: pick.correct, isCorrect: true },
+    { word: pick.decoys[0], isCorrect: false },
+    { word: pick.decoys[1], isCorrect: false },
+  ].sort(() => Math.random() - 0.5);
+
+  options.forEach((opt, i) => {
+    const gate = gatePool[i];
+    gate.active = true;
+    gate.g.visible = true;
+    gate.word = opt.word;
+    gate.isCorrect = opt.isCorrect;
+    gate.lane = i;
+    setGateLabelText(gate.g.userData.label, opt.word, 'idle');
+    gate.g.position.set(LANE_X[i], 0, -130);
+  });
+
+  gs.round = { resolved: false };
+  gs.roundTimer = 20;
+}
+
+function resolveGates() {
+  if (!gs.round || gs.round.resolved) return;
+  gs.round.resolved = true;
+  const nearestLaneIdx = LANE_X.reduce((best, x, i) => (Math.abs(x - gs.playerX) < Math.abs(LANE_X[best] - gs.playerX) ? i : best), 0);
+  const hitGate = gatePool.find((g) => g.lane === nearestLaneIdx);
+
+  gatePool.forEach((g) => setGateLabelText(g.g.userData.label, g.word, g.isCorrect ? 'correct' : (g === hitGate ? 'wrong' : 'idle')));
+
+  if (hitGate && hitGate.isCorrect) {
+    gs.bonus += 150;
+    gs.roundsCleared++;
+    playTone(880, 0.12);
+  } else {
+    playTone(180, 0.2, 'sawtooth');
+  }
+
+  setTimeout(() => {
+    gatePool.forEach((g) => { g.active = false; g.g.visible = false; });
+    if (!gs.running) return;
+    if (gs.roundsCleared > 0 && gs.roundsCleared % 3 === 0 && gs.roundsCleared !== gs.lastFactAt) {
+      gs.lastFactAt = gs.roundsCleared;
+      showFact();
+    } else {
+      gs.gateCooldown = 3.5 + Math.random() * 2;
+    }
+  }, 700);
+}
+
+function showFact() {
+  const fact = ROUTE_FACTS[Math.floor(Math.random() * ROUTE_FACTS.length)];
+  $('#factTitle').textContent = fact.title;
+  $('#factText').textContent = fact.text;
+  $('#factPopup').classList.add('active');
+  gs.paused = true;
+}
+function hideFact() {
+  $('#factPopup').classList.remove('active');
+  gs.paused = false;
+  gs.gateCooldown = 2;
 }
 
 function buildRoadPool() {
@@ -564,12 +740,14 @@ function bindGameControls() {
   $('#pauseBtn').addEventListener('click', togglePause);
   $('#goRestartBtn').addEventListener('click', () => { showScreen('screen-game'); startRace(); });
   $('#goMenuBtn').addEventListener('click', () => { showScreen('screen-menu'); });
+  $('#factContinueBtn').addEventListener('click', hideFact);
 }
 
 function toggleCamera() {
   gs.camMode = gs.camMode === 'chase' ? 'cockpit' : 'chase';
 }
 function togglePause() {
+  if ($('#factPopup').classList.contains('active')) return;
   gs.paused = !gs.paused;
   $('#pauseBtn').textContent = gs.paused ? '▶️' : '⏸️';
   if (engineGain) engineGain.gain.value = gs.paused ? 0 : 0.05;
@@ -595,6 +773,18 @@ function stopEngineAudio() {
   if (engineOsc) { try { engineOsc.stop(); } catch (e) {} }
   if (audioCtx) { try { audioCtx.close(); } catch (e) {} }
   audioCtx = engineOsc = engineFilter = engineGain = null;
+}
+function playTone(freq, dur, type) {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type || 'sine';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.14, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+  o.connect(g).connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + dur + 0.03);
 }
 
 function loop() {
@@ -628,7 +818,7 @@ function update(dt) {
 
   const moveZ = gs.speed * dt;
   gs.distance += moveZ;
-  gs.score = Math.floor(gs.distance) ;
+  gs.score = Math.floor(gs.distance) + gs.bonus;
 
   // recycle road
   road.segs.forEach((seg) => {
@@ -681,7 +871,22 @@ function update(dt) {
       gs.tornadoActive = false;
       $('#hud-warning').style.display = 'none';
       gs.tornadoTimer = 10 + Math.random() * 6;
-      gs.score += 25;
+      gs.bonus += 25;
+    }
+  }
+
+  // preposition road-sign gates
+  if (gs.gateCooldown > 0) {
+    gs.gateCooldown -= dt;
+    if (gs.gateCooldown <= 0) nextPrepRound();
+  } else if (gs.round && !gs.round.resolved) {
+    gs.roundTimer -= dt;
+    gatePool.forEach((g) => { if (g.active) g.g.position.z += moveZ; });
+    const anyGate = gatePool.find((g) => g.active);
+    if (anyGate && anyGate.g.position.z > -1) {
+      resolveGates();
+    } else if (gs.roundTimer <= 0) {
+      resolveGates();
     }
   }
 
@@ -717,6 +922,7 @@ function updateCamera(dt) {
 function updateHud() {
   $('#hud-distance').textContent = `المسافة: ${Math.floor(gs.distance)}م`;
   $('#hud-score').textContent = `النقاط: ${gs.score}`;
+  $('#hud-round').textContent = `الجولات: ${gs.roundsCleared}`;
   const kmh = Math.round(gs.speed * 9);
   $('#speedVal').textContent = kmh;
   const gear = kmh < 15 ? '1' : kmh < 60 ? '2' : kmh < 130 ? '3' : kmh < 220 ? '4' : '5';

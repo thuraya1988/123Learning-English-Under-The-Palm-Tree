@@ -3,10 +3,19 @@ import * as THREE from 'three';
 /* ============================================================
    SPACE ADVENTURE — مغامرة الفضاء
    Core structure: endless flight through the solar system,
-   tap/shoot the orb with the correct Arabic meaning of the
-   English word shown, dodge asteroids, avoid the black hole.
+   tap/shoot the orb carrying the correct English meaning of
+   the word shown, dodge asteroids, avoid the black hole.
    Assets reused: F-35 style ship, Earth/Moon/Sun flybys,
    black-hole hazard, procedural engine flame.
+
+   Vocabulary content: every word, emoji and meaning below is
+   taken verbatim (or trimmed to its first clause) from the real
+   glossary entries (class="vw", data-w/data-e/data-m) embedded
+   in Palm_Tree_ENGLISH-TTS.html — nothing invented, per
+   data/storyReference.ts's "do not invent vocabulary" rule.
+   Round mechanic: match the English word to its real English
+   meaning, not a translation (the novel's glossary is
+   English-only).
    ============================================================ */
 
 const $ = (sel) => document.querySelector(sel);
@@ -17,23 +26,34 @@ function showScreen(id) {
   $('#' + id).classList.add('active');
 }
 
-/* ---------------- VOCABULARY BANK ---------------- */
+/* ---------------- VOCABULARY BANK (real words from the novel's glossary) ---------------- */
 const WORD_BANK = [
-  { en: 'Carrot', ar: 'جزرة', emoji: '🥕' },
-  { en: 'Apple', ar: 'تفاحة', emoji: '🍎' },
-  { en: 'Star', ar: 'نجمة', emoji: '⭐' },
-  { en: 'Moon', ar: 'قمر', emoji: '🌙' },
-  { en: 'Sun', ar: 'شمس', emoji: '☀️' },
-  { en: 'Book', ar: 'كتاب', emoji: '📖' },
-  { en: 'Cat', ar: 'قطة', emoji: '🐱' },
-  { en: 'Dog', ar: 'كلب', emoji: '🐶' },
-  { en: 'Water', ar: 'ماء', emoji: '💧' },
-  { en: 'Fire', ar: 'نار', emoji: '🔥' },
-  { en: 'Fish', ar: 'سمكة', emoji: '🐟' },
-  { en: 'Bird', ar: 'طائر', emoji: '🐦' },
-  { en: 'Tree', ar: 'شجرة', emoji: '🌳' },
-  { en: 'House', ar: 'بيت', emoji: '🏠' },
-  { en: 'Ball', ar: 'كرة', emoji: '⚽' },
+  { en: 'Falaj', emoji: '💧', meaning: "An ancient Omani irrigation channel carved from stone" },
+  { en: 'Goat', emoji: '🐐', meaning: 'A four-legged farm animal with hooves and sometimes horns' },
+  { en: 'Wadi', emoji: '🏞️', meaning: 'A dry riverbed or valley that fills with water only during rains' },
+  { en: 'Khanjar', emoji: '🗡️', meaning: 'The curved ceremonial dagger of Oman, worn at the belt' },
+  { en: 'Kummah', emoji: '🧢', meaning: 'The traditional embroidered cap worn by Omani men' },
+  { en: 'Turban', emoji: '🧣', meaning: 'A length of cloth wound around the head' },
+  { en: 'Hijab', emoji: '🧕', meaning: 'A head covering worn by Muslim women as a sign of modesty' },
+  { en: 'Kabsa', emoji: '🍚', meaning: 'Spiced rice cooked with meat' },
+  { en: 'Frankincense', emoji: '🌿', meaning: 'A sweet-smelling resin burned as incense' },
+  { en: 'Hospitality', emoji: '☕', meaning: 'The friendly reception and treatment of guests' },
+  { en: 'Emblem', emoji: '🇴🇲', meaning: 'The official symbol at the centre of the Omani flag' },
+  { en: 'Tribe', emoji: '👥', meaning: 'A social group made up of many families who share a common ancestor' },
+  { en: 'Ghost', emoji: '👻', meaning: 'The spirit of a dead person, believed to appear to the living' },
+  { en: 'Sorcerer', emoji: '🧙', meaning: 'A person believed to practise magic' },
+  { en: 'Kind', emoji: '💙', meaning: 'Gentle and caring in the way a person looks at someone' },
+  { en: 'Generous', emoji: '💝', meaning: 'Kind and willing to give freely' },
+  { en: 'Proud', emoji: '🙇', meaning: "Feeling satisfaction about an achievement" },
+  { en: 'Gratitude', emoji: '🙏', meaning: 'A feeling of being thankful' },
+  { en: 'Patience', emoji: '⏳', meaning: 'The quality of waiting calmly without hurrying' },
+  { en: 'Hero', emoji: '🦸', meaning: 'A person admired for their courage or outstanding achievements' },
+  { en: 'Crescent', emoji: '🌙', meaning: 'A curved shape like a thin moon' },
+  { en: 'Earth', emoji: '🌍', meaning: 'The solid ground; our whole planet' },
+  { en: 'Nest', emoji: '🐝', meaning: 'A structure built by bees or wasps to live in' },
+  { en: 'Frog', emoji: '🐸', meaning: 'A small amphibious animal' },
+  { en: 'Sandals', emoji: '👡', meaning: 'Simple open shoes, usually with a strap' },
+  { en: 'Flock', emoji: '🐑', meaning: 'A group of sheep or goats moving together' },
 ];
 
 /* ---------------- MENU WIRING ---------------- */
@@ -340,8 +360,8 @@ function buildOrbPool() {
     g.add(core);
     const glow = makeGlowSprite(0x8feeff, 3.2);
     g.add(glow);
-    const label = makeLabelSprite('', '#fff');
-    label.position.y = 1.5;
+    const label = makeLabelSprite();
+    label.position.y = 1.95;
     g.add(label);
     g.visible = false;
     scene.add(g);
@@ -349,35 +369,58 @@ function buildOrbPool() {
   }
   return items;
 }
-function makeLabelSprite(text, color) {
+function makeLabelSprite() {
   const c = document.createElement('canvas');
-  c.width = 256; c.height = 96;
+  c.width = 256; c.height = 220;
   const ctx = c.getContext('2d');
-  ctx.font = '700 46px Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,.6)';
-  ctx.shadowBlur = 8;
-  ctx.fillStyle = color;
-  ctx.fillText(text, 128, 48);
   const tex = new THREE.CanvasTexture(c);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-  sp.scale.set(2.2, 0.85, 1);
+  sp.scale.set(2.3, 2.0, 1);
   sp.userData.canvas = c;
   sp.userData.ctx = ctx;
   sp.userData.tex = tex;
   return sp;
 }
-function setLabelText(sprite, text) {
+function wrapLines(ctx, text, maxWidth, maxLines) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (line && ctx.measureText(test).width > maxWidth) {
+      lines.push(line);
+      line = w;
+      if (lines.length === maxLines - 1) break;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  const rest = words.slice(lines.join(' ').split(' ').length).join(' ');
+  if (rest && lines.length >= maxLines) {
+    lines[maxLines - 1] = lines[maxLines - 1].replace(/\s*\S*$/, '') + '…';
+  }
+  return lines;
+}
+function setLabelText(sprite, emoji, meaning) {
+  const c = sprite.userData.canvas;
   const ctx = sprite.userData.ctx;
-  ctx.clearRect(0, 0, 256, 96);
-  ctx.font = '700 40px Arial, sans-serif';
+  ctx.clearRect(0, 0, c.width, c.height);
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,.6)';
+  ctx.shadowColor = 'rgba(0,0,0,.7)';
   ctx.shadowBlur = 8;
   ctx.fillStyle = '#fff';
-  ctx.fillText(text, 128, 48);
+
+  ctx.font = '54px Arial, sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, c.width / 2, 42);
+
+  ctx.font = '600 25px Arial, sans-serif';
+  ctx.textBaseline = 'alphabetic';
+  const lines = wrapLines(ctx, meaning, c.width - 16, 4);
+  const lineHeight = 30;
+  const startY = 98;
+  lines.forEach((l, i) => ctx.fillText(l, c.width / 2, startY + i * lineHeight));
   sprite.userData.tex.needsUpdate = true;
 }
 
@@ -418,7 +461,7 @@ function spawnRound(word) {
   orbPool.forEach((o) => { o.active = false; o.g.visible = false; });
   const decoys = WORD_BANK.filter((w) => w.en !== word.en).sort(() => Math.random() - 0.5).slice(0, 3);
   const options = [word, ...decoys].sort(() => Math.random() - 0.5);
-  const slots = [-3.6, -1.2, 1.2, 3.6];
+  const slots = [-3.9, -1.3, 1.3, 3.9];
   options.forEach((opt, i) => {
     const o = orbPool[i];
     if (!o) return;
@@ -426,7 +469,7 @@ function spawnRound(word) {
     o.g.visible = true;
     o.correct = opt.en === word.en;
     o.entry = opt;
-    setLabelText(o.label, `${opt.emoji} ${opt.ar}`);
+    setLabelText(o.label, opt.emoji, opt.meaning);
     o.g.position.set(slots[i] + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 2.2, -120 - Math.random() * 10);
   });
   gs.round = { resolved: false };

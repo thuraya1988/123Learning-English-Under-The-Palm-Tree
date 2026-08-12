@@ -456,7 +456,10 @@ const CARS=[
  {id:5,name:'悍马',en:'HMMWV',color:0x4b5320,stripe:0x2f3a14,price:15000,speed:0.86,handl:0.78,nitro:0.85,armor:2,desc:'装甲越野悍马，皮糙肉厚但转向偏重'},
  {id:6,name:'顶点GT-X',en:'APEX GT-X',color:0xc8102e,stripe:0x141414,price:35000,speed:1.20,handl:1.08,nitro:1.28,armor:0,desc:'低趴超跑，极速与氮气储备冠绝全场'},
  {id:7,name:'城市出租车',en:'CITY TAXI',color:0xf1c40f,stripe:0x111111,price:8000,speed:0.96,handl:1.06,nitro:0.96,armor:0,desc:'灵活的城市出租车，均衡好开'},
- {id:8,name:'校车',en:'SCHOOL BUS',color:0xf0ae08,stripe:0x2c2c2c,price:5000,speed:0.72,handl:0.66,nitro:0.72,armor:3,desc:'又高又重的校车，皮实但笨拙，图个好玩'}];
+ {id:8,name:'校车',en:'SCHOOL BUS',color:0xf0ae08,stripe:0x2c2c2c,price:5000,speed:0.72,handl:0.66,nitro:0.72,armor:3,desc:'又高又重的校车，皮实但笨拙，图个好玩'},
+ {id:9,name:'消防车77',en:'FIRE TRUCK 77',color:0xc01424,stripe:0xffffff,price:18000,speed:0.82,handl:0.76,nitro:0.8,armor:2,desc:'红色消防车，装备齐全，警灯闪烁'},
+ {id:10,name:'家庭SUV X7',en:'FAMILY SUV X7',color:0xe2e5e8,stripe:0x22242a,price:22000,speed:0.98,handl:1.0,nitro:1.0,armor:1,desc:'豪华家庭SUV，均衡稳重'},
+ {id:11,name:'小型运输车',en:'UTILITY CART',color:0xd8442a,stripe:0x222429,price:4000,speed:0.7,handl:1.1,nitro:0.7,armor:0,desc:'小巧灵活的运输小车，转向轻快'}];
 const ACHS=[
  {id:0,name:'初次启程',desc:'完成 1 局游戏',get:d=>d.st.runs,goal:1,rw:200},
  {id:1,name:'千里之行',desc:'累计里程达到 10 km',get:d=>d.st.dist,goal:10000,div:1000,unit:'km',rw:300},
@@ -482,7 +485,7 @@ function mergeSave(o){try{
   if(!o||typeof o!=='object')return;
   SAVE.gold=clamp(o.gold|0,0,1073741823);SAVE.best=Math.max(0,o.best|0);
   SAVE.upg=UPG.map((u,i)=>clamp((o.upg&&o.upg[i])|0,0,u.max));
-  SAVE.cars=((o.cars|0)&511)||1;SAVE.carSel=clamp(o.carSel|0,0,8);
+  SAVE.cars=((o.cars|0)&4095)||1;SAVE.carSel=clamp(o.carSel|0,0,11);
   if(!(SAVE.cars&(1<<SAVE.carSel)))SAVE.carSel=0;
   SAVE.ach=(o.ach|0)&16383;
   if(o.st)for(const k in SAVE.st)SAVE.st[k]=Math.max(0,o.st[k]|0);
@@ -492,7 +495,7 @@ try{const j=store.get('sr_save');if(j)mergeSave(JSON.parse(j));}catch(e){}
 SAVE.mute=muted?1:0;
 
 const B32='0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-const FLEN=[4,30,30,3,3,3,3,3,3,9,4,14,14,18,20,16,14,10,10,1,1];
+const FLEN=[4,30,30,3,3,3,3,3,3,12,4,14,14,18,20,16,14,10,10,1,1];
 function saveFields(){return [1,SAVE.gold,SAVE.best,SAVE.upg[0],SAVE.upg[1],SAVE.upg[2],
   SAVE.upg[3],SAVE.upg[4],SAVE.upg[5],SAVE.cars,SAVE.carSel,SAVE.ach,
   SAVE.st.runs,Math.floor(SAVE.st.dist/100),SAVE.st.coins,SAVE.st.miss,SAVE.st.fly,
@@ -504,14 +507,14 @@ function encodeSave(){
     for(let b=len-1;b>=0;b--)n=(n<<1n)|BigInt((x>>>b)&1);});
   for(let b=9;b>=0;b--)n=(n<<1n)|BigInt((cs>>b)&1);
   let s='';while(n>0n){s=B32[Number(n&31n)]+s;n>>=5n;}
-  return s.padStart(45,'0').replace(/(.{4})/g,'$1-').replace(/-$/,'');}
+  return s.padStart(46,'0').replace(/(.{4})/g,'$1-').replace(/-$/,'');}
 function decodeSave(str){try{
   const clean=String(str).toUpperCase().replace(/I|L/g,'1').replace(/O/g,'0').replace(/[^0-9A-Z]/g,'');
-  if(clean.length!==45)return null;
+  if(clean.length!==46)return null;
   let n=0n;
   for(const ch of clean){const i=B32.indexOf(ch);if(i<0)return null;n=(n<<5n)|BigInt(i);}
   const csGot=Number(n&1023n);n>>=10n;
-  const bin=n.toString(2).padStart(213,'0');
+  const bin=n.toString(2).padStart(216,'0');
   let pos=0;const read=len=>{const v=parseInt(bin.slice(pos,pos+len),2)||0;pos+=len;return v;};
   const f=FLEN.map(read);
   let cs=0;f.forEach((x,i)=>cs=(cs*31+x+i*7)&1023);
@@ -746,6 +749,20 @@ function shellSchoolBus(tilt,paint,stripeM){
   box(tilt,M.glass,1.7,.4,.08,0,1.15,-2.05,-.15);
   for(let i=0;i<3;i++){box(tilt,M.glass,.02,.34,.7,-.97,1.1,-.9+i*.9);box(tilt,M.glass,.02,.34,.7,.97,1.1,-.9+i*.9);}
   box(tilt,stripeM,2.0,.08,.06,0,.95,-2.24);}
+function shellFireTruck(tilt,paint,stripeM){
+  box(tilt,paint,1.9,.5,2.6,0,.65,-.9);box(tilt,paint,1.86,.55,1.7,0,.85,1.35);
+  box(tilt,M.glass,1.7,.4,.08,0,1.05,2.15,-.3);
+  box(tilt,stripeM,.4,.06,3.6,-.9,.55,0);box(tilt,stripeM,.4,.06,3.6,.9,.55,0);
+  box(tilt,M.dark,1.9,.14,.3,0,1.5,-.9);}
+function shellSuvX7(tilt,paint,stripeM){
+  box(tilt,paint,1.94,.5,4.3,0,.6,0);box(tilt,paint,1.86,.5,2.6,0,1.05,-.1);
+  box(tilt,M.glass,1.7,.4,.08,0,1.15,-1.6,-.3);box(tilt,M.glass,1.7,.36,.08,0,1.18,1.15,.32);
+  for(let i=0;i<2;i++){box(tilt,M.glass,.02,.32,.7,-.98,1.15,-.4+i*.9);box(tilt,M.glass,.02,.32,.7,.98,1.15,-.4+i*.9);}
+  box(tilt,M.dark,1.9,.04,3.6,0,1.62,0);box(tilt,stripeM,.4,.03,2.6,0,1.42,-.1);}
+function shellCart(tilt,paint,stripeM){
+  box(tilt,paint,1.8,.36,2.2,0,.5,-.4);box(tilt,paint,1.7,.3,1.0,0,.85,-1.55);
+  box(tilt,M.dark,1.7,.4,1.4,0,.9,.9);
+  box(tilt,stripeM,.3,.05,2.0,-.85,.55,-.4);box(tilt,stripeM,.3,.05,2.0,.85,.55,-.4);}
 
 /* 玩家车辆（按所选车辆配色重建） */
 const player={x:1.6};
@@ -758,6 +775,9 @@ function buildPlayerCar(cd){
   else if(cd.id===6)shellApexGTX(tilt,paint,stripeM);
   else if(cd.id===7)shellTaxi(tilt,paint,stripeM);
   else if(cd.id===8)shellSchoolBus(tilt,paint,stripeM);
+  else if(cd.id===9)shellFireTruck(tilt,paint,stripeM);
+  else if(cd.id===10)shellSuvX7(tilt,paint,stripeM);
+  else if(cd.id===11)shellCart(tilt,paint,stripeM);
   else{
     box(tilt,paint,1.9,.44,4.4,0,.52,0);box(tilt,paint,1.76,.15,1.5,0,.82,-1.35);
     box(tilt,paint,1.76,.13,1.0,0,.82,1.62);box(tilt,paint,1.6,.46,1.9,0,1.08,.15);

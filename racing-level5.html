@@ -439,6 +439,9 @@
                 <div class="option-btn" data-type="apex">سوبركار APEX</div>
                 <div class="option-btn" data-type="taxi">تاكسي المدينة</div>
                 <div class="option-btn" data-type="bus">باص مدرسي</div>
+                <div class="option-btn" data-type="firetruck">شاحنة إطفاء</div>
+                <div class="option-btn" data-type="suvx7">SUV عائلية</div>
+                <div class="option-btn" data-type="cart">عربة نقل</div>
             </div>
         </div>
 
@@ -884,9 +887,157 @@
         return carGroup;
     }
 
+    // ---- شاحنة إطفاء 77 ----
+    function makeFirePlateTexture() {
+        const c = document.createElement('canvas'); c.width = 320; c.height = 90;
+        const g = c.getContext('2d');
+        g.fillStyle = '#c01424'; g.fillRect(0, 0, 320, 90);
+        g.fillStyle = '#fff'; g.font = 'bold 40px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText('FIRE 77', 160, 47);
+        return new THREE.CanvasTexture(c);
+    }
+    function buildFireTruck(color, detailed) {
+        const carGroup = new THREE.Group();
+        const paintTex = makeNoiseTexture('#c01424', '#8a0e18');
+        paintTex.repeat.set(4, 1);
+        const bodyMat = new THREE.MeshPhongMaterial({ color: color, map: paintTex, shininess: 70 });
+        const glassMat = new THREE.MeshPhongMaterial({ color: 0x223344, shininess: 100, transparent: true, opacity: 0.6 });
+        const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+        const rimMat = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 140 });
+        const chromeMat = new THREE.MeshPhongMaterial({ color: 0xbbbbbb, shininess: 150 });
+
+        const equipBody = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.0, 3.0), bodyMat);
+        equipBody.position.set(0, 0.85, -0.9); equipBody.castShadow = true; carGroup.add(equipBody);
+        const cab = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.05, 1.7), bodyMat);
+        cab.position.set(0, 1.0, 1.55); cab.castShadow = true; carGroup.add(cab);
+        const windshield = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.55, 0.06), glassMat);
+        windshield.position.set(0, 1.35, 2.35); carGroup.add(windshield);
+
+        const plateTex = makeFirePlateTexture();
+        const plate = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.5), new THREE.MeshBasicMaterial({ map: plateTex, transparent: true }));
+        plate.position.set(1.16, 0.9, -0.9); plate.rotation.y = Math.PI / 2; carGroup.add(plate);
+
+        if (detailed) {
+            const ladder = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 2.6), chromeMat);
+            ladder.position.set(0, 1.45, -0.9); carGroup.add(ladder);
+            const beaconColors = [0xff2010, 0x2050ff];
+            for (let i = 0; i < 4; i++) {
+                const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), new THREE.MeshBasicMaterial({ color: beaconColors[i % 2] }));
+                beacon.position.set(i < 2 ? -0.4 : 0.4, 1.65, i % 2 === 0 ? 1.9 : -1.9); carGroup.add(beacon);
+            }
+            const bumperF = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.22, 0.2), chromeMat);
+            bumperF.position.set(0, 0.35, 2.5); carGroup.add(bumperF);
+        }
+
+        const wpos = [[-1.1, 1.5], [1.1, 1.5], [-1.1, -1.4], [1.1, -1.4]];
+        carGroup.add(buildWheelSet(0.48, 0.4, wpos, wheelMat, rimMat, detailed));
+
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff6c8 });
+        const hl1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.08), lightMat); hl1.position.set(-0.75, 0.9, 2.36); carGroup.add(hl1);
+        const hl2 = hl1.clone(); hl2.position.x = 0.75; carGroup.add(hl2);
+        const tailMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const tl1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.08), tailMat); tl1.position.set(-0.9, 0.9, -2.41); carGroup.add(tl1);
+        const tl2 = tl1.clone(); tl2.position.x = 0.9; carGroup.add(tl2);
+
+        return carGroup;
+    }
+
+    // ---- SUV عائلية X7 ----
+    function buildSuvX7(color, detailed) {
+        const carGroup = new THREE.Group();
+        const bodyMat = new THREE.MeshPhongMaterial({ color: color, shininess: 100 });
+        const cladMat = new THREE.MeshPhongMaterial({ color: 0x222429, shininess: 30 });
+        const glassMat = new THREE.MeshPhongMaterial({ color: 0x2a3844, shininess: 110, transparent: true, opacity: 0.55 });
+        const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+        const rimMat = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 140 });
+
+        const lower = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.55, 4.3), bodyMat);
+        lower.position.y = 0.55; lower.castShadow = true; carGroup.add(lower);
+        const upper = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.6, 2.9), bodyMat);
+        upper.position.set(0, 1.1, -0.15); upper.castShadow = true; carGroup.add(upper);
+        const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.86, 0.42, 0.06), glassMat);
+        windshield.position.set(0, 1.2, 1.6); carGroup.add(windshield);
+        const rearGlass = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.4, 0.06), glassMat);
+        rearGlass.position.set(0, 1.22, -1.9); carGroup.add(rearGlass);
+        for (const s of [-1, 1]) for (let i = 0; i < 2; i++) {
+            const win = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.34, 0.75), glassMat);
+            win.position.set(s * 1.02, 1.2, -0.5 + i * 0.95); carGroup.add(win);
+        }
+        for (const s of [-1, 1]) {
+            const clad = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.2, 4.2), cladMat);
+            clad.position.set(s * 1.06, 0.32, 0); carGroup.add(clad);
+        }
+        const rails = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.05, 3.5), cladMat);
+        rails.position.set(0, 1.42, -0.15); carGroup.add(rails);
+
+        if (detailed) {
+            const bumperF = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.22, 0.2), cladMat);
+            bumperF.position.set(0, 0.35, 2.15); carGroup.add(bumperF);
+            const bumperR = bumperF.clone(); bumperR.position.z = -2.15; carGroup.add(bumperR);
+            const mirrorGeo = new THREE.BoxGeometry(0.08, 0.18, 0.28);
+            const mL = new THREE.Mesh(mirrorGeo, bodyMat); mL.position.set(-1.06, 1.15, 1.35); carGroup.add(mL);
+            const mR = mL.clone(); mR.position.x = 1.06; carGroup.add(mR);
+        }
+
+        const wpos = [[-1.0, 1.35], [1.0, 1.35], [-1.0, -1.35], [1.0, -1.35]];
+        carGroup.add(buildWheelSet(0.42, 0.36, wpos, wheelMat, rimMat, detailed));
+
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0xd8f4ff });
+        const hl1 = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.16, 0.08), lightMat); hl1.position.set(-0.7, 0.75, 2.16); carGroup.add(hl1);
+        const hl2 = hl1.clone(); hl2.position.x = 0.7; carGroup.add(hl2);
+        const tailMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const tl1 = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.18, 0.08), tailMat); tl1.position.set(-0.85, 0.85, -2.16); carGroup.add(tl1);
+        const tl2 = tl1.clone(); tl2.position.x = 0.85; carGroup.add(tl2);
+
+        return carGroup;
+    }
+
+    // ---- عربة نقل صغيرة ----
+    function buildUtilityCart(color, detailed) {
+        const carGroup = new THREE.Group();
+        const bodyMat = new THREE.MeshPhongMaterial({ color: color, shininess: 60 });
+        const bedMat = new THREE.MeshPhongMaterial({ color: 0x222429, shininess: 30 });
+        const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+        const rimMat = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 140 });
+        const cageMat = new THREE.MeshPhongMaterial({ color: 0x2a2c30, shininess: 40 });
+
+        const main = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.5, 2.0), bodyMat);
+        main.position.set(0, 0.45, -0.3); main.castShadow = true; carGroup.add(main);
+        const nose = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 0.8), bodyMat);
+        nose.position.set(0, 0.5, -1.35); carGroup.add(nose);
+        const bed = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, 1.15), bedMat);
+        bed.position.set(0, 0.65, 0.85); carGroup.add(bed);
+        for (const s of [-1, 1]) {
+            const cage = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.55, 1.1), cageMat);
+            cage.position.set(s * 0.75, 0.95, -0.5); carGroup.add(cage);
+        }
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 1.1), cageMat);
+        canopy.position.set(0, 1.2, -0.5); carGroup.add(canopy);
+
+        if (detailed) {
+            const crate = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.5), new THREE.MeshPhongMaterial({ color: 0x8a6840, shininess: 20 }));
+            crate.position.set(0, 0.95, 0.85); carGroup.add(crate);
+        }
+
+        const wpos = [[-0.78, 1.0], [0.78, 1.0], [-0.78, -1.0], [0.78, -1.0]];
+        carGroup.add(buildWheelSet(0.36, 0.3, wpos, wheelMat, rimMat, detailed));
+
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff6c8 });
+        const hl1 = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.06), lightMat); hl1.position.set(-0.55, 0.62, -1.72); carGroup.add(hl1);
+        const hl2 = hl1.clone(); hl2.position.x = 0.55; carGroup.add(hl2);
+        const tailMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const tl1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.14, 0.06), tailMat); tl1.position.set(-0.6, 0.62, 1.43); carGroup.add(tl1);
+        const tl2 = tl1.clone(); tl2.position.x = 0.6; carGroup.add(tl2);
+
+        return carGroup;
+    }
+
     function createCar(type, color, detailed = false) {
         if (type === 'apex') return buildApexGTX(color, detailed);
         if (type === 'taxi') return buildTaxi(color, detailed);
+        if (type === 'firetruck') return buildFireTruck(color, detailed);
+        if (type === 'suvx7') return buildSuvX7(color, detailed);
+        if (type === 'cart') return buildUtilityCart(color, detailed);
         if (type === 'bus') return buildSchoolBus(color, detailed);
         return buildHMMWV(color, detailed);
     }

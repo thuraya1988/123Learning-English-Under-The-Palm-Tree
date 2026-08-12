@@ -435,11 +435,9 @@
         <div class="menu-section">
             <div class="section-title">🚗 نوع السيارة</div>
             <div class="option-row">
-                <div class="option-btn active" data-type="sport">رياضية</div>
-                <div class="option-btn" data-type="pickup">بيك أب</div>
-                <div class="option-btn" data-type="limo">ليموزين</div>
-                <div class="option-btn" data-type="hummer">همر</div>
-                <div class="option-btn" data-type="suv">دفع رباعي</div>
+                <div class="option-btn active" data-type="hmmwv">همفي عسكرية</div>
+                <div class="option-btn" data-type="apex">سوبركار APEX</div>
+                <div class="option-btn" data-type="taxi">تاكسي المدينة</div>
             </div>
         </div>
 
@@ -548,7 +546,7 @@
 
 <script>
     // الإعدادات
-    let selectedCarType = 'sport';
+    let selectedCarType = 'hmmwv';
     let selectedColor = 0xe74c3c;
 
     let currentSpeed = 0.04;
@@ -580,185 +578,228 @@
 
     const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 
-    // ==================== إنشاء السيارات ====================
-    function createCar(type, color, detailed = false) {
+    // ==================== إنشاء السيارات (همفي عسكرية، سوبركار APEX، تاكسي المدينة) ====================
+    function makeNoiseTexture(baseColor, splotchColor, size) {
+        size = size || 128;
+        const c = document.createElement('canvas'); c.width = c.height = size;
+        const g = c.getContext('2d');
+        g.fillStyle = baseColor; g.fillRect(0, 0, size, size);
+        g.fillStyle = splotchColor;
+        for (let i = 0; i < 40; i++) {
+            const x = Math.random() * size, y = Math.random() * size, r = 4 + Math.random() * 10;
+            g.globalAlpha = 0.15 + Math.random() * 0.2;
+            g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+        }
+        g.globalAlpha = 1;
+        const tex = new THREE.CanvasTexture(c);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        return tex;
+    }
+    function makeCheckerTexture(c1, c2, size, tiles) {
+        size = size || 64; tiles = tiles || 8;
+        const c = document.createElement('canvas'); c.width = c.height = size;
+        const g = c.getContext('2d');
+        const cell = size / tiles;
+        for (let y = 0; y < tiles; y++) for (let x = 0; x < tiles; x++) {
+            g.fillStyle = (x + y) % 2 === 0 ? c1 : c2;
+            g.fillRect(x * cell, y * cell, cell, cell);
+        }
+        const tex = new THREE.CanvasTexture(c);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        return tex;
+    }
+    function makeTaxiSignTexture() {
+        const c = document.createElement('canvas'); c.width = 256; c.height = 96;
+        const g = c.getContext('2d');
+        g.fillStyle = '#f1c40f'; g.fillRect(0, 0, 256, 96);
+        g.fillStyle = '#111'; g.font = 'bold 60px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText('TAXI', 128, 50);
+        return new THREE.CanvasTexture(c);
+    }
+    function buildWheelSet(radius, width, positions, wheelMat, rimMat, detailed) {
+        const group = new THREE.Group();
+        const wheelGeo = new THREE.CylinderGeometry(radius, radius, width, 16);
+        wheelGeo.rotateZ(Math.PI / 2);
+        positions.forEach(pos => {
+            const w = new THREE.Mesh(wheelGeo, wheelMat);
+            w.position.set(pos[0], radius, pos[1]);
+            w.castShadow = true;
+            group.add(w);
+            if (detailed) {
+                const rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.55, radius * 0.55, width + 0.01, 8), rimMat);
+                rim.rotation.z = Math.PI / 2;
+                rim.position.set(pos[0], radius, pos[1]);
+                group.add(rim);
+            }
+        });
+        return group;
+    }
+
+    // ---- همفي عسكرية (HMMWV) ----
+    function buildHMMWV(color, detailed) {
         const carGroup = new THREE.Group();
-        const bodyMat = new THREE.MeshPhongMaterial({
-            color: color,
-            shininess: detailed ? 120 : 80,
-            metalness: detailed ? 0.6 : 0.3,
-            roughness: detailed ? 0.2 : 0.5
-        });
-        const glassMat = new THREE.MeshPhongMaterial({
-            color: 0x2c3e50,
-            shininess: 100,
-            transparent: true,
-            opacity: 0.7
-        });
-        const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
-        const chromeMat = new THREE.MeshPhongMaterial({
-            color: 0xaaaaaa,
-            shininess: 150,
-            metalness: 0.9
-        });
+        const paintTex = makeNoiseTexture('#4b5320', '#3a4118');
+        paintTex.repeat.set(2, 3);
+        const bodyMat = new THREE.MeshPhongMaterial({ color: color, map: paintTex, shininess: 20 });
+        const glassMat = new THREE.MeshPhongMaterial({ color: 0x1c2b1c, shininess: 90, transparent: true, opacity: 0.65 });
+        const wheelMat = new THREE.MeshLambertMaterial({ color: 0x0d0d0d });
+        const rimMat = new THREE.MeshPhongMaterial({ color: 0x555555, shininess: 100 });
+        const metalMat = new THREE.MeshPhongMaterial({ color: 0x2f2f2f, shininess: 60 });
 
-        if (type === 'pickup') {
-            // بيك أب
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(2, 1.2, 2.5), bodyMat);
-            cabin.position.set(0, 1, -0.5);
-            cabin.castShadow = true;
-            carGroup.add(cabin);
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.5, 4.6), bodyMat);
+        chassis.position.y = 0.55; chassis.castShadow = true;
+        carGroup.add(chassis);
 
-            const bed = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 2), bodyMat);
-            bed.position.set(0, 0.6, 2);
-            bed.castShadow = true;
-            carGroup.add(bed);
+        const hood = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.35, 1.4), bodyMat);
+        hood.position.set(0, 0.95, -1.7); hood.castShadow = true;
+        carGroup.add(hood);
 
-            // تفاصيل البيك أب
-            if (detailed) {
-                const bumper = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.3, 0.3), chromeMat);
-                bumper.position.set(0, 0.5, -1.26);
-                carGroup.add(bumper);
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.0, 2.6), bodyMat);
+        cabin.position.set(0, 1.35, 0.2); cabin.castShadow = true;
+        carGroup.add(cabin);
 
-                const tailLight1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-                tailLight1.position.set(-0.7, 0.7, 2.01);
-                const tailLight2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-                tailLight2.position.set(0.7, 0.7, 2.01);
-                carGroup.add(tailLight1, tailLight2);
+        const windshield = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 0.08), glassMat);
+        windshield.position.set(0, 1.4, -1.0);
+        carGroup.add(windshield);
+        const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.7, 2.0), glassMat);
+        sideL.position.set(-1.21, 1.4, 0.2); carGroup.add(sideL);
+        const sideR = sideL.clone(); sideR.position.x = 1.21; carGroup.add(sideR);
+
+        if (detailed) {
+            for (let i = -1; i <= 1; i++) {
+                const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.0, 8), metalMat);
+                bar.rotation.z = Math.PI / 2; bar.position.set(0, 0.5 + i * 0.25, -2.35);
+                carGroup.add(bar);
             }
-
-            const wheelGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 16);
-            wheelGeo.rotateZ(Math.PI/2);
-            [[-1.1, 1.8], [1.1, 1.8], [-1.1, -1.5], [1.1, -1.5]].forEach(pos => {
-                const w = new THREE.Mesh(wheelGeo, wheelMat);
-                w.position.set(pos[0], 0.5, pos[1]);
-                w.castShadow = true;
-                carGroup.add(w);
-
-                if (detailed) {
-                    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.41, 8), chromeMat);
-                    rim.rotation.z = Math.PI/2;
-                    rim.position.set(pos[0], 0.5, pos[1]);
-                    carGroup.add(rim);
-                }
-            });
-        }
-        else if (type === 'limo') {
-            // ليموزين
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 0.7, 7), bodyMat);
-            body.position.y = 0.6;
-            body.castShadow = true;
-            carGroup.add(body);
-
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.6, 4), glassMat);
-            cabin.position.set(0, 1.2, -0.5);
-            cabin.castShadow = true;
-            carGroup.add(cabin);
-
-            const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.35, 16);
-            wheelGeo.rotateZ(Math.PI/2);
-            [[-1, 2.5], [1, 2.5], [-1, -2.5], [1, -2.5]].forEach(pos => {
-                const w = new THREE.Mesh(wheelGeo, wheelMat);
-                w.position.set(pos[0], 0.45, pos[1]);
-                w.castShadow = true;
-                carGroup.add(w);
-            });
-        }
-        else if (type === 'hummer') {
-            // همر
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.5, 5), bodyMat);
-            body.position.y = 1;
-            body.castShadow = true;
-            carGroup.add(body);
-
-            const top = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.8, 3), glassMat);
-            top.position.set(0, 1.9, -0.3);
-            top.castShadow = true;
-            carGroup.add(top);
-
-            // تفاصيل الهمر
-            if (detailed) {
-                const grille = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 0.2), chromeMat);
-                grille.position.set(0, 1, -2.51);
-                carGroup.add(grille);
-
-                const spareTire = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16), wheelMat);
-                spareTire.rotation.x = Math.PI/2;
-                spareTire.position.set(0, 1, 2.51);
-                carGroup.add(spareTire);
-            }
-
-            const wheelGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.5, 16);
-            wheelGeo.rotateZ(Math.PI/2);
-            [[-1.3, 2], [1.3, 2], [-1.3, -2], [1.3, -2]].forEach(pos => {
-                const w = new THREE.Mesh(wheelGeo, wheelMat);
-                w.position.set(pos[0], 0.7, pos[1]);
-                w.castShadow = true;
-                carGroup.add(w);
-            });
-        }
-        else if (type === 'suv') {
-            // دفع رباعي
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.2, 4.5), bodyMat);
-            body.position.y = 0.9;
-            body.castShadow = true;
-            carGroup.add(body);
-
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 2.5), glassMat);
-            cabin.position.set(0, 1.7, -0.2);
-            cabin.castShadow = true;
-            carGroup.add(cabin);
-
-            const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.45, 16);
-            wheelGeo.rotateZ(Math.PI/2);
-            [[-1.15, 1.7], [1.15, 1.7], [-1.15, -1.7], [1.15, -1.7]].forEach(pos => {
-                const w = new THREE.Mesh(wheelGeo, wheelMat);
-                w.position.set(pos[0], 0.6, pos[1]);
-                w.castShadow = true;
-                carGroup.add(w);
-            });
-        }
-        else {
-            // سيارة رياضية
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 4), bodyMat);
-            body.position.y = 0.45;
-            body.castShadow = true;
-            carGroup.add(body);
-
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.4, 2), glassMat);
-            cabin.position.set(0, 0.9, -0.3);
-            cabin.castShadow = true;
-            carGroup.add(cabin);
-
-            // سبويلر للسيارة الرياضية
-            if (detailed) {
-                const spoiler = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 0.4), bodyMat);
-                spoiler.position.set(0, 1, 1.8);
-                carGroup.add(spoiler);
-            }
-
-            const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.35, 16);
-            wheelGeo.rotateZ(Math.PI/2);
-            [[-1, 1.4], [1, 1.4], [-1, -1.4], [1, -1.4]].forEach(pos => {
-                const w = new THREE.Mesh(wheelGeo, wheelMat);
-                w.position.set(pos[0], 0.4, pos[1]);
-                w.castShadow = true;
-                carGroup.add(w);
-            });
+            const rack = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 2.2), metalMat);
+            rack.position.set(0, 1.9, 0.2); carGroup.add(rack);
+            const spare = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.3, 16), wheelMat);
+            spare.rotation.x = Math.PI / 2; spare.position.set(0, 1.1, 2.42);
+            carGroup.add(spare);
+            const mirrorGeo = new THREE.BoxGeometry(0.1, 0.25, 0.35);
+            const mL = new THREE.Mesh(mirrorGeo, metalMat); mL.position.set(-1.3, 1.5, -1.0); carGroup.add(mL);
+            const mR = mL.clone(); mR.position.x = 1.3; carGroup.add(mR);
         }
 
-        // المصابيح الأمامية
-        const lightGeo = new THREE.BoxGeometry(0.3, 0.2, 0.1);
-        const lightMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        let lightZ = type === 'limo' ? 3.5 : (type === 'pickup' ? 1.26 : (type === 'hummer' ? 2.51 : 2.01));
-        let lightY = type === 'hummer' ? 1.2 : 0.5;
-        const fl1 = new THREE.Mesh(lightGeo, lightMat);
-        fl1.position.set(-0.7, lightY, lightZ);
-        const fl2 = new THREE.Mesh(lightGeo, lightMat);
-        fl2.position.set(0.7, lightY, lightZ);
-        carGroup.add(fl1, fl2);
+        const wpos = [[-1.25, 1.6], [1.25, 1.6], [-1.25, -1.6], [1.25, -1.6]];
+        carGroup.add(buildWheelSet(0.62, 0.5, wpos, wheelMat, rimMat, detailed));
+
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff6c8 });
+        const lightGeo = new THREE.BoxGeometry(0.35, 0.25, 0.1);
+        const hl1 = new THREE.Mesh(lightGeo, lightMat); hl1.position.set(-0.85, 0.85, -2.36); carGroup.add(hl1);
+        const hl2 = hl1.clone(); hl2.position.x = 0.85; carGroup.add(hl2);
+        const tailMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const tl1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.08), tailMat); tl1.position.set(-0.9, 1.0, 2.41); carGroup.add(tl1);
+        const tl2 = tl1.clone(); tl2.position.x = 0.9; carGroup.add(tl2);
 
         return carGroup;
+    }
+
+    // ---- سوبركار APEX GT-X ----
+    function buildApexGTX(color, detailed) {
+        const carGroup = new THREE.Group();
+        const carbonTex = makeCheckerTexture('#111111', '#1c1c1c', 32, 8);
+        carbonTex.repeat.set(3, 1);
+        const bodyMat = new THREE.MeshPhongMaterial({ color: color, shininess: 180, specular: 0x666666 });
+        const carbonMat = new THREE.MeshPhongMaterial({ color: 0x141414, map: carbonTex, shininess: 140 });
+        const glassMat = new THREE.MeshPhongMaterial({ color: 0x0b1622, shininess: 150, transparent: true, opacity: 0.55 });
+        const wheelMat = new THREE.MeshLambertMaterial({ color: 0x0a0a0a });
+        const rimMat = new THREE.MeshPhongMaterial({ color: 0xe0e0e0, shininess: 200 });
+        const brakeMat = new THREE.MeshBasicMaterial({ color: 0xcc0000 });
+
+        const lower = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.4, 4.2), bodyMat);
+        lower.position.y = 0.35; lower.castShadow = true; carGroup.add(lower);
+
+        const nose = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.3, 1.0), bodyMat);
+        nose.position.set(0, 0.4, -2.2); carGroup.add(nose);
+
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.55, 2.0), glassMat);
+        cabin.position.set(0, 0.8, -0.1); cabin.castShadow = true; carGroup.add(cabin);
+
+        const flareGeo = new THREE.BoxGeometry(2.15, 0.35, 1.0);
+        const flF = new THREE.Mesh(flareGeo, bodyMat); flF.position.set(0, 0.4, -1.5); carGroup.add(flF);
+        const flR = flF.clone(); flR.position.z = 1.5; carGroup.add(flR);
+
+        if (detailed) {
+            const wingSupport1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35, 0.15), carbonMat);
+            wingSupport1.position.set(-0.7, 0.75, 2.0); carGroup.add(wingSupport1);
+            const wingSupport2 = wingSupport1.clone(); wingSupport2.position.x = 0.7; carGroup.add(wingSupport2);
+            const wing = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.06, 0.5), carbonMat);
+            wing.position.set(0, 0.98, 2.05); carGroup.add(wing);
+            const skirtL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.15, 3.6), carbonMat);
+            skirtL.position.set(-1.0, 0.2, 0); carGroup.add(skirtL);
+            const skirtR = skirtL.clone(); skirtR.position.x = 1.0; carGroup.add(skirtR);
+        }
+
+        const wpos = [[-1.05, 1.4], [1.05, 1.4], [-1.05, -1.4], [1.05, -1.4]];
+        carGroup.add(buildWheelSet(0.42, 0.34, wpos, wheelMat, rimMat, detailed));
+        if (detailed) wpos.forEach(pos => {
+            const caliper = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 0.22), brakeMat);
+            caliper.position.set(pos[0] * 0.92, 0.42, pos[1]); carGroup.add(caliper);
+        });
+
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0xd8f4ff });
+        const hl1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.06), lightMat); hl1.position.set(-0.55, 0.55, -2.68); carGroup.add(hl1);
+        const hl2 = hl1.clone(); hl2.position.x = 0.55; carGroup.add(hl2);
+        const tailMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const tl1 = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.1, 0.06), tailMat); tl1.position.set(0, 0.55, 2.62); carGroup.add(tl1);
+
+        return carGroup;
+    }
+
+    // ---- تاكسي المدينة ----
+    function buildTaxi(color, detailed) {
+        const carGroup = new THREE.Group();
+        const checkerTex = makeCheckerTexture('#111111', '#f1c40f', 64, 8);
+        const bodyMat = new THREE.MeshPhongMaterial({ color: color, shininess: 90 });
+        const glassMat = new THREE.MeshPhongMaterial({ color: 0x223344, shininess: 100, transparent: true, opacity: 0.6 });
+        const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+        const rimMat = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 140 });
+        const chromeMat = new THREE.MeshPhongMaterial({ color: 0xbbbbbb, shininess: 150 });
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.7, 4.4), bodyMat);
+        body.position.y = 0.6; body.castShadow = true; carGroup.add(body);
+
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.6, 2.2), glassMat);
+        cabin.position.set(0, 1.25, -0.1); cabin.castShadow = true; carGroup.add(cabin);
+
+        const stripeMat = new THREE.MeshBasicMaterial({ map: checkerTex });
+        const stripeL = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.3), stripeMat);
+        stripeL.rotation.y = Math.PI / 2; stripeL.position.set(-1.06, 0.75, 0);
+        carGroup.add(stripeL);
+        const stripeR = stripeL.clone(); stripeR.position.x = 1.06; stripeR.rotation.y = -Math.PI / 2; carGroup.add(stripeR);
+
+        const signTex = makeTaxiSignTexture();
+        const signMat = new THREE.MeshStandardMaterial({ map: signTex, emissive: 0xf1c40f, emissiveMap: signTex, emissiveIntensity: 0.6 });
+        const sign = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.25, 0.3), signMat);
+        sign.position.set(0, 1.68, -0.1); carGroup.add(sign);
+
+        if (detailed) {
+            const bumperF = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.25, 0.2), chromeMat);
+            bumperF.position.set(0, 0.4, -2.25); carGroup.add(bumperF);
+            const bumperR = bumperF.clone(); bumperR.position.z = 2.25; carGroup.add(bumperR);
+            const mirrorGeo = new THREE.BoxGeometry(0.08, 0.18, 0.28);
+            const mL = new THREE.Mesh(mirrorGeo, bodyMat); mL.position.set(-1.05, 1.15, -1.6); carGroup.add(mL);
+            const mR = mL.clone(); mR.position.x = 1.05; carGroup.add(mR);
+        }
+
+        const wpos = [[-1.0, 1.5], [1.0, 1.5], [-1.0, -1.5], [1.0, -1.5]];
+        carGroup.add(buildWheelSet(0.42, 0.36, wpos, wheelMat, rimMat, detailed));
+
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0xffff99 });
+        const hl1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.1), lightMat); hl1.position.set(-0.7, 0.55, -2.31); carGroup.add(hl1);
+        const hl2 = hl1.clone(); hl2.position.x = 0.7; carGroup.add(hl2);
+        const tailMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const tl1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.1), tailMat); tl1.position.set(-0.7, 0.7, 2.21); carGroup.add(tl1);
+        const tl2 = tl1.clone(); tl2.position.x = 0.7; carGroup.add(tl2);
+
+        return carGroup;
+    }
+
+    function createCar(type, color, detailed = false) {
+        if (type === 'apex') return buildApexGTX(color, detailed);
+        if (type === 'taxi') return buildTaxi(color, detailed);
+        return buildHMMWV(color, detailed);
     }
 
     // ==================== الكراج 3D المفصل ====================

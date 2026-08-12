@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oman Wildlife Guardian — Learn Under the Palm Tree</title>
+<link rel="icon" type="image/png" href="public/favicon.png">
+<link rel="apple-touch-icon" href="public/apple-touch-icon.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/chakra-petch@5.0.8/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/chakra-petch@5.0.8/600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/chakra-petch@5.0.8/700.css">
+<style>
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; overflow:hidden; background:#0b0f0a;
+    font-family:'Chakra Petch','Segoe UI',sans-serif; color:#e9e4d0; }
+  #app{ position:fixed; inset:0; }
+  #app canvas{ display:block; }
+  .pe{ pointer-events:auto; }
+  #ui{ position:fixed; inset:0; pointer-events:none; z-index:10; }
+
+  /* PALM TREE HEADER — matches the rest of the site */
+  .palm-header{position:fixed;top:0;left:0;right:0;background:#4A3520;padding:0.7rem 1.5rem;display:flex;align-items:center;justify-content:space-between;z-index:100;border-bottom:2px solid #360304;font-family:'Chakra Petch',sans-serif;}
+  .palm-header__title{font-weight:700;font-size:0.9rem;color:#F5EDD8;}
+  .palm-header__tag{font-size:0.62rem;letter-spacing:0.08em;color:#EDE0C4;opacity:0.7;}
+  .palm-header__back{font-size:0.7rem;color:#F5EDD8;opacity:.8;padding:.3em .7em;border:1px solid rgba(245,237,216,.35);border-radius:100px;text-decoration:none;}
+
+  .panel{ position:absolute; background:rgba(14,22,14,.78); border:1px solid rgba(120,160,90,.35);
+    border-radius:10px; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    box-shadow:0 6px 24px rgba(0,0,0,.4); padding:11px 14px; }
+  .ptitle{ font-size:9px; font-weight:700; letter-spacing:.24em; color:#9db97a; text-transform:uppercase; margin-bottom:6px; }
+
+  #missionPanel{ top:58px; left:16px; width:330px; }
+  #missionWorld{ font-size:10px; letter-spacing:.2em; color:#e8b23a; font-weight:700; }
+  #missionTitle{ font-size:15px; font-weight:700; color:#f2eeda; margin:3px 0 5px; letter-spacing:.04em; }
+  #missionHint{ font-size:11.5px; color:#c9c4a8; line-height:1.5; }
+
+  #zonePanel{ top:58px; right:16px; width:235px; font-size:11.5px; }
+  #zonePanel .row{ display:flex; justify-content:space-between; padding:2px 0; letter-spacing:.05em; }
+  #zonePanel .row span{ color:#9db97a; font-size:9.5px; font-weight:700; letter-spacing:.14em; }
+  #zonePanel .row b{ color:#f2eeda; font-weight:600; }
+  .bar{ height:5px; background:rgba(255,255,255,.12); border-radius:3px; margin:2px 0 6px; overflow:hidden; }
+  .bar i{ display:block; height:100%; background:linear-gradient(90deg,#7fae4e,#c6e07a); border-radius:3px; transition:width .6s; }
+  .bar.w i{ background:linear-gradient(90deg,#3f8fb0,#8fd4e8); }
+
+  #equipPanel{ bottom:16px; left:16px; width:225px; font-size:11px; }
+  #hintBar{ bottom:16px; left:50%; transform:translateX(-50%); padding:8px 20px; font-size:11px;
+    letter-spacing:.08em; color:#d8d3b4; white-space:nowrap; }
+  #hintBar b{ color:#ffe08a; }
+  #keysBar{ bottom:16px; right:16px; font-size:9.5px; color:#a8a586; line-height:1.8; text-align:right; letter-spacing:.04em; }
+  #keysBar b{ color:#e6e1c4; font-family:monospace; }
+
+  #crosshair{ position:absolute; left:50%; top:50%; width:34px; height:34px; transform:translate(-50%,-50%); }
+  #crosshair::before{ content:''; position:absolute; inset:0; border:1.5px solid rgba(210,240,170,.65); border-radius:50%; }
+  #crosshair::after{ content:''; position:absolute; left:50%; top:50%; width:3px; height:3px; margin:-1.5px; background:#dff0b0; border-radius:50%; }
+
+  #scanCard{ top:50%; right:24px; transform:translateY(-50%); width:330px; display:none; border-color:rgba(232,178,58,.55); }
+  #scanCard h2{ margin:0; font-size:17px; color:#ffe08a; letter-spacing:.04em; }
+  #scanCard .sci{ font-size:10.5px; color:#9db97a; font-style:italic; margin-bottom:8px; }
+  #scanCard .kv{ font-size:11.5px; line-height:1.55; }
+  #scanCard .kv b{ color:#9db97a; font-size:9.5px; letter-spacing:.16em; display:block; margin-top:5px; }
+  #scanCard .status{ display:inline-block; margin-top:8px; padding:3px 10px; border-radius:20px; font-size:10px;
+    font-weight:700; letter-spacing:.12em; background:rgba(232,178,58,.18); border:1px solid rgba(232,178,58,.6); color:#ffd67e; }
+  #scanCard .btnrow{ display:flex; gap:8px; margin-top:10px; }
+  .abtn{ font-family:inherit; font-size:10.5px; font-weight:700; letter-spacing:.1em; padding:7px 12px; cursor:pointer;
+    background:rgba(60,80,44,.8); color:#e9e4d0; border:1px solid rgba(150,190,110,.5); border-radius:6px; }
+  .abtn:hover{ background:rgba(96,124,66,.95); }
+
+  #dbPanel{ top:50%; left:50%; transform:translate(-50%,-50%); width:460px; max-height:70vh; overflow:auto; display:none; }
+  #dbPanel h2{ margin:0 0 8px; font-size:16px; color:#ffe08a; letter-spacing:.1em; }
+  .dbEntry{ border-top:1px solid rgba(150,190,110,.2); padding:7px 0; font-size:11.5px; }
+  .dbEntry b{ color:#d6e6a8; }
+
+  #toast{ position:absolute; top:120px; left:50%; transform:translateX(-50%); background:rgba(20,30,16,.92);
+    border:1px solid rgba(255,224,138,.6); color:#ffe9b0; padding:9px 24px; border-radius:8px;
+    font-size:13px; font-weight:700; letter-spacing:.1em; opacity:0; transition:opacity .35s; }
+  #toast.show{ opacity:1; }
+  #bigToast{ position:absolute; top:38%; left:50%; transform:translate(-50%,-50%); font-size:30px; font-weight:700;
+    letter-spacing:.24em; color:#eaf4c8; text-shadow:0 2px 18px rgba(0,0,0,.6); opacity:0; transition:opacity .6s; }
+  #bigToast.show{ opacity:1; }
+
+  #fxNight{ position:fixed; inset:0; pointer-events:none; z-index:6; display:none;
+    background:radial-gradient(ellipse at center, rgba(70,255,140,.10), rgba(10,60,30,.28)); mix-blend-mode:screen; }
+  #fxThermal{ position:fixed; inset:0; pointer-events:none; z-index:6; display:none;
+    background:radial-gradient(ellipse at center, rgba(255,150,40,.12), rgba(120,30,0,.3)); mix-blend-mode:screen; }
+
+  #intro{ position:fixed; inset:0; z-index:60; background:radial-gradient(ellipse at 50% 30%, #22331c, #0a0e08 75%);
+    display:flex; align-items:center; justify-content:center; flex-direction:column; text-align:center; }
+  #intro h1{ font-size:44px; font-weight:700; letter-spacing:.22em; margin:0; color:#f2eeda; }
+  #intro h1 em{ font-style:normal; color:#e8b23a; }
+  #intro .tag{ margin-top:6px; font-size:12px; letter-spacing:.4em; color:#9db97a; text-transform:uppercase; }
+  #intro .cols{ display:flex; gap:34px; margin:30px 0 8px; font-size:11.5px; color:#c9c4a8; line-height:2; text-align:left; }
+  #intro .cols b{ color:#ffe08a; font-family:monospace; }
+  #startBtn{ margin-top:22px; font-family:inherit; font-size:16px; font-weight:700; letter-spacing:.3em; padding:14px 54px;
+    background:#e8b23a; color:#241703; border:none; border-radius:8px; cursor:pointer; }
+  #startBtn:hover{ background:#ffc95a; }
+  #intro .foot{ margin-top:18px; font-size:10px; color:#7d8a63; letter-spacing:.14em; }
+
+  #loading{ position:fixed; inset:0; z-index:70; background:#0a0e08; display:flex; align-items:center; justify-content:center;
+    transition:opacity .6s; font-size:12px; letter-spacing:.3em; color:#9db97a; }
+  #loading.done{ opacity:0; pointer-events:none; }
+  @media (max-width:900px){ #missionPanel{ width:250px; } #zonePanel{ width:190px; } #keysBar{ display:none; } }
+</style>
+</head>
+<body>
+<header class="palm-header">
+  <a class="palm-header__back" href="games-skills.html">← Back</a>
+  <span class="palm-header__title">Oman Wildlife Guardian</span>
+  <span class="palm-header__tag">Wildlife Guardian</span>
+</header>
+<div id="app"></div>
+<div id="fxNight"></div>
+<div id="fxThermal"></div>
+
+<div id="ui">
+  <section id="missionPanel" class="panel">
+    <div class="ptitle">Mission Monitor</div>
+    <div id="missionWorld">WORLD 1 · PALM HABITAT</div>
+    <div id="missionTitle">…</div>
+    <div id="missionHint">…</div>
+  </section>
+
+  <section id="zonePanel" class="panel">
+    <div class="ptitle">Ecology Monitor</div>
+    <div class="row"><span>HABITAT</span><b id="zName">—</b></div>
+    <div class="row"><span>HEALTH</span><b id="zHealth">—%</b></div>
+    <div class="bar"><i id="zHealthBar" style="width:0%"></i></div>
+    <div class="row"><span>WATER</span><b id="zWater">—%</b></div>
+    <div class="bar w"><i id="zWaterBar" style="width:0%"></i></div>
+    <div class="row"><span>TIME</span><b id="hudTime">—</b></div>
+    <div class="row"><span>WEATHER</span><b id="hudWeather">CLEAR</b></div>
+  </section>
+
+  <section id="equipPanel" class="panel">
+    <div class="ptitle">Tractor Systems</div>
+    <div class="row" style="display:flex;justify-content:space-between"><span style="color:#9db97a;font-size:9.5px;font-weight:700;letter-spacing:.14em">WATER TANK</span><b id="eqWater">100%</b></div>
+    <div class="bar w"><i id="eqWaterBar" style="width:100%"></i></div>
+    <div class="row" style="display:flex;justify-content:space-between"><span style="color:#9db97a;font-size:9.5px;font-weight:700;letter-spacing:.14em">ECO FLUID</span><b id="eqEco">100%</b></div>
+    <div class="bar"><i id="eqEcoBar" style="width:100%"></i></div>
+    <div class="row" style="display:flex;justify-content:space-between"><span style="color:#9db97a;font-size:9.5px;font-weight:700;letter-spacing:.14em">WASTE STORED</span><b id="eqWaste">0</b></div>
+    <div class="row" style="display:flex;justify-content:space-between"><span style="color:#9db97a;font-size:9.5px;font-weight:700;letter-spacing:.14em">SEEDS PLANTED</span><b id="eqSeeds">0</b></div>
+  </section>
+
+  <div id="hintBar" class="panel">Press <b>E</b> to SCAN</div>
+  <div id="keysBar" class="panel">
+    <b>W/S</b> drive · <b>A/D</b> steer · <b>V</b> view · <b>E</b> scan<br>
+    <b>C</b> tracking · <b>SPACE</b> water · <b>X</b> eco mist · <b>G</b> arm<br>
+    <b>P</b> plant · <b>N</b> night cam · <b>B</b> thermal · <b>I</b> database<br>
+    <b>L</b> lights · <b>T</b> time speed · <b>RMB</b> look
+  </div>
+  <div id="crosshair"></div>
+
+  <section id="scanCard" class="panel pe">
+    <div class="ptitle" id="scanKind">WILDLIFE SCANNER</div>
+    <h2 id="scanName">—</h2>
+    <div class="sci" id="scanSci"></div>
+    <div class="kv" id="scanBody"></div>
+    <span class="status" id="scanStatus" style="display:none"></span>
+    <div class="btnrow">
+      <button class="abtn" id="btnListen">🔊 LISTEN</button>
+      <button class="abtn" id="btnCloseScan">CLOSE</button>
+    </div>
+  </section>
+
+  <section id="dbPanel" class="panel pe">
+    <h2>WILDLIFE DATABASE</h2>
+    <div id="dbList"><i style="color:#8b9671">No species recorded yet. Scan animals to fill the database.</i></div>
+    <div style="margin-top:10px"><button class="abtn" id="dbClose">CLOSE</button></div>
+  </section>
+
+  <div id="toast"></div>
+  <div id="bigToast"></div>
+</div>
+
+<div id="intro">
+  <h1>OMAN <em>WILDLIFE</em> GUARDIAN</h1>
+  <div class="tag">Explore · Observe · Scan · Restore · Protect</div>
+  <div class="cols">
+    <div>
+      <b>W/S A/D</b> — drive the tractor<br>
+      <b>V</b> — cockpit / external view<br>
+      <b>E</b> — scan wildlife, plants, water, soil<br>
+      <b>C</b> — tracking scanner<br>
+      <b>G</b> — loader arm (collect waste)
+    </div>
+    <div>
+      <b>SPACE / X</b> — water spray / eco mist<br>
+      <b>P</b> — plant native seeds<br>
+      <b>N / B</b> — night / thermal camera<br>
+      <b>I</b> — wildlife database<br>
+      <b>RMB drag</b> — look around the cockpit
+    </div>
+  </div>
+  <button id="startBtn" class="pe">START PATROL</button>
+  <div class="foot">NO COMBAT · NO WEAPONS · A LIVING CONSERVATION WORLD</div>
+</div>
+
+<div id="loading">BUILDING OMAN…</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="wildlife-guardian.js"></script>
+</body>
+</html>

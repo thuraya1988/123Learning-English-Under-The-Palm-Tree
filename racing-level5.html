@@ -438,6 +438,7 @@
                 <div class="option-btn active" data-type="hmmwv">همفي عسكرية</div>
                 <div class="option-btn" data-type="apex">سوبركار APEX</div>
                 <div class="option-btn" data-type="taxi">تاكسي المدينة</div>
+                <div class="option-btn" data-type="bus">باص مدرسي</div>
             </div>
         </div>
 
@@ -796,9 +797,97 @@
         return carGroup;
     }
 
+    // ---- باص مدرسي ----
+    function makeBusSignTexture() {
+        const c = document.createElement('canvas'); c.width = 512; c.height = 90;
+        const g = c.getContext('2d');
+        g.fillStyle = '#f0ae08'; g.fillRect(0, 0, 512, 90);
+        g.fillStyle = '#111'; g.font = 'bold 46px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText('SCHOOL BUS', 256, 47);
+        return new THREE.CanvasTexture(c);
+    }
+    function makeStopSignTexture() {
+        const c = document.createElement('canvas'); c.width = c.height = 128;
+        const g = c.getContext('2d');
+        g.fillStyle = '#c8102e';
+        g.beginPath();
+        for (let i = 0; i < 8; i++) {
+            const a = i / 8 * Math.PI * 2 + Math.PI / 8;
+            const x = 64 + Math.cos(a) * 58, y = 64 + Math.sin(a) * 58;
+            i ? g.lineTo(x, y) : g.moveTo(x, y);
+        }
+        g.closePath(); g.fill();
+        g.strokeStyle = '#fff'; g.lineWidth = 5; g.stroke();
+        g.fillStyle = '#fff'; g.font = 'bold 40px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText('STOP', 64, 66);
+        return new THREE.CanvasTexture(c);
+    }
+    function buildSchoolBus(color, detailed) {
+        const carGroup = new THREE.Group();
+        const paintTex = makeNoiseTexture('#f0ae08', '#c88c04');
+        paintTex.repeat.set(4, 1);
+        const bodyMat = new THREE.MeshPhongMaterial({ color: color, map: paintTex, shininess: 60 });
+        const glassMat = new THREE.MeshPhongMaterial({ color: 0x223344, shininess: 100, transparent: true, opacity: 0.6 });
+        const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+        const rimMat = new THREE.MeshPhongMaterial({ color: 0xcccccc, shininess: 140 });
+        const blackMat = new THREE.MeshPhongMaterial({ color: 0x141518, shininess: 40 });
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.6, 6.4), bodyMat);
+        body.position.y = 1.1; body.castShadow = true; carGroup.add(body);
+
+        const hood = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.9, 1.0), bodyMat);
+        hood.position.set(0, 0.85, -3.15); hood.castShadow = true; carGroup.add(hood);
+
+        for (const s of [-1, 1]) for (let i = 0; i < 5; i++) {
+            const win = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.75), glassMat);
+            win.position.set(s * 1.16, 1.55, -2.1 + i * 1.05); carGroup.add(win);
+        }
+        const windshield = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.75, 0.06), glassMat);
+        windshield.position.set(0, 1.55, -3.63); carGroup.add(windshield);
+
+        for (const s of [-1, 1]) for (const y of [0.65, 1.9]) {
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 6.3), blackMat);
+            rail.position.set(s * 1.17, y, 0.1); carGroup.add(rail);
+        }
+
+        const signTex = makeBusSignTexture();
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.35), new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
+        sign.position.set(1.17, 1.15, 0.1); sign.rotation.y = Math.PI / 2; carGroup.add(sign);
+
+        if (detailed) {
+            const warnColors = [0xff2018, 0xffb000];
+            for (let i = 0; i < 4; i++) {
+                const dome = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: warnColors[i % 2] }));
+                dome.position.set(i < 2 ? -0.35 : 0.35, 1.95, i % 2 === 0 ? -3.0 : 2.9); carGroup.add(dome);
+            }
+            const stopTex = makeStopSignTexture();
+            const stop = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), new THREE.MeshBasicMaterial({ map: stopTex, transparent: true }));
+            stop.position.set(1.2, 1.1, -2.6); stop.rotation.y = Math.PI / 2; carGroup.add(stop);
+            const mirrorGeo = new THREE.BoxGeometry(0.08, 0.22, 0.3);
+            const mL = new THREE.Mesh(mirrorGeo, blackMat); mL.position.set(-1.2, 1.75, -3.3); carGroup.add(mL);
+            const mR = mL.clone(); mR.position.x = 1.2; carGroup.add(mR);
+            const bumperF = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.25, 0.2), rimMat);
+            bumperF.position.set(0, 0.35, -3.65); carGroup.add(bumperF);
+            const bumperR = bumperF.clone(); bumperR.position.z = 3.25; carGroup.add(bumperR);
+        }
+
+        const wpos = [[-1.05, 2.3], [1.05, 2.3], [-1.05, -2.3], [1.05, -2.3]];
+        carGroup.add(buildWheelSet(0.5, 0.4, wpos, wheelMat, rimMat, detailed));
+
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff6c8 });
+        const hl1 = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.24, 0.08), lightMat); hl1.position.set(-0.8, 0.9, -3.66); carGroup.add(hl1);
+        const hl2 = hl1.clone(); hl2.position.x = 0.8; carGroup.add(hl2);
+        const tailMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const tl1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.08), tailMat); tl1.position.set(-0.9, 1.0, 3.21); carGroup.add(tl1);
+        const tl2 = tl1.clone(); tl2.position.x = 0.9; carGroup.add(tl2);
+
+        return carGroup;
+    }
+
     function createCar(type, color, detailed = false) {
         if (type === 'apex') return buildApexGTX(color, detailed);
         if (type === 'taxi') return buildTaxi(color, detailed);
+        if (type === 'bus') return buildSchoolBus(color, detailed);
         return buildHMMWV(color, detailed);
     }
 

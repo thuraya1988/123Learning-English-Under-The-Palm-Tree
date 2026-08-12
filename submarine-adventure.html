@@ -169,12 +169,13 @@ function floorY(x){
   const i=clamp(Math.floor(x/STEP),0,floor.length-2),t=(x/STEP)-i;
   return floor[i]*(1-t)+floor[i+1]*t;
 }
-const kelps=[],corals=[],rocks=[],vents=[],wreck={x:rand(2500,4200)};
+const kelps=[],corals=[],rocks=[],vents=[],caustics=[],wreck={x:rand(2500,4200)};
 for(let i=0;i<70;i++)kelps.push({x:rand(0,WORLD.w),h:rand(90,260),ph:rand(0,7),hue:rand(90,160)});
 for(let i=0;i<55;i++)corals.push({x:rand(0,WORLD.w),s:rand(14,42),hue:[340,20,280,45][Math.floor(rand(0,4))],type:Math.floor(rand(0,2))});
 for(let i=0;i<45;i++)rocks.push({x:rand(0,WORLD.w),s:rand(18,70)});
 for(let i=0;i<5;i++)vents.push({x:rand(500,WORLD.w-500)});
 vents.forEach(v=>v.y=floorY(v.x));
+for(let i=0;i<60;i++)caustics.push({x:rand(0,WORLD.w),y:rand(WORLD.SURFACE+80,1400),r:rand(30,70),ph:rand(0,7),sp:rand(.4,.9)});
 
 /* ================== الكائنات ================== */
 let fishes=[],jellies=[],sharks=[],anglers=[],squids=[],turtles=[],torps=[],parts=[],pickups=[],floats=[],chests=[],snow=[];
@@ -571,10 +572,22 @@ function draw(){
     const sun=ctx.createRadialGradient(WORLD.w*.3,0,10,WORLD.w*.3,0,260);
     sun.addColorStop(0,'rgba(255,255,220,.9)');sun.addColorStop(1,'rgba(255,255,220,0)');
     ctx.fillStyle=sun;ctx.fillRect(cam.x,-200,W,WORLD.SURFACE+200);
-    ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=3;
-    ctx.beginPath();
-    for(let x=cam.x;x<cam.x+W;x+=8)ctx.lineTo(x,WORLD.SURFACE+Math.sin(x*.02+time*2)*5);
-    ctx.stroke();
+    // طبقات أمواج متعددة لعمق أكثر واقعية
+    const waveY=x=>WORLD.SURFACE+Math.sin(x*.02+time*2)*5+Math.sin(x*.007+time*1.1)*9;
+    ctx.strokeStyle='rgba(120,190,255,.35)';ctx.lineWidth=6;
+    ctx.beginPath();for(let x=cam.x;x<cam.x+W;x+=10)ctx.lineTo(x,waveY(x)+7);ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=3;
+    ctx.beginPath();for(let x=cam.x;x<cam.x+W;x+=8)ctx.lineTo(x,waveY(x));ctx.stroke();
+    // بريق الشمس على الموج
+    for(let x=cam.x;x<cam.x+W;x+=26){
+      const gp=Math.sin(x*.11+time*3)*.5+.5;
+      if(gp>.72){ctx.fillStyle=`rgba(255,255,240,${(gp-.72)*2.4})`;ctx.beginPath();ctx.arc(x,waveY(x)-3,2.4,0,7);ctx.fill();}
+    }
+    // زبد خفيف عند قمم الموج
+    ctx.fillStyle='rgba(255,255,255,.5)';
+    for(let x=cam.x;x<cam.x+W;x+=34){
+      if(Math.sin(x*.05+time*1.6)>.6){ctx.beginPath();ctx.arc(x,waveY(x)-1,rand(1,2.4),0,7);ctx.fill();}
+    }
     // أشعة ضوء
     for(let i=0;i<6;i++){
       const rx=cam.x+((i*997+time*26)%(W+400))-200;
@@ -601,6 +614,18 @@ function draw(){
   ctx.fillStyle=fg;ctx.fill();
   ctx.strokeStyle='rgba(120,100,60,.4)';ctx.lineWidth=3;
   ctx.beginPath();for(let x=cam.x-50;x<=cam.x+W+50;x+=STEP)ctx.lineTo(x,floorY(x));ctx.stroke();
+
+  // بقع الكاوستيك (ضوء الشمس المنكسر عبر الماء) — تخفت مع العمق
+  const causticF=1-clamp((sub.y-500)/1400,0,1);
+  if(causticF>.03){
+    for(const cs of caustics){
+      if(cs.x<cam.x-100||cs.x>cam.x+W+100)continue;
+      const wob=Math.sin(time*cs.sp+cs.ph)*10,r=cs.r*(0.8+Math.sin(time*cs.sp*1.3+cs.ph)*.2);
+      const cg=ctx.createRadialGradient(cs.x+wob,cs.y,2,cs.x+wob,cs.y,r);
+      cg.addColorStop(0,`rgba(210,245,255,${.16*causticF})`);cg.addColorStop(1,'rgba(210,245,255,0)');
+      ctx.fillStyle=cg;ctx.beginPath();ctx.arc(cs.x+wob,cs.y,r,0,7);ctx.fill();
+    }
+  }
 
   // صخور
   for(const r of rocks){

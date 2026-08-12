@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>سباق السيارات - بيك أب، ليموزين، همر</title>
+    <title>سباق السيارات - كراج ومغسلة 3D</title>
     <style>
         * {
             margin: 0;
@@ -164,69 +164,97 @@
             transform: scale(1.05);
         }
 
-        /* الكراج والمغسلة */
-        #garage-view, #carwash-view {
+        /* الكراج 3D */
+        #garage-view {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
             z-index: 150;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
         }
 
-        .location-title {
-            font-size: 42px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-shadow: 0 0 30px rgba(255,255,255,0.5);
-        }
-
-        .carwash-animation {
-            width: 300px;
-            height: 300px;
-            border: 5px solid #3498db;
-            border-radius: 20px;
-            margin: 20px;
-            position: relative;
-            overflow: hidden;
-            background: rgba(52, 152, 219, 0.2);
-        }
-
-        .water-spray {
-            position: absolute;
+        #garage-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            background: repeating-linear-gradient(
-                0deg,
-                rgba(52, 152, 219, 0.3),
-                rgba(52, 152, 219, 0.3) 10px,
-                transparent 10px,
-                transparent 20px
-            );
-            animation: spray 2s linear infinite;
         }
 
-        @keyframes spray {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100%); }
+        .garage-ui {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            gap: 15px;
         }
 
-        .back-btn {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        /* مغسلة السيارات 3D */
+        #carwash-view {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 150;
+        }
+
+        #carwash-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .carwash-ui {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            gap: 15px;
+        }
+
+        .ui-btn {
+            background: rgba(52, 152, 219, 0.9);
             color: white;
             border: none;
-            padding: 15px 40px;
-            font-size: 20px;
+            padding: 15px 30px;
+            font-size: 18px;
             font-weight: bold;
             border-radius: 10px;
             cursor: pointer;
-            margin-top: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+            transition: all 0.3s;
+        }
+
+        .ui-btn:hover {
+            transform: scale(1.05);
+            background: rgba(52, 152, 219, 1);
+        }
+
+        .ui-btn.red {
+            background: rgba(231, 76, 60, 0.9);
+        }
+
+        .info-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            z-index: 200;
+            font-size: 18px;
+            backdrop-filter: blur(5px);
         }
 
         /* واجهة اللعبة */
@@ -238,6 +266,15 @@
             width: 100%;
             height: 100%;
             z-index: 50;
+        }
+
+        #game-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
         }
 
         #ui {
@@ -362,6 +399,28 @@
         #fact-popup h1 { font-size: 34px; color: #f1c40f; margin-bottom: 8px; }
         #level-done h1 { font-size: 40px; color: #2ecc71; margin-bottom: 8px; }
         #fact-popup p, #level-done p { font-size: 17px; max-width: 560px; line-height: 1.9; margin: 12px 0; }
+
+        /* تعليمات التحكم */
+        .controls-hint {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            z-index: 200;
+            font-size: 14px;
+            backdrop-filter: blur(5px);
+            line-height: 1.8;
+        }
+
+        @media (max-width: 600px) {
+            .game-title { font-size: 28px; }
+            .option-btn { padding: 12px 16px; font-size: 14px; }
+            .btn { width: 90px; height: 90px; font-size: 35px; }
+            .info-panel { font-size: 14px; padding: 10px 15px; }
+        }
     </style>
 </head>
 <body>
@@ -396,30 +455,50 @@
             </div>
         </div>
 
-        <button class="location-btn" onclick="openGarage()">🔧 الكراج</button>
-        <button class="location-btn" onclick="openCarWash()">🚿 مغسلة السيارات</button>
+        <button class="location-btn" onclick="openGarage()">🔧 الكراج 3D</button>
+        <button class="location-btn" onclick="openCarWash()">🚿 مغسلة السيارات 3D</button>
         <button class="location-btn" onclick="location.href='racing-adventure.html'" style="background:linear-gradient(135deg,#34495e,#2c3e50);">🗺 المستويات</button>
 
         <button class="start-btn" onclick="startGame()">🏁 ابدأ السباق</button>
     </div>
 </div>
 
-<!-- الكراج -->
+<!-- الكراج 3D -->
 <div id="garage-view">
-    <h1 class="location-title">🔧 الكراج</h1>
-    <canvas id="garage-canvas" width="400" height="400"></canvas>
-    <p style="font-size: 20px; margin: 20px;">صيانة وتحسين السيارات</p>
-    <button class="back-btn" onclick="backToMenu()">العودة للقائمة</button>
+    <canvas id="garage-canvas"></canvas>
+    <div class="info-panel">
+        <div>🔧 الكراج</div>
+        <div style="font-size: 14px; color: #aaa; margin-top: 5px;">اسحب للتحريك • عجلة للتقريب</div>
+    </div>
+    <div class="controls-hint">
+        🖱️ سحب بالماوس للتحريك<br>
+        🔍 عجلة الماوس للتقريب<br>
+        📱 سحب بالإصبع على الهاتف
+    </div>
+    <div class="garage-ui">
+        <button class="ui-btn" onclick="repairCar()">🔧 صيانة</button>
+        <button class="ui-btn" onclick="upgradeCar()">⬆️ ترقية</button>
+        <button class="ui-btn red" onclick="backToMenu()">❌ خروج</button>
+    </div>
 </div>
 
-<!-- مغسلة السيارات -->
+<!-- مغسلة السيارات 3D -->
 <div id="carwash-view">
-    <h1 class="location-title"> مغسلة السيارات</h1>
-    <div class="carwash-animation">
-        <div class="water-spray"></div>
+    <canvas id="carwash-canvas"></canvas>
+    <div class="info-panel">
+        <div>🚿 مغسلة السيارات</div>
+        <div style="font-size: 14px; color: #aaa; margin-top: 5px;">اسحب للتحريك • عجلة للتقريب</div>
     </div>
-    <p style="font-size: 24px; margin: 20px;">غسل السيارة...</p>
-    <button class="back-btn" onclick="backToMenu()">العودة للقائمة</button>
+    <div class="controls-hint">
+        🖱️ سحب بالماوس للتحريك<br>
+        🔍 عجلة الماوس للتقريب<br>
+        📱 سحب بالإصبع على الهاتف
+    </div>
+    <div class="carwash-ui">
+        <button class="ui-btn" onclick="startWash()">💦 ابدأ الغسل</button>
+        <button class="ui-btn" onclick="stopWash()">⏹️ إيقاف</button>
+        <button class="ui-btn red" onclick="backToMenu()">❌ خروج</button>
+    </div>
 </div>
 
 <!-- واجهة اللعبة -->
@@ -444,7 +523,7 @@
         <h1 style="font-size: 48px; color: #e74c3c; margin-bottom: 20px;">💥 حادث!</h1>
         <p style="font-size: 28px; margin: 10px;">النقاط: <span id="final-score" style="color: #f1c40f;">0</span></p>
         <button class="start-btn" onclick="resetGame()" style="margin-top: 30px;">🔄 العب مرة أخرى</button>
-        <button class="back-btn" onclick="backToMenu()" style="margin-top: 15px;">🏠 القائمة الرئيسية</button>
+        <button class="ui-btn red" onclick="backToMenu()" style="margin-top: 15px;">🏠 القائمة الرئيسية</button>
     </div>
 
     <div id="fact-popup">
@@ -465,6 +544,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <script>
     // الإعدادات
@@ -486,21 +566,41 @@
     let isGameOver = false;
     let isGameRunning = false;
     let frameCount = 0;
+    let isWashing = false;
 
     let scene, camera, renderer;
     let playerCar = null;
     let menuScene, menuCamera, menuRenderer, menuCar = null;
+    let garageScene, garageCamera, garageRenderer, garageCar, garageControls;
+    let carwashScene, carwashCamera, carwashRenderer, carwashCar, carwashControls;
+    let waterParticles = [];
+    let brushGroup = null;
     let obstacles = [];
     let lines = [];
 
     const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 
-    // إنشاء السيارات المختلفة
-    function createCar(type, color) {
+    // ==================== إنشاء السيارات ====================
+    function createCar(type, color, detailed = false) {
         const carGroup = new THREE.Group();
-        const bodyMat = new THREE.MeshPhongMaterial({ color: color, shininess: 80 });
-        const glassMat = new THREE.MeshPhongMaterial({ color: 0x2c3e50, shininess: 100 });
+        const bodyMat = new THREE.MeshPhongMaterial({
+            color: color,
+            shininess: detailed ? 120 : 80,
+            metalness: detailed ? 0.6 : 0.3,
+            roughness: detailed ? 0.2 : 0.5
+        });
+        const glassMat = new THREE.MeshPhongMaterial({
+            color: 0x2c3e50,
+            shininess: 100,
+            transparent: true,
+            opacity: 0.7
+        });
         const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+        const chromeMat = new THREE.MeshPhongMaterial({
+            color: 0xaaaaaa,
+            shininess: 150,
+            metalness: 0.9
+        });
 
         if (type === 'pickup') {
             // بيك أب
@@ -514,6 +614,19 @@
             bed.castShadow = true;
             carGroup.add(bed);
 
+            // تفاصيل البيك أب
+            if (detailed) {
+                const bumper = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.3, 0.3), chromeMat);
+                bumper.position.set(0, 0.5, -1.26);
+                carGroup.add(bumper);
+
+                const tailLight1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+                tailLight1.position.set(-0.7, 0.7, 2.01);
+                const tailLight2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.1), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+                tailLight2.position.set(0.7, 0.7, 2.01);
+                carGroup.add(tailLight1, tailLight2);
+            }
+
             const wheelGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 16);
             wheelGeo.rotateZ(Math.PI/2);
             [[-1.1, 1.8], [1.1, 1.8], [-1.1, -1.5], [1.1, -1.5]].forEach(pos => {
@@ -521,6 +634,13 @@
                 w.position.set(pos[0], 0.5, pos[1]);
                 w.castShadow = true;
                 carGroup.add(w);
+
+                if (detailed) {
+                    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.41, 8), chromeMat);
+                    rim.rotation.z = Math.PI/2;
+                    rim.position.set(pos[0], 0.5, pos[1]);
+                    carGroup.add(rim);
+                }
             });
         }
         else if (type === 'limo') {
@@ -555,6 +675,18 @@
             top.position.set(0, 1.9, -0.3);
             top.castShadow = true;
             carGroup.add(top);
+
+            // تفاصيل الهمر
+            if (detailed) {
+                const grille = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 0.2), chromeMat);
+                grille.position.set(0, 1, -2.51);
+                carGroup.add(grille);
+
+                const spareTire = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16), wheelMat);
+                spareTire.rotation.x = Math.PI/2;
+                spareTire.position.set(0, 1, 2.51);
+                carGroup.add(spareTire);
+            }
 
             const wheelGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.5, 16);
             wheelGeo.rotateZ(Math.PI/2);
@@ -598,6 +730,13 @@
             cabin.castShadow = true;
             carGroup.add(cabin);
 
+            // سبويلر للسيارة الرياضية
+            if (detailed) {
+                const spoiler = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 0.4), bodyMat);
+                spoiler.position.set(0, 1, 1.8);
+                carGroup.add(spoiler);
+            }
+
             const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.35, 16);
             wheelGeo.rotateZ(Math.PI/2);
             [[-1, 1.4], [1, 1.4], [-1, -1.4], [1, -1.4]].forEach(pos => {
@@ -611,93 +750,473 @@
         // المصابيح الأمامية
         const lightGeo = new THREE.BoxGeometry(0.3, 0.2, 0.1);
         const lightMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        let lightZ = type === 'limo' ? 3.5 : (type === 'pickup' ? 1.26 : (type === 'hummer' ? 2.51 : 2.01));
+        let lightY = type === 'hummer' ? 1.2 : 0.5;
         const fl1 = new THREE.Mesh(lightGeo, lightMat);
-        fl1.position.set(-0.7, type === 'hummer' ? 1.2 : 0.5, type === 'limo' ? 3.5 : (type === 'pickup' ? 1.26 : 2.01));
+        fl1.position.set(-0.7, lightY, lightZ);
         const fl2 = new THREE.Mesh(lightGeo, lightMat);
-        fl2.position.set(0.7, type === 'hummer' ? 1.2 : 0.5, type === 'limo' ? 3.5 : (type === 'pickup' ? 1.26 : 2.01));
+        fl2.position.set(0.7, lightY, lightZ);
         carGroup.add(fl1, fl2);
 
         return carGroup;
     }
 
-    // تهيئة القائمة
-    function initMenu() {
-        menuScene = new THREE.Scene();
-        menuScene.background = new THREE.Color(0x1a1a2e);
+    // ==================== الكراج 3D المفصل ====================
+    function initGarage() {
+        garageScene = new THREE.Scene();
+        garageScene.background = new THREE.Color(0x2c3e50);
+        garageScene.fog = new THREE.Fog(0x2c3e50, 10, 50);
 
-        menuCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
-        menuCamera.position.set(0, 3, 10);
-        menuCamera.lookAt(0, 0, 0);
+        garageCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        garageCamera.position.set(5, 3, 8);
 
-        menuRenderer = new THREE.WebGLRenderer({ canvas: document.getElementById('menu-canvas'), antialias: true });
-        menuRenderer.setSize(window.innerWidth, window.innerHeight);
-        menuRenderer.shadowMap.enabled = true;
+        garageRenderer = new THREE.WebGLRenderer({
+            canvas: document.getElementById('garage-canvas'),
+            antialias: true
+        });
+        garageRenderer.setSize(window.innerWidth, window.innerHeight);
+        garageRenderer.shadowMap.enabled = true;
+        garageRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-        menuScene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-        dirLight.position.set(10, 20, 10);
-        dirLight.castShadow = true;
-        menuScene.add(dirLight);
+        // تحكم الكاميرا
+        garageControls = new THREE.OrbitControls(garageCamera, garageRenderer.domElement);
+        garageControls.enableDamping = true;
+        garageControls.dampingFactor = 0.05;
+        garageControls.minDistance = 3;
+        garageControls.maxDistance = 20;
 
-        const gridHelper = new THREE.GridHelper(100, 100, 0x3498db, 0x16213e);
-        gridHelper.position.y = -1;
-        menuScene.add(gridHelper);
+        // ==================== الإضاءة ====================
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        garageScene.add(ambientLight);
 
-        updateMenuCar();
-        animateMenu();
+        // أضواء السقف
+        for (let i = 0; i < 6; i++) {
+            const spotLight = new THREE.SpotLight(0xffeebb, 0.8);
+            spotLight.position.set(-5 + i * 2, 8, 0);
+            spotLight.target.position.set(-5 + i * 2, 0, 0);
+            spotLight.castShadow = true;
+            spotLight.shadow.mapSize.width = 1024;
+            spotLight.shadow.mapSize.height = 1024;
+            garageScene.add(spotLight);
+            garageScene.add(spotLight.target);
+        }
+
+        // ==================== الأرضية ====================
+        const floorGeo = new THREE.PlaneGeometry(30, 30);
+        const floorMat = new THREE.MeshStandardMaterial({
+            color: 0x3a3a3a,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        garageScene.add(floor);
+
+        // خطوط الأرضية
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 });
+        for (let i = -15; i <= 15; i += 3) {
+            const points = [];
+            points.push(new THREE.Vector3(i, 0.01, -15));
+            points.push(new THREE.Vector3(i, 0.01, 15));
+            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+            const line = new THREE.Line(lineGeo, lineMat);
+            garageScene.add(line);
+        }
+
+        // ==================== الجدران ====================
+        const wallMat = new THREE.MeshStandardMaterial({
+            color: 0x4a4a4a,
+            roughness: 0.9
+        });
+
+        // جدار خلفي
+        const backWall = new THREE.Mesh(new THREE.BoxGeometry(30, 8, 1), wallMat);
+        backWall.position.set(0, 4, -15.5);
+        backWall.receiveShadow = true;
+        garageScene.add(backWall);
+
+        // جدار جانبي
+        const sideWall = new THREE.Mesh(new THREE.BoxGeometry(1, 8, 30), wallMat);
+        sideWall.position.set(-15.5, 4, 0);
+        sideWall.receiveShadow = true;
+        garageScene.add(sideWall);
+
+        // ==================== السقف ====================
+        const ceilingGeo = new THREE.PlaneGeometry(30, 30);
+        const ceilingMat = new THREE.MeshStandardMaterial({
+            color: 0x2a2a2a,
+            side: THREE.DoubleSide
+        });
+        const ceiling = new THREE.Mesh(ceilingGeo, ceilingMat);
+        ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.y = 8;
+        garageScene.add(ceiling);
+
+        // ==================== الأدوات والمعدات ====================
+        // صندوق الأدوات
+        const toolBox = new THREE.Group();
+        const boxBody = new THREE.Mesh(
+            new THREE.BoxGeometry(1.5, 0.8, 0.8),
+            new THREE.MeshPhongMaterial({ color: 0xe74c3c, shininess: 50 })
+        );
+        boxBody.position.y = 0.4;
+        boxBody.castShadow = true;
+        toolBox.add(boxBody);
+
+        const boxLid = new THREE.Mesh(
+            new THREE.BoxGeometry(1.5, 0.1, 0.85),
+            new THREE.MeshPhongMaterial({ color: 0xc0392b })
+        );
+        boxLid.position.y = 0.85;
+        boxLid.rotation.x = -0.3;
+        boxLid.position.z = -0.3;
+        toolBox.add(boxLid);
+
+        const handle = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.1, 0.1, 0.5, 8),
+            new THREE.MeshPhongMaterial({ color: 0x111111 })
+        );
+        handle.rotation.z = Math.PI / 2;
+        handle.position.y = 0.85;
+        toolBox.add(handle);
+
+        toolBox.position.set(-10, 0, -5);
+        garageScene.add(toolBox);
+
+        // رف الأدوات
+        const shelfGroup = new THREE.Group();
+        const shelfMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+
+        for (let i = 0; i < 4; i++) {
+            const shelf = new THREE.Mesh(new THREE.BoxGeometry(3, 0.1, 0.8), shelfMat);
+            shelf.position.set(0, 1 + i * 1.5, 0);
+            shelf.receiveShadow = true;
+            shelfGroup.add(shelf);
+        }
+
+        // أدوات على الرف
+        const toolColors = [0xaaaaaa, 0xe74c3c, 0x3498db, 0xf1c40f];
+        for (let i = 0; i < 12; i++) {
+            const tool = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 0.1, 0.6),
+                new THREE.MeshPhongMaterial({ color: toolColors[i % 4] })
+            );
+            const shelf = Math.floor(i / 3);
+            tool.position.set(-1 + (i % 3) * 1, 1.1 + shelf * 1.5, 0);
+            tool.castShadow = true;
+            shelfGroup.add(tool);
+        }
+
+        shelfGroup.position.set(10, 0, -14);
+        shelfGroup.rotation.y = 0.3;
+        garageScene.add(shelfGroup);
+
+        // طاولة العمل
+        const workbench = new THREE.Group();
+        const benchTop = new THREE.Mesh(
+            new THREE.BoxGeometry(3, 0.15, 1.5),
+            new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 })
+        );
+        benchTop.position.y = 1;
+        workbench.add(benchTop);
+
+        for (let i = 0; i < 4; i++) {
+            const leg = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.1, 0.1, 1, 8),
+                new THREE.MeshPhongMaterial({ color: 0x333333 })
+            );
+            leg.position.set(-1.2 + i * 0.8, 0.5, -0.5 + (i > 1 ? 1 : 0));
+            workbench.add(leg);
+        }
+
+        workbench.position.set(-8, 0, 5);
+        garageScene.add(workbench);
+
+        // براميل الزيت
+        for (let i = 0; i < 3; i++) {
+            const barrel = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.4, 0.4, 1, 16),
+                new THREE.MeshPhongMaterial({ color: 0x2c3e50, shininess: 30 })
+            );
+            barrel.position.set(-12 + i * 1, 0.5, -10);
+            barrel.castShadow = true;
+            garageScene.add(barrel);
+
+            // ملصق على البرميل
+            const label = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.41, 0.41, 0.3, 16),
+                new THREE.MeshBasicMaterial({ color: 0xf1c40f })
+            );
+            label.position.set(-12 + i * 1, 0.5, -10);
+            garageScene.add(label);
+        }
+
+        // ==================== السيارة في الكراج ====================
+        garageCar = createCar(selectedCarType, selectedColor, true);
+        garageCar.position.set(0, 0, 0);
+        garageCar.castShadow = true;
+        garageScene.add(garageCar);
+
+        // ==================== مصباح التفتيش ====================
+        const inspectionLight = new THREE.SpotLight(0xffffff, 1);
+        inspectionLight.position.set(0, 6, 3);
+        inspectionLight.target = garageCar;
+        inspectionLight.castShadow = true;
+        garageScene.add(inspectionLight);
     }
 
-    function updateMenuCar() {
-        if (menuCar) menuScene.remove(menuCar);
-        menuCar = createCar(selectedCarType, selectedColor);
-        menuScene.add(menuCar);
+    function updateGarage() {
+        if (garageCar) {
+            garageScene.remove(garageCar);
+            garageCar = createCar(selectedCarType, selectedColor, true);
+            garageCar.position.set(0, 0, 0);
+            garageCar.castShadow = true;
+            garageScene.add(garageCar);
+        }
     }
 
-    function animateMenu() {
-        if (isGameRunning) return;
-        requestAnimationFrame(animateMenu);
-        if (menuCar) menuCar.rotation.y += 0.008;
-        menuRenderer.render(menuScene, menuCamera);
+    function animateGarage() {
+        if (document.getElementById('garage-view').style.display === 'none') return;
+        requestAnimationFrame(animateGarage);
+        garageControls.update();
+        garageRenderer.render(garageScene, garageCamera);
     }
 
-    // الكراج
+    // ==================== مغسلة السيارات 3D المفصلة ====================
+    function initCarWash() {
+        carwashScene = new THREE.Scene();
+        carwashScene.background = new THREE.Color(0x1a4a6e);
+        carwashScene.fog = new THREE.Fog(0x1a4a6e, 10, 40);
+
+        carwashCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        carwashCamera.position.set(5, 4, 10);
+
+        carwashRenderer = new THREE.WebGLRenderer({
+            canvas: document.getElementById('carwash-canvas'),
+            antialias: true
+        });
+        carwashRenderer.setSize(window.innerWidth, window.innerHeight);
+        carwashRenderer.shadowMap.enabled = true;
+
+        // تحكم الكاميرا
+        carwashControls = new THREE.OrbitControls(carwashCamera, carwashRenderer.domElement);
+        carwashControls.enableDamping = true;
+        carwashControls.dampingFactor = 0.05;
+        carwashControls.minDistance = 5;
+        carwashControls.maxDistance = 25;
+
+        // ==================== الإضاءة ====================
+        const ambientLight = new THREE.AmbientLight(0x4a90a4, 0.5);
+        carwashScene.add(ambientLight);
+
+        // أضواء النيون
+        for (let i = 0; i < 8; i++) {
+            const neonLight = new THREE.PointLight(0x00ffff, 0.5, 20);
+            neonLight.position.set(-8 + i * 2.3, 5, 0);
+            carwashScene.add(neonLight);
+        }
+
+        // ==================== الأرضية الرطبة ====================
+        const floorGeo = new THREE.PlaneGeometry(25, 40);
+        const floorMat = new THREE.MeshStandardMaterial({
+            color: 0x2a4a5a,
+            roughness: 0.3,
+            metalness: 0.7,
+            transparent: true,
+            opacity: 0.9
+        });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        carwashScene.add(floor);
+
+        // ==================== الجدران الزجاجية ====================
+        const glassMat = new THREE.MeshPhongMaterial({
+            color: 0x88ccff,
+            transparent: true,
+            opacity: 0.3,
+            shininess: 100
+        });
+
+        const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(40, 8), glassMat);
+        leftWall.rotation.y = Math.PI / 2;
+        leftWall.position.set(-12.5, 4, 0);
+        carwashScene.add(leftWall);
+
+        const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(40, 8), glassMat);
+        rightWall.rotation.y = -Math.PI / 2;
+        rightWall.position.set(12.5, 4, 0);
+        carwashScene.add(rightWall);
+
+        // ==================== نظام الغسل ====================
+        // الفرش الدوارة
+        brushGroup = new THREE.Group();
+
+        for (let i = 0; i < 3; i++) {
+            const brush = new THREE.Group();
+
+            // جسم الفرشاة
+            const brushBody = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.5, 0.5, 4, 16),
+                new THREE.MeshPhongMaterial({ color: 0x3498db, transparent: true, opacity: 0.7 })
+            );
+            brushBody.rotation.z = Math.PI / 2;
+            brush.add(brushBody);
+
+            // شعيرات الفرشاة
+            for (let j = 0; j < 20; j++) {
+                const bristle = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.05, 0.05, 1, 8),
+                    new THREE.MeshPhongMaterial({ color: 0xffff00 })
+                );
+                bristle.rotation.z = Math.PI / 2;
+                bristle.position.set(0, Math.sin(j * 0.3) * 0.5, Math.cos(j * 0.3) * 2);
+                brush.add(bristle);
+            }
+
+            brush.position.set(0, 2, -8 + i * 8);
+            brushGroup.add(brush);
+        }
+
+        carwashScene.add(brushGroup);
+
+        // أنابيب المياه
+        const pipeMat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, shininess: 80 });
+        for (let i = 0; i < 5; i++) {
+            const pipe = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.15, 25, 8),
+                pipeMat
+            );
+            pipe.rotation.z = Math.PI / 2;
+            pipe.position.set(10, 5 + i * 0.5, 0);
+            carwashScene.add(pipe);
+        }
+
+        // ==================== فوهات الرش ====================
+        for (let i = 0; i < 10; i++) {
+            const nozzle = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.1, 0.15, 0.3, 8),
+                new THREE.MeshPhongMaterial({ color: 0x333333 })
+            );
+            nozzle.rotation.x = Math.PI / 2;
+            nozzle.position.set(10, 3 + (i % 5) * 0.5, -8 + Math.floor(i / 5) * 16);
+            carwashScene.add(nozzle);
+        }
+
+        // ==================== السيارة في المغسلة ====================
+        carwashCar = createCar(selectedCarType, selectedColor, true);
+        carwashCar.position.set(0, 0, 0);
+        carwashCar.castShadow = true;
+        carwashScene.add(carwashCar);
+
+        // ==================== جزيئات الماء ====================
+        const waterGeo = new THREE.SphereGeometry(0.05, 4, 4);
+        const waterMat = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.6
+        });
+
+        for (let i = 0; i < 500; i++) {
+            const particle = new THREE.Mesh(waterGeo, waterMat);
+            particle.position.set(
+                10,
+                3 + Math.random() * 4,
+                -15 + Math.random() * 30
+            );
+            particle.userData = {
+                velocity: new THREE.Vector3(
+                    -0.1 - Math.random() * 0.1,
+                    -0.05 - Math.random() * 0.1,
+                    0
+                )
+            };
+            waterParticles.push(particle);
+            carwashScene.add(particle);
+        }
+    }
+
+    function updateCarWash() {
+        if (carwashCar) {
+            carwashScene.remove(carwashCar);
+            carwashCar = createCar(selectedCarType, selectedColor, true);
+            carwashCar.position.set(0, 0, 0);
+            carwashCar.castShadow = true;
+            carwashScene.add(carwashCar);
+        }
+    }
+
+    function animateCarWash() {
+        if (document.getElementById('carwash-view').style.display === 'none') return;
+        requestAnimationFrame(animateCarWash);
+
+        carwashControls.update();
+
+        // تدوير الفرش
+        if (brushGroup && isWashing) {
+            brushGroup.children.forEach((brush, i) => {
+                brush.rotation.x += 0.05 * (i % 2 === 0 ? 1 : -1);
+                brush.position.z = -8 + i * 8 + Math.sin(Date.now() * 0.001 + i) * 2;
+            });
+        }
+
+        // تحريك جزيئات الماء
+        if (isWashing) {
+            waterParticles.forEach(particle => {
+                particle.position.add(particle.userData.velocity);
+                particle.position.x += Math.sin(Date.now() * 0.005 + particle.position.y) * 0.02;
+
+                // إعادة تعيين الجزيئات
+                if (particle.position.x < -5) {
+                    particle.position.x = 10;
+                    particle.position.y = 3 + Math.random() * 4;
+                    particle.position.z = -15 + Math.random() * 30;
+                }
+            });
+        }
+
+        carwashRenderer.render(carwashScene, carwashCamera);
+    }
+
+    function startWash() {
+        isWashing = true;
+    }
+
+    function stopWash() {
+        isWashing = false;
+    }
+
+    function repairCar() {
+        alert('✅ تم صيانة السيارة بنجاح!\nالأداء: 100%');
+    }
+
+    function upgradeCar() {
+        alert('⬆️ تم ترقية السيارة!\nالسرعة القصوى زادت!');
+        maxSpeed += 0.02;
+    }
+
     function openGarage() {
         document.getElementById('main-menu').style.display = 'none';
-        document.getElementById('garage-view').style.display = 'flex';
-
-        // رسم سيارة في الكراج
-        const canvas = document.getElementById('garage-canvas');
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#34495e';
-        ctx.fillRect(0, 0, 400, 400);
-
-        // رسم أدوات الكراج (CC0 - مصادر مجانية)
-        ctx.fillStyle = '#95a5a6';
-        ctx.fillRect(50, 50, 80, 60); // صندوق أدوات
-        ctx.fillStyle = '#e74c3c';
-        ctx.fillRect(270, 80, 60, 40); // مفتاح
-
-        ctx.fillStyle = '#f1c40f';
-        ctx.beginPath();
-        ctx.arc(200, 200, 80, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#2c3e50';
-        ctx.font = '20px Arial';
-        ctx.fillText('الكراج', 160, 350);
+        document.getElementById('garage-view').style.display = 'block';
+        if (!garageScene) initGarage();
+        else updateGarage();
+        animateGarage();
     }
 
-    // مغسلة السيارات
     function openCarWash() {
         document.getElementById('main-menu').style.display = 'none';
-        document.getElementById('carwash-view').style.display = 'flex';
+        document.getElementById('carwash-view').style.display = 'block';
+        if (!carwashScene) initCarWash();
+        else updateCarWash();
+        animateCarWash();
     }
 
     function backToMenu() {
         document.getElementById('garage-view').style.display = 'none';
         document.getElementById('carwash-view').style.display = 'none';
         document.getElementById('main-menu').style.display = 'flex';
+        isWashing = false;
     }
 
     /* ============================================================
@@ -832,7 +1351,48 @@
         }
     }
 
-    // تهيئة اللعبة
+    // ==================== تهيئة القائمة ====================
+    function initMenu() {
+        menuScene = new THREE.Scene();
+        menuScene.background = new THREE.Color(0x1a1a2e);
+
+        menuCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+        menuCamera.position.set(0, 3, 10);
+        menuCamera.lookAt(0, 0, 0);
+
+        menuRenderer = new THREE.WebGLRenderer({ canvas: document.getElementById('menu-canvas'), antialias: true });
+        menuRenderer.setSize(window.innerWidth, window.innerHeight);
+        menuRenderer.shadowMap.enabled = true;
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        menuScene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        dirLight.position.set(10, 20, 10);
+        dirLight.castShadow = true;
+        menuScene.add(dirLight);
+
+        const gridHelper = new THREE.GridHelper(100, 100, 0x3498db, 0x16213e);
+        gridHelper.position.y = -1;
+        menuScene.add(gridHelper);
+
+        updateMenuCar();
+        animateMenu();
+    }
+
+    function updateMenuCar() {
+        if (menuCar) menuScene.remove(menuCar);
+        menuCar = createCar(selectedCarType, selectedColor, false);
+        menuScene.add(menuCar);
+    }
+
+    function animateMenu() {
+        if (isGameRunning) return;
+        requestAnimationFrame(animateMenu);
+        if (menuCar) menuCar.rotation.y += 0.008;
+        menuRenderer.render(menuScene, menuCamera);
+    }
+
+    // ==================== تهيئة اللعبة ====================
     function initGame() {
         currentSpeed = 0.04;
         targetSpeed = 0.04;
@@ -873,7 +1433,7 @@
             lines.push(line);
         }
 
-        playerCar = createCar(selectedCarType, selectedColor);
+        playerCar = createCar(selectedCarType, selectedColor, false);
         scene.add(playerCar);
         initGatePool();
         resetLearn();
@@ -969,7 +1529,7 @@
         animate();
     }
 
-    // الأحداث
+    // ==================== الأحداث ====================
     document.querySelectorAll('.option-btn[data-type]').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.option-btn[data-type]').forEach(b => b.classList.remove('active'));
@@ -998,6 +1558,8 @@
 
     window.addEventListener('resize', () => {
         if (menuRenderer) { menuCamera.aspect = window.innerWidth / window.innerHeight; menuCamera.updateProjectionMatrix(); menuRenderer.setSize(window.innerWidth, window.innerHeight); }
+        if (garageRenderer) { garageCamera.aspect = window.innerWidth / window.innerHeight; garageCamera.updateProjectionMatrix(); garageRenderer.setSize(window.innerWidth, window.innerHeight); }
+        if (carwashRenderer) { carwashCamera.aspect = window.innerWidth / window.innerHeight; carwashCamera.updateProjectionMatrix(); carwashRenderer.setSize(window.innerWidth, window.innerHeight); }
         if (renderer && isGameRunning) { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
     });
 

@@ -86,6 +86,20 @@ function buildShip() {
   canopy.position.set(0, 0.34, -0.5);
   group.add(canopy);
 
+  /* DSI-style intake bumps, F-35-inspired */
+  [-1, 1].forEach((s) => {
+    const bump = new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 8), hullMat);
+    bump.scale.set(0.55, 0.5, 1.1);
+    bump.position.set(s * 0.5, -0.05, -0.7);
+    group.add(bump);
+  });
+
+  /* tail taper before the engine */
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.26, 0.9, 8), hullMat);
+  tail.rotation.x = Math.PI / 2;
+  tail.position.z = 1.5;
+  group.add(tail);
+
   const wingShape = new THREE.Shape();
   wingShape.moveTo(0, 0);
   wingShape.lineTo(2.6, -1.5);
@@ -105,7 +119,7 @@ function buildShip() {
   [-1, 1].forEach((s) => {
     const fin = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 0.9), darkMat);
     fin.position.set(s * 0.35, 0.35, 1.4);
-    fin.rotation.z = s * 0.35;
+    fin.rotation.z = s * 0.46;
     group.add(fin);
   });
 
@@ -230,7 +244,7 @@ function buildBlackHole() {
 
 /* ---------------- GAME ---------------- */
 let renderer, scene, camera, clock;
-let ship, stars, nebulaA, nebulaB;
+let ship, stars, nebulaA, nebulaB, launchPad;
 let asteroidPool = [], orbPool = [], milestonePool = [];
 let blackHole;
 let animFrameId = null;
@@ -239,11 +253,16 @@ let audioCtx;
 const BOUND_X = 6, BOUND_Y = 3.6;
 let gs;
 
+const LAUNCH_IGNITE = 1.1;
+const LAUNCH_DUR = 6.5;
+
 function startFlight() {
   cleanupScene();
   gs = {
     running: true,
     paused: false,
+    phase: 'launch',
+    launchT: 0,
     speed: 18,
     distance: 0,
     score: 0,
@@ -299,13 +318,46 @@ function startFlight() {
   ship = buildShip();
   scene.add(ship);
 
+  launchPad = buildLaunchPad();
+  scene.add(launchPad);
+  ship.position.set(0, LAUNCH_GROUND_Y, 0);
+  camera.position.set(4.5, LAUNCH_GROUND_Y + 1.6, 8);
+  camera.lookAt(0, LAUNCH_GROUND_Y + 1.5, 0);
+  $('#launchBanner').style.display = 'block';
+  $('#launchLbl').textContent = '🚀 استعدّي للإطلاق';
+  $('#launchWord').textContent = 'العد التنازلي…';
+
   bindControls();
   startEngineAudio();
   onResize();
   addEventListener('resize', onResize);
 
-  nextWord();
   animFrameId = requestAnimationFrame(loop);
+}
+
+const LAUNCH_GROUND_Y = -8;
+function buildLaunchPad() {
+  const g = new THREE.Group();
+  const padMat = new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.9, metalness: 0.1 });
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(6, 6.6, 0.6, 24), padMat);
+  pad.position.set(0, LAUNCH_GROUND_Y - 1.6, 0);
+  g.add(pad);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xffb877, transparent: true, opacity: 0.75 });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(3.2, 3.5, 32), ringMat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(0, LAUNCH_GROUND_Y - 1.28, 0);
+  g.add(ring);
+  const towerMat = new THREE.MeshStandardMaterial({ color: 0x5a626e, roughness: 0.7, metalness: 0.3 });
+  [-1, 1].forEach((s) => {
+    const tower = new THREE.Mesh(new THREE.BoxGeometry(0.35, 6, 0.35), towerMat);
+    tower.position.set(s * 3.4, LAUNCH_GROUND_Y + 1.4, -1.2);
+    g.add(tower);
+  });
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(220, 32), new THREE.MeshStandardMaterial({ color: 0x1c2233, roughness: 1 }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(0, LAUNCH_GROUND_Y - 1.9, 0);
+  g.add(ground);
+  return g;
 }
 
 function buildStarfield() {
@@ -583,8 +635,60 @@ function loop() {
   animFrameId = requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.05);
   if (gs.paused) { renderer.render(scene, camera); return; }
-  update(dt);
+  if (gs.phase === 'launch') updateLaunch(dt); else update(dt);
   renderer.render(scene, camera);
+}
+
+function updateLaunch(dt) {
+  gs.launchT += dt;
+  const t = gs.launchT;
+  const flame = ship.userData.flame, glow = ship.userData.glow;
+
+  if (t < LAUNCH_IGNITE) {
+    const k = t / LAUNCH_IGNITE;
+    flame.scale.set(1, 0.3 + k * 0.5, 1);
+    glow.scale.setScalar(0.6 + k * 0.4);
+    ship.position.y = LAUNCH_GROUND_Y + Math.sin(t * 60) * 0.02 * k;
+    if (Math.random() < dt * 18) spawnBurst(new THREE.Vector3(ship.position.x + (Math.random() - 0.5) * 1.5, LAUNCH_GROUND_Y - 1.2, (Math.random() - 0.5) * 1.5), 0xffcf8a);
+    $('#launchWord').textContent = 'الإشعال… 🔥';
+  } else {
+    const at = Math.min(1, (t - LAUNCH_IGNITE) / (LAUNCH_DUR - LAUNCH_IGNITE));
+    const ease = 1 - Math.pow(1 - at, 2);
+    ship.position.y = LAUNCH_GROUND_Y + ease * 42;
+    const flick = 0.85 + Math.sin(clock.elapsedTime * 40) * 0.15;
+    flame.scale.set(1, (1.1 + at * 0.6) * flick, 1);
+    glow.scale.setScalar(1.3 * flick);
+    if (Math.random() < dt * 26) {
+      spawnBurst(new THREE.Vector3(ship.position.x + (Math.random() - 0.5) * 1.2, ship.position.y - 1.6, (Math.random() - 0.5) * 1.2), 0xffb877);
+    }
+    $('#launchWord').textContent = at < 1 ? 'الانطلاق! 🚀' : 'ندخل الفضاء…';
+
+    const camT = Math.min(1, at * 1.3);
+    camera.position.set(
+      THREE.MathUtils.lerp(4.5, ship.position.x * 0.5, camT),
+      ship.position.y + 1.6,
+      ship.position.z + 8
+    );
+    camera.lookAt(ship.position.x, ship.position.y, ship.position.z - 10);
+
+    const skyMix = Math.min(1, at * 1.6);
+    scene.fog.density = THREE.MathUtils.lerp(0.0015, 0.006, skyMix);
+    stars.material.opacity = THREE.MathUtils.lerp(0.15, 0.85, skyMix);
+  }
+
+  updateBursts(dt);
+
+  if (t >= LAUNCH_DUR) {
+    gs.phase = 'flight';
+    ship.position.set(0, 0, 0);
+    ship.userData.flame.scale.set(1, 1, 1);
+    ship.userData.glow.scale.setScalar(1.1);
+    scene.remove(launchPad);
+    stars.material.opacity = 0.85;
+    scene.fog.density = 0.006;
+    $('#launchBanner').style.display = 'none';
+    nextWord();
+  }
 }
 
 function update(dt) {
@@ -704,6 +808,7 @@ function updateHud() {
 function endFlight(reason) {
   if (!gs.running) return;
   gs.running = false;
+  $('#launchBanner').style.display = 'none';
   if (animFrameId) cancelAnimationFrame(animFrameId);
   stopAudio();
   removeEventListener('resize', onResize);

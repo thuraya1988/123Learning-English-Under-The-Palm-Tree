@@ -90,7 +90,7 @@
 <canvas id="scene"></canvas>
 
 <div class="ui" id="seeds">أضواء <span class="sd" id="sd0"></span><span class="sd" id="sd1"></span><span class="sd" id="sd2"></span></div>
-<div class="ui" id="hudW">✦ اكتشافات <span class="lt" id="wCt">0</span> / 13</div>
+<div class="ui" id="hudW">✦ اكتشافات <span class="lt" id="wCt">0</span> / 14</div>
 <div class="ui" id="muteBtn">🔊</div>
 <a class="ui" id="backBtn" href="games-skills.html">← رجوع</a>
 <a class="ui" id="flightBtn" href="flappy-chair-adventure.html">🐦 طيران جُمانة ✦</a>
@@ -188,12 +188,12 @@ var flags={lanternLit:false,brambleT:0,brambleOpen:false,ringDone:false,ringHint
 var shy={mode:'hide',t:0,x:4050,alpha:0};
 var F={active:false,phase:0,t:0,aurora:0,petals:[],capIdx:0,shown:false,startX:260};
 var shooting=null,shootT=rand(6,12);
-var TOTAL_WONDERS=13,wonderCount=0,wondersDone={},TOTAL_WORDS=8,wordsLearned=0;
+var TOTAL_WONDERS=14,wonderCount=0,wondersDone={},TOTAL_WORDS=11,wordsLearned=0;
 
 /* العالم */
 var mainTrees=[],flowers=[],mushrooms=[],tufts=[],pebbles=[],stars=[],clouds=[],fogBlobs=[],motes=[],fireflies=[],spirits=[];
 var butterflies=[],rabbits=[],snails=[],puffs=[],sparks=[];
-var SPOTS={sign:420,petals:950,lantern:1500,bramble:1750,owl:2150,ring:2400,fly:3250,windows:3650,shy:4050,stones:4850,pond:5450,hill:5900,heart:6600};
+var SPOTS={sign:420,petals:950,lantern:1500,bramble:1750,owl:2150,ring:2400,fly:3250,windows:3650,shy:4050,stones:4850,butterflies:5150,pond:5450,hill:5900,heart:6600};
 var logs=[{x:1350},{x:3000},{x:5000}];
 function makeBlobs(){return [
   {fx:rand(-0.16,0.16),fy:0.10,fr:0.30},{fx:rand(-0.22,0.05),fy:-0.06,fr:0.26},
@@ -452,6 +452,52 @@ function finishWindows(){
   say('جُمانة','كل النوافذ استيقظت معًا… يا لها من لحظة!','pj');duckSay('واك واك واك!');
   setTimeout(function(){WIN.active=false;state.cinematic=false;},2600);
 }
+
+/* ===== بحيرة الفراشات (ألغاز ألوان) ===== */
+var BUTTERFLIES=[
+  {en:'Red',ar:'أحمر',hex:[232,93,93]},
+  {en:'Blue',ar:'أزرق',hex:[93,143,232]},
+  {en:'Yellow',ar:'أصفر',hex:[232,209,93]}
+];
+var BFLY={active:false,idx:0,opts:[],chosen:-1,wrongT:0,waveT:0};
+var COLOR_POOL=[
+  {en:'Red',hex:[232,93,93]},{en:'Blue',hex:[93,143,232]},{en:'Yellow',hex:[232,209,93]},
+  {en:'Green',hex:[110,196,120]},{en:'Purple',hex:[168,120,214]},{en:'Orange',hex:[232,150,80]}
+];
+function rollBflyOptions(){
+  var w=BUTTERFLIES[BFLY.idx],pool=COLOR_POOL.filter(function(c){return c.en!==w.en;});
+  var wrong=[];
+  while(wrong.length<2){var c=pool[(Math.random()*pool.length)|0];if(wrong.indexOf(c)<0)wrong.push(c);}
+  var arr=[{en:w.en,hex:w.hex},wrong[0],wrong[1]];
+  for(var i=arr.length-1;i>0;i--){var j=(Math.random()*(i+1))|0;var tmp=arr[i];arr[i]=arr[j];arr[j]=tmp;}
+  BFLY.opts=arr;
+}
+function openButterflies(){
+  if(wondersDone.butterflies||BFLY.active)return;
+  BFLY.active=true;BFLY.idx=0;BFLY.chosen=-1;BFLY.wrongT=0;BFLY.waveT=0;
+  state.cinematic=true;rollBflyOptions();
+  say('جُمانة','فراشاتٌ ملوّنة فوق البحيرة… أي لون تحملين لها؟','pj');
+}
+function pickBflyColor(en){
+  if(!BFLY.active||BFLY.chosen===1)return;
+  var w=BUTTERFLIES[BFLY.idx];
+  if(en===w.en){
+    BFLY.chosen=1;AudioSys.bell(90,0.12);wordsLearned++;
+    say('جُمانة',w.en+' — '+w.ar+'. لون فراشة صغيرة فوق الماء.','pj');
+    setTimeout(function(){
+      BFLY.idx++;BFLY.chosen=-1;BFLY.waveT=0;
+      if(BFLY.idx>=BUTTERFLIES.length)finishButterflies();else rollBflyOptions();
+    },2300);
+  }else{
+    BFLY.wrongT=0.6;AudioSys.tone(150,AudioSys.ctx?AudioSys.ctx.currentTime:0,0.22,0.05,'sawtooth');
+  }
+}
+function finishButterflies(){
+  wondersDone.butterflies=1;BFLY.waveT=1.4;
+  addWonder('فراشات البحيرة');
+  say('جُمانة','كل الألوان اجتمعت فوق الماء… يا له من قوس قزح صغير!','pj');duckSay('واك!');
+  setTimeout(function(){BFLY.active=false;state.cinematic=false;},2600);
+}
 function sitAt(log){
   state.resting=true;player.x=log.x+16;player.vx=0;
   caption('تجلسان معًا… والسماء تكمل الباقي.',4.5);
@@ -486,6 +532,7 @@ function computePrompt(){
   if(!flags.flySaved&&state.night>0.2&&Math.abs(px-SPOTS.fly)<75)return{t:'واسي اليراعة الضائعة',f:saveFly};
   if(!flags.stonesOn&&Math.abs(px-SPOTS.stones)<95)return{t:'المسي أحجار الغناء',f:playStones};
   if(!wondersDone.windows&&Math.abs(px-SPOTS.windows)<90)return{t:'افتحي النوافذ الغريبة',f:openWindows};
+  if(!wondersDone.butterflies&&Math.abs(px-SPOTS.butterflies)<90)return{t:'العبي مع فراشات الألوان',f:openButterflies};
   for(i=0;i<logs.length;i++){
     if(Math.abs(px-logs[i].x)<64)return{t:'اجلسي وراقبي السماء',f:(function(l){return function(){sitAt(l);};})(logs[i])};
   }
@@ -599,6 +646,8 @@ function update(dt){
   }
   if(WIN.wrongT>0)WIN.wrongT=Math.max(0,WIN.wrongT-dt);
   if(WIN.waveT>0)WIN.waveT=Math.max(0,WIN.waveT-dt);
+  if(BFLY.wrongT>0)BFLY.wrongT=Math.max(0,BFLY.wrongT-dt);
+  if(BFLY.waveT>0)BFLY.waveT=Math.max(0,BFLY.waveT-dt);
   player.nextBlink-=dt;if(player.nextBlink<0){player.blink=0.16;player.nextBlink=rand(2.4,5.5);}
   player.blink-=dt;
   duck.nextBlink-=dt;if(duck.nextBlink<0){duck.blink=0.16;duck.nextBlink=rand(2.6,6);}
@@ -905,6 +954,18 @@ function drawMainWorld(n){
       ctx.fill();ctx.stroke();
       ctx.fillStyle='rgba(255,225,160,'+(0.7*wglow)+')';
       ctx.beginPath();ctx.arc(0,-1,3.4,0,TAU);ctx.fill();
+      ctx.restore();}}
+  var bfx=SPOTS.butterflies-cx0;
+  if(bfx>-160&&bfx<W+160){
+    var bcols=wondersDone.butterflies?[[232,93,93],[93,143,232],[232,209,93]]:[[150,150,160],[150,150,160],[150,150,160]];
+    for(i=0;i<3;i++){
+      var bxp2=bfx+(i-1)*44,byp2=GY-30+Math.sin(timeS*1.4+i*2)*6;
+      ctx.save();ctx.translate(bxp2,byp2);ctx.rotate(Math.sin(timeS*3+i)*0.08);
+      var flap=Math.abs(Math.sin(timeS*7+i*1.7))*0.7+0.15;
+      ctx.fillStyle=css(mixc(bcols[i],[20,20,30],0.25*n));
+      ctx.save();ctx.scale(flap,1);ctx.beginPath();ctx.ellipse(-6,0,6,4.4,0,0,TAU);ctx.fill();ctx.restore();
+      ctx.save();ctx.scale(flap,1);ctx.beginPath();ctx.ellipse(6,0,6,4.4,0,0,TAU);ctx.fill();ctx.restore();
+      ctx.fillStyle='rgba(40,40,50,0.7)';ctx.fillRect(-0.8,-4,1.6,8);
       ctx.restore();}}
   var stx=SPOTS.stones-cx0;
   if(stx>-180&&stx<W+180){
@@ -1360,6 +1421,57 @@ function drawWindowsChain(){
   }
   ctx.restore();
 }
+function drawButterfliesChain(){
+  if(!BFLY.active)return;
+  ctx.save();
+  ctx.fillStyle='rgba(6,8,22,0.74)';ctx.fillRect(0,0,W,H);
+  var cx=W/2,cy=H*0.29;
+  if(BFLY.idx<BUTTERFLIES.length){
+    var w=BUTTERFLIES[BFLY.idx],wob=Math.sin(timeS*1.1)*6,shakeX=BFLY.wrongT>0?Math.sin(BFLY.wrongT*60)*6:0;
+    var dots=BUTTERFLIES.length,dcx=cx-(dots-1)*14;
+    for(var di=0;di<dots;di++){
+      ctx.beginPath();ctx.arc(dcx+di*28,H*0.1,6,0,TAU);
+      ctx.fillStyle=di<BFLY.idx?'rgba(255,225,160,0.9)':'rgba(247,239,221,0.25)';ctx.fill();
+    }
+    ctx.save();ctx.translate(cx+shakeX,cy+wob);
+    var glowA=BFLY.chosen===1?1:0.55;
+    var grd=ctx.createRadialGradient(0,0,10,0,0,140);
+    grd.addColorStop(0,css(w.hex,0.4*glowA));grd.addColorStop(1,css(w.hex,0));
+    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(0,0,140,0,TAU);ctx.fill();
+    var flap=0.7+0.3*Math.sin(timeS*4);
+    ctx.fillStyle=css(w.hex,0.95);ctx.strokeStyle='rgba(247,239,221,0.9)';ctx.lineWidth=2.4;
+    ctx.save();ctx.scale(flap,1);ctx.beginPath();ctx.ellipse(-26,0,26,20,0,0,TAU);ctx.fill();ctx.stroke();ctx.restore();
+    ctx.save();ctx.scale(flap,1);ctx.beginPath();ctx.ellipse(26,0,26,20,0,0,TAU);ctx.fill();ctx.stroke();ctx.restore();
+    ctx.fillStyle='rgba(40,30,30,0.85)';ctx.fillRect(-3,-24,6,48);
+    ctx.restore();
+    ctx.fillStyle='#ffe4a0';ctx.font='16px Tajawal, sans-serif';ctx.textAlign='center';
+    ctx.fillText('شنو لون هذي الفراشة؟ اختاري: '+w.en,cx,H*0.47);
+    var oy=H*0.56,ox0=cx-120;
+    for(var i=0;i<3;i++){
+      var ox=ox0+i*120,opt=BFLY.opts[i],isRight=BFLY.chosen===1&&opt.en===w.en;
+      ctx.beginPath();ctx.arc(ox,oy,36,0,TAU);
+      ctx.fillStyle=css(opt.hex,isRight?0.95:0.55);ctx.fill();
+      ctx.strokeStyle='rgba(247,239,221,0.85)';ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle='#241a20';ctx.font='700 13px Tajawal, sans-serif';ctx.textBaseline='middle';
+      ctx.fillText(opt.en,ox,oy+2);
+    }
+  }
+  if(BFLY.waveT>0){
+    var wv=BFLY.waveT/1.4;
+    for(var j=0;j<BUTTERFLIES.length;j++){
+      var jx=cx+(j-1)*150,jy=H*0.34,jw=BUTTERFLIES[j];
+      ctx.save();ctx.translate(jx,jy);ctx.globalAlpha=wv;
+      var g2=ctx.createRadialGradient(0,0,10,0,0,110);
+      g2.addColorStop(0,css(jw.hex,0.55));g2.addColorStop(1,css(jw.hex,0));
+      ctx.fillStyle=g2;ctx.beginPath();ctx.arc(0,0,110,0,TAU);ctx.fill();
+      ctx.fillStyle=css(jw.hex,0.9);ctx.strokeStyle='rgba(247,239,221,0.9)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.ellipse(-16,0,16,12,0,0,TAU);ctx.fill();ctx.stroke();
+      ctx.beginPath();ctx.ellipse(16,0,16,12,0,0,TAU);ctx.fill();ctx.stroke();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
 function render(){
   var n=state.night;
   drawSky(n);
@@ -1380,6 +1492,7 @@ function render(){
   drawFog(n);
   vignette();
   drawWindowsChain();
+  drawButterfliesChain();
 }
 
 /* البدء */
@@ -1417,10 +1530,15 @@ try{
     if(k==='arrowright'||k==='d')keys.right=false;
   });
   cv.addEventListener('pointerdown',function(e){
-    if(!WIN.active||WIN.idx>=WINDOWS.length||WIN.chosen===1)return;
-    var oy=H*0.56,ox0=W/2-120,r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;
-    for(var i=0;i<3;i++){var ox=ox0+i*120;
-      if(Math.hypot(px-ox,py-oy)<40){pickWindowLetter(WIN.opts[i]);return;}}
+    var r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,oy=H*0.56,ox0=W/2-120,i,ox;
+    if(WIN.active&&WIN.idx<WINDOWS.length&&WIN.chosen!==1){
+      for(i=0;i<3;i++){ox=ox0+i*120;
+        if(Math.hypot(px-ox,py-oy)<40){pickWindowLetter(WIN.opts[i]);return;}}
+    }
+    if(BFLY.active&&BFLY.idx<BUTTERFLIES.length&&BFLY.chosen!==1){
+      for(i=0;i<3;i++){ox=ox0+i*120;
+        if(Math.hypot(px-ox,py-oy)<40){pickBflyColor(BFLY.opts[i].en);return;}}
+    }
   });
   (function(){
     function bind(el,down,up){

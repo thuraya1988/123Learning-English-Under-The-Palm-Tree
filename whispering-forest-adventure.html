@@ -90,7 +90,7 @@
 <canvas id="scene"></canvas>
 
 <div class="ui" id="seeds">أضواء <span class="sd" id="sd0"></span><span class="sd" id="sd1"></span><span class="sd" id="sd2"></span></div>
-<div class="ui" id="hudW">✦ اكتشافات <span class="lt" id="wCt">0</span> / 17</div>
+<div class="ui" id="hudW">✦ اكتشافات <span class="lt" id="wCt">0</span> / 18</div>
 <div class="ui" id="muteBtn">🔊</div>
 <a class="ui" id="backBtn" href="games-skills.html">← رجوع</a>
 <a class="ui" id="flightBtn" href="flappy-chair-adventure.html">🐦 طيران جُمانة ✦</a>
@@ -188,12 +188,12 @@ var flags={lanternLit:false,brambleT:0,brambleOpen:false,ringDone:false,ringHint
 var shy={mode:'hide',t:0,x:4050,alpha:0};
 var F={active:false,phase:0,t:0,aurora:0,petals:[],capIdx:0,shown:false,startX:260};
 var shooting=null,shootT=rand(6,12);
-var TOTAL_WONDERS=17,wonderCount=0,wondersDone={},TOTAL_WORDS=18,wordsLearned=0;
+var TOTAL_WONDERS=18,wonderCount=0,wondersDone={},TOTAL_WORDS=21,wordsLearned=0;
 
 /* العالم */
 var mainTrees=[],flowers=[],mushrooms=[],tufts=[],pebbles=[],stars=[],clouds=[],fogBlobs=[],motes=[],fireflies=[],spirits=[];
 var butterflies=[],rabbits=[],snails=[],puffs=[],sparks=[];
-var SPOTS={sign:420,petals:950,lantern:1500,bramble:1750,owl:2150,ring:2400,whispers:2800,fly:3250,windows:3650,shy:4050,piano:4450,stones:4850,butterflies:5150,pond:5450,hill:5900,bees:6200,heart:6600};
+var SPOTS={sign:420,greetings:685,petals:950,lantern:1500,bramble:1750,owl:2150,ring:2400,whispers:2800,fly:3250,windows:3650,shy:4050,piano:4450,stones:4850,butterflies:5150,pond:5450,hill:5900,bees:6200,heart:6600};
 var logs=[{x:1350},{x:3000},{x:5000}];
 function makeBlobs(){return [
   {fx:rand(-0.16,0.16),fy:0.10,fr:0.30},{fx:rand(-0.22,0.05),fy:-0.06,fr:0.26},
@@ -622,6 +622,49 @@ function finishWhispers(){
   say('جُمانة','الأشجار العتيقة همست بأسرارها كلها… وحفظناها معًا.','pj');duckSay('واك!');
   setTimeout(function(){WHISP.active=false;state.cinematic=false;},2600);
 }
+
+/* ===== الأرنب المؤدّب (لغة الاستخدام اليومي) ===== */
+var GREET=[
+  {en:'Thank you',ar:'شكرًا',hint:'نقولها لما حد يساعدنا'},
+  {en:'Please',ar:'من فضلك',hint:'نقولها لما نطلب شيئًا بلطف'},
+  {en:'Good morning',ar:'صباح الخير',hint:'نقولها أول ما نشوف حد بالصباح'}
+];
+var GREET_POOL=['Thank you','Please','Good morning','Sorry','Excuse me','Good night','Welcome','How are you'];
+var GRT={active:false,idx:0,opts:[],chosen:-1,wrongT:0,waveT:0};
+function rollGreetOptions(){
+  var w=GREET[GRT.idx],pool=GREET_POOL.filter(function(v){return v!==w.en;});
+  var wrong=[];
+  while(wrong.length<2){var c=pool[(Math.random()*pool.length)|0];if(wrong.indexOf(c)<0)wrong.push(c);}
+  var arr=[w.en,wrong[0],wrong[1]];
+  for(var i=arr.length-1;i>0;i--){var j=(Math.random()*(i+1))|0;var tmp=arr[i];arr[i]=arr[j];arr[j]=tmp;}
+  GRT.opts=arr;
+}
+function openGreetings(){
+  if(wondersDone.greetings||GRT.active)return;
+  GRT.active=true;GRT.idx=0;GRT.chosen=-1;GRT.wrongT=0;GRT.waveT=0;
+  state.cinematic=true;rollGreetOptions();
+  say('جُمانة','أرنبٌ مؤدّب يريد أن يعلّمنا كلماتٍ نستخدمها كل يوم.','pj');
+}
+function pickGreetPhrase(en){
+  if(!GRT.active||GRT.chosen===1)return;
+  var w=GREET[GRT.idx];
+  if(en===w.en){
+    GRT.chosen=1;AudioSys.bell(82,0.12);wordsLearned++;
+    say('جُمانة',w.en+' — '+w.ar+'. '+w.hint+'.','pj');
+    setTimeout(function(){
+      GRT.idx++;GRT.chosen=-1;GRT.waveT=0;
+      if(GRT.idx>=GREET.length)finishGreetings();else rollGreetOptions();
+    },2400);
+  }else{
+    GRT.wrongT=0.6;AudioSys.tone(150,AudioSys.ctx?AudioSys.ctx.currentTime:0,0.22,0.05,'sawtooth');
+  }
+}
+function finishGreetings(){
+  wondersDone.greetings=1;GRT.waveT=1.4;
+  addWonder('كلمات الأرنب المؤدّب');
+  say('جُمانة','تعلّمنا كلماتٍ نقولها كل يوم… شكرًا أيها الأرنب!','pj');duckSay('واك واك!');
+  setTimeout(function(){GRT.active=false;state.cinematic=false;},2600);
+}
 function sitAt(log){
   state.resting=true;player.x=log.x+16;player.vx=0;
   caption('تجلسان معًا… والسماء تكمل الباقي.',4.5);
@@ -660,6 +703,7 @@ function computePrompt(){
   if(!wondersDone.bees&&Math.abs(px-SPOTS.bees)<90)return{t:'عُدّي نحلات المرج',f:openBees};
   if(!wondersDone.piano&&Math.abs(px-SPOTS.piano)<90)return{t:'اعزفي على البيانو الصغير',f:openPiano};
   if(!wondersDone.whispers&&Math.abs(px-SPOTS.whispers)<90)return{t:'استمعي لهمس الأشجار',f:openWhispers};
+  if(!wondersDone.greetings&&Math.abs(px-SPOTS.greetings)<90)return{t:'تكلّمي مع الأرنب المؤدّب',f:openGreetings};
   for(i=0;i<logs.length;i++){
     if(Math.abs(px-logs[i].x)<64)return{t:'اجلسي وراقبي السماء',f:(function(l){return function(){sitAt(l);};})(logs[i])};
   }
@@ -782,6 +826,8 @@ function update(dt){
   if(PIANO.waveT>0)PIANO.waveT=Math.max(0,PIANO.waveT-dt);
   if(WHISP.wrongT>0)WHISP.wrongT=Math.max(0,WHISP.wrongT-dt);
   if(WHISP.waveT>0)WHISP.waveT=Math.max(0,WHISP.waveT-dt);
+  if(GRT.wrongT>0)GRT.wrongT=Math.max(0,GRT.wrongT-dt);
+  if(GRT.waveT>0)GRT.waveT=Math.max(0,GRT.waveT-dt);
   player.nextBlink-=dt;if(player.nextBlink<0){player.blink=0.16;player.nextBlink=rand(2.4,5.5);}
   player.blink-=dt;
   duck.nextBlink-=dt;if(duck.nextBlink<0){duck.blink=0.16;duck.nextBlink=rand(2.6,6);}
@@ -1134,6 +1180,18 @@ function drawMainWorld(n){
       ctx.beginPath();ctx.ellipse(wtx,wty+30,6,9,0,0,TAU);ctx.fill();
       ctx.fillStyle='rgba(255,225,160,'+(0.7*wgl)+')';
       ctx.beginPath();ctx.ellipse(wtx,wty+30,2.6,1.6,0,0,TAU);ctx.fill();}}
+  var grx=SPOTS.greetings-cx0;
+  if(grx>-100&&grx<W+100){
+    var ggl=wondersDone.greetings?1:(0.4+0.3*Math.sin(timeS*1.5));
+    ctx.fillStyle='#f0ede4';
+    ctx.beginPath();ctx.ellipse(grx,GY-10,10,8,0,0,TAU);ctx.fill();
+    ctx.beginPath();ctx.ellipse(grx,GY-24,7,8,0,0,TAU);ctx.fill();
+    ctx.beginPath();ctx.ellipse(grx-3,GY-36,2.2,7,-0.15,0,TAU);ctx.fill();
+    ctx.beginPath();ctx.ellipse(grx+3,GY-36,2.2,7,0.15,0,TAU);ctx.fill();
+    ctx.fillStyle='#2a2420';ctx.beginPath();ctx.arc(grx-2.4,GY-25,1,0,TAU);ctx.arc(grx+2.4,GY-25,1,0,TAU);ctx.fill();
+    if(ggl>0.4){ctx.save();ctx.globalCompositeOperation='lighter';
+      ctx.fillStyle='rgba(255,225,160,'+(ggl*0.3)+')';
+      ctx.beginPath();ctx.arc(grx,GY-20,30,0,TAU);ctx.fill();ctx.restore();}}
   var stx=SPOTS.stones-cx0;
   if(stx>-180&&stx<W+180){
     var sc=tri([[150,150,160],[142,120,132],[62,68,94]],n);
@@ -1779,6 +1837,57 @@ function drawWhispersChain(){
   }
   ctx.restore();
 }
+function drawGreetChain(){
+  if(!GRT.active)return;
+  ctx.save();
+  ctx.fillStyle='rgba(6,8,22,0.74)';ctx.fillRect(0,0,W,H);
+  var cx=W/2,cy=H*0.27;
+  if(GRT.idx<GREET.length){
+    var w=GREET[GRT.idx],bounce=Math.abs(Math.sin(timeS*2.2))*8,shakeX=GRT.wrongT>0?Math.sin(GRT.wrongT*60)*6:0;
+    var dots=GREET.length,dcx=cx-(dots-1)*14;
+    for(var di=0;di<dots;di++){
+      ctx.beginPath();ctx.arc(dcx+di*28,H*0.1,6,0,TAU);
+      ctx.fillStyle=di<GRT.idx?'rgba(255,225,160,0.9)':'rgba(247,239,221,0.25)';ctx.fill();
+    }
+    ctx.save();ctx.translate(cx+shakeX,cy-bounce);
+    var glowA=GRT.chosen===1?1:0.5;
+    var grd=ctx.createRadialGradient(0,0,10,0,0,100);
+    grd.addColorStop(0,'rgba(255,225,160,'+(0.3*glowA)+')');grd.addColorStop(1,'rgba(255,225,160,0)');
+    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(0,0,100,0,TAU);ctx.fill();
+    ctx.fillStyle='#f0ede4';ctx.strokeStyle='rgba(60,50,40,0.5)';ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.ellipse(0,20,26,20,0,0,TAU);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.ellipse(0,-8,18,20,0,0,TAU);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.ellipse(-7,-32,5.5,18,-0.15,0,TAU);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.ellipse(7,-32,5.5,18,0.15,0,TAU);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#2a2420';ctx.beginPath();ctx.arc(-6,-10,2.2,0,TAU);ctx.arc(6,-10,2.2,0,TAU);ctx.fill();
+    ctx.restore();
+    ctx.fillStyle='#ffe4a0';ctx.font='16px Tajawal, sans-serif';ctx.textAlign='center';
+    ctx.fillText('الأرنب يقول: «'+w.ar+'»… أي عبارة تعنيها؟',cx,H*0.5);
+    var oy=H*0.6,pw=176,pgap=14,totalW=3*pw+2*pgap,ox0=cx-totalW/2;
+    for(var i=0;i<3;i++){
+      var ox=ox0+i*(pw+pgap),opt=GRT.opts[i],isRight=GRT.chosen===1&&opt===w.en;
+      ctx.beginPath();ctx.roundRect(ox,oy-26,pw,52,26);
+      ctx.fillStyle=isRight?'rgba(255,225,160,0.92)':'rgba(247,239,221,0.14)';ctx.fill();
+      ctx.strokeStyle='rgba(247,239,221,0.75)';ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle=isRight?'#241a20':'#f7efdd';
+      ctx.font='700 17px Tajawal, sans-serif';ctx.textBaseline='middle';
+      ctx.fillText(opt,ox+pw/2,oy+2);
+    }
+  }
+  if(GRT.waveT>0){
+    var wv=GRT.waveT/1.4;
+    for(var j=0;j<GREET.length;j++){
+      var jx=cx+(j-1)*180,jy=H*0.32;
+      ctx.save();ctx.translate(jx,jy);ctx.globalAlpha=wv;
+      var g2=ctx.createRadialGradient(0,0,10,0,0,80);
+      g2.addColorStop(0,'rgba(255,225,160,0.5)');g2.addColorStop(1,'rgba(255,225,160,0)');
+      ctx.fillStyle=g2;ctx.beginPath();ctx.arc(0,0,80,0,TAU);ctx.fill();
+      ctx.fillStyle='#f0ede4';ctx.beginPath();ctx.ellipse(0,10,18,14,0,0,TAU);ctx.fill();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
 function render(){
   var n=state.night;
   drawSky(n);
@@ -1803,6 +1912,7 @@ function render(){
   drawBeesChain();
   drawPianoOverlay();
   drawWhispersChain();
+  drawGreetChain();
 }
 
 /* البدء */
@@ -1862,6 +1972,11 @@ try{
       var woy=H*0.58,wpw=132,wpgap=16,wtotalW=3*wpw+2*wpgap,wox0=W/2-wtotalW/2;
       for(i=0;i<3;i++){var wox=wox0+i*(wpw+wpgap);
         if(px>=wox&&px<=wox+wpw&&py>=woy-26&&py<=woy+26){pickWhispWord(WHISP.opts[i]);return;}}
+    }
+    if(GRT.active&&GRT.idx<GREET.length&&GRT.chosen!==1){
+      var goy=H*0.6,gpw=176,gpgap=14,gtotalW=3*gpw+2*gpgap,gox0=W/2-gtotalW/2;
+      for(i=0;i<3;i++){var gox=gox0+i*(gpw+gpgap);
+        if(px>=gox&&px<=gox+gpw&&py>=goy-26&&py<=goy+26){pickGreetPhrase(GRT.opts[i]);return;}}
     }
   });
   (function(){

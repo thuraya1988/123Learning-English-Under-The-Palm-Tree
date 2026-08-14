@@ -745,6 +745,123 @@ function hitCube(cube, hitIndex) {
   }
 }
 
+/* ---------------- CRYSTAL NETWORK ----------------
+   A precision-flying hazard: a cluster of glowing crystal nodes linked
+   by delicate organic branches — the same "silk fiber" construction
+   technique as the user's neural-network reference files (nodes with a
+   glow, CatmullRomCurve3 tube branches between them), just recolored
+   icy/crystalline instead of a tech-diagram palette. The ship has to
+   thread through the gaps: touch a branch and it shatters (and hurts),
+   clearing the whole lattice untouched pays out a precision bonus. */
+const CRYSTAL_COLORS = [0x8fe8ff, 0xb98fff, 0xff8fd6, 0x9fffcf];
+function buildCrystalBranch(start, end, color) {
+  const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+  mid.x += (Math.random() - 0.5) * 1.2;
+  mid.y += (Math.random() - 0.5) * 1.2;
+  mid.z += (Math.random() - 0.5) * 0.8;
+  const curve = new THREE.CatmullRomCurve3([start, mid, end]);
+  const geo = new THREE.TubeGeometry(curve, 16, 0.05, 6, false);
+  const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0.1, transparent: true, opacity: 0.85 });
+  const mesh = new THREE.Mesh(geo, mat);
+  const samples = [];
+  for (let i = 0; i <= 6; i++) samples.push(curve.getPoint(i / 6));
+  return { mesh, curve, samples, alive: true };
+}
+function buildCrystalNetwork() {
+  const g = new THREE.Group();
+  g.visible = false;
+  const nodeCount = 7;
+  const nodePositions = [];
+  for (let i = 0; i < nodeCount; i++) {
+    nodePositions.push(new THREE.Vector3((Math.random() - 0.5) * 6.5, (Math.random() - 0.5) * 4.5, (Math.random() - 0.5) * 3.5));
+  }
+  const nodeColor = 0xd8f6ff;
+  const nodeMat = new THREE.MeshStandardMaterial({ color: nodeColor, emissive: nodeColor, emissiveIntensity: 1.1, roughness: 0.25 });
+  nodePositions.forEach((p) => {
+    const node = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), nodeMat);
+    node.position.copy(p);
+    g.add(node);
+    const glow = makeGlowSprite(0xbfeeff, 1.4);
+    glow.position.copy(p);
+    g.add(glow);
+  });
+
+  const branches = [];
+  for (let i = 0; i < nodePositions.length; i++) {
+    const linksFrom = 1 + Math.floor(Math.random() * 2);
+    for (let k = 0; k < linksFrom; k++) {
+      const j = (i + 1 + Math.floor(Math.random() * (nodePositions.length - 1))) % nodePositions.length;
+      if (j === i) continue;
+      const color = CRYSTAL_COLORS[Math.floor(Math.random() * CRYSTAL_COLORS.length)];
+      const b = buildCrystalBranch(nodePositions[i], nodePositions[j], color);
+      g.add(b.mesh);
+      branches.push(b);
+    }
+  }
+  g.userData.branches = branches;
+  g.userData.brokenCount = 0;
+  g.userData.time = 0;
+  return g;
+}
+let crystalNetwork = null;
+const CN_SPAWN_Z = -300;
+function spawnCrystalNetwork() {
+  if (!crystalNetwork) return;
+  crystalNetwork.visible = true;
+  crystalNetwork.position.set((Math.random() - 0.5) * BOUND_X * 0.9, (Math.random() - 0.5) * BOUND_Y * 0.6, CN_SPAWN_Z);
+  crystalNetwork.userData.time = 0;
+  crystalNetwork.userData.brokenCount = 0;
+  crystalNetwork.userData.branches.forEach((b) => {
+    b.alive = true;
+    b.mesh.visible = true;
+    b.mesh.material.opacity = 0.85;
+    b.mesh.scale.setScalar(1);
+  });
+}
+function updateCrystalNetwork(dt, moveZ) {
+  const g = crystalNetwork;
+  if (!g || !g.visible) return;
+  g.position.z += moveZ;
+  g.userData.time += dt;
+
+  const worldP = new THREE.Vector3();
+  g.userData.branches.forEach((b) => {
+    if (!b.alive) return;
+    let hit = false;
+    for (const s of b.samples) {
+      worldP.copy(s).add(g.position);
+      if (worldP.distanceTo(ship.position) < 0.65) { hit = true; break; }
+    }
+    if (hit) {
+      b.alive = false;
+      g.userData.brokenCount++;
+      spawnBurst(worldP, b.mesh.material.color.getHex());
+      playTone(220, 0.18, 'triangle');
+      if (gs.invuln <= 0) {
+        gs.hull = Math.max(0, gs.hull - 10);
+        gs.invuln = 0.5;
+      }
+      let shrink = 1;
+      const shatterId = setInterval(() => {
+        shrink -= 0.15;
+        if (shrink <= 0) { b.mesh.visible = false; clearInterval(shatterId); return; }
+        b.mesh.scale.setScalar(Math.max(0.01, shrink));
+        b.mesh.material.opacity = Math.max(0, shrink * 0.85);
+      }, 30);
+    }
+  });
+
+  if (g.position.z > 40) {
+    g.visible = false;
+    const total = g.userData.branches.length;
+    const clean = total - g.userData.brokenCount;
+    if (clean > 0) {
+      gs.score += clean * 8;
+      if (clean === total) playTone(880, 0.3, 'sine');
+    }
+  }
+}
+
 /* ---------------- GAME ---------------- */
 let renderer, scene, camera, clock;
 let ship, stars, deepSpaceDecor, nebulaA, nebulaB, launchPad;
@@ -785,6 +902,7 @@ function startFlight() {
     holeTimer: 10 + Math.random() * 5,
     gardenTimer: 16 + Math.random() * 8,
     staticTimer: 24 + Math.random() * 10,
+    crystalTimer: 20 + Math.random() * 12,
     timeScale: 1,
   };
 
@@ -840,6 +958,9 @@ function startFlight() {
   resizeStaticFX();
   staticZone = buildStaticZone();
   scene.add(staticZone);
+
+  crystalNetwork = buildCrystalNetwork();
+  scene.add(crystalNetwork);
 
   ship = buildShip();
   scene.add(ship);
@@ -1401,6 +1522,13 @@ function update(dt) {
     if (gs.staticTimer <= 0) { spawnStaticZone(); gs.staticTimer = 26 + Math.random() * 12; }
   } else {
     updateStaticZone(dt, moveZ * 0.8);
+  }
+
+  if (!crystalNetwork.visible) {
+    gs.crystalTimer -= dt;
+    if (gs.crystalTimer <= 0) { spawnCrystalNetwork(); gs.crystalTimer = 20 + Math.random() * 12; }
+  } else {
+    updateCrystalNetwork(dt, moveZ * 0.8);
   }
 
   updateBursts(dt);

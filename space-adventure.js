@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RAY_VERT, RAY_FRAG, COMPOSITE_VERT, COMPOSITE_FRAG } from './black-hole-shaders.js';
+import { MANDELBROT_VERT, MANDELBROT_FRAG } from './mandelbrot-shaders.js';
 import { buildShip, makeGlowTexture, makeGlowSprite } from './ship-model.js';
 
 let GLOW_TEX = null;
@@ -494,6 +495,151 @@ function updateStarGarden(dt, moveZ) {
   if (g.position.z > 40) { g.visible = false; }
 }
 
+/* ---------------- INTERFERENCE ZONE — junk cleanup ----------------
+   The user's own Mandelbrot fractal reference (mandelbrot-shaders.js,
+   same escape-time math and 5 color modes, ported verbatim) is the
+   zone's backdrop — not a decorative fractal to look at, but the
+   ship's garbled signal. Junk debris litters the zone; clearing it
+   calms the fractal back down (zoom eases out, colors settle) exactly
+   like the user's own framing: "clean up the junk so the frequencies
+   come back." */
+let staticScene, staticCam, staticUniforms;
+let ST_FX_OK = true;
+function buildStaticFX() {
+  try {
+    staticScene = new THREE.Scene();
+    staticCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    staticUniforms = {
+      u_resolution: { value: new THREE.Vector2(1, 1) },
+      u_center: { value: new THREE.Vector2(-0.745, 0.1) },
+      u_zoom: { value: 1 },
+      u_maxIterations: { value: 140 },
+      u_colorMode: { value: 0 },
+      u_opacity: { value: 0.9 },
+    };
+    const mat = new THREE.ShaderMaterial({ vertexShader: MANDELBROT_VERT, fragmentShader: MANDELBROT_FRAG, uniforms: staticUniforms, depthTest: false, depthWrite: false, transparent: true });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('a_position', new THREE.BufferAttribute(new Float32Array([-1, -1, 3, -1, -1, 3]), 2));
+    staticScene.add(new THREE.Mesh(geo, mat));
+  } catch (e) {
+    ST_FX_OK = false;
+  }
+}
+function resizeStaticFX() {
+  if (!ST_FX_OK || !renderer) return;
+  const size = new THREE.Vector2();
+  renderer.getDrawingBufferSize(size);
+  staticUniforms.u_resolution.value.copy(size);
+}
+function renderStaticFX(dt) {
+  if (!ST_FX_OK) return false;
+  try {
+    const junkFrac = staticZone.userData.junkTotal > 0 ? staticZone.userData.junkRemaining / staticZone.userData.junkTotal : 0;
+    staticUniforms.u_center.value.x += Math.sin(staticZone.userData.time * 0.15) * dt * 0.01;
+    staticUniforms.u_center.value.y += Math.cos(staticZone.userData.time * 0.11) * dt * 0.01;
+    staticZone.userData.zoomTarget = 1 + junkFrac * 5.5;
+    staticUniforms.u_zoom.value = THREE.MathUtils.lerp(staticUniforms.u_zoom.value, staticZone.userData.zoomTarget, dt * 0.8);
+    if (junkFrac > 0.15 && Math.random() < dt * 1.5) staticUniforms.u_colorMode.value = Math.floor(Math.random() * 5);
+    else if (junkFrac <= 0.15) staticUniforms.u_colorMode.value = 4;
+
+    const prevTM = renderer.toneMapping, prevCS = renderer.outputColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
+    renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+    renderer.render(staticScene, staticCam);
+    renderer.toneMapping = prevTM;
+    renderer.outputColorSpace = prevCS;
+    return true;
+  } catch (e) {
+    ST_FX_OK = false;
+    return false;
+  }
+}
+
+function buildJunkPiece() {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x5a5650, roughness: 0.75, metalness: 0.55, flatShading: true });
+  const rustMat = new THREE.MeshStandardMaterial({ color: 0x8a4a2c, roughness: 0.85, metalness: 0.2, flatShading: true });
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.6), mat);
+  panel.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+  g.add(panel);
+  const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 6), rustMat);
+  strut.rotation.z = Math.PI / 2.3;
+  strut.position.set(0.2, 0.1, -0.1);
+  g.add(strut);
+  const dish = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), rustMat);
+  dish.position.set(-0.25, -0.15, 0.2);
+  dish.rotation.x = Math.random() * Math.PI;
+  g.add(dish);
+  g.userData.spin = new THREE.Vector3((Math.random() - 0.5) * 1.4, (Math.random() - 0.5) * 1.4, (Math.random() - 0.5) * 1.4);
+  return g;
+}
+function buildStaticZone() {
+  const g = new THREE.Group();
+  g.visible = false;
+  const junk = [];
+  for (let i = 0; i < 7; i++) {
+    const piece = buildJunkPiece();
+    g.add(piece);
+    junk.push({ group: piece, alive: true });
+  }
+  g.userData.junk = junk;
+  g.userData.junkTotal = junk.length;
+  g.userData.junkRemaining = junk.length;
+  g.userData.time = 0;
+  g.userData.zoomTarget = 1;
+  return g;
+}
+let staticZone = null;
+const ST_SPAWN_Z = -170;
+function spawnStaticZone() {
+  if (!staticZone) return;
+  staticZone.visible = true;
+  staticZone.position.set((Math.random() - 0.5) * BOUND_X * 1.2, (Math.random() - 0.5) * BOUND_Y * 0.7, ST_SPAWN_Z);
+  staticZone.userData.time = 0;
+  staticUniforms.u_zoom.value = 1;
+  staticZone.userData.junk.forEach((j, i) => {
+    j.alive = true;
+    j.group.visible = true;
+    const a = (i / staticZone.userData.junk.length) * Math.PI * 2;
+    const r = 1.4 + Math.random() * 2.4;
+    j.group.position.set(Math.cos(a) * r, Math.sin(a) * r * 0.6, (Math.random() - 0.5) * 2.2);
+  });
+  staticZone.userData.junkRemaining = staticZone.userData.junk.length;
+  $('#staticJunkCount').textContent = staticZone.userData.junkRemaining;
+  $('#hud-static').style.display = 'inline-block';
+}
+function updateStaticZone(dt, moveZ) {
+  const g = staticZone;
+  if (!g || !g.visible) return;
+  g.position.z += moveZ;
+  g.userData.time += dt;
+
+  g.userData.junk.forEach((j) => {
+    if (!j.alive) return;
+    const sp = j.group;
+    sp.rotation.x += sp.userData.spin.x * dt;
+    sp.rotation.y += sp.userData.spin.y * dt;
+    sp.rotation.z += sp.userData.spin.z * dt;
+    const worldPos = new THREE.Vector3();
+    sp.getWorldPosition(worldPos);
+    if (worldPos.distanceTo(ship.position) < 1.5) {
+      j.alive = false;
+      sp.visible = false;
+      g.userData.junkRemaining--;
+      $('#staticJunkCount').textContent = g.userData.junkRemaining;
+      spawnBurst(worldPos, 0xffd166);
+      playTone(320, 0.15, 'triangle');
+      gs.score += 30;
+      if (g.userData.junkRemaining <= 0) {
+        playTone(660, 0.35, 'sine');
+        setTimeout(() => { if (g.visible) { g.visible = false; $('#hud-static').style.display = 'none'; } }, 900);
+      }
+    }
+  });
+
+  if (g.position.z > 40) { g.visible = false; $('#hud-static').style.display = 'none'; }
+}
+
 /* ---------------- GAME ---------------- */
 let renderer, scene, camera, clock;
 let ship, stars, nebulaA, nebulaB, launchPad;
@@ -532,6 +678,7 @@ function startFlight() {
     holeActive: false,
     holeTimer: 10 + Math.random() * 5,
     gardenTimer: 16 + Math.random() * 8,
+    staticTimer: 24 + Math.random() * 10,
   };
 
   clock = new THREE.Clock();
@@ -577,6 +724,12 @@ function startFlight() {
 
   starGarden = buildStarGarden();
   scene.add(starGarden);
+
+  ST_FX_OK = true;
+  buildStaticFX();
+  resizeStaticFX();
+  staticZone = buildStaticZone();
+  scene.add(staticZone);
 
   ship = buildShip();
   scene.add(ship);
@@ -899,18 +1052,19 @@ function loop() {
   const dt = Math.min(clock.getDelta(), 0.05);
   if (gs.paused) { renderer.render(scene, camera); return; }
   if (gs.phase === 'launch') updateLaunch(dt); else update(dt);
+  let backdropDrawn = false;
   if (gs.holeActive) {
-    const fxDrawn = renderBlackHoleFX(dt);
+    backdropDrawn = renderBlackHoleFX(dt);
     const u = blackHole.userData;
-    u.core.visible = u.ring.visible = u.glow.visible = u.particles.visible = !fxDrawn;
-    if (fxDrawn) {
-      renderer.autoClear = false;
-      renderer.clearDepth();
-      renderer.render(scene, camera);
-      renderer.autoClear = true;
-    } else {
-      renderer.render(scene, camera);
-    }
+    u.core.visible = u.ring.visible = u.glow.visible = u.particles.visible = !backdropDrawn;
+  } else if (staticZone.visible) {
+    backdropDrawn = renderStaticFX(dt);
+  }
+  if (backdropDrawn) {
+    renderer.autoClear = false;
+    renderer.clearDepth();
+    renderer.render(scene, camera);
+    renderer.autoClear = true;
   } else {
     renderer.render(scene, camera);
   }
@@ -1062,6 +1216,13 @@ function update(dt) {
     updateStarGarden(dt, moveZ * 0.8);
   }
 
+  if (!staticZone.visible) {
+    gs.staticTimer -= dt;
+    if (gs.staticTimer <= 0) { spawnStaticZone(); gs.staticTimer = 26 + Math.random() * 12; }
+  } else {
+    updateStaticZone(dt, moveZ * 0.8);
+  }
+
   updateBursts(dt);
   updateHud();
 
@@ -1081,6 +1242,7 @@ function onResize() {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   resizeBlackHoleFX();
+  resizeStaticFX();
 }
 
 function updateHud() {

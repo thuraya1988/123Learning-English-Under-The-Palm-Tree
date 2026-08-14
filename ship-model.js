@@ -70,10 +70,21 @@ export function buildShip() {
   inner.rotation.y = Math.PI;
   group.add(inner);
 
-  const hullMat = new THREE.MeshStandardMaterial({ color: 0x8a94a3, roughness: 0.4, metalness: 0.78, flatShading: true });
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x22262c, roughness: 0.5, metalness: 0.7, flatShading: true });
+  const hullMat = new THREE.MeshStandardMaterial({ color: 0x8a94a3, roughness: 0.48, metalness: 0.55, flatShading: true });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x22262c, roughness: 0.55, metalness: 0.55, flatShading: true });
   const canopyMat = new THREE.MeshPhysicalMaterial({ color: 0xf7c96b, metalness: 0.2, roughness: 0.08, transparent: true, opacity: 0.42, clearcoat: 1, side: THREE.DoubleSide });
-  const nozzleMat = new THREE.MeshStandardMaterial({ color: 0x34393f, metalness: 0.9, roughness: 0.34, side: THREE.DoubleSide });
+  const nozzleMat = new THREE.MeshStandardMaterial({ color: 0x34393f, metalness: 0.85, roughness: 0.4, side: THREE.DoubleSide });
+
+  /* the scene's world lights favor the nose side, but the chase camera
+     mostly sees the ship from behind/above — without its own light the
+     hull reads as a near-black silhouette back there. These travel with
+     the ship, so they stay right regardless of the world light rig. */
+  const chaseFill = new THREE.PointLight(0xcfe0ff, 2.4, 16, 2);
+  chaseFill.position.set(0, 2.4, 5);
+  group.add(chaseFill);
+  const bellyFill = new THREE.PointLight(0xffe9c9, 1, 12, 2);
+  bellyFill.position.set(0, -1.6, -3);
+  group.add(bellyFill);
 
   /* fuselage — loft through hand-placed stations, nose to tail */
   const ST = [[7.70, .10, .09, .08, .01], [7.30, .30, .26, .22, .03], [6.60, .52, .44, .38, .05], [5.80, .68, .58, .50, .06],

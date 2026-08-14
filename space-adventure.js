@@ -237,49 +237,48 @@ function makeGlowSprite(hex, scale) {
   return sp;
 }
 
-/* ---------------- CELESTIAL BODIES (procedural, no network textures) ---------------- */
-function planetTexture(baseHue) {
-  const c = document.createElement('canvas');
-  c.width = 256; c.height = 128;
-  const ctx = c.getContext('2d');
-  const g = ctx.createLinearGradient(0, 0, 0, 128);
-  g.addColorStop(0, `hsl(${baseHue},45%,55%)`);
-  g.addColorStop(0.5, `hsl(${baseHue + 15},40%,40%)`);
-  g.addColorStop(1, `hsl(${baseHue - 10},45%,30%)`);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 256, 128);
-  for (let i = 0; i < 40; i++) {
-    ctx.fillStyle = `hsla(${baseHue + Math.random() * 30 - 15},40%,${30 + Math.random() * 40}%,${Math.random() * 0.3})`;
-    ctx.fillRect(0, Math.random() * 128, 256, Math.random() * 12 + 2);
-  }
-  return new THREE.CanvasTexture(c);
+/* ---------------- CELESTIAL BODIES — real NASA-derived texture maps
+   already vendored in the site (public/textures/globe/), not procedural
+   placeholders. ---------------------------------------------------- */
+const GLOBE_TEX = 'public/textures/globe/';
+const texLoader = new THREE.TextureLoader();
+function loadColorTex(file) {
+  const t = texLoader.load(GLOBE_TEX + file);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
-function moonTexture() {
-  const c = document.createElement('canvas');
-  c.width = 256; c.height = 128;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#b7b3ac';
-  ctx.fillRect(0, 0, 256, 128);
-  for (let i = 0; i < 60; i++) {
-    ctx.fillStyle = `rgba(90,86,80,${Math.random() * 0.35})`;
-    const r = Math.random() * 8 + 2;
-    ctx.beginPath();
-    ctx.arc(Math.random() * 256, Math.random() * 128, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  return new THREE.CanvasTexture(c);
+function loadDataTex(file) {
+  return texLoader.load(GLOBE_TEX + file);
 }
 function buildEarth() {
   const g = new THREE.Group();
-  const earth = new THREE.Mesh(new THREE.SphereGeometry(14, 32, 24), new THREE.MeshStandardMaterial({ map: planetTexture(205), roughness: 0.9 }));
+  const earth = new THREE.Mesh(new THREE.SphereGeometry(14, 48, 36), new THREE.MeshPhongMaterial({
+    map: loadColorTex('earth_atmos_2048.jpg'),
+    specularMap: loadDataTex('earth_specular_2048.jpg'),
+    normalMap: loadDataTex('earth_normal_2048.jpg'),
+    normalScale: new THREE.Vector2(0.85, 0.85),
+    emissiveMap: loadColorTex('earth_lights_2048.png'),
+    emissive: 0xffffff,
+    emissiveIntensity: 1.4,
+    specular: 0x333333,
+    shininess: 12,
+  }));
   g.add(earth);
+  const clouds = new THREE.Mesh(new THREE.SphereGeometry(14.12, 48, 36), new THREE.MeshLambertMaterial({
+    map: loadColorTex('earth_clouds_1024.png'),
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+  }));
+  g.add(clouds);
   const atmo = new THREE.Mesh(new THREE.SphereGeometry(14.6, 32, 24), new THREE.MeshBasicMaterial({ color: 0x7fc8ff, transparent: true, opacity: 0.18, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false }));
   g.add(atmo);
   g.userData.spin = earth;
+  g.userData.cloudSpin = clouds;
   return g;
 }
 function buildMoon() {
-  const moon = new THREE.Mesh(new THREE.SphereGeometry(4, 24, 18), new THREE.MeshStandardMaterial({ map: moonTexture(), roughness: 1 }));
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(4, 32, 24), new THREE.MeshPhongMaterial({ map: loadColorTex('moon_1024.jpg'), shininess: 2 }));
   return moon;
 }
 function buildSun() {
@@ -834,6 +833,7 @@ function update(dt) {
     if (!m.active) return;
     m.g.position.z += moveZ * 0.8;
     if (m.g.userData.spin) m.g.userData.spin.rotation.y += dt * 0.1;
+    if (m.g.userData.cloudSpin) m.g.userData.cloudSpin.rotation.y += dt * 0.14;
     if (m.g.position.z > 40) { m.active = false; m.g.visible = false; }
   });
   if (Math.random() < dt * 0.06) spawnMilestone();

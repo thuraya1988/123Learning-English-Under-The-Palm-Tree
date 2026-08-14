@@ -170,16 +170,18 @@ function updateSunProximity(dt) {
   return gs.timeScale;
 }
 
-/* a drifting "world" of glowing colored threads with twinkling stars
+/* a drifting cloud of glowing colored threads with twinkling stars
    woven through it — same construction as the reference star-cloud
-   (CatmullRomCurve3 threads + a custom twinkle shader for the points),
-   scaled down to milestone size and folded into the same pooled
-   flyby system as earth/moon/sun. */
+   (CatmullRomCurve3 threads + a custom twinkle shader for the points).
+   Sized and positioned so the ship flies THROUGH it (near the flight
+   corridor, like the crystal network / star garden zones) instead of
+   past it at a distance — the threads should fill the whole screen,
+   not sit as a small distant ball. */
 function buildNebulaCloud() {
   const g = new THREE.Group();
-  const threadCount = 42;
-  const starCount = 360;
-  const cloudRadius = 15;
+  const threadCount = 70;
+  const starCount = 520;
+  const cloudRadius = 26;
 
   const threadPositions = [];
   const threadColors = [];
@@ -267,7 +269,6 @@ function buildNebulaCloud() {
 
   g.userData.nebulaMat = starMat;
   g.userData.nebulaTime = 0;
-  g.userData.spin = g;
   return g;
 }
 
@@ -963,6 +964,24 @@ function updateCrystalNetwork(dt, moveZ) {
   }
 }
 
+let nebulaCloud = null;
+const NC_SPAWN_Z = -330;
+function spawnNebulaCloud() {
+  if (!nebulaCloud) return;
+  nebulaCloud.visible = true;
+  nebulaCloud.position.set((Math.random() - 0.5) * BOUND_X * 0.6, (Math.random() - 0.5) * BOUND_Y * 0.5, NC_SPAWN_Z);
+  nebulaCloud.userData.nebulaTime = 0;
+}
+function updateNebulaCloud(dt, moveZ) {
+  const g = nebulaCloud;
+  if (!g || !g.visible) return;
+  g.position.z += moveZ;
+  g.userData.nebulaTime += dt;
+  g.userData.nebulaMat.uniforms.time.value = g.userData.nebulaTime;
+  g.rotation.y += dt * 0.06;
+  if (g.position.z > 40) g.visible = false;
+}
+
 /* ---------------- GAME ---------------- */
 let renderer, scene, camera, clock;
 let ship, stars, deepSpaceDecor, nebulaA, nebulaB, launchPad;
@@ -1004,6 +1023,7 @@ function startFlight() {
     gardenTimer: 16 + Math.random() * 8,
     staticTimer: 24 + Math.random() * 10,
     crystalTimer: 20 + Math.random() * 12,
+    nebulaTimer: 28 + Math.random() * 14,
     timeScale: 1,
   };
 
@@ -1062,6 +1082,10 @@ function startFlight() {
 
   crystalNetwork = buildCrystalNetwork();
   scene.add(crystalNetwork);
+
+  nebulaCloud = buildNebulaCloud();
+  nebulaCloud.visible = false;
+  scene.add(nebulaCloud);
 
   ship = buildShip();
   scene.add(ship);
@@ -1266,13 +1290,11 @@ function buildMilestonePool() {
   const earth = buildEarth();
   const moon = buildMoon();
   const sun = buildSun();
-  const nebula = buildNebulaCloud();
-  [earth, moon, sun, nebula].forEach((m) => { m.visible = false; scene.add(m); });
+  [earth, moon, sun].forEach((m) => { m.visible = false; scene.add(m); });
   return [
     { g: earth, active: false, kind: 'earth' },
     { g: moon, active: false, kind: 'moon' },
     { g: sun, active: false, kind: 'sun' },
-    { g: nebula, active: false, kind: 'nebula' },
   ];
 }
 function spawnMilestone() {
@@ -1283,7 +1305,6 @@ function spawnMilestone() {
   const side = Math.random() < 0.5 ? -1 : 1;
   m.g.position.set(side * (60 + Math.random() * 40), (Math.random() - 0.5) * 30, -400 - Math.random() * 60);
   if (m.kind === 'sun') paintSun(m.g);
-  if (m.kind === 'nebula') m.g.userData.nebulaTime = 0;
 }
 
 /* ---------------- WORD ROUND ---------------- */
@@ -1588,7 +1609,6 @@ function update(dt) {
     m.g.position.z += moveZ * 0.8;
     if (m.g.userData.spin) m.g.userData.spin.rotation.y += dt * 0.1;
     if (m.g.userData.cloudSpin) m.g.userData.cloudSpin.rotation.y += dt * 0.14;
-    if (m.g.userData.nebulaMat) { m.g.userData.nebulaTime += dt; m.g.userData.nebulaMat.uniforms.time.value = m.g.userData.nebulaTime; }
     if (m.g.position.z > 40) { m.active = false; m.g.visible = false; }
   });
   if (Math.random() < dt * 0.06) spawnMilestone();
@@ -1634,6 +1654,13 @@ function update(dt) {
     if (gs.crystalTimer <= 0) { spawnCrystalNetwork(); gs.crystalTimer = 20 + Math.random() * 12; }
   } else {
     updateCrystalNetwork(dt, moveZ * 0.8);
+  }
+
+  if (!nebulaCloud.visible) {
+    gs.nebulaTimer -= dt;
+    if (gs.nebulaTimer <= 0) { spawnNebulaCloud(); gs.nebulaTimer = 28 + Math.random() * 14; }
+  } else {
+    updateNebulaCloud(dt, moveZ * 0.8);
   }
 
   updateBursts(dt);

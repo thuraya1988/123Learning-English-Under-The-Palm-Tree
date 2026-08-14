@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RAY_VERT, RAY_FRAG, COMPOSITE_VERT, COMPOSITE_FRAG } from './black-hole-shaders.js';
 
 /* ============================================================
    SPACE ADVENTURE — مغامرة الفضاء
@@ -290,7 +291,16 @@ function buildSun() {
   return g;
 }
 
-/* ---------------- BLACK HOLE HAZARD ---------------- */
+/* ---------------- BLACK HOLE HAZARD ----------------
+   Visually this hazard is the real GARGANTUA Schwarzschild raytracer
+   (black-hole-shaders.js, ported from experiments/gargantua/) rendered
+   as a full-screen backdrop behind the ship — see buildBlackHoleFX()/
+   renderBlackHoleFX() below. This group only carries the hazard's
+   world position for spawn/collision math; the old placeholder
+   sphere+torus+particle mesh stays in the scene as a live fallback —
+   loop() shows it only on frames where the raytracer backdrop didn't
+   actually draw (WebGL limits, a caught runtime error, etc.), so a
+   failure never leaves the hazard with nothing visible at all. */
 function buildBlackHole() {
   const g = new THREE.Group();
   const core = new THREE.Mesh(new THREE.SphereGeometry(2.2, 24, 18), new THREE.MeshBasicMaterial({ color: 0x000000 }));
@@ -315,9 +325,122 @@ function buildBlackHole() {
   const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xbfa0ff, size: 0.22, transparent: true, opacity: 0.8 }));
   g.add(particles);
 
+  g.userData.core = core;
   g.userData.ring = ring;
+  g.userData.glow = glow;
   g.userData.particles = particles;
   return g;
+}
+
+/* ---- GARGANTUA backdrop: real geodesic raytracer, driven by the actual
+   game camera position/orientation relative to the hazard so the lensing
+   lines up with where the hazard sits on screen. RS (event-horizon radius
+   in the shader's own units) is mapped to the hazard's old core radius
+   (2.2 world units) so distance/collision numbers stay meaningful. ---- */
+const BH_RS_SCALE = 2.2;
+let bhScene, bhCam, bhUniforms, bhRT, bhCompScene, bhCompCam, bhCompUniforms;
+let BH_FX_OK = true;
+function buildBlackHoleFX() {
+  try {
+    bhScene = new THREE.Scene();
+    bhCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    bhUniforms = {
+      uRes: { value: new THREE.Vector2(1, 1) },
+      uTime: { value: 0 },
+      uCamPos: { value: new THREE.Vector3(0, 0, 30) },
+      uCamTarget: { value: new THREE.Vector3(0, 0, 0) },
+      uFov: { value: 1 },
+      uSteps: { value: 90 },
+      uRotSign: { value: 1 },
+      uDebug: { value: 0 },
+      uDin: { value: 2.75 },
+      uDout: { value: 40 },
+      uDopMax: { value: 1.85 },
+      uOpNear: { value: 0.90 },
+      uOpFar: { value: 0.80 },
+      uDiskBright: { value: 1.1 },
+      uStarBright: { value: 1 },
+      uSkyFloor: { value: 0.02 },
+      uRotSpeed: { value: 1 },
+    };
+    const bhMat = new THREE.ShaderMaterial({ vertexShader: RAY_VERT, fragmentShader: RAY_FRAG, uniforms: bhUniforms, depthTest: false, depthWrite: false });
+    bhScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bhMat));
+
+    const rtType = THREE.HalfFloatType;
+    bhRT = new THREE.WebGLRenderTarget(2, 2, { type: rtType, depthBuffer: false });
+
+    bhCompScene = new THREE.Scene();
+    bhCompCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    bhCompUniforms = {
+      tDiffuse: { value: bhRT.texture },
+      uRes: { value: new THREE.Vector2(1, 1) },
+      uTime: { value: 0 },
+      uVignette: { value: 0.9 },
+      uGrain: { value: 0.035 },
+      uCA: { value: 0.0025 },
+    };
+    const compMat = new THREE.ShaderMaterial({ vertexShader: COMPOSITE_VERT, fragmentShader: COMPOSITE_FRAG, uniforms: bhCompUniforms, depthTest: false, depthWrite: false });
+    bhCompScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compMat));
+  } catch (e) {
+    BH_FX_OK = false;
+  }
+}
+// The full geodesic march is one of the most expensive real-time shaders
+// there is (a dependent per-pixel raymarch loop). Rendered as a passing
+// background hazard — not the whole point of the screen, like the
+// standalone showcase is — it only needs to read as "a real black hole",
+// so the march itself runs at a small fixed internal resolution and is
+// refreshed every few frames; only the cheap composite (grain/vignette/
+// chromatic aberration) re-draws every frame, at full output size, so
+// motion still reads smooth even while the disk data itself updates less often.
+const BH_MARCH_W = 360, BH_MARCH_H = 203;
+const BH_MARCH_EVERY = 3;
+let bhMarchCounter = 0;
+function resizeBlackHoleFX() {
+  if (!BH_FX_OK || !renderer) return;
+  bhRT.setSize(BH_MARCH_W, BH_MARCH_H);
+  bhUniforms.uRes.value.set(BH_MARCH_W, BH_MARCH_H);
+  const size = new THREE.Vector2();
+  renderer.getDrawingBufferSize(size);
+  bhCompUniforms.uRes.value.copy(size);
+}
+const BH_FORWARD = new THREE.Vector3();
+const BH_REL = new THREE.Vector3();
+function renderBlackHoleFX(dt) {
+  if (!BH_FX_OK) return false;
+  try {
+    bhUniforms.uTime.value += dt;
+    BH_REL.subVectors(camera.position, blackHole.position).multiplyScalar(1 / BH_RS_SCALE);
+    camera.getWorldDirection(BH_FORWARD);
+    bhUniforms.uCamPos.value.copy(BH_REL);
+    bhUniforms.uCamTarget.value.copy(BH_REL).add(BH_FORWARD);
+    bhUniforms.uFov.value = 0.5 / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+
+    // the raytracer's composite pass does its own manual ACES + outputs
+    // display-ready color, so the renderer's own tonemap/encoding must sit
+    // out for these two passes — restored before the main scene renders
+    const prevTM = renderer.toneMapping, prevCS = renderer.outputColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
+    renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+
+    if (bhMarchCounter <= 0) {
+      bhMarchCounter = BH_MARCH_EVERY;
+      const prevTarget = renderer.getRenderTarget();
+      renderer.setRenderTarget(bhRT);
+      renderer.render(bhScene, bhCam);
+      renderer.setRenderTarget(prevTarget);
+    }
+    bhMarchCounter--;
+    bhCompUniforms.uTime.value = bhUniforms.uTime.value;
+    renderer.render(bhCompScene, bhCompCam);
+
+    renderer.toneMapping = prevTM;
+    renderer.outputColorSpace = prevCS;
+    return true;
+  } catch (e) {
+    BH_FX_OK = false;
+    return false;
+  }
 }
 
 /* ---------------- GAME ---------------- */
@@ -393,6 +516,9 @@ function startFlight() {
   asteroidPool = buildAsteroidPool();
   orbPool = buildOrbPool();
   milestonePool = buildMilestonePool();
+  BH_FX_OK = true;
+  buildBlackHoleFX();
+  resizeBlackHoleFX();
   blackHole = buildBlackHole();
   blackHole.visible = false;
   scene.add(blackHole);
@@ -718,7 +844,21 @@ function loop() {
   const dt = Math.min(clock.getDelta(), 0.05);
   if (gs.paused) { renderer.render(scene, camera); return; }
   if (gs.phase === 'launch') updateLaunch(dt); else update(dt);
-  renderer.render(scene, camera);
+  if (gs.holeActive) {
+    const fxDrawn = renderBlackHoleFX(dt);
+    const u = blackHole.userData;
+    u.core.visible = u.ring.visible = u.glow.visible = u.particles.visible = !fxDrawn;
+    if (fxDrawn) {
+      renderer.autoClear = false;
+      renderer.clearDepth();
+      renderer.render(scene, camera);
+      renderer.autoClear = true;
+    } else {
+      renderer.render(scene, camera);
+    }
+  } else {
+    renderer.render(scene, camera);
+  }
 }
 
 function updateLaunch(dt) {
@@ -878,6 +1018,7 @@ function onResize() {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  resizeBlackHoleFX();
 }
 
 function updateHud() {

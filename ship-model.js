@@ -132,6 +132,51 @@ export function buildShip() {
   nozzle.position.z = -7.62;
   inner.add(nozzle);
 
+  /* nose radome cap */
+  const radome = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 10), darkMat);
+  radome.rotation.x = Math.PI / 2;
+  radome.position.set(0, 0.02, 7.75);
+  inner.add(radome);
+
+  /* EOTS sensor ball, tucked under the nose ahead of the intakes */
+  const eots = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), canopyMat);
+  eots.position.set(0, -0.24, 6.5);
+  inner.add(eots);
+
+  /* ventral ridge + dorsal spine — greebled panel strips */
+  const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 6.5), darkMat);
+  ridge.position.set(0, -1.12, -0.5);
+  inner.add(ridge);
+  const spine = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 3.2), darkMat);
+  spine.position.set(0, 1.14, 1.2);
+  inner.add(spine);
+
+  /* wing fences — small vertical fins along the upper wing surface */
+  [1, -1].forEach((side) => {
+    [2.4, 3.9].forEach((d, i) => {
+      const fence = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.16, 0.5), darkMat);
+      fence.position.set(d * side, 0.05, -0.7 - i * 0.5);
+      inner.add(fence);
+    });
+  });
+
+  /* exhaust petals ring around the nozzle rim */
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const petal = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 0.1), darkMat);
+    petal.position.set(Math.cos(a) * 0.5, Math.sin(a) * 0.5, -7.55);
+    petal.rotation.z = a;
+    inner.add(petal);
+  }
+
+  /* rudder hinge lines on the twin canted tails */
+  [1, -1].forEach((side) => {
+    const hinge = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.1, 0.03), darkMat);
+    hinge.position.set(1.55 * side, 1.0, 0.3);
+    hinge.rotation.z = -0.5 * side;
+    inner.add(hinge);
+  });
+
   /* afterburner flame + glow, in un-scaled group space so per-frame
      flicker/scale logic elsewhere keeps working */
   const exhaustMat = new THREE.MeshBasicMaterial({ color: 0xff9a50, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });

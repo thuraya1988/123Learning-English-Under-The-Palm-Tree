@@ -170,6 +170,107 @@ function updateSunProximity(dt) {
   return gs.timeScale;
 }
 
+/* a drifting "world" of glowing colored threads with twinkling stars
+   woven through it — same construction as the reference star-cloud
+   (CatmullRomCurve3 threads + a custom twinkle shader for the points),
+   scaled down to milestone size and folded into the same pooled
+   flyby system as earth/moon/sun. */
+function buildNebulaCloud() {
+  const g = new THREE.Group();
+  const threadCount = 42;
+  const starCount = 360;
+  const cloudRadius = 15;
+
+  const threadPositions = [];
+  const threadColors = [];
+  for (let i = 0; i < threadCount; i++) {
+    const points = [];
+    const numPoints = 14;
+    const startAngle = Math.random() * Math.PI * 2;
+    const startRadius = Math.random() * cloudRadius * 0.5;
+    const yOffset = (Math.random() - 0.5) * cloudRadius * 1.5;
+    for (let j = 0; j < numPoints; j++) {
+      const t = j / numPoints;
+      const angle = startAngle + t * Math.PI * 2 * (0.5 + Math.random() * 0.5);
+      const radius = startRadius + Math.sin(t * Math.PI) * cloudRadius * (0.3 + Math.random() * 0.4);
+      const x = Math.cos(angle) * radius + (Math.random() - 0.5) * 3.5;
+      const y = yOffset + Math.sin(t * Math.PI * 2) * 3.5 + (Math.random() - 0.5) * 2.2;
+      const z = Math.sin(angle) * radius + (Math.random() - 0.5) * 3.5;
+      points.push(new THREE.Vector3(x, y, z));
+    }
+    const curve = new THREE.CatmullRomCurve3(points);
+    const curvePoints = curve.getPoints(28);
+    const hue = 0.55 + Math.random() * 0.3;
+    const color = new THREE.Color().setHSL(hue, 0.75, 0.6);
+    for (let k = 0; k < curvePoints.length - 1; k++) {
+      threadPositions.push(curvePoints[k].x, curvePoints[k].y, curvePoints[k].z, curvePoints[k + 1].x, curvePoints[k + 1].y, curvePoints[k + 1].z);
+      for (let c = 0; c < 2; c++) threadColors.push(color.r, color.g, color.b);
+    }
+  }
+  const threadGeo = new THREE.BufferGeometry();
+  threadGeo.setAttribute('position', new THREE.Float32BufferAttribute(threadPositions, 3));
+  threadGeo.setAttribute('color', new THREE.Float32BufferAttribute(threadColors, 3));
+  const threadMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false });
+  const threads = new THREE.LineSegments(threadGeo, threadMat);
+  g.add(threads);
+
+  const starPositions = [];
+  const starColors = [];
+  const starOpacities = [];
+  for (let i = 0; i < starCount; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const radius = Math.random() * cloudRadius * 0.8;
+    starPositions.push(radius * Math.sin(phi) * Math.cos(theta), radius * Math.sin(phi) * Math.sin(theta), radius * Math.cos(phi));
+    const hue = 0.55 + Math.random() * 0.3;
+    const sColor = new THREE.Color().setHSL(hue, 0.4 + Math.random() * 0.5, 0.75 + Math.random() * 0.25);
+    starColors.push(sColor.r, sColor.g, sColor.b);
+    starOpacities.push(0.4 + Math.random() * 0.6);
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+  starGeo.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
+  starGeo.setAttribute('opacity', new THREE.Float32BufferAttribute(starOpacities, 1));
+  const starMat = new THREE.ShaderMaterial({
+    uniforms: { time: { value: 0 } },
+    vertexShader: `
+      attribute float opacity;
+      attribute vec3 color;
+      varying vec3 vColor;
+      varying float vOpacity;
+      uniform float time;
+      void main() {
+        vColor = color;
+        float sparkle = 0.5 + 0.5 * sin(time * 2.0 + opacity * 100.0);
+        vOpacity = opacity * (0.3 + 0.7 * sparkle);
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = (3.0 + opacity * 4.0) * (60.0 / -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vColor;
+      varying float vOpacity;
+      void main() {
+        float dist = length(gl_PointCoord - vec2(0.5));
+        if (dist > 0.5) discard;
+        float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+        gl_FragColor = vec4(vColor, vOpacity * alpha);
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const starPts = new THREE.Points(starGeo, starMat);
+  g.add(starPts);
+
+  g.userData.nebulaMat = starMat;
+  g.userData.nebulaTime = 0;
+  g.userData.spin = g;
+  return g;
+}
+
 /* ---------------- BLACK HOLE HAZARD ----------------
    Visually this hazard is the real GARGANTUA Schwarzschild raytracer
    (black-hole-shaders.js, ported from experiments/gargantua/) rendered
@@ -1165,11 +1266,13 @@ function buildMilestonePool() {
   const earth = buildEarth();
   const moon = buildMoon();
   const sun = buildSun();
-  [earth, moon, sun].forEach((m) => { m.visible = false; scene.add(m); });
+  const nebula = buildNebulaCloud();
+  [earth, moon, sun, nebula].forEach((m) => { m.visible = false; scene.add(m); });
   return [
     { g: earth, active: false, kind: 'earth' },
     { g: moon, active: false, kind: 'moon' },
     { g: sun, active: false, kind: 'sun' },
+    { g: nebula, active: false, kind: 'nebula' },
   ];
 }
 function spawnMilestone() {
@@ -1180,6 +1283,7 @@ function spawnMilestone() {
   const side = Math.random() < 0.5 ? -1 : 1;
   m.g.position.set(side * (60 + Math.random() * 40), (Math.random() - 0.5) * 30, -400 - Math.random() * 60);
   if (m.kind === 'sun') paintSun(m.g);
+  if (m.kind === 'nebula') m.g.userData.nebulaTime = 0;
 }
 
 /* ---------------- WORD ROUND ---------------- */
@@ -1484,6 +1588,7 @@ function update(dt) {
     m.g.position.z += moveZ * 0.8;
     if (m.g.userData.spin) m.g.userData.spin.rotation.y += dt * 0.1;
     if (m.g.userData.cloudSpin) m.g.userData.cloudSpin.rotation.y += dt * 0.14;
+    if (m.g.userData.nebulaMat) { m.g.userData.nebulaTime += dt; m.g.userData.nebulaMat.uniforms.time.value = m.g.userData.nebulaTime; }
     if (m.g.position.z > 40) { m.active = false; m.g.visible = false; }
   });
   if (Math.random() < dt * 0.06) spawnMilestone();

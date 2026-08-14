@@ -272,6 +272,259 @@ function buildNebulaCloud() {
   return g;
 }
 
+/* "Erid" — a small dense volcanic-ocean world lit by a nearby red dwarf
+   companion star, ported from the reference's real simplex-noise
+   fragment shaders (turbulent glowing surface, layered atmosphere,
+   cloud deck, star corona + lens flare) rather than swapped for flat
+   materials. Joins the milestone flyby pool alongside earth/moon/sun. */
+const ERID_NOISE_GLSL = `
+  vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+  vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+  vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+  vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+  float snoise(vec3 v) {
+    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+    vec3 i  = floor(v + dot(v, C.yyy));
+    vec3 x0 = v - i + dot(i, C.xxx);
+    vec3 g = step(x0.yzx, x0.xyz);
+    vec3 l = 1.0 - g;
+    vec3 i1 = min(g.xyz, l.zxy);
+    vec3 i2 = max(g.xyz, l.zxy);
+    vec3 x1 = x0 - i1 + C.xxx;
+    vec3 x2 = x0 - i2 + C.yyy;
+    vec3 x3 = x0 - D.yyy;
+    i = mod289(i);
+    vec4 p = permute(permute(permute(
+        i.z + vec4(0.0, i1.z, i2.z, 1.0))
+        + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+        + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+    float n_ = 0.142857142857;
+    vec3 ns = n_ * D.wyz - D.xzx;
+    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+    vec4 x_ = floor(j * ns.z);
+    vec4 y_ = floor(j - 7.0 * x_);
+    vec4 x = x_ *ns.x + ns.yyyy;
+    vec4 y = y_ *ns.x + ns.yyyy;
+    vec4 h = 1.0 - abs(x) - abs(y);
+    vec4 b0 = vec4(x.xy, y.xy);
+    vec4 b1 = vec4(x.zw, y.zw);
+    vec4 s0 = floor(b0)*2.0 + 1.0;
+    vec4 s1 = floor(b1)*2.0 + 1.0;
+    vec4 sh = -step(h, vec4(0.0));
+    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+    vec3 p0 = vec3(a0.xy, h.x);
+    vec3 p1 = vec3(a0.zw, h.y);
+    vec3 p2 = vec3(a1.xy, h.z);
+    vec3 p3 = vec3(a1.zw, h.w);
+    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+    p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+    m = m * m;
+    return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+  }
+  float fbm(vec3 p) {
+    float f = 0.0;
+    f += 0.5000 * snoise(p); p *= 2.02;
+    f += 0.2500 * snoise(p); p *= 2.03;
+    f += 0.1250 * snoise(p); p *= 2.01;
+    f += 0.0625 * snoise(p);
+    return f;
+  }
+`;
+function buildEridFlareTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  grad.addColorStop(0, 'rgba(255,255,220,1.0)');
+  grad.addColorStop(0.1, 'rgba(255,200,100,0.8)');
+  grad.addColorStop(0.3, 'rgba(255,100,30,0.4)');
+  grad.addColorStop(0.6, 'rgba(200,50,10,0.15)');
+  grad.addColorStop(1, 'rgba(100,20,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(c);
+}
+function buildErid() {
+  const g = new THREE.Group();
+  const STAR_LOCAL = new THREE.Vector3(34, 10, -22);
+
+  const planetVert = `
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+  const planetFrag = `
+    uniform float uTime;
+    uniform vec3 uStarPos;
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    ${ERID_NOISE_GLSL}
+    void main() {
+      vec3 pos = vPosition * 0.6;
+      float t = uTime * 0.05;
+      float n1 = fbm(pos + vec3(t, 0.0, 0.0));
+      float n2 = fbm(pos * 1.5 + vec3(0.0, t * 1.3, 0.0));
+      float n3 = snoise(pos * 3.0 + vec3(t * 0.7, 0.0, 0.0));
+      float fire = smoothstep(0.0, 0.6, n1 * 0.7 + n2 * 0.3);
+      float detail = n3 * 0.5 + 0.5;
+      vec3 darkOcean = vec3(0.02, 0.01, 0.015);
+      vec3 fireColor = vec3(1.0, 0.35, 0.05);
+      vec3 hotFire = vec3(1.0, 0.7, 0.2);
+      vec3 surfaceColor = mix(darkOcean, fireColor, fire * 0.8);
+      surfaceColor = mix(surfaceColor, hotFire, fire * detail * 0.4);
+      vec3 lightDir = normalize(uStarPos - vPosition);
+      float NdotL = max(dot(vNormal, lightDir), 0.0);
+      float rim = pow(1.0 - max(dot(vNormal, normalize(-vPosition)), 0.0), 3.0);
+      vec3 finalColor = surfaceColor * (0.15 + NdotL * 0.85);
+      finalColor += fireColor * fire * 0.3 * (0.5 + 0.5 * sin(uTime + n1 * 6.0));
+      finalColor += vec3(1.0, 0.5, 0.2) * rim * 0.4 * NdotL;
+      finalColor += darkOcean * (1.0 - NdotL) * 0.5;
+      finalColor += vec3(0.15, 0.03, 0.0) * fire * (1.0 - NdotL) * 0.5;
+      gl_FragColor = vec4(finalColor, 1.0);
+    }
+  `;
+  const planetMat = new THREE.ShaderMaterial({
+    vertexShader: planetVert, fragmentShader: planetFrag,
+    uniforms: { uTime: { value: 0 }, uStarPos: { value: STAR_LOCAL.clone() } },
+  });
+  const planet = new THREE.Mesh(new THREE.SphereGeometry(10, 48, 36), planetMat);
+  g.add(planet);
+
+  const atmoVert = `
+    varying vec3 vNormal;
+    varying vec3 vWorldPos;
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+  const atmoFrag = `
+    uniform vec3 uStarPos;
+    varying vec3 vNormal;
+    varying vec3 vWorldPos;
+    void main() {
+      vec3 viewDir = normalize(cameraPosition - vWorldPos);
+      float fresnel = pow(1.0 - abs(dot(vNormal, viewDir)), 2.5);
+      vec3 lightDir = normalize(uStarPos - vWorldPos);
+      float facing = max(dot(vNormal, lightDir), 0.0);
+      vec3 atmoColor = mix(vec3(0.6, 0.15, 0.05), vec3(1.0, 0.4, 0.1), facing);
+      float alpha = fresnel * (0.5 + facing * 0.5);
+      gl_FragColor = vec4(atmoColor, alpha);
+    }
+  `;
+  const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(11.3, 40, 40), new THREE.ShaderMaterial({
+    vertexShader: atmoVert, fragmentShader: atmoFrag,
+    uniforms: { uStarPos: { value: STAR_LOCAL.clone() } },
+    blending: THREE.AdditiveBlending, side: THREE.FrontSide, transparent: true, depthWrite: false,
+  }));
+  g.add(atmosphere);
+
+  const outer = new THREE.Mesh(new THREE.SphereGeometry(13, 40, 40), new THREE.ShaderMaterial({
+    vertexShader: atmoVert,
+    fragmentShader: `
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      void main() {
+        vec3 viewDir = normalize(cameraPosition - vWorldPos);
+        float fresnel = pow(1.0 - abs(dot(vNormal, viewDir)), 4.0);
+        gl_FragColor = vec4(vec3(0.8, 0.2, 0.05), fresnel * 0.4);
+      }
+    `,
+    uniforms: { uStarPos: { value: STAR_LOCAL.clone() } },
+    blending: THREE.AdditiveBlending, side: THREE.BackSide, transparent: true, depthWrite: false,
+  }));
+  g.add(outer);
+
+  const cloudFrag = `
+    uniform float uTime;
+    uniform vec3 uStarPos;
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    ${ERID_NOISE_GLSL}
+    void main() {
+      vec3 pos = vPosition * 0.5;
+      float t = uTime * 0.08;
+      float n = fbm(pos + vec3(t * 0.5, t * 0.3, 0.0));
+      float n2 = snoise(pos * 2.0 + vec3(-t * 0.4, 0.0, t * 0.2));
+      float cloud = smoothstep(0.1, 0.6, n * 0.7 + n2 * 0.3);
+      vec3 lightDir = normalize(uStarPos - vPosition);
+      float NdotL = max(dot(vNormal, lightDir), 0.0);
+      vec3 cloudColor = mix(vec3(0.15, 0.05, 0.02), vec3(0.9, 0.5, 0.25), NdotL);
+      gl_FragColor = vec4(cloudColor, cloud * 0.55);
+    }
+  `;
+  const cloudMat = new THREE.ShaderMaterial({
+    vertexShader: planetVert, fragmentShader: cloudFrag,
+    uniforms: { uTime: { value: 0 }, uStarPos: { value: STAR_LOCAL.clone() } },
+    transparent: true, depthWrite: false, side: THREE.FrontSide,
+  });
+  const clouds = new THREE.Mesh(new THREE.SphereGeometry(10.5, 40, 40), cloudMat);
+  g.add(clouds);
+
+  const starFrag = `
+    uniform float uTime;
+    varying vec2 vUv;
+    ${ERID_NOISE_GLSL}
+    void main() {
+      float t = uTime * 0.3;
+      vec3 p = vec3(vUv * 4.0, t);
+      float n = fbm(p) * 0.5 + 0.5;
+      float n2 = snoise(p * 2.0 + vec3(t * 0.5));
+      vec3 hot = vec3(1.0, 0.95, 0.7);
+      vec3 mid = vec3(1.0, 0.5, 0.15);
+      vec3 cool = vec3(0.8, 0.15, 0.0);
+      vec3 color = mix(cool, mid, n);
+      color = mix(color, hot, pow(n, 2.0) * 0.6);
+      color += vec3(1.0, 0.8, 0.4) * (n2 * 0.3 + 0.3);
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `;
+  const starMat = new THREE.ShaderMaterial({
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: starFrag,
+    uniforms: { uTime: { value: 0 } },
+  });
+  const starMesh = new THREE.Mesh(new THREE.SphereGeometry(5, 28, 28), starMat);
+  starMesh.position.copy(STAR_LOCAL);
+  g.add(starMesh);
+
+  [[7.3, 0.35], [11.4, 0.15], [18.2, 0.06]].forEach(([r, op]) => {
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 20), new THREE.MeshBasicMaterial({
+      color: 0xff3300, transparent: true, opacity: op, blending: THREE.AdditiveBlending, side: THREE.BackSide,
+    }));
+    glow.position.copy(STAR_LOCAL);
+    g.add(glow);
+  });
+
+  const starLight = new THREE.PointLight(0xff5522, 1.6, 160, 1.5);
+  starLight.position.copy(STAR_LOCAL);
+  g.add(starLight);
+
+  const flare = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: buildEridFlareTexture(), blending: THREE.AdditiveBlending, transparent: true, opacity: 0.9, depthWrite: false,
+  }));
+  flare.scale.setScalar(30);
+  flare.position.copy(STAR_LOCAL);
+  g.add(flare);
+
+  g.userData.spin = planet;
+  g.userData.cloudSpin = clouds;
+  g.userData.starSpin = starMesh;
+  g.userData.shaderMats = [planetMat, cloudMat, starMat];
+  g.userData.shaderTime = 0;
+  g.userData.flareSprite = flare;
+  g.userData.flareBaseScale = 30;
+  return g;
+}
+
 /* ---------------- BLACK HOLE HAZARD ----------------
    Visually this hazard is the real GARGANTUA Schwarzschild raytracer
    (black-hole-shaders.js, ported from experiments/gargantua/) rendered
@@ -1290,11 +1543,13 @@ function buildMilestonePool() {
   const earth = buildEarth();
   const moon = buildMoon();
   const sun = buildSun();
-  [earth, moon, sun].forEach((m) => { m.visible = false; scene.add(m); });
+  const erid = buildErid();
+  [earth, moon, sun, erid].forEach((m) => { m.visible = false; scene.add(m); });
   return [
     { g: earth, active: false, kind: 'earth' },
     { g: moon, active: false, kind: 'moon' },
     { g: sun, active: false, kind: 'sun' },
+    { g: erid, active: false, kind: 'erid' },
   ];
 }
 function spawnMilestone() {
@@ -1609,6 +1864,15 @@ function update(dt) {
     m.g.position.z += moveZ * 0.8;
     if (m.g.userData.spin) m.g.userData.spin.rotation.y += dt * 0.1;
     if (m.g.userData.cloudSpin) m.g.userData.cloudSpin.rotation.y += dt * 0.14;
+    if (m.g.userData.starSpin) m.g.userData.starSpin.rotation.y += dt * 0.05;
+    if (m.g.userData.shaderMats) {
+      m.g.userData.shaderTime += dt;
+      m.g.userData.shaderMats.forEach((mat) => { mat.uniforms.uTime.value = m.g.userData.shaderTime; });
+    }
+    if (m.g.userData.flareSprite) {
+      const pulse = 1 + Math.sin(m.g.userData.shaderTime * 2) * 0.05;
+      m.g.userData.flareSprite.scale.setScalar(m.g.userData.flareBaseScale * pulse);
+    }
     if (m.g.position.z > 40) { m.active = false; m.g.visible = false; }
   });
   if (Math.random() < dt * 0.06) spawnMilestone();

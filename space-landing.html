@@ -163,6 +163,7 @@ function init() {
   createGrass();
   createShip();
   createSupplies();
+  createCritters();
   camera.position.set(
     ship.position.x + Math.sin(camAz) * Math.cos(camEl) * camDist,
     ship.position.y + Math.sin(camEl) * camDist + 1.5,
@@ -537,6 +538,109 @@ function updateBursts(dt) {
   }
 }
 
+/* ---------------- CRITTERS — friendly planet inhabitants ----------------
+   Original soft hopping blob-creatures (round body, big cartoon eyes,
+   little ear nubs) that wander the terrain and get excited when the
+   ship comes close. Not a copy of any specific licensed character
+   designs — just a friendly-inhabitant technique (squash/stretch hop
+   cycle, idle breathing, proximity reaction) built for this planet. */
+const CRITTER_PALETTE = [0x7ee8a3, 0xffb86b, 0x8ec9ff, 0xf591c9, 0xffe066, 0xc9a3ff];
+function buildCritter(colorIdx) {
+  const color = CRITTER_PALETTE[colorIdx % CRITTER_PALETTE.length];
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.05 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 14), bodyMat);
+  body.scale.set(1, 0.88, 1);
+  body.position.y = 0.5;
+  body.castShadow = true;
+  g.add(body);
+
+  const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
+  const pupilMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4 });
+  [-1, 1].forEach((side) => {
+    const eyeWhite = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), eyeWhiteMat);
+    eyeWhite.position.set(side * 0.2, 0.62, 0.4);
+    g.add(eyeWhite);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 6), pupilMat);
+    pupil.position.set(side * 0.2, 0.62, 0.51);
+    g.add(pupil);
+  });
+
+  [-1, 1].forEach((side) => {
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.32, 8), bodyMat);
+    ear.position.set(side * 0.28, 1.05, -0.05);
+    ear.rotation.z = side * 0.35;
+    ear.castShadow = true;
+    g.add(ear);
+  });
+
+  g.userData.bodyMesh = body;
+  return g;
+}
+const critters = [];
+function createCritters() {
+  const count = 11;
+  let placed = 0, guard = 0;
+  while (placed < count && guard < 400) {
+    guard++;
+    const x = (Math.random() - 0.5) * 140;
+    const z = (Math.random() - 0.5) * 140;
+    const dist = Math.sqrt(x * x + z * z);
+    if (dist < 6 || dist > 80) continue;
+    const h = getTerrainHeight(x, z);
+    if (h < -1.5) continue;
+    const critter = buildCritter(placed);
+    critter.position.set(x, h, z);
+    scene.add(critter);
+    critters.push({
+      mesh: critter, home: new THREE.Vector3(x, h, z), target: new THREE.Vector3(x, h, z),
+      state: 'idle', idleTimer: 1 + Math.random() * 2, hop: 0, speed: 1.6 + Math.random() * 0.8, yaw: Math.random() * Math.PI * 2,
+    });
+    placed++;
+  }
+}
+function pickWanderTarget(c) {
+  const a = Math.random() * Math.PI * 2;
+  const r = 2 + Math.random() * 6;
+  const x = THREE.MathUtils.clamp(c.home.x + Math.cos(a) * r, -95, 95);
+  const z = THREE.MathUtils.clamp(c.home.z + Math.sin(a) * r, -95, 95);
+  c.target.set(x, getTerrainHeight(x, z), z);
+}
+function updateCritters(dt) {
+  critters.forEach((c) => {
+    const nearShip = ship.position.distanceTo(c.mesh.position) < 6;
+    if (c.state === 'idle') {
+      c.idleTimer -= dt * (nearShip ? 2.2 : 1);
+      c.mesh.userData.bodyMesh.scale.set(1, 0.88 + Math.sin(c.hop * (nearShip ? 10 : 4)) * 0.04, 1);
+      c.hop += dt;
+      if (c.idleTimer <= 0) { pickWanderTarget(c); c.state = 'hop'; c.hop = 0; }
+      return;
+    }
+    // hop cycle: squash on takeoff/landing, stretch + arc mid-air
+    c.hop += dt * c.speed * (nearShip ? 1.6 : 1);
+    const cycle = c.hop % 1;
+    const arc = Math.sin(cycle * Math.PI);
+    const dir = new THREE.Vector3().subVectors(c.target, c.mesh.position);
+    dir.y = 0;
+    const distLeft = dir.length();
+    if (distLeft < 0.3 || cycle < 0.02) {
+      if (distLeft < 0.3) {
+        c.state = 'idle';
+        c.idleTimer = 0.6 + Math.random() * 2.2;
+        c.mesh.userData.bodyMesh.scale.set(1, 0.88, 1);
+        return;
+      }
+      c.yaw = Math.atan2(dir.x, dir.z);
+    }
+    const stepLen = Math.min(distLeft, dt * c.speed * 2.2);
+    c.mesh.position.x += Math.sin(c.yaw) * stepLen;
+    c.mesh.position.z += Math.cos(c.yaw) * stepLen;
+    c.mesh.position.y = getTerrainHeight(c.mesh.position.x, c.mesh.position.z) + arc * 0.35;
+    c.mesh.rotation.y = c.yaw;
+    c.mesh.userData.bodyMesh.scale.set(1 - arc * 0.15, 0.88 + arc * 0.3, 1 - arc * 0.15);
+  });
+}
+
 /* ---------------- CONTROLS: move ship + orbit-follow camera ---------------- */
 const keys = {};
 let camAz = Math.PI, camEl = 0.45, camDist = 11;
@@ -658,6 +762,7 @@ function animate() {
   }
 
   updateShip(dt);
+  updateCritters(dt);
   updateBursts(dt);
 
   renderer.render(scene, camera);

@@ -66,71 +66,150 @@ function initMenu() {
   $('#bestScoreLabel').textContent = `أفضل نتيجة: ${best}`;
 }
 
-/* ---------------- SHIP MESH (F-35 style, simplified) ---------------- */
+/* ----------------------------------------------------------------------
+   SHIP MESH — F-35A LIGHTNING II, ported from the user's reference
+   airframe (loft-based fuselage, extruded wing/stabilator/tail shapes,
+   DSI intake, lathe-profile nozzle). Same construction techniques as
+   the reference, trimmed to what a small fast-rendered game sprite
+   needs (no cockpit interior / landing gear / part-picking / x-ray —
+   those only matter for a static inspector) and uniformly scaled down
+   to flight-game proportions.
+   ---------------------------------------------------------------------- */
+function shipSectionPts(w, ht, hb, sy) {
+  return [[0, ht], [0.45 * w, 0.94 * ht], [0.82 * w, 0.55 * ht], [w, sy], [0.87 * w, (sy - hb) / 2], [0.55 * w, -hb * 0.92], [0, -hb],
+          [-0.55 * w, -hb * 0.92], [-0.87 * w, (sy - hb) / 2], [-w, sy], [-0.82 * w, 0.55 * ht], [-0.45 * w, 0.94 * ht]];
+}
+function shipLoftGeo(stations, tipZ) {
+  const N = 12, S = stations.length;
+  const pos = new Float32Array((S * N + 1) * 3);
+  stations.forEach((st, s) => {
+    const pts = shipSectionPts(st[1], st[2], st[3], st[4]);
+    pts.forEach((p, i) => { const k = (s * N + i) * 3; pos[k] = p[0]; pos[k + 1] = p[1]; pos[k + 2] = st[0]; });
+  });
+  pos[S * N * 3] = 0; pos[S * N * 3 + 1] = 0; pos[S * N * 3 + 2] = tipZ;
+  const idx = [];
+  for (let s = 0; s < S - 1; s++) for (let p = 0; p < N; p++) {
+    const a = s * N + p, b = s * N + (p + 1) % N, c = (s + 1) * N + p, d = (s + 1) * N + (p + 1) % N;
+    idx.push(a, b, c, b, d, c);
+  }
+  const tip = S * N;
+  for (let p = 0; p < N; p++) idx.push(tip, (p + 1) % N, p);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+function shipWingGeo(side) {
+  const sh = new THREE.Shape();
+  sh.moveTo(0, 2.35); sh.lineTo(5.35 * side, -1.7); sh.lineTo(5.35 * side, -3.2); sh.lineTo(0, -2.95); sh.closePath();
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.3, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 2, steps: 1 });
+  g.rotateX(Math.PI / 2); g.computeBoundingBox();
+  const bb = g.boundingBox; g.translate(0, -(bb.min.y + bb.max.y) / 2, 0);
+  return g;
+}
+function shipStabGeo(side) {
+  const sh = new THREE.Shape();
+  sh.moveTo(0.3 * side, 0.55); sh.lineTo(3.3 * side, -1.2); sh.lineTo(3.3 * side, -2.4); sh.lineTo(0.3 * side, -2.0); sh.closePath();
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.2, bevelEnabled: true, bevelThickness: 0.07, bevelSize: 0.07, bevelSegments: 2, steps: 1 });
+  g.rotateX(Math.PI / 2); g.computeBoundingBox();
+  const bb = g.boundingBox; g.translate(0, -(bb.min.y + bb.max.y) / 2, 0);
+  return g;
+}
+function shipVtailGeo() {
+  const sh = new THREE.Shape();
+  sh.moveTo(-4.9, 0); sh.lineTo(-6.6, 2.2); sh.lineTo(-8.0, 2.2); sh.lineTo(-7.8, 0); sh.closePath();
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 2, steps: 1 });
+  g.rotateY(-Math.PI / 2); g.computeBoundingBox();
+  const bb = g.boundingBox; g.translate(-(bb.min.x + bb.max.x) / 2, 0, 0);
+  return g;
+}
+
+const SHIP_SCALE = 0.3;
+const shipEdgeMat = new THREE.LineBasicMaterial({ color: 0x0b0d10, transparent: true, opacity: 0.55 });
+function addShipEdges(mesh, thr) {
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry, thr || 22), shipEdgeMat));
+}
+
 function buildShip() {
   const group = new THREE.Group();
-  const hullMat = new THREE.MeshStandardMaterial({ color: 0x8a94a3, roughness: 0.35, metalness: 0.75, flatShading: true });
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x2a2f38, roughness: 0.5, metalness: 0.6, flatShading: true });
-  const canopyMat = new THREE.MeshPhysicalMaterial({ color: 0x1a2a3a, roughness: 0.1, metalness: 0.6, transparent: true, opacity: 0.8 });
+  const inner = new THREE.Group();
+  inner.scale.setScalar(SHIP_SCALE);
+  inner.rotation.y = Math.PI;
+  group.add(inner);
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 3.2), hullMat);
-  group.add(body);
+  const hullMat = new THREE.MeshStandardMaterial({ color: 0x8a94a3, roughness: 0.4, metalness: 0.78, flatShading: true });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x22262c, roughness: 0.5, metalness: 0.7, flatShading: true });
+  const canopyMat = new THREE.MeshPhysicalMaterial({ color: 0xf7c96b, metalness: 0.2, roughness: 0.08, transparent: true, opacity: 0.42, clearcoat: 1, side: THREE.DoubleSide });
+  const nozzleMat = new THREE.MeshStandardMaterial({ color: 0x34393f, metalness: 0.9, roughness: 0.34, side: THREE.DoubleSide });
 
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.1, 8), darkMat);
-  nose.rotation.x = Math.PI / 2;
-  nose.position.z = -2.1;
-  group.add(nose);
+  /* fuselage — loft through hand-placed stations, nose to tail */
+  const ST = [[7.70, .10, .09, .08, .01], [7.30, .30, .26, .22, .03], [6.60, .52, .44, .38, .05], [5.80, .68, .58, .50, .06],
+    [5.00, .80, .68, .56, .08], [4.10, .92, .76, .60, .10], [3.10, 1.04, .80, .62, .10], [2.00, 1.14, .80, .64, .08],
+    [0.80, 1.22, .78, .66, .06], [-0.60, 1.26, .74, .66, .04], [-2.00, 1.24, .70, .62, .02], [-3.40, 1.16, .66, .58, 0],
+    [-4.80, 1.02, .60, .52, -.02], [-6.00, .86, .54, .46, -.04], [-7.00, .72, .48, .40, -.05], [-7.70, .62, .44, .36, -.05]];
+  const fuse = new THREE.Mesh(shipLoftGeo(ST, 7.85), hullMat);
+  inner.add(fuse);
+  addShipEdges(fuse, 24);
 
-  const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 10), canopyMat);
-  canopy.scale.set(0.9, 0.7, 1.5);
-  canopy.position.set(0, 0.34, -0.5);
-  group.add(canopy);
+  /* canopy */
+  const canopy = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), canopyMat);
+  canopy.scale.set(0.58, 0.5, 1.8);
+  canopy.position.set(0, 0.62, 3.35);
+  inner.add(canopy);
 
-  /* DSI-style intake bumps, F-35-inspired */
-  [-1, 1].forEach((s) => {
-    const bump = new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 8), hullMat);
-    bump.scale.set(0.55, 0.5, 1.1);
-    bump.position.set(s * 0.5, -0.05, -0.7);
-    group.add(bump);
+  /* DSI diverterless intakes */
+  [1, -1].forEach((side) => {
+    const bump = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), hullMat);
+    bump.scale.set(0.3, 0.27, 0.66);
+    bump.position.set(1.02 * side, -0.06, 3.25);
+    inner.add(bump);
+    const duct = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 1.1, 14, 1, true), darkMat);
+    duct.rotation.z = Math.PI / 2;
+    duct.position.set(0.72 * side, -0.02, 2.0);
+    inner.add(duct);
   });
 
-  /* tail taper before the engine */
-  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.26, 0.9, 8), hullMat);
-  tail.rotation.x = Math.PI / 2;
-  tail.position.z = 1.5;
-  group.add(tail);
-
-  const wingShape = new THREE.Shape();
-  wingShape.moveTo(0, 0);
-  wingShape.lineTo(2.6, -1.5);
-  wingShape.lineTo(2.6, -2.0);
-  wingShape.lineTo(0.4, -1.1);
-  wingShape.lineTo(0, -0.5);
-  wingShape.closePath();
-  const wingGeo = new THREE.ExtrudeGeometry(wingShape, { depth: 0.1, bevelEnabled: false });
-  wingGeo.rotateX(-Math.PI / 2);
-  const wingR = new THREE.Mesh(wingGeo, darkMat);
-  wingR.position.set(0.2, -0.05, -0.1);
-  group.add(wingR);
-  const wingL = wingR.clone();
-  wingL.scale.x = -1;
-  group.add(wingL);
-
-  [-1, 1].forEach((s) => {
-    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 0.9), darkMat);
-    fin.position.set(s * 0.35, 0.35, 1.4);
-    fin.rotation.z = s * 0.46;
-    group.add(fin);
+  /* wings + stabilators */
+  [1, -1].forEach((side) => {
+    const w = new THREE.Mesh(shipWingGeo(side), hullMat);
+    w.position.set(0.2 * side, -0.18, -0.2);
+    inner.add(w);
+    addShipEdges(w, 18);
+    const st = new THREE.Mesh(shipStabGeo(side), hullMat);
+    st.position.set(0.15 * side, -0.1, -5.6);
+    inner.add(st);
+    addShipEdges(st, 18);
   });
 
+  /* twin canted vertical tails */
+  const vtGeo = shipVtailGeo();
+  [1, -1].forEach((side) => {
+    const v = new THREE.Mesh(vtGeo, hullMat);
+    v.position.set(0.98 * side, 0.42, 0);
+    v.rotation.z = -0.5 * side;
+    inner.add(v);
+    addShipEdges(v, 18);
+  });
+
+  /* engine nozzle, lathe profile */
+  const nozzle = new THREE.Mesh(new THREE.LatheGeometry(
+    [new THREE.Vector2(0.46, 0), new THREE.Vector2(0.55, -0.02), new THREE.Vector2(0.585, -0.12),
+     new THREE.Vector2(0.575, -0.3), new THREE.Vector2(0.545, -0.48), new THREE.Vector2(0.5, -0.6)], 24), nozzleMat);
+  nozzle.rotation.x = Math.PI / 2;
+  nozzle.position.z = -7.62;
+  inner.add(nozzle);
+
+  /* afterburner flame + glow, in un-scaled group space so the existing
+     per-frame flicker/scale logic elsewhere in the file keeps working */
   const exhaustMat = new THREE.MeshBasicMaterial({ color: 0xff9a50, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.24, 1.1, 10), exhaustMat);
   flame.rotation.x = -Math.PI / 2;
-  flame.position.z = 2.1;
+  flame.position.z = 7.62 * SHIP_SCALE + 0.55;
   group.add(flame);
   const glowSprite = makeGlowSprite(0xffb877, 0.65);
   glowSprite.material.opacity = 0.6;
-  glowSprite.position.z = 1.8;
+  glowSprite.position.z = 7.62 * SHIP_SCALE + 0.25;
   group.add(glowSprite);
 
   group.userData.flame = flame;
@@ -296,6 +375,10 @@ function startFlight() {
   const key = new THREE.DirectionalLight(0xfff0da, 1.2);
   key.position.set(-20, 15, -10);
   scene.add(key);
+  const fill = new THREE.DirectionalLight(0x6f9bd6, 0.55);
+  fill.position.set(20, 6, 12);
+  scene.add(fill);
+  scene.add(new THREE.HemisphereLight(0x8fb6ff, 0x11151c, 0.5));
 
   stars = buildStarfield();
   scene.add(stars);

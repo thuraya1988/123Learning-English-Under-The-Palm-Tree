@@ -753,7 +753,7 @@ function startFlight() {
   camera.position.set(4.5, LAUNCH_GROUND_Y + 1.6, 8);
   camera.lookAt(0, LAUNCH_GROUND_Y + 1.5, 0);
   $('#launchBanner').style.display = 'block';
-  $('#launchLbl').textContent = '🚀 استعدّي للإطلاق';
+  $('#launchLbl').textContent = '🚀 استعدّوا للإطلاق';
   $('#launchWord').textContent = 'العد التنازلي…';
 
   bindControls();

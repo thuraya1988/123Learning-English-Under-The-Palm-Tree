@@ -640,10 +640,71 @@ function updateStaticZone(dt, moveZ) {
   if (g.position.z > 40) { g.visible = false; $('#hud-static').style.display = 'none'; }
 }
 
+/* ---------------- KILLER CUBES ----------------
+   Tumbling cubes, one glowing red face and one glowing green face
+   placed at random positions in the six-face material array. Tap the
+   cube the instant its RED face is turned toward you; tapping while
+   green faces you costs points instead. Spin isn't constant — every
+   cube drifts between a slow tumble and sudden fast bursts, so the
+   red face doesn't arrive on a predictable beat. */
+const CUBE_NEUTRAL = new THREE.MeshStandardMaterial({ color: 0x2b2f38, roughness: 0.55, metalness: 0.6, flatShading: true });
+function buildCubeFaceMats() {
+  const redIdx = Math.floor(Math.random() * 6);
+  let greenIdx = Math.floor(Math.random() * 6);
+  while (greenIdx === redIdx) greenIdx = Math.floor(Math.random() * 6);
+  const mats = [];
+  for (let i = 0; i < 6; i++) {
+    if (i === redIdx) mats.push(new THREE.MeshStandardMaterial({ color: 0xff2b3d, emissive: 0xaa0010, emissiveIntensity: 0.8, roughness: 0.4, flatShading: true }));
+    else if (i === greenIdx) mats.push(new THREE.MeshStandardMaterial({ color: 0x2bff6b, emissive: 0x0aaa30, emissiveIntensity: 0.8, roughness: 0.4, flatShading: true }));
+    else mats.push(CUBE_NEUTRAL);
+  }
+  return { mats, redIdx, greenIdx };
+}
+function buildCubePool() {
+  const items = [];
+  for (let i = 0; i < 6; i++) {
+    const { mats, redIdx, greenIdx } = buildCubeFaceMats();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.3, 1.3), mats);
+    mesh.visible = false;
+    scene.add(mesh);
+    items.push({
+      mesh, redIdx, greenIdx, active: false,
+      spin: new THREE.Vector3((Math.random() - 0.5) * 1.4, (Math.random() - 0.5) * 1.4, (Math.random() - 0.5) * 1.4),
+      burstT: 1.5 + Math.random() * 2, burstUntil: 0,
+    });
+  }
+  return items;
+}
+function spawnCube() {
+  const c = cubePool.find((x) => !x.active);
+  if (!c) return;
+  c.active = true;
+  c.mesh.visible = true;
+  c.mesh.position.set((Math.random() - 0.5) * BOUND_X * 2, (Math.random() - 0.5) * BOUND_Y * 2, -140 - Math.random() * 40);
+  c.burstT = 1.2 + Math.random() * 2;
+  c.burstUntil = 0;
+}
+function hitCube(cube, hitIndex) {
+  cube.active = false;
+  cube.mesh.visible = false;
+  if (hitIndex === cube.redIdx) {
+    gs.score += 45;
+    spawnBurst(cube.mesh.position, 0xff2b3d);
+    playTone(520, 0.18, 'square');
+  } else if (hitIndex === cube.greenIdx) {
+    gs.score = Math.max(0, gs.score - 25);
+    spawnBurst(cube.mesh.position, 0x2bff6b);
+    playTone(140, 0.22, 'sawtooth');
+  } else {
+    spawnBurst(cube.mesh.position, 0x8899aa);
+    playTone(300, 0.1, 'sine');
+  }
+}
+
 /* ---------------- GAME ---------------- */
 let renderer, scene, camera, clock;
 let ship, stars, nebulaA, nebulaB, launchPad;
-let asteroidPool = [], orbPool = [], milestonePool = [];
+let asteroidPool = [], orbPool = [], milestonePool = [], cubePool = [];
 let blackHole;
 let animFrameId = null;
 let audioCtx;
@@ -675,6 +736,7 @@ function startFlight() {
     round: null,
     roundTimer: 0,
     asteroidTimer: 1.5,
+    cubeTimer: 4 + Math.random() * 3,
     holeActive: false,
     holeTimer: 10 + Math.random() * 5,
     gardenTimer: 16 + Math.random() * 8,
@@ -715,6 +777,7 @@ function startFlight() {
   asteroidPool = buildAsteroidPool();
   orbPool = buildOrbPool();
   milestonePool = buildMilestonePool();
+  cubePool = buildCubePool();
   BH_FX_OK = true;
   buildBlackHoleFX();
   resizeBlackHoleFX();
@@ -970,6 +1033,13 @@ function bindControls() {
     if (hits.length) {
       const orb = orbPool.find((o) => o.core === hits[0].object);
       resolveOrb(orb);
+      return;
+    }
+    const cubeMeshes = cubePool.filter((c) => c.active).map((c) => c.mesh);
+    const cubeHits = gs.raycaster.intersectObjects(cubeMeshes, false);
+    if (cubeHits.length) {
+      const cube = cubePool.find((c) => c.mesh === cubeHits[0].object);
+      hitCube(cube, cubeHits[0].face.materialIndex);
     }
   };
   addEventListener('click', gs.tapHandler);
@@ -1162,6 +1232,25 @@ function update(dt) {
     }
   });
   gs.invuln = Math.max(0, gs.invuln - dt);
+
+  gs.cubeTimer -= dt;
+  if (gs.cubeTimer <= 0) { spawnCube(); gs.cubeTimer = 5 + Math.random() * 4; }
+  cubePool.forEach((c) => {
+    if (!c.active) return;
+    c.mesh.position.z += moveZ;
+    if (c.mesh.position.z > 12) { c.active = false; c.mesh.visible = false; return; }
+    c.burstT -= dt;
+    if (c.burstT <= 0) {
+      c.burstUntil = 0.35 + Math.random() * 0.35;
+      c.burstT = 1.5 + Math.random() * 2.5;
+    }
+    const fast = c.burstUntil > 0;
+    if (fast) c.burstUntil -= dt;
+    const rate = fast ? 7 : 1;
+    c.mesh.rotation.x += c.spin.x * dt * rate;
+    c.mesh.rotation.y += c.spin.y * dt * rate;
+    c.mesh.rotation.z += c.spin.z * dt * rate;
+  });
 
   orbPool.forEach((o) => {
     if (!o.active) return;

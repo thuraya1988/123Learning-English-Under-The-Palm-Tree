@@ -443,6 +443,223 @@ function renderBlackHoleFX(dt) {
   }
 }
 
+/* ---------------- STARBORNE GARDEN ----------------
+   A drifting field of connected, glowing neon particles — ported from
+   the user's reference "Starborne Garden" (2D canvas epicycloid particle
+   swarm with proximity connection-lines) straight into real 3D: the
+   reference's own x/y/z formulas become actual Three.js world
+   coordinates instead of a fake perspective projection, and the
+   proximity-line pass is rebuilt every frame the same way the reference
+   does it, just in 3D. Space spiders 🕷️ patrol inside the field as the
+   zone's actual hazard — the garden itself is just the drifting light
+   show around them. */
+const SG_SCALE = 1 / 22;              // reference used pixel-space radii; this maps them to world units
+const SG_COUNT = 500;
+const SG_CONNECT_R = 80 * SG_SCALE;
+const SG_MAX_LINES = 2600;
+const NEON_HUES = [320, 185, 95, 210, 45, 275, 155];
+let starGarden = null;
+let sgSpiders = [];
+function buildSpaceSpider() {
+  const hue = NEON_HUES[Math.floor(Math.random() * NEON_HUES.length)];
+  const glowColor = new THREE.Color(`hsl(${hue}, 100%, 65%)`);
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x0c0a10, roughness: 0.5, metalness: 0.5, emissive: glowColor, emissiveIntensity: 0.35 });
+  const abdomen = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), bodyMat);
+  abdomen.scale.set(1, 0.8, 1.2);
+  g.add(abdomen);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), bodyMat);
+  head.position.z = 0.32;
+  g.add(head);
+  const eyeMat = new THREE.MeshBasicMaterial({ color: glowColor });
+  for (const s of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), eyeMat);
+    eye.position.set(0.09 * s, 0.04, 0.43);
+    g.add(eye);
+  }
+  // legs glow — dark body, bright neon limbs, so the silhouette reads as a
+  // spider (not a blob) against both the black void and the bright garden
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x0c0a10, emissive: glowColor, emissiveIntensity: 1.1, roughness: 0.4 });
+  const legs = [];
+  for (let i = 0; i < 8; i++) {
+    const side = i < 4 ? 1 : -1;
+    const row = i % 4;
+    const hip = new THREE.Group();
+    hip.position.set(0.16 * side, 0.02, 0.26 - row * 0.17);
+    hip.rotation.z = side * 0.95;
+    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.036, 0.5, 5), legMat);
+    upper.position.y = -0.25;
+    hip.add(upper);
+    const knee = new THREE.Group();
+    knee.position.y = -0.5;
+    hip.add(knee);
+    const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.026, 0.42, 5), legMat);
+    lower.position.y = -0.21;
+    knee.rotation.x = side * 0.75;
+    knee.add(lower);
+    g.add(hip);
+    legs.push({ hip, knee, side, phase: (i % 4) * 1.4 });
+  }
+  g.userData.legs = legs;
+  g.userData.glowColor = glowColor;
+  g.userData.walkT = Math.random() * 10;
+  g.userData.wanderPhase = Math.random() * Math.PI * 2;
+  g.scale.setScalar(1.6);
+  return g;
+}
+function buildStarGarden() {
+  const g = new THREE.Group();
+  g.visible = false;
+
+  const positions = new Float32Array(SG_COUNT * 3);
+  const colors = new Float32Array(SG_COUNT * 3);
+  const state = [];
+  const tmpColor = new THREE.Color();
+  for (let i = 0; i < SG_COUNT; i++) {
+    const hue = NEON_HUES[Math.floor(Math.random() * NEON_HUES.length)] + (Math.random() * 20 - 10);
+    state.push({
+      n: Math.floor(Math.random() * 3) + 1,
+      a: (Math.random() * 5 + 2) * SG_SCALE,
+      baseRadius: (Math.random() * 200 + 50) * SG_SCALE,
+      omega: (Math.random() * 0.01) - 0.005,
+      theta: Math.random() * Math.PI * 2,
+      speed: Math.random() * 0.002 + 0.001,
+      hue,
+    });
+    tmpColor.setHSL(hue / 360, 1, 0.68);
+    colors[i * 3] = tmpColor.r; colors[i * 3 + 1] = tmpColor.g; colors[i * 3 + 2] = tmpColor.b;
+  }
+  const pGeo = new THREE.BufferGeometry();
+  pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  pGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  if (!GLOW_TEX) GLOW_TEX = makeGlowTexture();
+  const points = new THREE.Points(pGeo, new THREE.PointsMaterial({
+    size: 0.16, map: GLOW_TEX, vertexColors: true, transparent: true, opacity: 0.95,
+    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+  }));
+  g.add(points);
+
+  const linePositions = new Float32Array(SG_MAX_LINES * 2 * 3);
+  const lineColors = new Float32Array(SG_MAX_LINES * 2 * 3);
+  const lGeo = new THREE.BufferGeometry();
+  lGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+  lGeo.setAttribute('color', new THREE.BufferAttribute(lineColors, 3));
+  lGeo.setDrawRange(0, 0);
+  const lines = new THREE.LineSegments(lGeo, new THREE.LineBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  g.add(lines);
+
+  const spiders = [];
+  for (let i = 0; i < 4; i++) {
+    const spider = buildSpaceSpider();
+    const a = (i / 4) * Math.PI * 2 + Math.random();
+    const r = 1.6 + Math.random() * 2.2;
+    spider.position.set(Math.cos(a) * r, Math.sin(a) * r * 0.6, (Math.random() - 0.5) * 2.5);
+    g.add(spider);
+    spiders.push({ group: spider, alive: true });
+  }
+
+  g.userData.points = points;
+  g.userData.lines = lines;
+  g.userData.state = state;
+  g.userData.spiders = spiders;
+  g.userData.time = 0;
+  return g;
+}
+const SG_SPAWN_Z = -180;
+function spawnStarGarden() {
+  if (!starGarden) return;
+  starGarden.visible = true;
+  starGarden.position.set((Math.random() - 0.5) * BOUND_X * 1.4, (Math.random() - 0.5) * BOUND_Y * 0.8, SG_SPAWN_Z);
+  starGarden.userData.time = 0;
+  starGarden.userData.spiders.forEach((s, i) => {
+    s.alive = true;
+    s.group.visible = true;
+    const a = (i / 4) * Math.PI * 2 + Math.random();
+    const r = 1.6 + Math.random() * 2.2;
+    s.group.position.set(Math.cos(a) * r, Math.sin(a) * r * 0.6, (Math.random() - 0.5) * 2.5);
+  });
+}
+const _sgColor = new THREE.Color();
+function updateStarGarden(dt, moveZ) {
+  const g = starGarden;
+  if (!g || !g.visible) return;
+  g.position.z += moveZ;
+  const t = (g.userData.time += dt) * 1000;
+
+  const state = g.userData.state;
+  const posAttr = g.userData.points.geometry.attributes.position;
+  const colAttr = g.userData.points.geometry.attributes.color;
+  for (let i = 0; i < SG_COUNT; i++) {
+    const p = state[i];
+    p.theta += p.speed;
+    const r = p.baseRadius + p.a * Math.cos(p.n * p.theta + p.omega * t);
+    const x = Math.cos(p.theta) * r;
+    const y = Math.sin(p.theta) * r;
+    const z = Math.sin(p.theta * 0.7) * r * 0.3;
+    posAttr.setXYZ(i, x, y, z);
+    p.sx = x; p.sy = y; p.sz = z;
+    const hue = (p.hue + t * 0.01) % 360;
+    _sgColor.setHSL(((hue + 360) % 360) / 360, 1, 0.68);
+    colAttr.setXYZ(i, _sgColor.r, _sgColor.g, _sgColor.b);
+  }
+  posAttr.needsUpdate = true;
+  colAttr.needsUpdate = true;
+
+  const lPos = g.userData.lines.geometry.attributes.position;
+  const lCol = g.userData.lines.geometry.attributes.color;
+  let li = 0;
+  for (let i = 0; i < SG_COUNT && li < SG_MAX_LINES; i++) {
+    const p1 = state[i];
+    for (let j = i + 1; j < SG_COUNT && li < SG_MAX_LINES; j++) {
+      const p2 = state[j];
+      const dx = p1.sx - p2.sx, dy = p1.sy - p2.sy, dz = p1.sz - p2.sz;
+      const d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 > SG_CONNECT_R * SG_CONNECT_R) continue;
+      const k = li * 2;
+      lPos.setXYZ(k, p1.sx, p1.sy, p1.sz);
+      lPos.setXYZ(k + 1, p2.sx, p2.sy, p2.sz);
+      _sgColor.setHSL(((p1.hue + p2.hue) / 2 % 360) / 360, 1, 0.7);
+      lCol.setXYZ(k, _sgColor.r, _sgColor.g, _sgColor.b);
+      lCol.setXYZ(k + 1, _sgColor.r, _sgColor.g, _sgColor.b);
+      li++;
+    }
+  }
+  lPos.needsUpdate = true;
+  lCol.needsUpdate = true;
+  g.userData.lines.geometry.setDrawRange(0, li * 2);
+
+  g.userData.spiders.forEach((s) => {
+    if (!s.alive) return;
+    const sp = s.group;
+    sp.userData.walkT += dt * 6;
+    sp.userData.legs.forEach((leg) => {
+      const swing = Math.sin(sp.userData.walkT + leg.phase) * 0.5;
+      leg.hip.rotation.x = swing;
+      leg.knee.rotation.z = Math.abs(swing) * 0.6;
+    });
+    sp.userData.wanderPhase += dt * 0.5;
+    sp.position.x += Math.sin(sp.userData.wanderPhase) * dt * 0.3;
+    sp.position.y += Math.cos(sp.userData.wanderPhase * 0.7) * dt * 0.2;
+    sp.rotation.y += dt * 0.8;
+
+    const worldPos = new THREE.Vector3();
+    sp.getWorldPosition(worldPos);
+    const d = worldPos.distanceTo(ship.position);
+    if (d < 1.1 && gs.invuln <= 0) {
+      gs.hull = Math.max(0, gs.hull - 14);
+      gs.invuln = 0.8;
+      spawnBurst(worldPos, sp.userData.glowColor.getHex());
+      s.alive = false;
+      sp.visible = false;
+      playTone(180, 0.22, 'square');
+    }
+  });
+
+  if (g.position.z > 40) { g.visible = false; }
+}
+
 /* ---------------- GAME ---------------- */
 let renderer, scene, camera, clock;
 let ship, stars, nebulaA, nebulaB, launchPad;
@@ -480,6 +697,7 @@ function startFlight() {
     asteroidTimer: 1.5,
     holeActive: false,
     holeTimer: 10 + Math.random() * 5,
+    gardenTimer: 16 + Math.random() * 8,
   };
 
   clock = new THREE.Clock();
@@ -522,6 +740,9 @@ function startFlight() {
   blackHole = buildBlackHole();
   blackHole.visible = false;
   scene.add(blackHole);
+
+  starGarden = buildStarGarden();
+  scene.add(starGarden);
 
   ship = buildShip();
   scene.add(ship);
@@ -998,6 +1219,13 @@ function update(dt) {
       $('#hud-warning').style.display = 'none';
       gs.holeTimer = 14 + Math.random() * 8;
     }
+  }
+
+  if (!starGarden.visible) {
+    gs.gardenTimer -= dt;
+    if (gs.gardenTimer <= 0) { spawnStarGarden(); gs.gardenTimer = 22 + Math.random() * 10; }
+  } else {
+    updateStarGarden(dt, moveZ * 0.8);
   }
 
   updateBursts(dt);

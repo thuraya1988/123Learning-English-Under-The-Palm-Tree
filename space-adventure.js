@@ -117,13 +117,57 @@ function buildMoon() {
   const moon = new THREE.Mesh(new THREE.SphereGeometry(4, 32, 24), new THREE.MeshPhongMaterial({ map: loadColorTex('moon_1024.jpg'), shininess: 2 }));
   return moon;
 }
+/* real star classification colors — picked fresh each time the sun
+   milestone spawns, so it isn't always the same yellow ball */
+const STAR_COLORS = [
+  { core: 0xfff6e8, glow: 0xfff2d0, name: 'white' },
+  { core: 0xffe066, glow: 0xffcf6b, name: 'yellow' },
+  { core: 0xff9d4d, glow: 0xff8a3d, name: 'orange' },
+];
 function buildSun() {
   const g = new THREE.Group();
   const sun = new THREE.Mesh(new THREE.SphereGeometry(20, 24, 18), new THREE.MeshBasicMaterial({ color: 0xffcf6b }));
   g.add(sun);
-  const glow = makeGlowSprite(0xffb347, 70);
-  g.add(glow);
+  const corona1 = makeGlowSprite(0xffb347, 70);
+  g.add(corona1);
+  const corona2 = makeGlowSprite(0xffb347, 110);
+  corona2.material.opacity = 0.35;
+  g.add(corona2);
+  const corona3 = makeGlowSprite(0xffb347, 150);
+  corona3.material.opacity = 0.16;
+  g.add(corona3);
+  g.userData.sunMesh = sun;
+  g.userData.coronas = [corona1, corona2, corona3];
+  g.userData.flareSpin = 0;
   return g;
+}
+const SUN_DANGER_COLOR = new THREE.Color(0xff2b1a);
+function paintSun(g) {
+  const c = STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)];
+  g.userData.coreBase = new THREE.Color(c.core);
+  g.userData.glowBase = new THREE.Color(c.glow);
+  g.userData.sunMesh.material.color.copy(g.userData.coreBase);
+  g.userData.coronas.forEach((sp) => sp.material.color.copy(g.userData.glowBase));
+}
+/* proximity to the sun eases the whole game into slow motion (dt itself
+   is scaled — real-time effects like the exhaust flame flicker, which
+   read clock.elapsedTime directly, keep running at full speed through
+   it) and flying into the star's core blends its glow toward red as a
+   danger cue, on top of the usual HUD warning. */
+function updateSunProximity(dt) {
+  const sunEntry = milestonePool.find((m) => m.kind === 'sun' && m.active);
+  let sunDist = Infinity;
+  if (sunEntry) sunDist = ship.position.distanceTo(sunEntry.g.position);
+  const targetScale = sunDist < 32 ? THREE.MathUtils.clamp(sunDist / 32, 0.3, 1) : 1;
+  gs.timeScale = THREE.MathUtils.lerp(gs.timeScale ?? 1, targetScale, dt * 2.5);
+
+  const coreDanger = sunDist < 15 ? THREE.MathUtils.clamp(1 - sunDist / 15, 0, 1) : 0;
+  if (sunEntry) {
+    sunEntry.g.userData.sunMesh.material.color.copy(sunEntry.g.userData.coreBase).lerp(SUN_DANGER_COLOR, coreDanger);
+    sunEntry.g.userData.coronas.forEach((sp) => sp.material.color.copy(sunEntry.g.userData.glowBase).lerp(SUN_DANGER_COLOR, coreDanger));
+  }
+  $('#hud-sun').style.display = coreDanger > 0.35 ? 'inline-block' : 'none';
+  return gs.timeScale;
 }
 
 /* ---------------- BLACK HOLE HAZARD ----------------
@@ -402,7 +446,7 @@ function buildStarGarden() {
   g.userData.time = 0;
   return g;
 }
-const SG_SPAWN_Z = -180;
+const SG_SPAWN_Z = -240;
 function spawnStarGarden() {
   if (!starGarden) return;
   starGarden.visible = true;
@@ -590,7 +634,7 @@ function buildStaticZone() {
   return g;
 }
 let staticZone = null;
-const ST_SPAWN_Z = -170;
+const ST_SPAWN_Z = -270;
 function spawnStaticZone() {
   if (!staticZone) return;
   staticZone.visible = true;
@@ -703,7 +747,7 @@ function hitCube(cube, hitIndex) {
 
 /* ---------------- GAME ---------------- */
 let renderer, scene, camera, clock;
-let ship, stars, nebulaA, nebulaB, launchPad;
+let ship, stars, deepSpaceDecor, nebulaA, nebulaB, launchPad;
 let asteroidPool = [], orbPool = [], milestonePool = [], cubePool = [];
 let blackHole;
 let animFrameId = null;
@@ -741,6 +785,7 @@ function startFlight() {
     holeTimer: 10 + Math.random() * 5,
     gardenTimer: 16 + Math.random() * 8,
     staticTimer: 24 + Math.random() * 10,
+    timeScale: 1,
   };
 
   clock = new THREE.Clock();
@@ -765,6 +810,8 @@ function startFlight() {
 
   stars = buildStarfield();
   scene.add(stars);
+  deepSpaceDecor = buildDeepSpaceDecor();
+  scene.add(deepSpaceDecor);
   nebulaA = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeGlowTexture(), color: 0x7fb0ff, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false }));
   nebulaA.position.set(-120, 30, -300);
   nebulaA.scale.setScalar(240);
@@ -839,20 +886,58 @@ function buildLaunchPad() {
   return g;
 }
 
+/* dense, varied starfield — plain white points read as empty black-on-
+   black from a distance, so most stars get a warm/cool tint and a
+   handful are drawn bigger/brighter to read as "real" stars, not haze */
 function buildStarfield() {
-  const n = 1800;
+  const n = 3400;
   const pos = new Float32Array(n * 3);
+  const col = new Float32Array(n * 3);
+  const c = new THREE.Color();
   for (let i = 0; i < n; i++) {
-    const r = 300 + Math.random() * 250;
+    const r = 260 + Math.random() * 300;
     const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
     pos[i * 3] = r * Math.sin(ph) * Math.cos(th);
     pos[i * 3 + 1] = r * Math.cos(ph);
     pos[i * 3 + 2] = r * Math.sin(ph) * Math.sin(th) - 200;
+    const roll = Math.random();
+    if (roll < 0.14) c.setHSL(0.58, 0.55, 0.75);       // cool blue-white
+    else if (roll < 0.26) c.setHSL(0.11, 0.6, 0.72);   // warm amber
+    else c.setHSL(0, 0, 0.9 + Math.random() * 0.1);    // near-white
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.4, transparent: true, opacity: 0.85 });
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({ size: 1.5, vertexColors: true, transparent: true, opacity: 0.9, sizeAttenuation: true });
   return new THREE.Points(geo, mat);
+}
+
+/* far-background decoration — small drifting planets and asteroid
+   silhouettes well outside the play area, purely visual, so deep space
+   reads as a real populated sky instead of an empty black void. */
+function buildDeepSpaceDecor() {
+  const g = new THREE.Group();
+  const planetHues = [0.58, 0.08, 0.34, 0.02, 0.75, 0.5];
+  for (let i = 0; i < 9; i++) {
+    const hue = planetHues[i % planetHues.length];
+    const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(hue, 0.5, 0.42 + Math.random() * 0.15) });
+    const p = new THREE.Mesh(new THREE.SphereGeometry(2 + Math.random() * 5, 12, 9), mat);
+    const a = Math.random() * Math.PI * 2;
+    const r = 140 + Math.random() * 90;
+    p.position.set(Math.cos(a) * r, (Math.random() - 0.5) * 90, Math.sin(a) * r - 260 - Math.random() * 260);
+    g.add(p);
+  }
+  const rockMat = new THREE.MeshBasicMaterial({ color: 0x39352f });
+  for (let i = 0; i < 22; i++) {
+    const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(0.6 + Math.random() * 1.4, 0), rockMat);
+    const a = Math.random() * Math.PI * 2;
+    const r = 60 + Math.random() * 130;
+    rock.position.set(Math.cos(a) * r, (Math.random() - 0.5) * 60, Math.sin(a) * r - 180 - Math.random() * 200);
+    rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+    g.add(rock);
+  }
+  return g;
 }
 
 function buildAsteroidPool() {
@@ -973,6 +1058,7 @@ function spawnMilestone() {
   m.g.visible = true;
   const side = Math.random() < 0.5 ? -1 : 1;
   m.g.position.set(side * (60 + Math.random() * 40), (Math.random() - 0.5) * 30, -400 - Math.random() * 60);
+  if (m.kind === 'sun') paintSun(m.g);
 }
 
 /* ---------------- WORD ROUND ---------------- */
@@ -1193,6 +1279,9 @@ function updateLaunch(dt) {
 }
 
 function update(dt) {
+  const timeScale = updateSunProximity(dt);
+  dt *= timeScale;
+
   gs.shipX = THREE.MathUtils.lerp(gs.shipX, gs.targetX, dt * 4);
   gs.shipY = THREE.MathUtils.lerp(gs.shipY, gs.targetY, dt * 4);
   ship.position.x = gs.shipX;
@@ -1212,6 +1301,8 @@ function update(dt) {
 
   stars.position.z += moveZ * 0.2;
   if (stars.position.z > 200) stars.position.z -= 200;
+  deepSpaceDecor.position.z += moveZ * 0.06;
+  if (deepSpaceDecor.position.z > 260) deepSpaceDecor.position.z -= 260;
 
   gs.asteroidTimer -= dt;
   if (gs.asteroidTimer <= 0) { spawnAsteroid(); gs.asteroidTimer = 1.1 + Math.random() * 1.0; }
@@ -1322,7 +1413,7 @@ function spawnBlackHole() {
   gs.holeActive = true;
   blackHole.visible = true;
   blackHole.userData.baseX = (Math.random() - 0.5) * BOUND_X * 1.6;
-  blackHole.position.set(blackHole.userData.baseX, (Math.random() - 0.5) * BOUND_Y, -170);
+  blackHole.position.set(blackHole.userData.baseX, (Math.random() - 0.5) * BOUND_Y, -210);
 }
 
 function onResize() {

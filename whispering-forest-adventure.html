@@ -1060,6 +1060,47 @@ function drawTreeShape(x,yb,hh,t,leaf,leafD,trunk,brAmp){
     ctx.beginPath();ctx.ellipse(cx+b.fx*hh,cy+b.fy*hh,r*0.95,r*0.8,0,0,TAU);ctx.fill();}
   ctx.restore();
 }
+function palmFrond(x,y,ang,len,color){
+  var side=ang>-Math.PI/2?1:-1;
+  var N=6,pts=[[x,y]],px=x,py=y,a=ang,k;
+  for(k=1;k<=N;k++){a+=side*0.1;px+=Math.cos(a)*len/N;py+=Math.sin(a)*len/N;pts.push([px,py]);}
+  var wMax=len*0.15,left=[],right=[];
+  for(k=0;k<=N;k++){
+    var u=k/N;
+    var w=u<0.3?wMax*Math.sin((Math.PI/2)*(u/0.3)):wMax*Math.sin((Math.PI/2)*(1-(u-0.3)/0.7));
+    var ta=k===0?ang:Math.atan2(pts[k][1]-pts[k-1][1],pts[k][0]-pts[k-1][0]);
+    var nx=Math.cos(ta+Math.PI/2),ny=Math.sin(ta+Math.PI/2);
+    left.push([pts[k][0]+nx*w,pts[k][1]+ny*w]);
+    right.push([pts[k][0]-nx*w,pts[k][1]-ny*w]);
+  }
+  ctx.fillStyle=css(color);
+  ctx.beginPath();ctx.moveTo(left[0][0],left[0][1]);
+  for(k=1;k<=N;k++)ctx.lineTo(left[k][0],left[k][1]);
+  for(k=N;k>=0;k--)ctx.lineTo(right[k][0],right[k][1]);
+  ctx.closePath();ctx.fill();
+}
+function drawPalmShape(x,yb,hh,t,leaf,leafD,trunk,brAmp){
+  ctx.save();ctx.translate(x,yb);
+  var sway=Math.sin(timeS*0.4+t.ph)*0.05*(0.4+state.night);
+  var bend=t.bendF*hh*0.4+sway*hh*0.6;
+  var tipX=bend,tipY=-hh*0.86;
+  var bw=Math.max(1.8,hh*0.05),tw=Math.max(1,hh*0.02);
+  ctx.fillStyle=css(trunk);
+  ctx.beginPath();
+  ctx.moveTo(-bw,2);
+  ctx.quadraticCurveTo(bend*0.5,-hh*0.48,tipX-tw,tipY);
+  ctx.lineTo(tipX+tw,tipY);
+  ctx.quadraticCurveTo(bend*0.5+bw*0.4,-hh*0.48,bw,2);
+  ctx.closePath();ctx.fill();
+  var CN=7,i;
+  for(i=0;i<CN;i++){
+    var u=i/(CN-1);
+    var ang=-Math.PI*(0.08+0.84*u)+Math.sin(timeS*0.5+t.ph+i)*0.03;
+    var flen=hh*(0.34+0.09*((i*37)%5)/5)*(1+brAmp*Math.sin(timeS*0.5+t.ph+i));
+    palmFrond(tipX,tipY,ang,flen,i%2?leafD:leaf);
+  }
+  ctx.restore();
+}
 function drawMainWorld(n){
   var cx0=state.camX,i;
   var leaf=tri(LEAF,n),leafD=mixc(leaf,[0,0,0],0.25),trunk=tri(TRUNK,n);
@@ -1103,7 +1144,7 @@ function drawMainWorld(n){
     ctx.restore();}
   for(i=0;i<mainTrees.length;i++){var t=mainTrees[i];var sx=t.x-cx0;
     if(sx<-260||sx>W+260)continue;
-    drawTreeShape(sx,GY,t.h*S,t,leaf,leafD,trunk,brAmp);}
+    drawPalmShape(sx,GY,t.h*S,t,leaf,leafD,trunk,brAmp);}
   var sgx=SPOTS.sign-cx0;
   if(sgx>-80&&sgx<W+80){
     ctx.fillStyle=css(trunk);ctx.fillRect(sgx-3,GY-58,6,58);
@@ -1504,7 +1545,7 @@ function drawGlows(n){
   if(n>0.55){
     for(i=0;i<mainTrees.length;i++){var t=mainTrees[i];var sx=t.x-state.camX;
       if(sx<-200||sx>W+200)continue;
-      glow(sx+t.bendF*t.h*S,GY-t.h*S*0.72,t.h*S*0.55,'rgba(120,225,180,ALPHA)',
+      glow(sx+t.bendF*t.h*S*0.4,GY-t.h*S*0.86,t.h*S*0.45,'rgba(120,225,180,ALPHA)',
         Math.max(0,(n-0.55)/0.45*(0.035+0.028*Math.sin(timeS*0.55+t.ph))));}}
   if(n>0.12){
     for(i=0;i<flowers.length;i++){var fw=flowers[i];var fsx=fw.x-state.camX;

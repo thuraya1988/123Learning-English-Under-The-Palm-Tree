@@ -45,12 +45,30 @@
     padding:17px 54px 15px;border-radius:2px;transition:all .55s ease;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
   #enter:hover,#enter:focus-visible{background:rgba(255,255,255,.25);box-shadow:0 0 46px rgba(255,255,255,.4);letter-spacing:.62em;outline:none}
   .note{margin-top:32px;font-size:13px;font-style:italic;letter-spacing:.12em;opacity:.78}
+  #jumanaDeck{position:fixed;left:0;right:0;bottom:0;z-index:7;display:flex;flex-direction:column;
+    align-items:center;gap:8px;padding:10px 14px 14px;pointer-events:none;
+    background:linear-gradient(180deg,rgba(8,12,26,0) 0%,rgba(8,12,26,.55) 70%)}
+  #jumanaStatus{font-style:italic;font-size:13px;letter-spacing:.06em;color:rgba(230,236,255,.85);
+    text-shadow:0 1px 4px rgba(0,0,10,.6);transition:transform .15s}
+  #jumanaBtns{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:900px;pointer-events:auto}
+  #jumanaBtns button{font-family:'Cormorant Garamond',Georgia,serif;font-size:12.5px;font-weight:500;
+    cursor:pointer;border:1px solid rgba(255,255,255,.28);padding:5px 12px;border-radius:99px;
+    color:rgba(230,236,255,.85);background:rgba(20,24,44,.45);backdrop-filter:blur(6px);
+    transition:all .15s}
+  #jumanaBtns button:hover{background:rgba(255,255,255,.14)}
+  #jumanaBtns button.active{background:rgba(190,220,255,.85);color:#12172c;border-color:rgba(255,255,255,.9)}
+  #jumanaBtns button.act{border-color:rgba(150,220,200,.35)}
 </style>
 </head>
 <body>
 <canvas id="scene"></canvas>
 <div id="caption"></div>
 <div id="realmBadge"><span id="realmTitle"></span><div class="anoms" id="realmList"></div></div>
+<div id="jumanaDeck">
+  <div id="jumanaStatus"></div>
+  <div id="jumanaBtns"><div id="jModeBtns" style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px"></div>
+    <div id="jActBtns" style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px"></div></div>
+</div>
 <div id="hint">click — send light &nbsp;&middot;&nbsp; hold — gather &nbsp;&middot;&nbsp; swipe — travel &nbsp;&middot;&nbsp; find the gate</div>
 <div id="sig">the forest remembers &middot; a generative reverie</div>
 <div id="overlay">
@@ -729,6 +747,550 @@ function spawnRipple(screenX,y){const worldX=toWorldX(screenX);
  for(const s of spirits){const dx=s.x-worldX,dy=s.y-y,d=Math.hypot(dx,dy);
   if(d<280&&d>1){s.tx=s.x+dx/d*160;s.ty=s.y+dy/d*120;s.rt=Math.min(s.rt,1.2);}}}
 
+/* ================= JUMANA (Loulwa physics rig — braids as independent Verlet chains) ================= */
+function hash(n){const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x);}
+function damp(v,t,l,dt){return t+(v-t)*Math.exp(-l*dt);}
+function rr2(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function ell2(x,y,rx,ry,fill,stroke,lw){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,TAU);if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||2.5;ctx.stroke();}}
+
+const J_OUT='#3b2d44';
+const J_SKIN='#ffd9b3',J_SKIN_F='#f0bd93';
+const J_HAIR='#2f2a3d',J_HAIR_L='#463e5c',J_HAIR_F='#241f31',J_HAIR_FL='#39334e';
+const J_DRESS='#ff8fab',J_DRESS_D='#f2708f',J_CREAM='#fff4f0';
+const J_SHOE='#e6455c',J_SOCK='#ffffff';
+const J_BAG='#4ecdc4',J_BAG_D='#2a9d8f';
+const J_TIE='#ff8fab';
+
+const J_MODES={
+  idle:   {speed:0,  freqMul:0,   legAmp:0,   armAmp:0,   bob:0, lean:0.02,crouch:0,   expr:'calm',   dressMul:1,  bagMul:1,  braidKick:1,   label:'وقوف', emoji:'🧍‍♀️', status:'تقف بهدوء وتتنفس وترمش 👀'},
+  normal: {speed:95, freqMul:1,   legAmp:.55, armAmp:.5,  bob:4, lean:.05, crouch:0,   expr:'calm',   dressMul:1,  bagMul:1,  braidKick:1,   label:'مشية عادية',emoji:'🚶‍♀️', status:'تمشي بخطوات منتظمة وهادئة'},
+  happy:  {speed:150,freqMul:1.45,legAmp:.62, armAmp:.85, bob:8, lean:.03, crouch:0,   expr:'joy',    dressMul:1.3,bagMul:1.3,braidKick:1.45,label:'مشية سعيدة',emoji:'😊', status:'تمشي بفرح… العقصتان تقفزان!'},
+  curious:{speed:55, freqMul:.75, legAmp:.45, armAmp:.35, bob:3, lean:.16, crouch:.05, expr:'curious',dressMul:.9, bagMul:.9, braidKick:.9, pauses:true,label:'مشية فضولية',emoji:'🔍', status:'تستكشف المكان… وتتوقف أحيانًا 👀'},
+  careful:{speed:40, freqMul:.9,  legAmp:.35, armAmp:.2,  bob:2, lean:.10, crouch:.22, expr:'focus',  dressMul:.7, bagMul:.7, braidKick:.6, soft:true,label:'مشية حذرة',emoji:'🤫', status:'تمشي بهدوء وحذر شديد'},
+  run:    {speed:280,freqMul:1.35,legAmp:.92, armAmp:1,   bob:9, lean:.28, crouch:.06, expr:'excited',dressMul:1.8,bagMul:1.6,braidKick:1.6, label:'جري حماسي',emoji:'🏃‍♀️', status:'تركض بحماس! العقصتان تطيران 🎀'},
+  tired:  {speed:42, freqMul:.7,  legAmp:.4,  armAmp:.18, bob:3, lean:.12, crouch:.12, expr:'tired',  dressMul:.6, bagMul:.7, braidKick:.6, headTilt:.22,label:'مشية متعبة',emoji:'😮‍💨', status:'متعبة… خطواتها بطيئة وتتنفس بوضوح'},
+  sneak:  {speed:30, freqMul:.8,  legAmp:.3,  armAmp:.15, bob:1.5,lean:.18,crouch:.42, expr:'sneak',  dressMul:.5, bagMul:.5, braidKick:.45,soft:true,label:'تسلل',emoji:'🐾', status:'تتسلل دون أي صوت…'}
+};
+const J_MODE_ORDER=['normal','happy','curious','careful','run','tired','sneak','idle'];
+
+const J_EXPR={
+  calm:    {eo:1,   bar:0,   bang:0,    mouth:'smileS', bl:.35},
+  joy:     {eo:1,   bar:-2,  bang:0,    mouth:'smileBig',bl:.7},
+  curious: {eo:1.18,bar:-3,  bang:.12,  mouth:'oS',     bl:.3},
+  focus:   {eo:.8,  bar:1.5, bang:-.14, mouth:'line',   bl:.15},
+  excited: {eo:1.22,bar:-3.5,bang:.06,  mouth:'open',   bl:.6},
+  tired:   {eo:.5,  bar:2,   bang:.18,  mouth:'pant',   bl:.25},
+  sneak:   {eo:1.1, bar:-1,  bang:-.1,  mouth:'lineS',  bl:.2},
+  sad:     {eo:.62, bar:2.5, bang:.3,   mouth:'frown',  bl:.15},
+  surprise:{eo:1.4, bar:-5,  bang:.1,   mouth:'oB',     bl:.45},
+  laugh:   {eo:0,   bar:-3,  bang:0,    mouth:'laugh',  bl:.75, closedJoy:true}
+};
+
+const J_ACTIONS=[
+  ['jump','قفز','⬆️'],['wave','تلويح','👋'],['laugh','ضحك','😄'],['look','نظرة حولها','👀'],
+  ['turnL','دوران يسار','↩️'],['turnR','دوران يمين','↪️'],['stop','توقف مفاجئ','✋'],
+  ['change','تغيير اتجاه','🔁'],['surprise','مفاجأة','😲'],['sad','حزن','😢']
+];
+const J_ACT_STATUS={jump:'قفزة! العقصتان ترتفعان ثم تتأخران 🎀',wave:'تلوّح بيدها 👋',laugh:'ههههه! ضحكة طفولية 😄',
+ look:'تنظر يمينًا ويسارًا… والعقصتان تتبعان بتأخير 👀',turnL:'دوران! العقصة الخارجية تتأخر ↩️',
+ turnR:'دوران! العقصة الخارجية تتأخر ↪️',stop:'توقف مفاجئ… العقصتان تستمران بالحركة! ✋',
+ change:'تغيير اتجاه سريع — العقصتان تتأرجحان للخارج بالقصور الذاتي 🔁',
+ surprise:'أوه! مفاجأة! العقصتان تتطايران للخلف 😲',sad:'حزينة قليلًا… العقصتان تتدليان بهدوء 😢'};
+
+const jSt={
+  t:0,mode:'normal',face:1,vel:0,phase:0,worldX:WORLD_W*0.045,
+  jumpY:0,vy:0,grounded:true,squash:0,
+  action:null,sadT:0,paused:false,pauseNext:3,
+  lookTarget:0,lookCur:0,
+  dressSway:0,dressVel:0,
+  bagA:.15,bagV:0,shX:0,shVX:0,shAX:0,
+  blinkT:2.5,blinkOpen:1,
+  prevSin:[0,0],
+  particles:[],
+  g:null,fx:J_EXPR.calm,S:1
+};
+
+function makeBraid(n,seg,r0,r1){const pts=[];for(let i=0;i<n;i++)pts.push({x:0,y:0,px:0,py:0});return{pts,seg,r0,r1,init:false};}
+const braidNear=makeBraid(6,17,8.6,4.4);
+const braidFar=makeBraid(6,15.5,8,4);
+function braidStep(b,ax,ay,dt,wind){
+  const pts=b.pts,n=pts.length;
+  if(!b.init){for(let i=0;i<n;i++){pts[i].x=ax+2*i/n;pts[i].y=ay+i*b.seg;pts[i].px=pts[i].x;pts[i].py=pts[i].y;}b.init=true;return;}
+  const dfac=Math.exp(-dt*3.0),G=1500;
+  for(let i=1;i<n;i++){
+    const p=pts[i];
+    const vx=(p.x-p.px)*dfac,vy=(p.y-p.py)*dfac;
+    p.px=p.x;p.py=p.y;
+    const w=clamp(wind*Math.pow(i/(n-1),1.3),-3600,3600);
+    p.x+=vx+w*dt*dt; p.y+=vy+G*dt*dt;
+  }
+  for(let k=0;k<5;k++){
+    pts[0].x=ax;pts[0].y=ay;
+    for(let i=0;i<n-1;i++){
+      const p0=pts[i],p1=pts[i+1];
+      let dx=p1.x-p0.x,dy=p1.y-p0.y;
+      let d=Math.hypot(dx,dy)||0.0001;
+      const diff=(d-b.seg)/d;
+      if(i===0){p1.x-=dx*diff;p1.y-=dy*diff;}
+      else{const h=diff*0.5;p0.x+=dx*h;p0.y+=dy*h;p1.x-=dx*h;p1.y-=dy*h;}
+    }
+    for(let i=1;i<n;i++){if(pts[i].y>-2)pts[i].y=-2;}
+  }
+  pts[0].x=ax;pts[0].y=ay;
+}
+function braidKickImpulse(b,imp){const n=b.pts.length;for(let i=2;i<n;i++){b.pts[i].py+=imp*(i/n);}}
+
+const jKeys={left:false,right:false};
+function jFlip(d){if(jSt.face===d)return;jSt.face=d;spawnDust(0,0,3,60);}
+function jDoTurn(d){jFlip(d);if(jSt.grounded){jSt.vy=210;jSt.grounded=false;}jSetAct('turn',.4);}
+function jSetAct(name,dur){jSt.action={name,t:0,dur};if(J_ACT_STATUS[name])jFlashStatus(J_ACT_STATUS[name]);}
+function jTriggerAction(name){
+  switch(name){
+    case 'jump': if(jSt.grounded){jSt.vy=560;jSt.grounded=false;spawnDust(0,0,4,70);} break;
+    case 'wave': jSetAct('wave',1.6);break;
+    case 'laugh': jSetAct('laugh',1.9);break;
+    case 'look': jSetAct('look',3.4);break;
+    case 'turnL': jDoTurn(-1);break;
+    case 'turnR': jDoTurn(1);break;
+    case 'stop': if(Math.abs(jSt.vel)>40)jSetAct('stop',.9);break;
+    case 'change': jFlip(-jSt.face);jSt.vel=jSt.face*J_MODES[jSt.mode].speed*1.5;jSetAct('change',.5);break;
+    case 'surprise': jSetAct('surprise',1.0);break;
+    case 'sad': jSt.sadT=3.5;jFlashStatus(J_ACT_STATUS.sad);break;
+  }
+}
+window.addEventListener('keydown',e=>{
+  if(!entered)return;
+  if(e.code==='Space'){e.preventDefault();jTriggerAction('jump');return;}
+  if(e.code==='ArrowRight'){e.preventDefault();jKeys.right=true;if(jSt.face!==1){jFlip(1);if(Math.abs(jSt.vel)>50)jSetAct('change',.45);}return;}
+  if(e.code==='ArrowLeft'){e.preventDefault();jKeys.left=true;if(jSt.face!==-1){jFlip(-1);if(Math.abs(jSt.vel)>50)jSetAct('change',.45);}return;}
+  const idx='12345678'.indexOf(e.key);
+  if(idx>=0&&J_MODE_ORDER[idx]){jSetMode(J_MODE_ORDER[idx]);}
+});
+window.addEventListener('keyup',e=>{
+  if(e.code==='ArrowRight')jKeys.right=false;
+  if(e.code==='ArrowLeft')jKeys.left=false;
+});
+
+const jStatusEl=document.getElementById('jumanaStatus');
+let jFlashT=null;
+function jFlashStatus(txt){jStatusEl.textContent=txt;jStatusEl.style.transform='scale(1.08)';
+  setTimeout(()=>jStatusEl.style.transform='scale(1)',150);
+  clearTimeout(jFlashT);jFlashT=setTimeout(()=>jStatusEl.textContent=J_MODES[jSt.mode].status,1600);}
+function jSetMode(m){jSt.mode=m;jSt.paused=false;jSt.pauseNext=2;
+  document.querySelectorAll('#jModeBtns button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  jStatusEl.textContent=J_MODES[m].status;}
+const jModeWrap=document.getElementById('jModeBtns');
+J_MODE_ORDER.forEach((m,i)=>{
+  const b=document.createElement('button');
+  b.textContent=J_MODES[m].emoji+' '+J_MODES[m].label;
+  b.dataset.mode=m;b.title='اختصار: '+(i+1);
+  b.addEventListener('click',()=>jSetMode(m));
+  jModeWrap.appendChild(b);
+});
+const jActWrap=document.getElementById('jActBtns');
+J_ACTIONS.forEach(([id,label,emo])=>{
+  const b=document.createElement('button');b.className='act';
+  b.textContent=emo+' '+label;
+  b.addEventListener('click',()=>jTriggerAction(id));
+  jActWrap.appendChild(b);
+});
+
+function spawnDust(x,y,n,power){
+  for(let i=0;i<n;i++)jSt.particles.push({x:x+rand(-8,8),y:y+rand(-3,1),
+    vx:rand(-power,power)*.5,vy:rand(-power*.45,-6),r:rand(2.5,5),life:0,max:rand(.4,.7)});
+}
+
+function updateJumana(dt){
+  jSt.S=clamp(H/860,0.68,1.25);
+  jSt.t+=dt;
+  const P=J_MODES[jSt.mode];
+
+  if(jSt.action){jSt.action.t+=dt;if(jSt.action.t>=jSt.action.dur)jSt.action=null;}
+  if(jSt.sadT>0)jSt.sadT-=dt;
+
+  jSt.blinkT-=dt;
+  if(jSt.blinkT<=0){jSt.blinkT=rand(2.2,5);}
+  const bt=jSt.blinkT;
+  jSt.blinkOpen=bt>0.16?1:Math.abs(1-bt/0.08);
+  if(bt<=0.16)jSt.blinkOpen=Math.abs((bt-0.08)/0.08);
+
+  let boost=1;
+  if(jKeys.left&&jSt.face===-1)boost=1.3;
+  if(jKeys.right&&jSt.face===1)boost=1.3;
+
+  if(P.pauses){
+    jSt.pauseNext-=dt;
+    if(jSt.pauseNext<=0){jSt.paused=!jSt.paused;
+      jSt.pauseNext=jSt.paused?rand(.8,1.7):rand(2.2,4.5);}
+  }else jSt.paused=false;
+
+  let lockMove=false,leanAdd=0,crouchAdd=0,rootOff=0,exprOverride=null;
+  let waveOn=false,surpriseOn=false,laughHop=0;
+  const act=jSt.action;
+  if(act){
+    const e=act.t/act.dur;
+    switch(act.name){
+      case 'wave':lockMove=true;waveOn=true;exprOverride='joy';break;
+      case 'laugh':lockMove=true;exprOverride='laugh';
+        if(jSt.grounded)laughHop=Math.abs(Math.sin(act.t*8.5))*8;break;
+      case 'look':lockMove=true;exprOverride='curious';
+        jSt.lookTarget=act.t<0.9?1:act.t<1.4?0:act.t<2.4?-1:0;break;
+      case 'surprise':exprOverride='surprise';surpriseOn=true;
+        rootOff=-jSt.face*24*Math.sin(Math.PI*Math.min(e*1.4,1));
+        leanAdd=-0.28*Math.sin(Math.PI*e);break;
+      case 'stop':leanAdd=-0.22*(1-e);crouchAdd=0.06;exprOverride='focus';break;
+      case 'change':leanAdd=0.1*Math.sin(Math.PI*e);crouchAdd=0.08*Math.sin(Math.PI*e);break;
+      case 'turn':crouchAdd=0.12*Math.sin(Math.PI*e);break;
+    }
+  }else jSt.lookTarget=0;
+  if(jSt.paused){lockMove=true;jSt.lookTarget=Math.sin(jSt.t*2.2)*0.9;}
+  if(jSt.mode==='idle')jSt.lookTarget=Math.sin(jSt.t*0.6)*0.3*Math.max(0,Math.sin(jSt.t*0.21));
+  jSt.lookCur=damp(jSt.lookCur,jSt.lookTarget*13,9,dt);
+
+  let speedMul=1;
+  if(jSt.sadT>0)speedMul=0.3;
+  let target=(lockMove?0:P.speed*speedMul*boost*(jSt.paused?0:1))*jSt.face;
+  if(!lockMove){
+    if(jKeys.left&&!jKeys.right)target=-P.speed*speedMul;
+    else if(jKeys.right&&!jKeys.left)target=P.speed*speedMul;
+    else if(!jKeys.left&&!jKeys.right)target=0;
+  }
+  if(act&&act.name==='stop'){jSt.vel=damp(jSt.vel,0,9,dt);}
+  else jSt.vel=damp(jSt.vel,target,jSt.mode==='run'?5:3.5,dt);
+  jSt.worldX=clamp(jSt.worldX+jSt.vel*dt,60,WORLD_W-60);
+
+  const spAbs=Math.abs(jSt.vel);
+  const velF=clamp(spAbs/45,0,1);
+  jSt.phase+=spAbs*dt*0.052*P.freqMul;
+
+  if(!jSt.grounded){
+    jSt.vy-=1700*dt;jSt.jumpY+=jSt.vy*dt;
+    if(jSt.jumpY<=0){
+      jSt.jumpY=0;jSt.grounded=true;
+      jSt.squash=clamp(-jSt.vy*0.0011,0.22,0.55);
+      spawnDust(0,0,6,110);jSt.vy=0;
+    }
+  }
+  jSt.squash=damp(jSt.squash,0,7,dt);
+
+  const dTarget=clamp(-jSt.vel*0.055,-16,16)*P.dressMul+Math.sin(jSt.phase*2)*1.6*velF*P.dressMul;
+  jSt.dressVel+=(dTarget-jSt.dressSway)*90*dt;
+  jSt.dressVel*=Math.exp(-10*dt);
+  jSt.dressSway+=jSt.dressVel*dt;
+
+  const face=jSt.face;
+  let lean=P.lean+leanAdd+clamp(jSt.vel*face*0.00045,-0.16,0.2);
+  if(jSt.sadT>0){lean=0.1;leanAdd=0;}
+  let crouch=clamp(P.crouch+crouchAdd,0,0.6);
+  let headTilt=(P.headTilt||0);
+  if(jSt.sadT>0)headTilt=0.34;
+  if(waveOn)headTilt-=0.07;
+
+  const breath=(jSt.mode==='idle')?Math.sin(jSt.t*2.1)*1.8
+    :(jSt.mode==='tired')?Math.sin(jSt.t*3.6)*2.4
+    :Math.sin(jSt.t*1.6)*0.7;
+  const bobUp=velF*P.bob*Math.abs(Math.sin(jSt.phase));
+  const legLenEff=96*(1-crouch*0.32);
+  const hipX=rootOff;
+  const hipY=-legLenEff-jSt.jumpY-bobUp-laughHop+jSt.squash*11-breath*0.35;
+
+  const Tt=58;
+  const torsoAng=lean;
+  const shX=hipX+Math.sin(torsoAng)*face*Tt;
+  const shY=hipY-Math.cos(torsoAng)*Tt;
+  const headAng=torsoAng*0.55+headTilt+jSt.lookCur*0.006+
+    (jSt.mode==='curious'?Math.sin(jSt.t*1.4)*0.06*velF:0);
+  const HR=50,neckD=10+HR*0.78;
+  const headX=shX+Math.sin(headAng)*face*neckD;
+  const headY=shY-Math.cos(headAng)*neckD;
+  const headPt=(lx,ly)=>{
+    const x1=face*lx,y1=ly,c=Math.cos(headAng),s=Math.sin(headAng);
+    return{x:headX+x1*c-y1*s,y:headY+x1*s+y1*c};
+  };
+  const ancN=headPt(-HR*0.10,HR*0.46);
+  const ancF=headPt(-HR*0.70,HR*0.20);
+
+  const f=legLenEff/96;
+  const legs=[];
+  for(let sd=0;sd<2;sd++){
+    const ph=jSt.phase+sd*Math.PI;
+    let hipAng=P.legAmp*velF*Math.sin(ph)+crouch*0.26;
+    let knee=crouch*0.46+velF*Math.max(0,Math.sin(ph-Math.PI*0.9))*(0.55+P.legAmp*0.6)+jSt.squash*1.0;
+    if(jSt.mode==='tired'){hipAng*=0.8;knee*=0.7;}
+    if(!jSt.grounded){hipAng=lerp(hipAng,0.55+sd*0.18,0.9);knee=lerp(knee,1.5+sd*0.2,0.9);}
+    if(velF<0.05&&jSt.grounded&&!jSt.action){hipAng=sd?-0.07:0.09;knee=crouch*0.46+0.04;}
+    legs.push({hipAng,knee,f});
+  }
+  for(let sd=0;sd<2;sd++){
+    const now=Math.sin(jSt.phase+sd*Math.PI);
+    if(jSt.prevSin[sd]<0&&now>=0&&jSt.grounded){
+      if(velF>0.15&&!P.soft)spawnDust(face*16,0,spAbs>170?4:2,spAbs>170?110:55);
+      if(jSt.mode==='happy'||jSt.mode==='run'){
+        braidKickImpulse(braidNear,26*P.braidKick);
+        braidKickImpulse(braidFar,22*P.braidKick);
+      }
+    }
+    jSt.prevSin[sd]=now;
+  }
+
+  const arms=[];
+  for(let sd=0;sd<2;sd++){
+    const phA=jSt.phase+(sd===0?Math.PI:0);
+    let a1=-P.armAmp*velF*Math.sin(phA)+crouch*0.5;
+    let elb=0.32+P.armAmp*velF*0.5*Math.max(0,Math.sin(phA+0.6))+crouch*0.45+(jSt.mode==='run'?0.25:0);
+    if(jSt.sadT>0){a1=a1*0.25+0.08;elb=0.18;}
+    if(surpriseOn){a1=lerp(a1,2.1,0.6);elb=lerp(elb,0.5,0.6);}
+    if(waveOn&&sd===0){a1=2.45+Math.sin(jSt.t*10.5)*0.12;elb=0.55+Math.sin(jSt.t*10.5+0.6)*0.5;}
+    if(exprOverride==='laugh'){a1+=(sd===0?0.5:-0.5)*0.6+Math.sin(jSt.t*9)*0.15;elb=0.6;}
+    if(velF<0.05&&jSt.grounded&&!jSt.action&&!waveOn){a1=sd?-0.1:0.1;elb=0.25;}
+    arms.push({a1,elb});
+  }
+
+  const expr=exprOverride||(jSt.sadT>0?'sad':P.expr);
+  jSt.g={hipX,hipY,shX,shY,headX,headY,headAng,torsoAng,ancN,ancF,legs,arms,face,velF,expr,HR,breath};
+  jSt.fx=J_EXPR[expr]||J_EXPR.calm;
+
+  const sVX=(shX-jSt.shX)/Math.max(dt,0.001);
+  const instAX=clamp((sVX-jSt.shVX)/Math.max(dt,0.001),-6000,6000);
+  jSt.shAX=lerp(jSt.shAX,instAX,1-Math.exp(-12*dt));
+  jSt.shVX=sVX;jSt.shX=shX;
+  const LB=46;
+  jSt.bagV+=(-(2600/LB)*Math.sin(jSt.bagA))*dt;
+  jSt.bagV+=(-(jSt.shAX/LB)*Math.cos(jSt.bagA)*1.2*P.bagMul)*dt;
+  jSt.bagV*=Math.exp(-1.6*dt);
+  jSt.bagA+=jSt.bagV*dt;
+  jSt.bagA=clamp(jSt.bagA,-1.15,1.15);
+
+  const wind=-jSt.vel*2.4*P.braidKick;
+  for(let k=0;k<2;k++){
+    braidStep(braidNear,ancN.x,ancN.y,dt/2,wind);
+    braidStep(braidFar,ancF.x,ancF.y,dt/2,wind*0.92);
+  }
+
+  for(let i=jSt.particles.length-1;i>=0;i--){
+    const pp=jSt.particles[i];pp.life+=dt;
+    if(pp.life>=pp.max){jSt.particles.splice(i,1);continue;}
+    pp.x+=(pp.vx-jSt.vel)*dt;pp.y+=pp.vy*dt;pp.vy*=Math.exp(-3*dt);pp.r+=16*dt;
+  }
+
+  Scroller.targetX=clamp(jSt.worldX-W*0.42,0,WORLD_W-W);
+}
+
+function drawJBraid(b,c1,c2){
+  const pts=b.pts,n=pts.length;
+  ell2(pts[0].x,pts[0].y,b.r0+1.5,b.r0+1.5,c1,J_OUT,2.4);
+  for(let i=1;i<n;i++){
+    const p0=pts[i-1],p1=pts[i];
+    const dx=p1.x-p0.x,dy=p1.y-p0.y,len=Math.hypot(dx,dy)||1;
+    const ang=Math.atan2(dy,dx);
+    const tt=i/(n-1);
+    const r=lerp(b.r0,b.r1,tt);
+    const side=(i%2===0?1:-1);
+    const off=r*0.5*side;
+    const mx=(p0.x+p1.x)/2-dy/len*off,my=(p0.y+p1.y)/2+dx/len*off;
+    ctx.save();ctx.translate(mx,my);ctx.rotate(ang);
+    ell2(0,0,r*1.15,r*0.88,i%2?c1:c2,J_OUT,2.3);
+    ctx.restore();
+  }
+  const pL=pts[n-1],pP=pts[n-2];
+  const ang=Math.atan2(pL.y-pP.y,pL.x-pP.x);
+  ctx.save();ctx.translate(pL.x,pL.y);ctx.rotate(ang);
+  const r=b.r1;
+  ctx.fillStyle=J_TIE;ctx.strokeStyle=J_OUT;ctx.lineWidth=2.2;
+  rr2(0,-r*0.95,7,r*1.9,3);ctx.fill();ctx.stroke();
+  ctx.fillStyle=c1;ctx.beginPath();
+  ctx.moveTo(7,-r*0.7);ctx.quadraticCurveTo(16,0,7,r*0.7);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.restore();
+}
+function drawJLeg(leg,sd){
+  const g=jSt.g,face=g.face;
+  const hip=g.hipX+(sd===0?face*3:-face*3),hipYv=g.hipY;
+  const L1=50*leg.f,L2=46*leg.f;
+  const kx=hip+Math.sin(leg.hipAng)*face*L1,ky=hipYv+Math.cos(leg.hipAng)*L1;
+  const shin=leg.hipAng-leg.knee;
+  const fxp=kx+Math.sin(shin)*face*L2,fy=ky+Math.cos(shin)*L2;
+  const skin=sd===0?J_SKIN:J_SKIN_F;
+  ctx.lineCap='round';
+  ctx.strokeStyle=J_OUT;ctx.lineWidth=19;
+  ctx.beginPath();ctx.moveTo(hip,hipYv);ctx.lineTo(kx,ky);ctx.lineTo(fxp,fy);ctx.stroke();
+  ctx.strokeStyle=skin;ctx.lineWidth=14.5;
+  ctx.beginPath();ctx.moveTo(hip,hipYv);ctx.lineTo(kx,ky);ctx.lineTo(fxp,fy);ctx.stroke();
+  const sxp=kx+Math.sin(shin)*face*L2*0.72,syp=ky+Math.cos(shin)*L2*0.72;
+  ctx.strokeStyle=sd===0?J_SOCK:'#efeaea';ctx.lineWidth=15;
+  ctx.beginPath();ctx.moveTo(sxp,syp);ctx.lineTo(fxp,fy);ctx.stroke();
+  ctx.save();ctx.translate(fxp,fy);ctx.scale(face,1);ctx.rotate(leg.knee*0.4-0.08);
+  ctx.fillStyle=sd===0?J_SHOE:'#c73a50';ctx.strokeStyle=J_OUT;ctx.lineWidth=2.4;
+  rr2(-7,-6,26,13,6);ctx.fill();ctx.stroke();
+  ctx.strokeStyle=J_OUT;ctx.lineWidth=1.8;
+  ctx.beginPath();ctx.moveTo(2,-6);ctx.lineTo(2,3);ctx.stroke();
+  ctx.restore();
+}
+function drawJArm(arm,sd){
+  const g=jSt.g,face=g.face;
+  const shx=g.shX+(sd===0?face*4:-face*6),shy=g.shY+(sd===0?0:3);
+  const U=30,F=28;
+  const ex=shx+Math.sin(arm.a1)*face*U,ey=shy+Math.cos(arm.a1)*U;
+  const a2=arm.a1+arm.elb;
+  const hx=ex+Math.sin(a2)*face*F,hy=ey+Math.cos(a2)*F;
+  const skin=sd===0?J_SKIN:J_SKIN_F;
+  ctx.lineCap='round';
+  ctx.strokeStyle=J_OUT;ctx.lineWidth=16;
+  ctx.beginPath();ctx.moveTo(shx,shy);ctx.lineTo(ex,ey);ctx.lineTo(hx,hy);ctx.stroke();
+  ctx.strokeStyle=skin;ctx.lineWidth=12;
+  ctx.beginPath();ctx.moveTo(shx,shy);ctx.lineTo(ex,ey);ctx.lineTo(hx,hy);ctx.stroke();
+  ell2(hx,hy,6.5,6.5,skin,J_OUT,2.2);
+  ell2(shx,shy,10.5,10.5,sd===0?J_DRESS_D:'#e0607f',J_OUT,2.4);
+}
+function drawJDress(){
+  const g=jSt.g,face=g.face;
+  const topX=lerp(g.shX,g.hipX,0.18),topY=lerp(g.shY,g.hipY,0.18);
+  const topW=21;
+  const hemY=g.hipY+36;
+  const hemW=46+Math.abs(jSt.vel)*0.015*J_MODES[jSt.mode].dressMul;
+  const hemCx=g.hipX+jSt.dressSway+g.torsoAng*face*14;
+  const fl=g.velF*3*J_MODES[jSt.mode].dressMul;
+  ctx.beginPath();
+  ctx.moveTo(topX-topW,topY);
+  ctx.bezierCurveTo(topX-topW-10,topY+30,hemCx-hemW-6,hemY-22,hemCx-hemW,hemY);
+  const segs=3;
+  for(let i=1;i<=segs;i++){
+    const x0=hemCx-hemW+(2*hemW)*(i-1)/segs;
+    const x1=hemCx-hemW+(2*hemW)*i/segs;
+    const cy=hemY+10+Math.sin(jSt.phase*2+i*2.1)*fl;
+    ctx.quadraticCurveTo((x0+x1)/2,cy,x1,hemY+Math.sin(jSt.phase*2+i)*fl*0.4);
+  }
+  ctx.bezierCurveTo(hemCx+hemW+6,hemY-22,topX+topW+10,topY+30,topX+topW,topY);
+  ctx.quadraticCurveTo(topX,topY-6,topX-topW,topY);
+  ctx.closePath();
+  ctx.fillStyle=J_DRESS;ctx.fill();
+  ctx.save();ctx.clip();
+  ctx.fillStyle=J_CREAM;
+  const dots=[[-26,14],[8,26],[30,10],[-6,44],[22,48],[-32,42]];
+  for(const d of dots)ell2(g.hipX+d[0],g.hipY+d[1],4,4,J_CREAM);
+  ctx.restore();
+  ctx.strokeStyle=J_OUT;ctx.lineWidth=2.6;ctx.stroke();
+  ctx.fillStyle='#fff';ctx.strokeStyle=J_OUT;ctx.lineWidth=2.2;
+  rr2(topX-13,topY-6,26,10,5);ctx.fill();ctx.stroke();
+}
+function drawJBag(){
+  const g=jSt.g,face=g.face;
+  const cp={x:lerp(g.shX,g.hipX,0.35)+face*6,y:lerp(g.shY,g.hipY,0.35)};
+  const LB=46;
+  const bx=cp.x+Math.sin(jSt.bagA)*face*LB,by=cp.y+Math.cos(jSt.bagA)*LB;
+  ctx.strokeStyle=J_OUT;ctx.lineWidth=7.5;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(g.shX-face*5,g.shY+2);ctx.lineTo(bx,by-10);ctx.stroke();
+  ctx.strokeStyle=J_BAG_D;ctx.lineWidth=4.5;
+  ctx.beginPath();ctx.moveTo(g.shX-face*5,g.shY+2);ctx.lineTo(bx,by-10);ctx.stroke();
+  ctx.save();ctx.translate(bx,by);ctx.rotate(jSt.bagA*face*0.8);
+  ctx.fillStyle=J_BAG;ctx.strokeStyle=J_OUT;ctx.lineWidth=2.5;
+  rr2(-14,-10,28,22,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle=J_BAG_D;
+  rr2(-14,-10,28,11,7);ctx.fill();ctx.stroke();
+  ell2(0,2,3,3,'#fff',J_OUT,1.5);
+  ctx.restore();
+}
+function drawJMouth(mx,my,m){
+  ctx.strokeStyle=J_OUT;ctx.lineCap='round';ctx.lineJoin='round';
+  switch(m){
+    case 'smileS':ctx.lineWidth=3;ctx.beginPath();ctx.arc(mx,my-2,7,Math.PI*0.15,Math.PI*0.85);ctx.stroke();break;
+    case 'smileBig':
+      ctx.lineWidth=3.4;ctx.beginPath();ctx.arc(mx,my-3,10,Math.PI*0.12,Math.PI*0.88);ctx.stroke();
+      ctx.fillStyle='#b8405e';ctx.beginPath();ctx.arc(mx,my-3,9.5,Math.PI*0.18,Math.PI*0.82);ctx.closePath();ctx.fill();break;
+    case 'open':
+      ell2(mx,my,6.5,8.5,'#7c2f3e',J_OUT,2.6);
+      ell2(mx,my+4,4,3.4,'#ff8f9e');break;
+    case 'oS':ell2(mx,my,3.4,3.8,'#7c2f3e',J_OUT,2.2);break;
+    case 'oB':ell2(mx,my,5.6,6.6,'#7c2f3e',J_OUT,2.6);break;
+    case 'line':ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(mx-5,my+1);ctx.lineTo(mx+5,my+1);ctx.stroke();break;
+    case 'lineS':ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(mx-3.2,my+1);ctx.lineTo(mx+3.2,my+1);ctx.stroke();break;
+    case 'frown':ctx.lineWidth=3;ctx.beginPath();ctx.arc(mx,my+6,7,Math.PI*1.15,Math.PI*1.85);ctx.stroke();break;
+    case 'pant':{const ry=3+1.6*Math.sin(jSt.t*7);ell2(mx,my,4,Math.max(1.6,ry),'#7c2f3e',J_OUT,2.2);}break;
+    case 'laugh':
+      ctx.fillStyle='#7c2f3e';ctx.strokeStyle=J_OUT;ctx.lineWidth=2.8;
+      ctx.beginPath();ctx.arc(mx,my-2,11,0,Math.PI);ctx.closePath();ctx.fill();ctx.stroke();
+      ell2(mx,my+4,6,3.6,'#ff8f9e');break;
+  }
+}
+function drawJHead(){
+  const g=jSt.g,fx=jSt.fx,face=g.face,R=g.HR;
+  const look=jSt.lookCur;
+  ctx.save();
+  ctx.translate(g.headX,g.headY);
+  ctx.rotate(g.headAng*face);
+  ctx.scale(face,1);
+  ell2(-2,-3,R+5,R+5,J_HAIR,J_OUT,2.8);
+  ell2(7,3,R,R,J_SKIN,J_OUT,2.8);
+  ctx.fillStyle=`rgba(255,140,160,${0.35*fx.bl+0.12})`;
+  ell2(R*0.42+4,R*0.30,8,5.2,`rgba(255,140,160,${0.4*fx.bl+0.15})`);
+  ell2(-R*0.12,R*0.28,7,4.6,`rgba(255,140,160,${0.3*fx.bl+0.12})`);
+  ctx.strokeStyle='#e8a87e';ctx.lineWidth=2.4;ctx.lineCap='round';
+  ctx.beginPath();ctx.arc(7+R-3,3+R*0.10,3.6,Math.PI*0.35,Math.PI*1.25);ctx.stroke();
+  const eyes=[{x:R*0.22+look*0.5,y:3-R*0.10,r:8.6},{x:R*0.62+look*0.5,y:3-R*0.13,r:9.6}];
+  const open=fx.closedJoy?0:fx.eo*jSt.blinkOpen;
+  for(const e of eyes){
+    if(fx.closedJoy||open<0.2){
+      ctx.strokeStyle=J_OUT;ctx.lineWidth=3;ctx.lineCap='round';
+      ctx.beginPath();ctx.arc(e.x,e.y,e.r*0.85,fx.closedJoy?Math.PI*1.05:Math.PI*1.05,Math.PI*1.95);ctx.stroke();
+    }else{
+      ell2(e.x,e.y,e.r,e.r*open,'#fff',J_OUT,2.4);
+      const ir=Math.min(e.r*0.55,e.r*open*0.62);
+      ell2(e.x+look*0.18,e.y+e.r*open*0.12,ir,ir,'#5b3a4a');
+      ell2(e.x+look*0.18-ir*0.35,e.y+e.r*open*0.12-ir*0.35,ir*0.3,ir*0.3,'#fff');
+    }
+  }
+  ctx.strokeStyle=J_OUT;ctx.lineWidth=3.2;ctx.lineCap='round';
+  for(let i=0;i<2;i++){
+    const e=eyes[i],by=e.y-e.r*1.75+fx.bar;
+    const slope=fx.bang*7*(i===0?0.7:1);
+    ctx.beginPath();ctx.moveTo(e.x-7,by+slope);ctx.lineTo(e.x+7,by-slope);ctx.stroke();
+  }
+  drawJMouth(R*0.45+look*0.6,3+R*0.42,fx.mouth);
+  ctx.fillStyle=J_HAIR;
+  ell2(26,-36,13,13,J_HAIR);ell2(8,-44,13.5,13.5,J_HAIR);ell2(-11,-41,12.5,12.5,J_HAIR);ell2(-27,-32,11,11,J_HAIR);
+  ctx.strokeStyle=J_HAIR;ctx.lineWidth=4.5;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(-2,-52);ctx.quadraticCurveTo(6,-66,16,-60);ctx.stroke();
+  ctx.strokeStyle=J_HAIR_L;ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(16,-44);ctx.quadraticCurveTo(4,-50,-8,-46);ctx.stroke();
+  ctx.restore();
+}
+function drawCharacter(){
+  const g=jSt.g;
+  const anchorX=toScreenX(jSt.worldX),anchorY=groundY(jSt.worldX);
+  ctx.save();
+  ctx.translate(anchorX,anchorY);
+  ctx.scale(jSt.S,jSt.S);
+  ctx.lineJoin='round';
+  const shScale=clamp(1-jSt.jumpY/320,0.45,1);
+  ell2(g.hipX,4,48*shScale,10*shScale,`rgba(20,30,20,${0.22*shScale})`);
+  drawJBraid(braidFar,J_HAIR_F,J_HAIR_FL);
+  drawJArm(g.arms[1],1);
+  drawJLeg(g.legs[1],1);
+  drawJLeg(g.legs[0],0);
+  ctx.strokeStyle=J_OUT;ctx.lineWidth=16;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(g.shX,g.shY);
+  ctx.lineTo(g.shX+Math.sin(g.headAng)*g.face*13,g.shY-Math.cos(g.headAng)*13);ctx.stroke();
+  ctx.strokeStyle=J_SKIN;ctx.lineWidth=12;
+  ctx.beginPath();ctx.moveTo(g.shX,g.shY);
+  ctx.lineTo(g.shX+Math.sin(g.headAng)*g.face*13,g.shY-Math.cos(g.headAng)*13);ctx.stroke();
+  drawJDress();
+  drawJBag();
+  drawJArm(g.arms[0],0);
+  drawJHead();
+  drawJBraid(braidNear,J_HAIR,J_HAIR_L);
+  ctx.restore();
+}
+function drawJumanaParticles(){
+  const anchorX=toScreenX(jSt.worldX),anchorY=groundY(jSt.worldX);
+  ctx.save();
+  ctx.translate(anchorX,anchorY);ctx.scale(jSt.S,jSt.S);
+  for(const pp of jSt.particles){
+    const a=1-pp.life/pp.max;
+    ell2(pp.x,pp.y,pp.r,pp.r,`rgba(226,216,196,${a*0.7})`);
+  }
+  ctx.restore();
+}
+jSetMode('normal');
+
 /* ================= UPDATE ================= */
 function updateFireflies(dt){
  const target=Math.round(lerp(0,MAXFF,smooth(0.45,0.8,p)));
@@ -824,6 +1386,7 @@ function update(dt){
  for(const cp of CAPS){if(!cp.done&&p>=cp.at){cp.done=true;showCaption(cp.txt);}}
  if(AudioEng.started){AudioEng.tick();sceneAcc+=dt;
   if(sceneAcc>0.35){sceneAcc=0;AudioEng.setScene(p);}}
+ if(entered)updateJumana(dt);
  if(!warp.active)Scroller.update(dt);}
 
 /* ================= DRAW HELPERS ================= */
@@ -1146,6 +1709,7 @@ function render(){
  for(const m of shroomsFG)drawShroom(m);
  for(const f of flowers)drawFlower(f);
  drawGrass();
+ if(entered){drawCharacter();drawJumanaParticles();}
  drawPortal();
  ctx.globalCompositeOperation='lighter';
  drawPollen();drawFireflies();drawSpirits();

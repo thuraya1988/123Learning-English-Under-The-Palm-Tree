@@ -45,24 +45,34 @@
     padding:17px 54px 15px;border-radius:2px;transition:all .55s ease;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
   #enter:hover,#enter:focus-visible{background:rgba(255,255,255,.25);box-shadow:0 0 46px rgba(255,255,255,.4);letter-spacing:.62em;outline:none}
   .note{margin-top:32px;font-size:13px;font-style:italic;letter-spacing:.12em;opacity:.78}
-  #jumanaDeck{position:fixed;left:0;right:0;bottom:0;z-index:7;display:flex;flex-direction:column;
-    align-items:center;gap:8px;padding:10px 14px 14px;pointer-events:none;
-    background:linear-gradient(180deg,rgba(8,12,26,0) 0%,rgba(8,12,26,.55) 70%)}
-  #jumanaName{font-weight:600;font-size:14px;letter-spacing:.1em;color:#ffd9e8;
-    text-shadow:0 0 12px rgba(255,180,210,.5),0 1px 4px rgba(0,0,10,.6)}
   #wordHud{position:fixed;top:20px;right:20px;z-index:6;font-size:13px;font-weight:600;
     color:#ffe4a0;text-shadow:0 1px 8px rgba(0,0,0,.6);opacity:0;transition:opacity 1.5s ease}
   #wordHud.show{opacity:1}
-  #jumanaStatus{font-style:italic;font-size:13px;letter-spacing:.06em;color:rgba(230,236,255,.85);
-    text-shadow:0 1px 4px rgba(0,0,10,.6);transition:transform .15s}
-  #jumanaBtns{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:900px;pointer-events:auto}
+  #jumanaToggle{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:8;
+    width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.4);
+    background:rgba(20,24,44,.55);backdrop-filter:blur(6px);color:#ffd9e8;font-size:20px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    animation:jPulse 2.4s ease-in-out infinite}
+  #jumanaToggle.open{animation:none;background:rgba(190,220,255,.85);color:#12172c}
+  @keyframes jPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,217,232,.45)}50%{box-shadow:0 0 0 10px rgba(255,217,232,0)}}
+  #jumanaPanel{position:fixed;top:122px;left:50%;transform:translateX(-50%) translateY(-8px);z-index:7;
+    display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 14px;max-width:92vw;
+    background:rgba(12,16,32,.72);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.18);
+    border-radius:16px;opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease}
+  #jumanaPanel.open{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+  #jumanaName{font-weight:600;font-size:13px;letter-spacing:.1em;color:#ffd9e8}
+  #jumanaBtns{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:900px}
   #jumanaBtns button{font-family:'Cormorant Garamond',Georgia,serif;font-size:12.5px;font-weight:500;
     cursor:pointer;border:1px solid rgba(255,255,255,.28);padding:5px 12px;border-radius:99px;
-    color:rgba(230,236,255,.85);background:rgba(20,24,44,.45);backdrop-filter:blur(6px);
+    color:rgba(230,236,255,.85);background:rgba(20,24,44,.45);
     transition:all .15s}
   #jumanaBtns button:hover{background:rgba(255,255,255,.14)}
   #jumanaBtns button.active{background:rgba(190,220,255,.85);color:#12172c;border-color:rgba(255,255,255,.9)}
   #jumanaBtns button.act{border-color:rgba(150,220,200,.35)}
+  #jumanaStatus{position:fixed;left:0;right:0;bottom:8%;z-index:6;text-align:center;
+    font-style:italic;font-size:14px;letter-spacing:.06em;color:rgba(230,236,255,.9);
+    text-shadow:0 1px 6px rgba(0,0,0,.7);opacity:0;transition:opacity .5s ease;pointer-events:none}
+  #jumanaStatus.show{opacity:1}
 </style>
 </head>
 <body>
@@ -70,13 +80,14 @@
 <div id="caption"></div>
 <div id="realmBadge"><span id="realmTitle"></span><div class="anoms" id="realmList"></div></div>
 <div id="wordHud"></div>
-<div id="jumanaDeck">
+<button id="jumanaToggle" title="حركات جُمانة">🎭</button>
+<div id="jumanaPanel">
   <div id="jumanaName">🌴 جُمانة</div>
-  <div id="jumanaStatus"></div>
   <div id="jumanaBtns"><div id="jModeBtns" style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px"></div>
     <div id="jActBtns" style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px"></div></div>
 </div>
-<div id="hint">click — send light &nbsp;&middot;&nbsp; hold — gather &nbsp;&middot;&nbsp; swipe — travel &nbsp;&middot;&nbsp; find the gate</div>
+<div id="jumanaStatus"></div>
+<div id="hint">tap — send light &nbsp;&middot;&nbsp; drag — walk جُمانة &nbsp;&middot;&nbsp; arrows/space — walk & jump &nbsp;&middot;&nbsp; find the gate</div>
 <div id="sig">the forest remembers &middot; a generative reverie</div>
 <div id="overlay">
   <div class="kicker">جمانة &middot; a living painting &middot; gates between worlds</div>
@@ -814,7 +825,7 @@ const jSt={
   blinkT:2.5,blinkOpen:1,
   prevSin:[0,0],
   particles:[],
-  g:null,fx:J_EXPR.calm,S:1
+  g:null,fx:J_EXPR.calm,S:1,moodT:0,moodType:'calm'
 };
 
 function makeBraid(n,seg,r0,r1){const pts=[];for(let i=0;i<n;i++)pts.push({x:0,y:0,px:0,py:0});return{pts,seg,r0,r1,init:false};}
@@ -881,12 +892,18 @@ window.addEventListener('keyup',e=>{
 
 const jStatusEl=document.getElementById('jumanaStatus');
 let jFlashT=null;
-function jFlashStatus(txt){jStatusEl.textContent=txt;jStatusEl.style.transform='scale(1.08)';
-  setTimeout(()=>jStatusEl.style.transform='scale(1)',150);
-  clearTimeout(jFlashT);jFlashT=setTimeout(()=>jStatusEl.textContent=J_MODES[jSt.mode].status,1600);}
+function jFlashStatus(txt){jStatusEl.textContent=txt;jStatusEl.classList.add('show');
+  clearTimeout(jFlashT);jFlashT=setTimeout(()=>jStatusEl.classList.remove('show'),2600);}
 function jSetMode(m){jSt.mode=m;jSt.paused=false;jSt.pauseNext=2;
   document.querySelectorAll('#jModeBtns button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
-  jStatusEl.textContent=J_MODES[m].status;}
+  jFlashStatus(J_MODES[m].status);}
+function jMoodFlash(type,dur){jSt.moodType=type;jSt.moodT=dur;}
+const jToggleBtn=document.getElementById('jumanaToggle');
+const jPanelEl=document.getElementById('jumanaPanel');
+jToggleBtn.addEventListener('click',()=>{
+  const open=jPanelEl.classList.toggle('open');
+  jToggleBtn.classList.toggle('open',open);
+});
 const jModeWrap=document.getElementById('jModeBtns');
 J_MODE_ORDER.forEach((m,i)=>{
   const b=document.createElement('button');
@@ -1054,7 +1071,8 @@ function updateJumana(dt){
     arms.push({a1,elb});
   }
 
-  const expr=exprOverride||(jSt.sadT>0?'sad':P.expr);
+  if(jSt.moodT>0)jSt.moodT=Math.max(0,jSt.moodT-dt);
+  const expr=exprOverride||(jSt.sadT>0?'sad':(jSt.moodT>0?jSt.moodType:'calm'));
   jSt.g={hipX,hipY,shX,shY,headX,headY,headAng,torsoAng,ancN,ancF,legs,arms,face,velF,expr,HR,breath};
   jSt.fx=J_EXPR[expr]||J_EXPR.calm;
 
@@ -1408,7 +1426,7 @@ const wondersDone={};
 let wonderCount=0,wordsLearned=0;
 const TOTAL_WONDERS=11;
 const wordHudEl=document.getElementById('wordHud');
-function addWonder(name){wonderCount++;showCaption('✦ '+name);AudioEng.chime(0.5);
+function addWonder(name){wonderCount++;showCaption('✦ '+name);AudioEng.chime(0.5);jMoodFlash('joy',1.8);
   wordHudEl.textContent='📖 '+wordsLearned+' / '+TOTAL_WORDS+' · ✦ '+wonderCount+' / '+TOTAL_WONDERS;
   wordHudEl.classList.add('show');}
 
@@ -1441,11 +1459,11 @@ function pickWindowLetter(letter){
   if(!WIN.active||WIN.chosen===1)return;
   const w=WINDOWS[WIN.idx];
   if(letter===w.letter){
-    WIN.chosen=1;AudioEng.chime(0.5);wordsLearned++;
+    WIN.chosen=1;AudioEng.chime(0.5);wordsLearned++;jMoodFlash('joy',1.0);
     showCaption(w.word+' — '+w.ar+'. حرفها الأول '+w.letter+'، '+w.hint+'.');
     setTimeout(()=>{WIN.idx++;WIN.chosen=-1;WIN.waveT=0;
       if(WIN.idx>=WINDOWS.length)finishWindows();else rollWinOptions();},2300);
-  }else WIN.wrongT=0.6;
+  }else{WIN.wrongT=0.6;jMoodFlash('focus',0.6);}
 }
 function finishWindows(){
   wondersDone.windows=1;WIN.waveT=1.4;addWonder('نوافذ الأحلام');
@@ -1479,11 +1497,11 @@ function pickBflyColor(en){
   if(!BFLY.active||BFLY.chosen===1)return;
   const w=BUTTERFLIES[BFLY.idx];
   if(en===w.en){
-    BFLY.chosen=1;AudioEng.chime(0.5);wordsLearned++;
+    BFLY.chosen=1;AudioEng.chime(0.5);wordsLearned++;jMoodFlash('joy',1.0);
     showCaption(w.en+' — '+w.ar+'. لون فراشة صغيرة فوق الماء.');
     setTimeout(()=>{BFLY.idx++;BFLY.chosen=-1;BFLY.waveT=0;
       if(BFLY.idx>=BUTTERFLIES.length)finishButterflies();else rollBflyOptions();},2300);
-  }else BFLY.wrongT=0.6;
+  }else{BFLY.wrongT=0.6;jMoodFlash('focus',0.6);}
 }
 function finishButterflies(){
   wondersDone.butterflies=1;BFLY.waveT=1.4;addWonder('فراشات البحيرة');
@@ -1517,11 +1535,11 @@ function pickBeeCount(n){
   if(!BEE.active||BEE.chosen===1)return;
   const w=BEES[BEE.idx];
   if(n===w.n){
-    BEE.chosen=1;AudioEng.chime(0.5);wordsLearned++;
+    BEE.chosen=1;AudioEng.chime(0.5);wordsLearned++;jMoodFlash('joy',1.0);
     showCaption(w.en+' — '+w.ar+'. '+w.n+' نحلاتٍ صغيرة تدندن معًا.');
     setTimeout(()=>{BEE.idx++;BEE.chosen=-1;BEE.waveT=0;
       if(BEE.idx>=BEES.length)finishBees();else rollBeeOptions();},2300);
-  }else BEE.wrongT=0.6;
+  }else{BEE.wrongT=0.6;jMoodFlash('focus',0.6);}
 }
 function finishBees(){
   wondersDone.bees=1;BEE.waveT=1.4;addWonder('نحلات المرج');
@@ -1596,11 +1614,11 @@ function pickWhispWord(en){
   if(!WHISP.active||WHISP.chosen===1)return;
   const w=TRICKY[WHISP.idx];
   if(en===w.en){
-    WHISP.chosen=1;AudioEng.chime(0.5);wordsLearned++;
+    WHISP.chosen=1;AudioEng.chime(0.5);wordsLearned++;jMoodFlash('joy',1.0);
     showCaption(w.en+' — '+w.ar+'. '+w.hint+'.');
     setTimeout(()=>{WHISP.idx++;WHISP.chosen=-1;WHISP.waveT=0;
       if(WHISP.idx>=TRICKY.length)finishWhispers();else rollWhispOptions();},2400);
-  }else WHISP.wrongT=0.6;
+  }else{WHISP.wrongT=0.6;jMoodFlash('focus',0.6);}
 }
 function finishWhispers(){
   wondersDone.whispers=1;WHISP.waveT=1.4;addWonder('همسات الأشجار');
@@ -1636,11 +1654,11 @@ function pickGreetPhrase(en){
   if(!GRT.active||GRT.chosen===1)return;
   const w=GREET[GRT.idx];
   if(en===w.en){
-    GRT.chosen=1;AudioEng.chime(0.5);wordsLearned++;
+    GRT.chosen=1;AudioEng.chime(0.5);wordsLearned++;jMoodFlash('joy',1.0);
     showCaption(w.en+' — '+w.ar+'. '+w.hint+'.');
     setTimeout(()=>{GRT.idx++;GRT.chosen=-1;GRT.waveT=0;
       if(GRT.idx>=GREET.length)finishGreetings();else rollGreetOptions();},2400);
-  }else GRT.wrongT=0.6;
+  }else{GRT.wrongT=0.6;jMoodFlash('focus',0.6);}
 }
 function finishGreetings(){
   wondersDone.greetings=1;GRT.waveT=1.4;addWonder('كلمات الأرنب المؤدّب');
@@ -2450,22 +2468,37 @@ function handlePuzzleClick(px,py){
  }
  return false;
 }
+const jDrag={active:false,dragging:false,startX:0};
 addEventListener('pointerdown',e=>{
  if(!entered)return;
- if(puzzleLock&&handlePuzzleClick(e.clientX,e.clientY))return;
+ if(e.target.closest('#jumanaPanel,#jumanaToggle'))return;
+ if(puzzleLock){handlePuzzleClick(e.clientX,e.clientY);return;}
  if(AudioEng.ctx&&AudioEng.ctx.state==='suspended')AudioEng.ctx.resume();
- pointer.down=true;
- pointer.x=e.clientX;pointer.y=e.clientY;
+ pointer.x=e.clientX;pointer.y=e.clientY;pointer.down=true;
  pointer.seen=true;pointer.lastMove=tGlobal;
- const wx=toWorldX(e.clientX);
- if(Math.abs(wx-PORTAL_X)<160&&!warp.active){startWarp();return;}
- spawnRipple(pointer.x,pointer.y);
- AudioEng.chime(pointer.x/W);
  AudioEng.gather(true);
+ jDrag.active=true;jDrag.dragging=false;jDrag.startX=e.clientX;
  hintEl.classList.remove('show');});
-const endHold=()=>{pointer.down=false;AudioEng.gather(false);};
-addEventListener('pointerup',endHold);
-addEventListener('pointercancel',endHold);
+addEventListener('pointermove',e=>{
+ if(!jDrag.active)return;
+ pointer.x=e.clientX;pointer.y=e.clientY;pointer.seen=true;pointer.lastMove=tGlobal;
+ const dx=e.clientX-jDrag.startX;
+ if(Math.abs(dx)>10){
+  jDrag.dragging=true;
+  jKeys.right=dx>10;jKeys.left=dx<-10;
+  if(jSt.face!==(dx>0?1:-1)){jFlip(dx>0?1:-1);}
+ }});
+addEventListener('pointerup',e=>{
+ if(!jDrag.active)return;
+ jDrag.active=false;jKeys.left=false;jKeys.right=false;
+ pointer.down=false;AudioEng.gather(false);
+ if(!jDrag.dragging&&entered){
+  const wx=toWorldX(e.clientX);
+  if(Math.abs(wx-PORTAL_X)<160&&!warp.active){startWarp();return;}
+  if(!puzzleLock){spawnRipple(e.clientX,e.clientY);AudioEng.chime(e.clientX/W);}
+ }
+ jDrag.dragging=false;});
+addEventListener('pointercancel',()=>{jDrag.active=false;jDrag.dragging=false;jKeys.left=false;jKeys.right=false;pointer.down=false;AudioEng.gather(false);});
 addEventListener('pointerleave',()=>{pointer.seen=false;});
 document.getElementById('enter').addEventListener('click',()=>{
  if(entered)return;

@@ -1258,6 +1258,150 @@ function updateNebulaCloud(dt, moveZ) {
   if (g.position.z > 40) g.visible = false;
 }
 
+/* debris field — real orbital-gravity shard physics + a curl-turbulence
+   dust cloud around a broken wreck core, ported from the reference's
+   particle-physics technique (Keplerian shard orbits, gravity+noise
+   dust field) and adapted as a wreckage the ship weaves through —
+   not a second black hole, we already have the real raytraced
+   Gargantua for that. */
+const DEBRIS_SHARD_MATS = [
+  new THREE.MeshStandardMaterial({ color: 0xdfe4ff, metalness: 1.0, roughness: 0.2, flatShading: true }),
+  new THREE.MeshStandardMaterial({ color: 0xffc86b, metalness: 1.0, roughness: 0.28, flatShading: true }),
+  new THREE.MeshStandardMaterial({ color: 0x14161c, metalness: 0.5, roughness: 0.25, flatShading: true }),
+];
+const DEBRIS_SHARD_GEOS = [
+  new THREE.TetrahedronGeometry(1, 0),
+  new THREE.OctahedronGeometry(1, 0),
+  new THREE.IcosahedronGeometry(1, 0),
+  new THREE.DodecahedronGeometry(1, 0),
+  new THREE.BoxGeometry(1.2, 1.2, 1.2),
+];
+const DEBRIS_GM = 14;
+function buildDebrisField() {
+  const g = new THREE.Group();
+  g.visible = false;
+
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12), new THREE.MeshStandardMaterial({ color: 0x2a323c, metalness: 0.85, roughness: 0.35, emissive: 0x180a06, emissiveIntensity: 0.7 }));
+  g.add(core);
+  const coreGlow = makeGlowSprite(0xff8a5a, 2.6);
+  coreGlow.material.opacity = 0.5;
+  g.add(coreGlow);
+
+  const shards = [];
+  const shardCount = 16;
+  for (let i = 0; i < shardCount; i++) {
+    const mesh = new THREE.Mesh(DEBRIS_SHARD_GEOS[i % DEBRIS_SHARD_GEOS.length], DEBRIS_SHARD_MATS[i % DEBRIS_SHARD_MATS.length]);
+    const sc = 0.16 + Math.random() * 0.26;
+    mesh.scale.setScalar(sc);
+    g.add(mesh);
+    shards.push({ mesh, pos: new THREE.Vector3(), vel: new THREE.Vector3(), angVel: new THREE.Vector3(), radius: sc * 1.2 });
+  }
+
+  const dustCount = 460;
+  const dustGeo = new THREE.BufferGeometry();
+  const dustPos = new Float32Array(dustCount * 3);
+  const dustVel = new Float32Array(dustCount * 3);
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+  const dustMat = new THREE.PointsMaterial({ color: 0x8fb0ff, size: 0.045, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
+  const dustPoints = new THREE.Points(dustGeo, dustMat);
+  g.add(dustPoints);
+
+  g.userData.shards = shards;
+  g.userData.dustPoints = dustPoints;
+  g.userData.dustPos = dustPos;
+  g.userData.dustVel = dustVel;
+  g.userData.time = 0;
+  return g;
+}
+function spawnDebrisShard(s) {
+  const r = 2.2 + Math.random() * 2.6;
+  const a = Math.random() * Math.PI * 2;
+  const tiltY = (Math.random() - 0.5) * 0.7;
+  const dir = new THREE.Vector3(Math.cos(a), tiltY, Math.sin(a)).normalize();
+  s.pos.copy(dir).multiplyScalar(r);
+  const up = Math.abs(dir.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+  const tangent = new THREE.Vector3().crossVectors(up, dir).normalize();
+  s.vel.copy(tangent).multiplyScalar(Math.sqrt(DEBRIS_GM / r) * (0.85 + Math.random() * 0.3));
+  s.angVel.set((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
+  s.mesh.position.copy(s.pos);
+  s.mesh.visible = true;
+}
+function respawnDebrisDust(pos, vel, i) {
+  const r = 1.6 + Math.random() * 3.2;
+  const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+  pos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+  pos[i * 3 + 1] = r * Math.cos(ph);
+  pos[i * 3 + 2] = r * Math.sin(ph) * Math.sin(th);
+  vel[i * 3] = 0; vel[i * 3 + 1] = 0; vel[i * 3 + 2] = 0;
+}
+
+let debrisField = null;
+const DF_SPAWN_Z = -350;
+function spawnDebrisFieldZone() {
+  if (!debrisField) return;
+  debrisField.visible = true;
+  debrisField.position.set((Math.random() - 0.5) * BOUND_X * 0.7, (Math.random() - 0.5) * BOUND_Y * 0.55, DF_SPAWN_Z);
+  debrisField.userData.time = 0;
+  debrisField.userData.shards.forEach((s) => spawnDebrisShard(s));
+  const dustPos = debrisField.userData.dustPos, dustVel = debrisField.userData.dustVel;
+  for (let i = 0; i < dustPos.length / 3; i++) respawnDebrisDust(dustPos, dustVel, i);
+  debrisField.userData.dustPoints.geometry.attributes.position.needsUpdate = true;
+}
+function updateDebrisFieldZone(dt, moveZ) {
+  const g = debrisField;
+  if (!g || !g.visible) return;
+  g.position.z += moveZ;
+  g.userData.time += dt;
+
+  const worldP = new THREE.Vector3();
+  g.userData.shards.forEach((s) => {
+    const r = s.pos.length() || 0.001;
+    const acc = s.pos.clone().multiplyScalar(-DEBRIS_GM / (r * r * r));
+    s.vel.addScaledVector(acc, dt);
+    s.pos.addScaledVector(s.vel, dt);
+    const al = s.angVel.length();
+    if (al > 1e-4) {
+      const q = new THREE.Quaternion().setFromAxisAngle(s.angVel.clone().normalize(), al * dt);
+      s.mesh.quaternion.premultiply(q);
+    }
+    s.mesh.position.copy(s.pos);
+
+    worldP.copy(s.pos).add(g.position);
+    if (gs.invuln <= 0 && worldP.distanceTo(ship.position) < s.radius + 0.55) {
+      gs.hull = Math.max(0, gs.hull - 8);
+      gs.invuln = 0.6;
+      spawnBurst(worldP, 0xdfe4ff);
+      playTone(200, 0.15, 'square');
+      noiseBurst(0.15, 0.08, 1500, 300);
+    }
+  });
+
+  const dustPos = g.userData.dustPos, dustVel = g.userData.dustVel;
+  const n = dustPos.length / 3;
+  for (let i = 0; i < n; i++) {
+    const i3 = i * 3;
+    let x = dustPos[i3], y = dustPos[i3 + 1], z = dustPos[i3 + 2];
+    let vx = dustVel[i3], vy = dustVel[i3 + 1], vz = dustVel[i3 + 2];
+    const r = Math.sqrt(x * x + y * y + z * z) + 1e-4;
+    const a = -6 / (r * r * r);
+    const t = g.userData.time;
+    const cx = Math.sin(y * 0.5 + t * 0.7);
+    const cy = Math.sin(z * 0.5 + t * 0.6);
+    const cz = Math.sin(x * 0.5 + t * 0.5);
+    vx = vx * 0.97 + (x * a + cx * 0.6) * dt;
+    vy = vy * 0.97 + (y * a + cy * 0.6) * dt;
+    vz = vz * 0.97 + (z * a + cz * 0.6) * dt;
+    x += vx * dt; y += vy * dt; z += vz * dt;
+    const nr = Math.sqrt(x * x + y * y + z * z);
+    if (nr < 0.5 || nr > 5.2) { respawnDebrisDust(dustPos, dustVel, i); continue; }
+    dustPos[i3] = x; dustPos[i3 + 1] = y; dustPos[i3 + 2] = z;
+    dustVel[i3] = vx; dustVel[i3 + 1] = vy; dustVel[i3 + 2] = vz;
+  }
+  g.userData.dustPoints.geometry.attributes.position.needsUpdate = true;
+
+  if (g.position.z > 40) g.visible = false;
+}
+
 /* ---------------- GAME ---------------- */
 let renderer, scene, camera, clock;
 let ship, stars, deepSpaceDecor, nebulaA, nebulaB, launchPad;
@@ -1300,6 +1444,7 @@ function startFlight() {
     staticTimer: 24 + Math.random() * 10,
     crystalTimer: 20 + Math.random() * 12,
     nebulaTimer: 28 + Math.random() * 14,
+    debrisTimer: 32 + Math.random() * 16,
     timeScale: 1,
   };
 
@@ -1362,6 +1507,9 @@ function startFlight() {
   nebulaCloud = buildNebulaCloud();
   nebulaCloud.visible = false;
   scene.add(nebulaCloud);
+
+  debrisField = buildDebrisField();
+  scene.add(debrisField);
 
   ship = buildShip(localStorage.getItem(SHIP_PREF_KEY) || 'classic');
   scene.add(ship);
@@ -2042,6 +2190,13 @@ function update(dt) {
     if (gs.nebulaTimer <= 0) { spawnNebulaCloud(); gs.nebulaTimer = 28 + Math.random() * 14; }
   } else {
     updateNebulaCloud(dt, moveZ * 0.8);
+  }
+
+  if (!debrisField.visible) {
+    gs.debrisTimer -= dt;
+    if (gs.debrisTimer <= 0) { spawnDebrisFieldZone(); gs.debrisTimer = 32 + Math.random() * 16; }
+  } else {
+    updateDebrisFieldZone(dt, moveZ * 0.8);
   }
 
   updateBursts(dt);

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RAY_VERT, RAY_FRAG, COMPOSITE_VERT, COMPOSITE_FRAG } from './black-hole-shaders.js';
 import { MANDELBROT_VERT, MANDELBROT_FRAG } from './mandelbrot-shaders.js';
-import { buildShip, buildShipAlt, makeGlowTexture, makeGlowSprite } from './ship-model.js';
+import { buildShip, NEON_LIVERIES, makeGlowTexture, makeGlowSprite } from './ship-model.js';
 
 let GLOW_TEX = null;
 
@@ -71,12 +71,22 @@ function initMenu() {
   const best = Number(localStorage.getItem('palm_space_best') || 0);
   $('#bestScoreLabel').textContent = `أفضل نتيجة: ${best}`;
 
-  const shipOpts = { f35: $('#shipOptF35'), ember: $('#shipOptEmber') };
+  const liveryWrap = $('#shipLiverySelect');
+  const liveryBtns = {};
+  Object.entries(NEON_LIVERIES).forEach(([key, p]) => {
+    const btn = document.createElement('button');
+    btn.className = 'ship-option';
+    btn.dataset.livery = key;
+    const swatchColor = '#' + p.color.toString(16).padStart(6, '0');
+    btn.innerHTML = `<span class="ship-swatch" style="background:${swatchColor};color:${swatchColor}"></span><span class="ship-name">${p.name}</span>`;
+    liveryWrap.appendChild(btn);
+    liveryBtns[key] = btn;
+  });
   const applyShipSelection = (key) => {
-    Object.entries(shipOpts).forEach(([k, el]) => el.classList.toggle('selected', k === key));
+    Object.entries(liveryBtns).forEach(([k, el]) => el.classList.toggle('selected', k === key));
   };
-  applyShipSelection(localStorage.getItem(SHIP_PREF_KEY) === 'ember' ? 'ember' : 'f35');
-  Object.entries(shipOpts).forEach(([key, el]) => {
+  applyShipSelection(NEON_LIVERIES[localStorage.getItem(SHIP_PREF_KEY)] ? localStorage.getItem(SHIP_PREF_KEY) : 'classic');
+  Object.entries(liveryBtns).forEach(([key, el]) => {
     el.addEventListener('click', () => {
       localStorage.setItem(SHIP_PREF_KEY, key);
       applyShipSelection(key);
@@ -1353,7 +1363,7 @@ function startFlight() {
   nebulaCloud.visible = false;
   scene.add(nebulaCloud);
 
-  ship = (localStorage.getItem(SHIP_PREF_KEY) === 'ember' ? buildShipAlt : buildShip)();
+  ship = buildShip(localStorage.getItem(SHIP_PREF_KEY) || 'classic');
   scene.add(ship);
 
   launchPad = buildLaunchPad();

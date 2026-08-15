@@ -188,7 +188,12 @@ var flags={lanternLit:false,brambleT:0,brambleOpen:false,ringDone:false,ringHint
 var shy={mode:'hide',t:0,x:4050,alpha:0};
 var F={active:false,phase:0,t:0,aurora:0,petals:[],capIdx:0,shown:false,startX:260};
 var shooting=null,shootT=rand(6,12);
-var TOTAL_WONDERS=18,wonderCount=0,wondersDone={},TOTAL_WORDS=21,wordsLearned=0;
+var TOTAL_WONDERS=18,wonderCount=0,wondersDone={},TOTAL_WORDS=0,wordsLearned=0;
+function shufflePick(arr,n){
+  var a=arr.slice();
+  for(var i=a.length-1;i>0;i--){var j=(Math.random()*(i+1))|0;var t=a[i];a[i]=a[j];a[j]=t;}
+  return a.slice(0,Math.min(n,a.length));
+}
 
 /* العالم */
 var mainTrees=[],flowers=[],mushrooms=[],tufts=[],pebbles=[],stars=[],clouds=[],fogBlobs=[],motes=[],fireflies=[],spirits=[];
@@ -412,11 +417,16 @@ function playStones(){
 }
 
 /* ===== نوافذ الأحلام (سلسلة نوافذ غريبة بألغاز حروف) ===== */
-var WINDOWS=[
+var WINDOWS_POOL=[
   {word:'Dream',ar:'حلم',letter:'D',hint:'مثل دقّات القلب وهو نائم',shape:'moon'},
   {word:'Star',ar:'نجمة',letter:'S',hint:'مثل همسة الرياح بين النجوم',shape:'eye'},
-  {word:'Key',ar:'مفتاح',letter:'K',hint:'مثل طرقة خفيفة على الباب',shape:'flower'}
+  {word:'Key',ar:'مفتاح',letter:'K',hint:'مثل طرقة خفيفة على الباب',shape:'flower'},
+  {word:'Nest',ar:'عش',letter:'N',hint:'مثل بيت صغير فوق الشجرة',shape:'moon'},
+  {word:'Vine',ar:'كرمة',letter:'V',hint:'مثل غصن يلتف حول الشجرة',shape:'eye'},
+  {word:'Bird',ar:'طائر',letter:'B',hint:'مثل صوت يغرّد فوق الأغصان',shape:'flower'},
+  {word:'Tree',ar:'شجرة',letter:'T',hint:'مثل ظل يحمي جُمانة من الشمس',shape:'moon'}
 ];
+var WINDOWS=shufflePick(WINDOWS_POOL,5);
 var WIN={active:false,idx:0,opts:[],chosen:-1,wrongT:0,waveT:0};
 function rollWinOptions(){
   var w=WINDOWS[WIN.idx],pool=['D','S','K','M','N','F','W','V','T','B','L'].filter(function(l){return l!==w.letter;});
@@ -430,7 +440,7 @@ function openWindows(){
   if(wondersDone.windows||WIN.active)return;
   WIN.active=true;WIN.idx=0;WIN.chosen=-1;WIN.wrongT=0;WIN.waveT=0;
   state.cinematic=true;rollWinOptions();
-  say('جُمانة','نوافذ غريبة… كل واحدة تخفي عالمًا صغيرًا. أي حرف يفتحها؟','pj');
+  say('جُمانة','المستوى ٣ من ٦ — نوافذ غريبة… كل واحدة تخفي عالمًا صغيرًا. أي حرف يفتحها؟','pj');
 }
 function pickWindowLetter(letter){
   if(!WIN.active||WIN.chosen===1)return;
@@ -454,16 +464,17 @@ function finishWindows(){
 }
 
 /* ===== بحيرة الفراشات (ألغاز ألوان) ===== */
-var BUTTERFLIES=[
+var BUTTERFLIES_POOL=[
   {en:'Red',ar:'أحمر',hex:[232,93,93]},
   {en:'Blue',ar:'أزرق',hex:[93,143,232]},
-  {en:'Yellow',ar:'أصفر',hex:[232,209,93]}
+  {en:'Yellow',ar:'أصفر',hex:[232,209,93]},
+  {en:'Green',ar:'أخضر',hex:[110,196,120]},
+  {en:'Purple',ar:'بنفسجي',hex:[168,120,214]},
+  {en:'Orange',ar:'برتقالي',hex:[232,150,80]}
 ];
+var BUTTERFLIES=shufflePick(BUTTERFLIES_POOL,5);
 var BFLY={active:false,idx:0,opts:[],chosen:-1,wrongT:0,waveT:0};
-var COLOR_POOL=[
-  {en:'Red',hex:[232,93,93]},{en:'Blue',hex:[93,143,232]},{en:'Yellow',hex:[232,209,93]},
-  {en:'Green',hex:[110,196,120]},{en:'Purple',hex:[168,120,214]},{en:'Orange',hex:[232,150,80]}
-];
+var COLOR_POOL=BUTTERFLIES_POOL;
 function rollBflyOptions(){
   var w=BUTTERFLIES[BFLY.idx],pool=COLOR_POOL.filter(function(c){return c.en!==w.en;});
   var wrong=[];
@@ -476,7 +487,7 @@ function openButterflies(){
   if(wondersDone.butterflies||BFLY.active)return;
   BFLY.active=true;BFLY.idx=0;BFLY.chosen=-1;BFLY.wrongT=0;BFLY.waveT=0;
   state.cinematic=true;rollBflyOptions();
-  say('جُمانة','فراشاتٌ ملوّنة فوق البحيرة… أي لون تحملين لها؟','pj');
+  say('جُمانة','المستوى ٥ من ٦ — فراشاتٌ ملوّنة فوق البحيرة… أي لون تحملين لها؟','pj');
 }
 function pickBflyColor(en){
   if(!BFLY.active||BFLY.chosen===1)return;
@@ -500,7 +511,12 @@ function finishButterflies(){
 }
 
 /* ===== مرج النحلات (ألغاز عدّ وأرقام) ===== */
-var BEES=[{n:2,en:'Two',ar:'اثنان'},{n:4,en:'Four',ar:'أربعة'},{n:6,en:'Six',ar:'ستة'}];
+var BEES_POOL=[
+  {n:1,en:'One',ar:'واحد'},{n:2,en:'Two',ar:'اثنان'},{n:3,en:'Three',ar:'ثلاثة'},
+  {n:4,en:'Four',ar:'أربعة'},{n:5,en:'Five',ar:'خمسة'},{n:6,en:'Six',ar:'ستة'},
+  {n:7,en:'Seven',ar:'سبعة'},{n:8,en:'Eight',ar:'ثمانية'}
+];
+var BEES=shufflePick(BEES_POOL,5);
 var BEE={active:false,idx:0,opts:[],chosen:-1,wrongT:0,waveT:0,dots:[]};
 function rollBeeOptions(){
   var w=BEES[BEE.idx],pool=[1,2,3,4,5,6,7,8].filter(function(v){return v!==w.n;});
@@ -516,7 +532,7 @@ function openBees(){
   if(wondersDone.bees||BEE.active)return;
   BEE.active=true;BEE.idx=0;BEE.chosen=-1;BEE.wrongT=0;BEE.waveT=0;
   state.cinematic=true;rollBeeOptions();
-  say('جُمانة','نحلاتٌ تطير فوق الزهور… كم نحلةً تعدّين؟','pj');
+  say('جُمانة','المستوى ٦ من ٦ — نحلاتٌ تطير فوق الزهور… كم نحلةً تعدّين؟','pj');
 }
 function pickBeeCount(n){
   if(!BEE.active||BEE.chosen===1)return;
@@ -545,9 +561,10 @@ var PIANO={active:false,phase:'idle',seq:[],step:0,litIdx:-1,litT:0,wrongT:0,wav
 function openPiano(){
   if(wondersDone.piano||PIANO.active)return;
   PIANO.active=true;state.cinematic=true;PIANO.wrongT=0;PIANO.waveT=0;PIANO.seqToken++;
-  PIANO.seq=[];for(var i=0;i<3;i++)PIANO.seq.push((Math.random()*PIANO_KEYS.length)|0);
+  var seqLen=4;
+  PIANO.seq=[];for(var i=0;i<seqLen;i++)PIANO.seq.push((Math.random()*PIANO_KEYS.length)|0);
   PIANO.step=0;PIANO.phase='listen';PIANO.litIdx=-1;
-  say('جُمانة','بيانو صغير بين الجذور… استمعي جيدًا، ثم رددي اللحن.','pj');
+  say('جُمانة','المستوى ٤ من ٦ — بيانو صغير بين الجذور… استمعي جيدًا، ثم رددي اللحن.','pj');
   playPianoSeq();
 }
 function playPianoSeq(){
@@ -581,12 +598,19 @@ function finishPiano(){
 }
 
 /* ===== الأشجار الهامسة (كلمات صعبة/شائعة — تريكي وردز) ===== */
-var TRICKY=[
+var TRICKY_POOL_FULL=[
   {en:'Said',ar:'قال',hint:'كلمة نسمعها كثيرًا في القصص'},
   {en:'They',ar:'هم',hint:'نستخدمها لمجموعة من الناس'},
-  {en:'Was',ar:'كان',hint:'كلمة عن شيء حصل بالماضي'}
+  {en:'Was',ar:'كان',hint:'كلمة عن شيء حصل بالماضي'},
+  {en:'You',ar:'أنتَ',hint:'نقولها لما نتكلم مع شخص ثاني'},
+  {en:'The',ar:'أل التعريف',hint:'أداة تعريف نستخدمها كثير بالجمل'},
+  {en:'Come',ar:'تعال',hint:'نقولها لما ندعو حد يجي عندنا'},
+  {en:'Into',ar:'إلى داخل',hint:'تدلّ إن حد أو شي دخل مكان'},
+  {en:'Some',ar:'بعض',hint:'تدلّ على كمية غير محددة'},
+  {en:'Have',ar:'عنده',hint:'نقولها لما نتكلم عن الملكية'}
 ];
-var TRICKY_POOL=['Said','They','Was','You','The','Come','Into','Some','Have'];
+var TRICKY=shufflePick(TRICKY_POOL_FULL,6);
+var TRICKY_POOL=TRICKY_POOL_FULL.map(function(t){return t.en;});
 var WHISP={active:false,idx:0,opts:[],chosen:-1,wrongT:0,waveT:0};
 function rollWhispOptions(){
   var w=TRICKY[WHISP.idx],pool=TRICKY_POOL.filter(function(v){return v!==w.en;});
@@ -600,7 +624,7 @@ function openWhispers(){
   if(wondersDone.whispers||WHISP.active)return;
   WHISP.active=true;WHISP.idx=0;WHISP.chosen=-1;WHISP.wrongT=0;WHISP.waveT=0;
   state.cinematic=true;rollWhispOptions();
-  say('جُمانة','الأشجار العتيقة تهمس بكلمات… أي واحدة تعني ما أقوله؟','pj');
+  say('جُمانة','المستوى ٢ من ٦ — الأشجار العتيقة تهمس بكلمات… أي واحدة تعني ما أقوله؟','pj');
 }
 function pickWhispWord(en){
   if(!WHISP.active||WHISP.chosen===1)return;
@@ -624,12 +648,19 @@ function finishWhispers(){
 }
 
 /* ===== الأرنب المؤدّب (لغة الاستخدام اليومي) ===== */
-var GREET=[
+var GREET_POOL_FULL=[
   {en:'Thank you',ar:'شكرًا',hint:'نقولها لما حد يساعدنا'},
   {en:'Please',ar:'من فضلك',hint:'نقولها لما نطلب شيئًا بلطف'},
-  {en:'Good morning',ar:'صباح الخير',hint:'نقولها أول ما نشوف حد بالصباح'}
+  {en:'Good morning',ar:'صباح الخير',hint:'نقولها أول ما نشوف حد بالصباح'},
+  {en:'Sorry',ar:'آسف',hint:'نقولها لما نخطئ بشي'},
+  {en:'Excuse me',ar:'لو سمحت',hint:'نقولها قبل لا نقاطع أو نطلب المرور'},
+  {en:'Good night',ar:'تصبح على خير',hint:'نقولها قبل النوم'},
+  {en:'Welcome',ar:'أهلاً وسهلاً',hint:'نقولها لما نستقبل ضيف'},
+  {en:'How are you',ar:'كيف حالك',hint:'نسألها لما نشوف صديق'}
 ];
-var GREET_POOL=['Thank you','Please','Good morning','Sorry','Excuse me','Good night','Welcome','How are you'];
+var GREET=shufflePick(GREET_POOL_FULL,5);
+var GREET_POOL=GREET_POOL_FULL.map(function(g){return g.en;});
+TOTAL_WORDS=WINDOWS.length+BUTTERFLIES.length+BEES.length+1+TRICKY.length+GREET.length+5;
 var GRT={active:false,idx:0,opts:[],chosen:-1,wrongT:0,waveT:0};
 function rollGreetOptions(){
   var w=GREET[GRT.idx],pool=GREET_POOL.filter(function(v){return v!==w.en;});
@@ -643,7 +674,7 @@ function openGreetings(){
   if(wondersDone.greetings||GRT.active)return;
   GRT.active=true;GRT.idx=0;GRT.chosen=-1;GRT.wrongT=0;GRT.waveT=0;
   state.cinematic=true;rollGreetOptions();
-  say('جُمانة','أرنبٌ مؤدّب يريد أن يعلّمنا كلماتٍ نستخدمها كل يوم.','pj');
+  say('جُمانة','المستوى ١ من ٦ — أرنبٌ مؤدّب يريد أن يعلّمنا كلماتٍ نستخدمها كل يوم.','pj');
 }
 function pickGreetPhrase(en){
   if(!GRT.active||GRT.chosen===1)return;

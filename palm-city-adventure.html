@@ -67,6 +67,7 @@
   <div class="slot" id="s2"><div class="dt"></div></div>
   <div class="slot" id="jarSlot">🏺</div>
   <div class="slot" id="lanSlot">🏮 <span id="lanN">0/10</span></div>
+  <div class="slot" id="wordSlot">📖 <span id="wordN">0/13</span></div>
 </div>
 <div id="toast" class="card"></div>
 <div id="dlg" class="card"><div id="dlgName"></div><div id="dlgText"></div><div id="dlgMore">E ▾</div></div>
@@ -146,8 +147,15 @@ sfxLant=()=>{tone(1200,.3,'sine',.08);tone(1800,.5,'sine',.06,.08)},
 sfxGrow=()=>{[523,659,784,988,1319].forEach((f,i)=>tone(f,.55,'triangle',.13,i*.15))};
 
 let T=0,last=0,started=0,cin=false,Q=1,ema=16;
-const st={d1:0,d2:0,d3:0,bracelet:0,jar:0,gate:0,gateAnim:-1,watered:0,ram:0,salim:0,fin:-1,ended:0,area:0,lan:0};
+const st={d1:0,d2:0,d3:0,bracelet:0,jar:0,gate:0,gateAnim:-1,watered:0,ram:0,salim:0,fin:-1,ended:0,area:0,lan:0,words:{}};
 const datesN=()=>st.d1+st.d2+st.d3;
+const WORDS_TOTAL=13;
+const wordsN=()=>Object.keys(st.words).length;
+function learnWord(key,en,ar,line){
+  st.words[key]=1;sfxPick();updateHUD();
+  burst(player.x,player.y-40,'110,196,120',10,60);
+  talk(en.toUpperCase()+' · '+ar,[line]);
+  toast('📖 New word! ('+wordsN()+'/'+WORDS_TOTAL+')',en+' — '+ar)}
 const player={x:430,y:GY,vx:0,vy:0,face:1,onG:true,phase:0,blink:0,blinkT:2,mood:'',moodT:0,idleT:0,kneel:0};
 const goat={x:1480,y:GY,face:-1,state:'idle',t:1.2,tx:1480,phase:0,blink:0,blinkT:2,oy:0};
 let ramT=-1,trunkShake=0,shake=0,camX=0,jumpBuf=0,ePress=0,finGrow=0;
@@ -770,7 +778,8 @@ function toast(en,ar){toastEl.innerHTML=en+(ar?'<span class="ar">'+ar+'</span>':
 function updateHUD(){
   for(let i=0;i<3;i++)document.getElementById('s'+i).classList.toggle('fill',datesN()>i);
   document.getElementById('jarSlot').style.display=st.jar?'flex':'none';
-  document.getElementById('lanN').textContent=st.lan+'/10'}
+  document.getElementById('lanN').textContent=st.lan+'/10';
+  document.getElementById('wordN').textContent=wordsN()+'/'+WORDS_TOTAL}
 function collectDate(which){
   st[which]=1;sfxPick();sfxChime();updateHUD();
   player.mood='happy';player.moodT=1.3;
@@ -811,16 +820,21 @@ const HS=[
    on:()=>{if(st.jar){startFinale()}
      else talk('THE SPROUT',['A tiny sprout between ancient stones…'])}},
  {id:'well',x:5100,y:GY-40,r:60,vis:()=>true,
-   on:()=>talk('THE WELL',['The old well breathes cool air.'])},
+   on:()=>st.words.well?talk('THE WELL',['The old well breathes cool air.']):
+     learnWord('well','Well','بئر','A well brings cool water up from deep underground.')},
  {id:'wheel',x:7120,y:GY-70,r:80,vis:()=>true,
    on:()=>{sfxSplash();burst(7080,GY-120,'240,252,244',10,60);
-     talk('THE WATER WHEEL',['The wheel turns slowly…'])}},
+     st.words.wheel?talk('THE WATER WHEEL',['The wheel turns slowly…']):
+       learnWord('wheel','Wheel','عجلة','The wheel turns and turns, lifting water to the fields.')}},
  {id:'fort',x:13200,y:GY-120,r:120,vis:()=>true,
-   on:()=>talk('THE OLD FORT',['قلعة الجبل — its walls watch the falaj.'])},
+   on:()=>st.words.fort?talk('THE OLD FORT',['قلعة الجبل — its walls watch the falaj.']):
+     learnWord('fort','Fort','قلعة','This old fort has watched over the village for a hundred years.')},
  {id:'spring',x:16600,y:GY-40,r:90,vis:()=>true,
-   on:()=>{sfxSplash();talk('THE SPRING',['Cold, sweet water out of the mountain.'])}},
+   on:()=>{sfxSplash();st.words.spring?talk('THE SPRING',['Cold, sweet water out of the mountain.']):
+     learnWord('spring','Spring','نبع','A spring is water that flows straight out of the mountain.')}},
  {id:'wadi',x:20000,y:GY-40,r:90,vis:()=>true,
-   on:()=>{sfxSplash();talk('THE WADI POOL',['Oleander pink, stone cool…'])}},
+   on:()=>{sfxSplash();st.words.wadi?talk('THE WADI POOL',['Oleander pink, stone cool…']):
+     learnWord('wadi','Pool','بركة','A pool of still water, cool and quiet between the stones.')}},
  {id:'toy',x:2098,y:GY-14,r:40,vis:()=>true,
    on:()=>talk('A WOODEN TOY',['A little wooden horse.'])},
  {id:'cat',x:4255,y:GY-12,r:44,vis:()=>true,
@@ -833,6 +847,18 @@ const HS=[
  {id:'scare',x:1435,y:GY-60,r:48,vis:()=>true,
    on:()=>talk('THE SCARECROW',['He wears his grandfather’s kuma with pride.'])}
 ];
+const WORD_SHELLS=[
+ ['wall','Wall','سور',350,'A wall of mud-brick keeps the garden safe.'],
+ ['bridge','Bridge','جسر',3400,'A little bridge crosses the falaj channel.'],
+ ['basket','Basket','سلة',4700,'A woven basket carries dates home from the grove.'],
+ ['boat','Boat','قارب',10800,'A small boat glides along the quiet water.'],
+ ['mountain','Mountain','جبل',12000,'The mountain stands tall behind the old fort.'],
+ ['garden','Garden','حديقة',15200,'A hidden garden, green and full of birdsong.'],
+ ['river','River','نهر',17800,'The river feeds every field along the valley.'],
+ ['market','Market','سوق',22800,'A market humming with voices and good smells.']
+];
+WORD_SHELLS.forEach(([key,en,ar,x,line])=>HS.push({id:'wd_'+key,x,y:GY-30,r:44,vis:()=>!st.words[key],
+  on:()=>learnWord(key,en,ar,line)}));
 FEST.forEach(F=>HS.push({id:'fest'+F.i,x:F.x,y:F.y,r:52,vis:()=>!F.lit,
   on:()=>{F.lit=1;st.lan++;sfxLant();updateHUD();burst(F.x,F.y,'255,206,110',14,80);
     toast('🏮 Festival lantern ('+st.lan+'/10)','فانوس العيد');
@@ -995,7 +1021,7 @@ function update(dt){
       burst(21710,GY-80,'255,240,170',22,120)}}
   let ai=0;for(let i=0;i<AREAS.length;i++)if(player.x>AREAS[i][0])ai=i;
   if(ai!==st.area&&started){st.area=ai;
-    if(ai!==7||st.gate)toast(AREAS[ai][1],AREAS[ai][2])}
+    if(ai!==7||st.gate)toast('LEVEL '+(ai+1)+'/8 · '+AREAS[ai][1],AREAS[ai][2])}
 }
 
 function drawHouse(c,H){

@@ -1388,10 +1388,17 @@ function buildLaunchPad() {
 /* dense, varied starfield — plain white points read as empty black-on-
    black from a distance, so most stars get a warm/cool tint and a
    handful are drawn bigger/brighter to read as "real" stars, not haze */
+/* real per-star twinkle (soft round sprite + phase-shifted size pulse),
+   ported from the reference's starfield shader technique instead of a
+   flat PointsMaterial — .material.uniforms.uOpacity stands in for the
+   plain .material.opacity the launch-sequence sky transition used to
+   set directly. */
 function buildStarfield() {
   const n = 3400;
   const pos = new Float32Array(n * 3);
   const col = new Float32Array(n * 3);
+  const siz = new Float32Array(n);
+  const pha = new Float32Array(n);
   const c = new THREE.Color();
   for (let i = 0; i < n; i++) {
     const r = 260 + Math.random() * 300;
@@ -1404,11 +1411,43 @@ function buildStarfield() {
     else if (roll < 0.26) c.setHSL(0.11, 0.6, 0.72);   // warm amber
     else c.setHSL(0, 0, 0.9 + Math.random() * 0.1);    // near-white
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    siz[i] = 1.1 + Math.random() * 2.4;
+    pha[i] = Math.random();
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const mat = new THREE.PointsMaterial({ size: 1.5, vertexColors: true, transparent: true, opacity: 0.9, sizeAttenuation: true });
+  geo.setAttribute('aSize', new THREE.BufferAttribute(siz, 1));
+  geo.setAttribute('aPhase', new THREE.BufferAttribute(pha, 1));
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uTime: { value: 0 }, uOpacity: { value: 0.85 } },
+    vertexShader: `
+      attribute vec3 color;
+      attribute float aSize;
+      attribute float aPhase;
+      uniform float uTime;
+      varying vec3 vColor;
+      varying float vTw;
+      void main() {
+        vColor = color;
+        vTw = 0.6 + 0.4 * sin(uTime * (0.5 + fract(aPhase) * 1.2) + aPhase * 6.2831);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = aSize * (0.7 + 0.4 * vTw);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      uniform float uOpacity;
+      varying vec3 vColor;
+      varying float vTw;
+      void main() {
+        float d = length(gl_PointCoord - 0.5);
+        float a = pow(smoothstep(0.5, 0.0, d), 2.0);
+        gl_FragColor = vec4(vColor * vTw, a * uOpacity);
+      }
+    `,
+  });
   return new THREE.Points(geo, mat);
 }
 
@@ -1761,7 +1800,8 @@ function updateLaunch(dt) {
 
     const skyMix = Math.min(1, at * 1.6);
     scene.fog.density = THREE.MathUtils.lerp(0.0015, 0.006, skyMix);
-    stars.material.opacity = THREE.MathUtils.lerp(0.15, 0.85, skyMix);
+    stars.material.uniforms.uOpacity.value = THREE.MathUtils.lerp(0.15, 0.85, skyMix);
+    stars.material.uniforms.uTime.value = clock.elapsedTime;
   }
 
   updateBursts(dt);
@@ -1772,7 +1812,7 @@ function updateLaunch(dt) {
     ship.userData.flame.scale.set(1, 1, 1);
     ship.userData.glow.scale.setScalar(1.1);
     scene.remove(launchPad);
-    stars.material.opacity = 0.85;
+    stars.material.uniforms.uOpacity.value = 0.85;
     scene.fog.density = 0.006;
     $('#launchBanner').style.display = 'none';
     nextWord();
@@ -1802,6 +1842,7 @@ function update(dt) {
 
   stars.position.z += moveZ * 0.2;
   if (stars.position.z > 200) stars.position.z -= 200;
+  stars.material.uniforms.uTime.value = clock.elapsedTime;
   deepSpaceDecor.position.z += moveZ * 0.06;
   if (deepSpaceDecor.position.z > 260) deepSpaceDecor.position.z -= 260;
 

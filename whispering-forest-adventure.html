@@ -749,6 +749,60 @@ function drawPortal(){
  ctx.restore();}
 function nearPortal(){return cameraX+VIEW_W>PORTAL_X-400;}
 
+const STAIRS_X=18000;
+let climbing=false;
+function drawStairs(){
+ const sx=toScreenX(STAIRS_X);
+ if(sx<-260||sx>W+260)return;
+ const gy=groundY(STAIRS_X);
+ const n=9;
+ ctx.save();
+ for(let i=0;i<n;i++){
+  const sy=gy-i*15;
+  const sw=64-i*3;
+  ctx.fillStyle=`rgba(196,172,138,${0.95-i*0.02})`;
+  ctx.fillRect(sx-sw/2,sy-11,sw,13);
+  ctx.strokeStyle='rgba(90,70,50,0.35)';ctx.lineWidth=1;
+  ctx.strokeRect(sx-sw/2,sy-11,sw,13);
+ }
+ const topY=gy-n*15-18;
+ ctx.globalCompositeOperation='lighter';
+ const act=0.6+0.4*Math.sin(tGlobal*1.5);
+ const halo=ctx.createRadialGradient(sx,topY,0,sx,topY,60);
+ halo.addColorStop(0,rgba([255,224,160],0.35*act));
+ halo.addColorStop(1,rgba([255,224,160],0));
+ ctx.fillStyle=halo;ctx.beginPath();ctx.arc(sx,topY,60,0,TAU);ctx.fill();
+ for(let i=0;i<8;i++){
+  const a=tGlobal*1.1+i/8*TAU;
+  const px=sx+Math.cos(a)*26;
+  const py=topY+Math.sin(a)*18;
+  ctx.fillStyle=rgba([255,236,190],0.7*act);
+  ctx.beginPath();ctx.arc(px,py,1.8,0,TAU);ctx.fill();
+ }
+ ctx.restore();
+ ctx.fillStyle=rgba([255,240,210],0.9);
+ ctx.font='italic 300 15px "Cormorant Garamond",serif';
+ ctx.textAlign='center';
+ ctx.fillText('السلالم إلى حديقة السماء · the stairs to the sky',sx,gy+18);
+ ctx.save();
+ ctx.fillStyle=rgba([255,224,160],0.75);
+ ctx.beginPath();
+ const ay=topY-26+Math.sin(tGlobal*3)*4;
+ ctx.moveTo(sx,ay-9);ctx.lineTo(sx-7,ay+3);ctx.lineTo(sx+7,ay+3);ctx.closePath();ctx.fill();
+ ctx.restore();
+}
+function nearStairs(){return Math.abs(jSt.worldX-STAIRS_X)<160;}
+function startClimb(){
+ if(climbing)return; climbing=true;
+ AudioEng.chime(0.9);
+ showCaption('تصعدين السلالم إلى حديقة السماء... climbing the stairs to the sky garden...');
+ const flash=document.createElement('div');
+ flash.style.cssText='position:fixed;inset:0;background:#fff6e0;opacity:0;transition:opacity 1.3s ease;z-index:999;pointer-events:none';
+ document.body.appendChild(flash);
+ requestAnimationFrame(()=>{flash.style.opacity='1';});
+ setTimeout(()=>{window.location.href='sky-garden-adventure.html';},1400);
+}
+
 /* ================= PARTICLES ================= */
 function sparkleBurst(x,y,n,col){for(let i=0;i<n;i++){
  const a=Math.random()*TAU,v=rand(15,70);
@@ -2405,6 +2459,7 @@ function render(){
  drawGrass();
  if(entered){drawDuck();drawCharacter();drawJumanaParticles();}
  drawPortal();
+ drawStairs();
  ctx.globalCompositeOperation='lighter';
  drawPollen();drawFireflies();drawSpirits();
  drawRipples();drawSparkles();drawSpores();
@@ -2495,6 +2550,7 @@ addEventListener('pointerup',e=>{
  if(!jDrag.dragging&&entered){
   const wx=toWorldX(e.clientX);
   if(Math.abs(wx-PORTAL_X)<160&&!warp.active){startWarp();return;}
+  if(Math.abs(wx-STAIRS_X)<160&&nearStairs()&&!climbing){startClimb();return;}
   if(!puzzleLock){spawnRipple(e.clientX,e.clientY);AudioEng.chime(e.clientX/W);}
  }
  jDrag.dragging=false;});

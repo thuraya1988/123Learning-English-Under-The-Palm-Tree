@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>رحلة التمرة · The Journey of a Date</title>
+<meta name="description" content="تابع تمرة واحدة من النخلة إلى بيت بعيد — بالشاحنة والقطار والسفينة والطائرة. Follow one date from the palm to a faraway home.">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/700.css">
+<link rel="icon" type="image/png" href="public/favicon.png">
+<style>
+  :root{
+    --sand:#c9a978; --sand-d:#a3855c; --ink:#241505; --ink-2:#3c2d16;
+    --amber:#e0a35c; --amber-2:#c9832f; --gold:#f0c987;
+    --cream:#f4e8d0; --muted:#bda481; --line:rgba(240,225,195,.16);
+    --glass:rgba(28,18,8,.62);
+    --body:'Cairo','Segoe UI',system-ui,sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; font-family:var(--body); color:var(--cream);
+    background:#1a120a; overflow-x:hidden; -webkit-font-smoothing:antialiased; }
+  a{ color:inherit; text-decoration:none; }
+  img{ max-width:100%; display:block; }
+  ::selection{ background:var(--amber); color:#241505; }
+
+  /* ===== 3D + overlays ===== */
+  #scene{ position:fixed; inset:0; width:100%; height:100%; z-index:0; display:block; }
+  #vignette{ position:fixed; inset:0; z-index:2; pointer-events:none;
+    background:radial-gradient(120% 90% at 50% 42%, transparent 55%, rgba(20,10,2,.45) 100%); }
+  #progressBar{ position:fixed; top:0; left:0; height:3px; width:100%; z-index:60;
+    background:linear-gradient(90deg,var(--amber-2),var(--gold)); transform-origin:right;
+    transform:scaleX(0); box-shadow:0 0 14px rgba(224,163,92,.6); }
+
+  /* ===== header ===== */
+  header{ position:fixed; top:0; left:0; right:0; z-index:50; display:flex; align-items:center;
+    justify-content:space-between; padding:16px clamp(14px,4vw,42px);
+    transition:background .35s ease, backdrop-filter .35s ease, padding .35s ease; }
+  header.scrolled{ background:rgba(20,12,4,.74); backdrop-filter:blur(14px);
+    padding-top:10px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:700; font-size:1.05rem; }
+  .brand .logo{ width:34px; height:34px; border-radius:9px; display:grid; place-items:center;
+    background:linear-gradient(140deg,var(--amber),var(--amber-2));
+    box-shadow:0 6px 18px rgba(201,131,47,.4); font-size:19px; }
+  .brand b{ color:var(--amber); }
+  nav.top{ display:flex; align-items:center; gap:20px; }
+  nav.top a{ font-size:.88rem; color:var(--muted); font-weight:600; transition:color .2s; }
+  nav.top a:hover{ color:#fff; }
+  .btn{ font-family:inherit; font-weight:700; border:none; cursor:pointer; border-radius:999px;
+    font-size:.88rem; padding:10px 19px; transition:transform .2s, box-shadow .2s, background .2s; }
+  .btn-primary{ background:linear-gradient(135deg,var(--amber),var(--amber-2)); color:#241505;
+    box-shadow:0 8px 22px rgba(201,131,47,.35); }
+  .btn-primary:hover{ transform:translateY(-2px); box-shadow:0 12px 28px rgba(201,131,47,.5); }
+  .btn-ghost{ background:rgba(255,255,255,.08); color:#fff; border:1px solid var(--line); }
+  .btn-ghost:hover{ background:rgba(255,255,255,.16); }
+  .btn:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
+  @media(max-width:860px){ nav.top .links{ display:none; } }
+
+  /* ===== chapter dots ===== */
+  #chapterNav{ position:fixed; left:clamp(12px,2.4vw,28px); top:50%; transform:translateY(-50%);
+    z-index:40; display:flex; flex-direction:column; gap:15px; transition:opacity .4s; }
+  #chapterNav button{ position:relative; width:13px; height:13px; border-radius:50%;
+    border:2px solid rgba(240,225,195,.42); background:transparent; cursor:pointer; padding:0;
+    transition:all .25s; }
+  #chapterNav button:hover{ border-color:#fff; transform:scale(1.15); }
+  #chapterNav button.active{ background:var(--amber); border-color:var(--amber);
+    box-shadow:0 0 0 4px rgba(224,163,92,.22); }
+  #chapterNav button::after{ content:attr(data-label); position:absolute; left:24px; top:50%;
+    transform:translateY(-50%); white-space:nowrap; font-size:.72rem; font-weight:700;
+    color:#e6d5b6; background:rgba(20,12,4,.9); padding:5px 10px; border-radius:7px;
+    border:1px solid var(--line); opacity:0; pointer-events:none; transition:opacity .2s; }
+  #chapterNav button:hover::after{ opacity:1; }
+  #chapterNav button:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
+  @media(max-width:800px){ #chapterNav{ display:none; } }
+
+  /* ===== HUD ===== */
+  #chapterHud{ position:fixed; right:clamp(14px,3vw,38px); bottom:24px; z-index:40;
+    transition:opacity .4s; pointer-events:none; text-align:right; }
+  #chapterHud .tag{ font-weight:700; font-size:.7rem; letter-spacing:.18em; color:var(--amber);
+    text-transform:uppercase; }
+  #chapterHud .ttl{ font-weight:700; font-size:1.02rem; color:#f4e8d0; margin-top:2px; }
+  #scrollPct{ position:fixed; left:clamp(14px,3vw,38px); bottom:24px; z-index:40; font-weight:700;
+    font-size:.78rem; letter-spacing:.1em; color:rgba(240,225,195,.5); transition:opacity .4s;
+    font-variant-numeric:tabular-nums; }
+
+  /* ===== delivered stamp ===== */
+  #stamp{ position:fixed; left:50%; top:46%; z-index:45;
+    transform:translate(-50%,-50%) rotate(-11deg) scale(2.3); opacity:0; pointer-events:none;
+    font-weight:800; font-size:clamp(1.3rem,4.4vw,2.6rem); color:var(--amber);
+    padding:13px 28px; border:5px solid var(--amber); border-radius:14px;
+    text-shadow:0 0 24px rgba(224,163,92,.5);
+    transition:opacity .5s, transform .6s cubic-bezier(.2,1.5,.4,1); }
+  #stamp.show{ opacity:.96; transform:translate(-50%,-50%) rotate(-11deg) scale(1); }
+  #stamp::before{ content:""; position:absolute; inset:5px; border:2px solid var(--amber);
+    border-radius:8px; opacity:.6; }
+
+  /* ===== story panels ===== */
+  #story{ position:relative; z-index:3; }
+  .panel{ position:relative; height:190vh; }
+  .panel.hero-panel{ height:132vh; }
+  .card{ position:sticky; top:0; height:100vh; display:flex; align-items:center;
+    will-change:opacity,transform; }
+  .card .inner{ max-width:470px; padding:28px 30px; border-radius:20px; background:var(--glass);
+    backdrop-filter:blur(15px); -webkit-backdrop-filter:blur(15px); border:1px solid var(--line);
+    box-shadow:0 30px 70px rgba(0,0,0,.5); }
+  .card.right .inner{ margin-right:clamp(14px,7vw,86px); }
+  .card.left .inner{ margin-right:auto; margin-left:clamp(14px,7vw,86px); }
+  .card.center .inner{ margin:0 auto; text-align:center; max-width:730px; }
+
+  .eyebrow{ display:inline-flex; align-items:center; gap:8px; font-weight:700; font-size:.72rem;
+    letter-spacing:.16em; color:var(--amber); }
+  .eyebrow .dot{ width:7px; height:7px; border-radius:50%; background:var(--amber);
+    box-shadow:0 0 10px var(--amber); }
+  h1{ font-weight:800; line-height:1.15; margin:13px 0 0; font-size:clamp(2rem,5.6vw,4rem); }
+  h1 .accent{ background:linear-gradient(120deg,var(--gold),var(--amber-2));
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .lede{ color:#e2d3b4; font-size:clamp(.97rem,1.5vw,1.13rem); line-height:1.75; margin:16px 0 0; }
+  .en{ display:block; margin-top:6px; font-size:.86em; color:#bda481;
+    direction:ltr; text-align:right; }
+  .card.center .en{ text-align:center; }
+  .ch-no{ font-weight:800; font-size:.78rem; letter-spacing:.16em; color:var(--amber); }
+  .ch-title{ font-weight:700; font-size:clamp(1.4rem,2.6vw,2rem); margin:5px 0 0; line-height:1.25; }
+  .ch-body{ color:#dbcbac; line-height:1.8; margin:11px 0 0; font-size:.97rem; }
+  .chips{ display:flex; flex-wrap:wrap; gap:7px; margin-top:15px; }
+  .chip{ font-size:.74rem; font-weight:600; padding:5px 11px; border-radius:999px;
+    background:rgba(224,163,92,.12); color:var(--gold); border:1px solid rgba(224,163,92,.3); }
+  .word{ margin-top:15px; padding:11px 14px; border-radius:12px;
+    background:rgba(240,201,135,.09); border:1px solid rgba(240,201,135,.24);
+    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .word b{ color:var(--gold); font-size:1.05rem; direction:ltr; }
+  .word span{ color:#cbb894; font-size:.86rem; }
+  .cta-row{ display:flex; gap:11px; margin-top:20px; flex-wrap:wrap; }
+  .card.center .cta-row{ justify-content:center; }
+
+  .hero-card .inner{ background:linear-gradient(180deg,rgba(20,12,4,.4),rgba(20,12,4,.68)); }
+  .scroll-hint{ position:absolute; left:50%; bottom:26px; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:8px; color:rgba(240,225,195,.62);
+    font-size:.72rem; letter-spacing:.16em; font-weight:600; }
+  .mouse{ width:24px; height:38px; border:2px solid rgba(240,225,195,.5); border-radius:14px;
+    position:relative; }
+  .mouse::after{ content:""; position:absolute; left:50%; top:7px; width:4px; height:8px;
+    border-radius:3px; background:var(--amber); transform:translateX(-50%);
+    animation:wheel 1.6s infinite; }
+  @keyframes wheel{ 0%{opacity:0;transform:translate(-50%,0)} 30%{opacity:1}
+    100%{opacity:0;transform:translate(-50%,12px)} }
+
+  /* ===== lower sections ===== */
+  .solid{ position:relative; z-index:10; background:#1a120a; }
+  .wrap{ max-width:1140px; margin:0 auto; padding:0 clamp(16px,4vw,38px); }
+  section.block{ padding:clamp(62px,9vw,110px) 0; }
+  .sec-head{ max-width:660px; margin-bottom:42px; }
+  .sec-head .eyebrow{ margin-bottom:11px; }
+  .sec-head h2{ font-weight:800; font-size:clamp(1.7rem,3.4vw,2.7rem); line-height:1.25; margin:0; }
+  .sec-head p{ color:var(--muted); margin-top:13px; line-height:1.8; font-size:1rem; }
+
+  #stages{ background:linear-gradient(180deg,#1a120a,#241a0e); }
+  .stage-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:16px; }
+  .stage-card{ position:relative; padding:24px 20px; border-radius:18px;
+    background:rgba(255,255,255,.035); border:1px solid var(--line); overflow:hidden;
+    transition:transform .3s, background .3s; }
+  .stage-card:hover{ transform:translateY(-7px); background:rgba(255,255,255,.06); }
+  .stage-ico{ width:52px; height:52px; border-radius:14px; display:grid; place-items:center;
+    font-size:26px; background:rgba(224,163,92,.12); border:1px solid rgba(224,163,92,.25);
+    margin-bottom:14px; }
+  .stage-card h3{ font-weight:700; font-size:1.12rem; margin:0; }
+  .stage-card .role{ color:var(--amber); font-size:.75rem; font-weight:700; letter-spacing:.06em;
+    margin-top:3px; }
+  .stage-card p{ color:var(--muted); font-size:.89rem; line-height:1.7; margin:11px 0 0; }
+
+  #learn{ background:radial-gradient(120% 120% at 80% 100%,#2e2110 0%,#1a120a 60%); }
+  .vocab{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:13px; }
+  .vcard{ padding:17px 18px; border-radius:15px; background:rgba(255,255,255,.04);
+    border:1px solid var(--line); }
+  .vcard b{ display:block; font-size:1.15rem; color:var(--gold); direction:ltr; text-align:right; }
+  .vcard span{ display:block; color:var(--muted); font-size:.88rem; margin-top:4px; }
+
+  footer{ position:relative; z-index:10; background:#120c06; border-top:1px solid var(--line);
+    padding:44px 0 26px; }
+  .foot-bottom{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    color:#7d6a4e; font-size:.82rem; }
+
+  /* ===== loader ===== */
+  #loader{ position:fixed; inset:0; z-index:100; background:#1a120a; display:grid;
+    place-items:center; gap:22px; transition:opacity .6s ease, visibility .6s; }
+  #loader.done{ opacity:0; visibility:hidden; }
+  .ld-date{ width:54px; height:54px; border-radius:50% 50% 46% 46%/60% 60% 40% 40%;
+    background:linear-gradient(150deg,var(--amber),#7a3f16);
+    box-shadow:0 0 34px rgba(224,163,92,.5); animation:bob 1.5s ease-in-out infinite; }
+  @keyframes bob{ 0%,100%{transform:translateY(0) rotate(-6deg)} 50%{transform:translateY(-12px) rotate(6deg)} }
+  #loader p{ font-weight:700; letter-spacing:.14em; font-size:.8rem; color:var(--muted); }
+
+  @media(prefers-reduced-motion:reduce){ *{ animation-duration:.001ms!important;
+    transition-duration:.001ms!important; } }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="ld-date"></div>
+  <p>جارٍ تجهيز الرحلة…</p>
+</div>
+
+<canvas id="scene"></canvas>
+<div id="vignette"></div>
+<div id="progressBar"></div>
+
+<header id="siteHeader">
+  <a class="brand" href="#top">
+    <span class="logo" aria-hidden="true">🌴</span>
+    رحلة <b>التمرة</b>
+  </a>
+  <nav class="top">
+    <span class="links" style="display:contents">
+      <a href="#story">الرحلة</a>
+      <a href="#stages">المراحل</a>
+      <a href="#learn">الكلمات</a>
+    </span>
+    <a class="btn btn-primary" href="games-skills.html">كل الألعاب</a>
+  </nav>
+</header>
+
+<nav id="chapterNav" aria-label="مراحل الرحلة"></nav>
+
+<div id="chapterHud">
+  <div class="tag" id="hudTag">البداية</div>
+  <div class="ttl" id="hudTtl">النخلة · الفجر</div>
+</div>
+<div id="scrollPct">00%</div>
+
+<div id="stamp">وصلت ✓</div>
+
+<main id="top">
+  <div id="story">
+
+    <section class="panel hero-panel">
+      <div class="card center hero-card" data-ch="0">
+        <div class="inner">
+          <span class="eyebrow"><span class="dot"></span> نخلة · مصنع · شاحنة · قطار · سفينة · طائرة</span>
+          <h1>لكل تمرة <span class="accent">حكاية</span>.</h1>
+          <p class="lede">تابعوا تمرة واحدة من نخلة في الواحة إلى بيت بعيد خلف البحر — يحملها المصنع والشاحنة والقطار والسفينة والطائرة، وفي كل مرحلة كلمة جديدة تتعلمونها.
+            <span class="en">Follow one date from a palm in the oasis to a home across the sea — and learn a new word at every stage.</span></p>
+          <div class="cta-row">
+            <button class="btn btn-primary" data-scrollt="0.12">▶ ابدأ الرحلة</button>
+            <button class="btn btn-ghost" data-scroll="#stages">شوف المراحل</button>
+          </div>
+        </div>
+        <div class="scroll-hint"><span class="mouse"></span> انزل للأسفل</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="card right" data-ch="1">
+        <div class="inner">
+          <div class="ch-no">المرحلة ٠١ · النخلة</div>
+          <h2 class="ch-title">القطاف</h2>
+          <p class="ch-body">عند الفجر يتسلّق المزارع النخلة ويقطف العذق. تسقط التمرة في القفة، وتبدأ حكايتها من ظل النخلة وصوت الفلج.
+            <span class="en">At dawn the farmer climbs the palm and picks the bunch. The date falls into the basket — its story begins.</span></p>
+          <div class="word"><b>Palm</b><span>نخلة</span></div>
+          <div class="chips"><span class="chip">واحة</span><span class="chip">فلج</span><span class="chip">قفة</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="card left" data-ch="2">
+        <div class="inner">
+          <div class="ch-no">المرحلة ٠٢ · المصنع</div>
+          <h2 class="ch-title">الغسيل والتعبئة</h2>
+          <p class="ch-body">في المصنع تُغسل التمرة وتُجفّف وتُفرز، ثم تُغلّف في علبة عليها نخلة صغيرة. كل شيء يعمل بهدوء ونظام.
+            <span class="en">In the factory the date is washed, dried, sorted, then packed in a box marked with a little palm.</span></p>
+          <div class="word"><b>Factory</b><span>مصنع</span></div>
+          <div class="chips"><span class="chip">غسيل</span><span class="chip">تجفيف</span><span class="chip">تغليف</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="card right" data-ch="3">
+        <div class="inner">
+          <div class="ch-no">المرحلة ٠٣ · الشاحنة</div>
+          <h2 class="ch-title">على الطريق</h2>
+          <p class="ch-body">تحمل الشاحنة الصناديق وتمضي بين الكثبان. الطريق طويل، والنخيل يودّعها من الجانبين.
+            <span class="en">The truck carries the boxes across the dunes. The road is long, and palms wave goodbye.</span></p>
+          <div class="word"><b>Truck</b><span>شاحنة</span></div>
+          <div class="chips"><span class="chip">طريق</span><span class="chip">صحراء</span><span class="chip">حمولة</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="card left" data-ch="4">
+        <div class="inner">
+          <div class="ch-no">المرحلة ٠٤ · القطار</div>
+          <h2 class="ch-title">سكة الصحراء</h2>
+          <p class="ch-body">عند المحطة تنتقل الصناديق إلى القطار. عربة واحدة تحمل ما تحمله عشر شاحنات، وتمشي على عوارض خشبية عمرها سنوات.
+            <span class="en">At the station the boxes move to the train — one wagon carries what ten trucks would.</span></p>
+          <div class="word"><b>Train</b><span>قطار</span></div>
+          <div class="chips"><span class="chip">سكة</span><span class="chip">محطة</span><span class="chip">عربة</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="card right" data-ch="5">
+        <div class="inner">
+          <div class="ch-no">المرحلة ٠٥ · السفينة</div>
+          <h2 class="ch-title">الميناء والبحر</h2>
+          <p class="ch-body">في الميناء ترفع الرافعة الصناديق إلى سفينة بشراع مثلث. تمضي فوق الماء بهدوء، والمنارة تودّعها.
+            <span class="en">At the harbour a crane lifts the boxes onto a dhow with a triangular sail. The lighthouse waves it away.</span></p>
+          <div class="word"><b>Ship</b><span>سفينة</span></div>
+          <div class="chips"><span class="chip">ميناء</span><span class="chip">شراع</span><span class="chip">منارة</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="card left" data-ch="6">
+        <div class="inner">
+          <div class="ch-no">المرحلة ٠٦ · الطائرة</div>
+          <h2 class="ch-title">فوق الغيوم</h2>
+          <p class="ch-body">آخر مسافة تقطعها التمرة في الهواء. المروحية ترفعها فوق الجبال والنجوم تضيء الطريق.
+            <span class="en">The last stretch is through the air. The helicopter lifts it over the mountains, under the stars.</span></p>
+          <div class="word"><b>Helicopter</b><span>مروحية</span></div>
+          <div class="chips"><span class="chip">مروحة</span><span class="chip">ليل</span><span class="chip">جبال</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="card center" data-ch="7">
+        <div class="inner">
+          <div class="ch-no">النهاية · وصلت</div>
+          <h2 class="ch-title">فنجان قهوة وتمرة</h2>
+          <p class="ch-body">تُفتح العلبة في بيت بعيد، وتوضع التمرة بجانب فنجان القهوة. رحلة طويلة… انتهت بابتسامة.
+            <span class="en">The box opens in a faraway home, and the date is set beside a cup of coffee. A long journey — ending in a smile.</span></p>
+          <div class="word"><b>Home</b><span>بيت</span></div>
+          <div class="cta-row">
+            <button class="btn btn-primary" data-scroll="#learn">الكلمات اللي تعلمناها</button>
+            <button class="btn btn-ghost" data-scrollt="0">↺ من البداية</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <section id="stages" class="solid block">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow"><span class="dot"></span> ست مراحل</span>
+        <h2>ست مراحل · حكاية واحدة</h2>
+        <p>كل مرحلة تنقل التمرة خطوة أقرب، وتضيف كلمة إنجليزية جديدة لقاموسكم الصغير.</p>
+      </div>
+      <div class="stage-grid">
+        <article class="stage-card"><div class="stage-ico">🌴</div><h3>النخلة</h3>
+          <div class="role">Palm</div><p>القطاف عند الفجر، والعذق ينزل إلى القفة.</p></article>
+        <article class="stage-card"><div class="stage-ico">🏭</div><h3>المصنع</h3>
+          <div class="role">Factory</div><p>غسيل وتجفيف وفرز، ثم تغليف في علبة أنيقة.</p></article>
+        <article class="stage-card"><div class="stage-ico">🚛</div><h3>الشاحنة</h3>
+          <div class="role">Truck</div><p>الطريق الطويل بين الكثبان والنخيل.</p></article>
+        <article class="stage-card"><div class="stage-ico">🚆</div><h3>القطار</h3>
+          <div class="role">Train</div><p>سكة الصحراء — حمولة كبيرة بأثر صغير.</p></article>
+        <article class="stage-card"><div class="stage-ico">⛵</div><h3>السفينة</h3>
+          <div class="role">Ship</div><p>ميناء وشراع مثلث ومنارة على الطرف.</p></article>
+        <article class="stage-card"><div class="stage-ico">🚁</div><h3>المروحية</h3>
+          <div class="role">Helicopter</div><p>آخر مسافة فوق الجبال تحت النجوم.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="learn" class="solid block">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="eyebrow"><span class="dot"></span> قاموس الرحلة</span>
+        <h2>الكلمات اللي جمعناها</h2>
+        <p>ثماني كلمات إنجليزية جمعتها التمرة في طريقها — اقرأوها بصوت عالٍ.</p>
+      </div>
+      <div class="vocab">
+        <div class="vcard"><b>Date</b><span>تمرة</span></div>
+        <div class="vcard"><b>Palm</b><span>نخلة</span></div>
+        <div class="vcard"><b>Factory</b><span>مصنع</span></div>
+        <div class="vcard"><b>Truck</b><span>شاحنة</span></div>
+        <div class="vcard"><b>Train</b><span>قطار</span></div>
+        <div class="vcard"><b>Ship</b><span>سفينة</span></div>
+        <div class="vcard"><b>Helicopter</b><span>مروحية</span></div>
+        <div class="vcard"><b>Home</b><span>بيت</span></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-bottom">
+      <span>تحت ظل النخلة — رحلة التمرة</span>
+      <span>Under the Palm Tree · every date has a story</span>
+    </div>
+  </div>
+</footer>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp = (v,a,b) => v<a?a:v>b?b:v;
+const smooth = x => x*x*(3-2*x);
+const C = h => new THREE.Color(h);
+
+function keysAt(keys,t){
+  if(t<=keys[0].t) return keys[0].v.slice();
+  for(let i=0;i<keys.length-1;i++){
+    const a=keys[i], b=keys[i+1];
+    if(t>=a.t&&t<=b.t){ const f=smooth((t-a.t)/((b.t-a.t)||1));
+      return a.v.map((val,j)=>val+(b.v[j]-val)*f); }
+  }
+  return keys[keys.length-1].v.slice();
+}
+function keysScalar(keys,t){
+  if(t<=keys[0].t) return keys[0].v;
+  for(let i=0;i<keys.length-1;i++){
+    const a=keys[i], b=keys[i+1];
+    if(t>=a.t&&t<=b.t){ const f=smooth((t-a.t)/((b.t-a.t)||1)); return a.v+(b.v-a.v)*f; }
+  }
+  return keys[keys.length-1].v;
+}
+function colorAt(keys,t,out){
+  if(t<=keys[0].t){ out.copy(keys[0].c); return; }
+  for(let i=0;i<keys.length-1;i++){
+    const a=keys[i], b=keys[i+1];
+    if(t>=a.t&&t<=b.t){ const f=smooth((t-a.t)/((b.t-a.t)||1)); out.copy(a.c).lerp(b.c,f); return; }
+  }
+  out.copy(keys[keys.length-1].c);
+}
+
+/* ---------- renderer ---------- */
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+const bgColor = new THREE.Color(0xf6c47e);
+scene.background = bgColor;
+scene.fog = new THREE.Fog(0xf6c47e, 46, 250);
+
+const camera = new THREE.PerspectiveCamera(54, innerWidth/innerHeight, 0.1, 900);
+
+const hemi = new THREE.HemisphereLight(0xffd9ae, 0x6b5a48, 0.62);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffd9a0, 1.15);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{ left:-70, right:70, top:70, bottom:-70, near:1, far:230 });
+sun.shadow.camera.updateProjectionMatrix();
+sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.7;
+scene.add(sun, sun.target);
+
+/* ---------- materials ---------- */
+const mat = (c,o) => new THREE.MeshStandardMaterial(Object.assign({ color:c, roughness:.92, metalness:.02 }, o||{}));
+const M = {
+  sand:    mat(0xc9a978), sandD: mat(0xa3855c),
+  grass:   mat(0x7d8a4a), road:  mat(0x5a5148, { roughness:1 }),
+  line:    mat(0xe8dcc0), stone: mat(0x9a8872, { flatShading:true }),
+  ballast: mat(0x8a7a62), sleeper: mat(0x6d4f30),
+  steel:   mat(0x7a7e84, { metalness:.55, roughness:.42 }),
+  trunk:   mat(0x8a6a4a, { flatShading:true }),
+  frond:   mat(0x4c6a2c, { flatShading:true, side:THREE.DoubleSide }),
+  wall:    mat(0xd3b98e), wallD: mat(0xc0a678),
+  door:    mat(0x5c4126), glass: mat(0x9fb6bd, { roughness:.12, metalness:.35 }),
+  win:     new THREE.MeshStandardMaterial({ color:0x3a4a60, emissive:0xffc873, emissiveIntensity:0, roughness:.4 }),
+  amber:   mat(0xe0a35c), amberD: mat(0xc9832f), cream: mat(0xf4e8d0),
+  tire:    mat(0x1c1d20), hub: mat(0x9aa1a8, { metalness:.5, roughness:.4 }),
+  date:    mat(0x7a3f16, { roughness:.5 }),
+  carton:  mat(0xb3946a), label: mat(0xf4ecd8),
+  c1: mat(0xc0452c), c2: mat(0x2f6f7f), c3: mat(0xd8b23a), c4: mat(0x58794a), c5: mat(0x7a5c9a),
+  hull:    mat(0x8a6a44), deck: mat(0xb5a184), cloth: mat(0xe8dfc8, { side:THREE.DoubleSide }),
+  crane:   mat(0xd8a23a), water: mat(0x2e7fb0, { roughness:.28, metalness:.14, transparent:true, opacity:.94 }),
+  heli:    mat(0xe8dcc4), heliG: mat(0x3f7a5a), rotor: mat(0x2a2a2e),
+  lamp:    new THREE.MeshStandardMaterial({ color:0xfff2cf, emissive:0xffdf9e, emissiveIntensity:.9 }),
+  head:    mat(0xffe9b0, { emissive:0xffcf7a, emissiveIntensity:.4 }),
+  red:     mat(0x8a2c1a), white: mat(0xf0e8d6),
+};
+
+/* ---------- helpers ---------- */
+function B(p,w,h,d,m,x,y,z,cs,rs){
+  const o = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), m);
+  o.position.set(x||0,y||0,z||0);
+  if(cs!==false) o.castShadow=true; if(rs!==false) o.receiveShadow=true;
+  p.add(o); return o;
+}
+function CY(p,rt,rb,h,seg,m,x,y,z,rx,ry,rz,cs){
+  const o = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg), m);
+  o.position.set(x||0,y||0,z||0);
+  if(rx) o.rotation.x=rx; if(ry) o.rotation.y=ry; if(rz) o.rotation.z=rz;
+  if(cs!==false) o.castShadow=true; o.receiveShadow=true;
+  p.add(o); return o;
+}
+function wheel(r,w){
+  const g = new THREE.Group();
+  const c = new THREE.Mesh(new THREE.CylinderGeometry(r,r,w,12), M.tire);
+  c.rotation.z = Math.PI/2; c.castShadow=true;
+  const h = new THREE.Mesh(new THREE.CylinderGeometry(r*.45,r*.45,w+.02,8), M.hub);
+  h.rotation.z = Math.PI/2;
+  g.add(c,h); return g;
+}
+function rng(seed){ let s=seed; return ()=>{ s=(s*9301+49297)%233280; return s/233280; }; }
+const r = rng(11);
+
+/* ---------- world lanes ---------- */
+const ROAD_X = 0, RAIL_X = 13, WATER_X = 31, AIR_X = -15;
+
+/* ---------- ground ---------- */
+function ground(w,d,x,z,m){
+  const o = new THREE.Mesh(new THREE.PlaneGeometry(w,d), m);
+  o.rotation.x = -Math.PI/2; o.position.set(x,0,z); o.receiveShadow=true;
+  scene.add(o); return o;
+}
+ground(100, 800, -34, -330, M.sand);
+ground(42, 800, 66, -330, M.sand);
+ground(26, 380, 31, -120, M.sand);
+ground(26, 250, 31, -620, M.sand);
+/* oasis greener patch near the farm */
+ground(60, 90, -6, 0, M.grass);
+
+/* sea */
+{
+  const bed = new THREE.Mesh(new THREE.PlaneGeometry(26,190), mat(0x1d4d6e));
+  bed.rotation.x = -Math.PI/2; bed.position.set(31,-1.3,-410); scene.add(bed);
+  const shore = new THREE.Mesh(new THREE.PlaneGeometry(4,190), M.sandD);
+  shore.rotation.x = -Math.PI/2; shore.position.set(16,0.04,-410); shore.receiveShadow=true; scene.add(shore);
+}
+const waterGeo = new THREE.PlaneGeometry(26,190,34,22);
+const water = new THREE.Mesh(waterGeo, M.water);
+water.rotation.x = -Math.PI/2; water.position.set(31,0.06,-410); water.receiveShadow=true;
+scene.add(water);
+const wPos = waterGeo.attributes.position;
+const wBaseX = [], wBaseY = [];
+for(let i=0;i<wPos.count;i++){ wBaseX.push(wPos.getX(i)); wBaseY.push(wPos.getY(i)); }
+
+/* falaj channel through the oasis */
+{
+  const ch = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 70), mat(0x3f8fa8, { roughness:.25, metalness:.2 }));
+  ch.rotation.x = -Math.PI/2; ch.position.set(-9, 0.07, -6); scene.add(ch);
+  for(const sx of [-10.1,-7.9]) B(scene, 0.5, 0.34, 70, M.stone, sx, 0.17, -6);
+}
+
+/* road + rail + helipad strip */
+function road(z0,z1){
+  const len = z0-z1;
+  const o = new THREE.Mesh(new THREE.PlaneGeometry(6,len), M.road);
+  o.rotation.x=-Math.PI/2; o.position.set(ROAD_X,0.03,(z0+z1)/2); o.receiveShadow=true; scene.add(o);
+  for(let z=z0-4; z>z1; z-=8) B(scene,.3,.02,2.6,M.line,0,.05,z,false,false);
+}
+road(24,-330); road(-600,-706);
+(function rail(){
+  B(scene,6,.12,190,M.ballast,RAIL_X,.06,-262,false,true);
+  B(scene,.16,.18,190,M.steel,RAIL_X-1.2,.18,-262,false,true);
+  B(scene,.16,.18,190,M.steel,RAIL_X+1.2,.18,-262,false,true);
+  for(let z=-170;z>-358;z-=2.6) B(scene,3,.12,.5,M.sleeper,RAIL_X,.13,z,false,true);
+})();
+(function pad(){
+  B(scene,9,.06,150,M.road,AIR_X,.04,-540,false,true);
+  for(let z=-470;z>-612;z-=10) B(scene,.3,.02,3.4,M.line,AIR_X,.07,z,false,false);
+  /* helipad H */
+  B(scene,.5,.02,3.4,M.line,AIR_X-1,.08,-470,false,false);
+  B(scene,.5,.02,3.4,M.line,AIR_X+1,.08,-470,false,false);
+  B(scene,2.5,.02,.5,M.line,AIR_X,.08,-470,false,false);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(3.2,.14,8,28), M.line);
+  ring.rotation.x=-Math.PI/2; ring.position.set(AIR_X,.07,-470); scene.add(ring);
+})();
+
+/* ---------- Omani flat-roof building (NO cone/red roofs) ---------- */
+function omaniHouse(w,h,d,wallM){
+  const g = new THREE.Group();
+  B(g,w,h,d,wallM,0,h/2,0);
+  /* flat roof slab */
+  B(g,w+.4,.26,d+.4,M.wallD,0,h+.13,0);
+  /* crenellated parapet — الشُرفات المسننة */
+  const step = 1.05, mw = .55, mh = .52;
+  for(let x=-w/2; x<=w/2; x+=step){
+    B(g,mw,mh,.34,wallM, x, h+.4, d/2+.03);
+    B(g,mw,mh,.34,wallM, x, h+.4, -d/2-.03);
+  }
+  for(let z=-d/2; z<=d/2; z+=step){
+    B(g,.34,mh,mw,wallM, w/2+.03, h+.4, z);
+    B(g,.34,mh,mw,wallM, -w/2-.03, h+.4, z);
+  }
+  /* door + windows */
+  B(g,w*.2,h*.5,.12,M.door,0,h*.25,d/2+.07);
+  const arch = new THREE.Mesh(new THREE.CylinderGeometry(w*.1,w*.1,.12,14,1,false,0,Math.PI), M.door);
+  arch.rotation.x = Math.PI/2; arch.rotation.z = Math.PI;
+  arch.position.set(0,h*.5,d/2+.07); g.add(arch);
+  for(const sx of [-1,1]){
+    B(g,w*.14,h*.2,.1,M.win, sx*w*.3, h*.6, d/2+.06);
+    B(g,w*.16,h*.22,.05,M.wallD, sx*w*.3, h*.6, d/2+.03);
+  }
+  return g;
+}
+/* farm house + destination house */
+{
+  const home = omaniHouse(6,3.2,5,M.wall);
+  home.position.set(-13,0,-4); home.rotation.y = Math.PI/2; scene.add(home);
+  B(scene,2,.3,3,M.stone,-9.6,.15,-4);
+  const dest = omaniHouse(6.4,3.4,5.2,M.wallD);
+  dest.position.set(11,0,-664); dest.rotation.y = -Math.PI/2; scene.add(dest);
+  B(scene,2,.3,3,M.stone,7.4,.15,-664);
+}
+
+/* ---------- palms ---------- */
+const frondGeo = new THREE.PlaneGeometry(.62,3.3,1,10);
+{
+  const fp = frondGeo.attributes.position;
+  for(let i=0;i<fp.count;i++){
+    const y = fp.getY(i)+1.65, t = Math.max(0,y)/3.3;
+    fp.setX(i, fp.getX(i)*(1-t*.72));
+    fp.setZ(i, t*t*1.45);
+    fp.setY(i, y);
+  }
+  frondGeo.computeVertexNormals();
+}
+function palm(x,z,s,lean){
+  const P = new THREE.Group();
+  P.position.set(x,0,z); P.scale.setScalar(s); scene.add(P);
+  let py=0, px=0;
+  for(let i=0;i<5;i++){
+    const seg = CY(P,.19-(i+1)*.023,.19-i*.023,1.45,9,M.trunk,0,0,0);
+    px += Math.cos(lean)*.16*i/5;
+    seg.position.set(px, py+.72, Math.sin(lean)*.16*i*i/5);
+    seg.rotation.z = -Math.cos(lean)*.045*i;
+    py += 1.37;
+  }
+  const crown = new THREE.Group();
+  crown.position.set(px+Math.cos(lean)*.28, py+.1, Math.sin(lean)*.28);
+  P.add(crown);
+  const bud = new THREE.Mesh(new THREE.SphereGeometry(.2,10,8), M.trunk);
+  bud.castShadow = true; crown.add(bud);
+  for(let i=0;i<12;i++){
+    const fr = new THREE.Mesh(frondGeo, M.frond);
+    fr.rotation.y = i*2.399;
+    fr.rotation.x = [.24,.62,1.0][i%3];
+    fr.castShadow = true; crown.add(fr);
+  }
+  /* date bunches */
+  for(let i=0;i<3;i++){
+    const b = new THREE.Mesh(new THREE.SphereGeometry(.17,8,7), M.amberD);
+    b.scale.set(1,.65,1);
+    b.position.set(Math.cos(i*2.1)*.34, -.14, Math.sin(i*2.1)*.34);
+    b.castShadow = true; crown.add(b);
+  }
+  return P;
+}
+/* oasis cluster near the farm */
+for(let i=0;i<22;i++){
+  const a = r()*6.28, rad = 5+r()*22;
+  const x = -8+Math.cos(a)*rad, z = -6+Math.sin(a)*rad*.9;
+  if(Math.abs(x)<3.6) continue;
+  palm(x,z,.85+r()*.5,r()*6.28);
+}
+/* scattered along the route */
+for(let i=0;i<64;i++){
+  const z = -30-r()*660;
+  const side = r()<.5?-1:1;
+  const x = side*(7+r()*36);
+  if(x>13&&x<45&&z>-500&&z<-330) continue;
+  if(x>-21&&x<-9&&z>-620&&z<-462) continue;
+  if(Math.abs(x-RAIL_X)<3.5) continue;
+  if(Math.abs(x)<4.5) continue;
+  palm(x,z,.75+r()*.55,r()*6.28);
+}
+/* dunes */
+for(let i=0;i<11;i++){
+  const d = new THREE.Mesh(new THREE.SphereGeometry(1,18,10), M.sandD);
+  const s = 16+r()*16;
+  d.scale.set(s,s*.17,s*.7);
+  d.position.set((r()<.5?-1:1)*(52+r()*20), .2, -40-r()*620);
+  d.castShadow = d.receiveShadow = true; scene.add(d);
+}
+/* lamps along the road */
+function lamp(x,z,dir){
+  const g = new THREE.Group();
+  CY(g,.07,.09,4.2,8,mat(0x4a4238),0,2.1,0);
+  B(g,.9,.07,.07,mat(0x4a4238),dir*.45,4.15,0);
+  const h = new THREE.Mesh(new THREE.SphereGeometry(.16,10,8), M.lamp);
+  h.position.set(dir*.85,4.05,0); g.add(h);
+  g.position.set(x,0,z); scene.add(g);
+}
+for(let z=10; z>-330; z-=38){ lamp(4.4,z,-1); lamp(-4.4,z-19,1); }
+for(let z=-604; z>-702; z-=32) lamp(4.4,z,-1);
+
+/* ---------- FACTORY (المصنع) ---------- */
+const factory = new THREE.Group();
+factory.position.set(-16,0,-72);
+scene.add(factory);
+{
+  const HW=11, HH=6.4, HD=7;
+  B(factory,HW*2,HH,HD*2,M.wall,0,HH/2,0);
+  B(factory,HW*2+.5,.3,HD*2+.5,M.wallD,0,HH+.15,0);
+  /* crenellations */
+  for(let x=-HW;x<=HW;x+=1.15){
+    B(factory,.6,.55,.36,M.wall,x,HH+.45,HD+.05);
+    B(factory,.6,.55,.36,M.wall,x,HH+.45,-HD-.05);
+  }
+  /* window band */
+  B(factory,HW*1.5,1.5,.12,M.glass,0,3.6,HD+.02);
+  for(let x=-HW*.72;x<=HW*.72;x+=2) B(factory,.16,1.6,.2,M.wallD,x,3.6,HD+.06);
+  /* rolling doors */
+  B(factory,4.6,3.4,.16,mat(0x8a8f94),-6,1.7,HD+.05);
+  B(factory,4.6,3.4,.16,mat(0x8a8f94), 6,1.7,HD+.05);
+  /* chimney + silos */
+  CY(factory,.8,1,7,12,M.wallD,-8.6,3.5,-4);
+  CY(factory,.95,.95,.4,12,mat(0x4a4238),-8.6,7.2,-4);
+  for(const sx of [7.2,9.8]){
+    CY(factory,1.5,1.5,5.4,14,mat(0xb0aca0),sx,2.7,-4);
+    CY(factory,.2,1.5,1.4,14,mat(0xb0aca0),sx,-0.3,-4);
+    CY(factory,.24,.24,.9,10,M.steel,sx,5.8,-4);
+  }
+  /* sign board */
+  const cv = document.createElement('canvas'); cv.width=512; cv.height=160;
+  const g2 = cv.getContext('2d');
+  g2.fillStyle='#d8c8a2'; g2.fillRect(0,0,512,160);
+  g2.strokeStyle='#5c452a'; g2.lineWidth=8; g2.strokeRect(8,8,496,144);
+  g2.fillStyle='#3c2d16'; g2.textAlign='center'; g2.textBaseline='middle';
+  g2.font='700 46px Cairo, sans-serif';
+  g2.fillText('مصنع التمور', 256, 62);
+  g2.font='600 24px Cairo, sans-serif';
+  g2.fillStyle='#7a5c34';
+  g2.fillText('UNDER THE PALM TREE', 256, 112);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(8,2.5),
+    new THREE.MeshStandardMaterial({ map:tex, roughness:.65 }));
+  sign.position.set(0,5.2,HD+.12); factory.add(sign);
+  /* conveyor out the front */
+  B(factory,.7,.16,6,M.steel,2,1.1,HD+3.4);
+  for(let z=1.2;z<6;z+=1.4) B(factory,.9,.5,.12,M.steel,2,.6,HD+z);
+  /* crates by the door */
+  for(let i=0;i<5;i++){
+    const c = B(factory,1,.75,.8,M.carton, -6+ (i%3)*1.25, .38+(i>2?.78:0), HD+2.4+(i%2)*.4);
+    c.rotation.y = (r()-.5)*.4;
+  }
+}
+
+/* ---------- PARCEL (the date box) + the date itself ---------- */
+const parcel = new THREE.Group();
+B(parcel,.95,.72,.74,M.carton,0,0,0);
+B(parcel,.97,.06,.17,M.label,0,.37,0);
+B(parcel,.17,.74,.76,M.label,0,0,0);
+{
+  const cv = document.createElement('canvas'); cv.width=256; cv.height=256;
+  const g2 = cv.getContext('2d');
+  g2.fillStyle='#f4ecd8'; g2.fillRect(0,0,256,256);
+  g2.strokeStyle='#5c452a'; g2.lineWidth=8; g2.strokeRect(12,12,232,232);
+  g2.fillStyle='#7a3f16'; g2.beginPath(); g2.ellipse(128,104,34,46,0,0,6.28); g2.fill();
+  g2.fillStyle='#3c2d16'; g2.font='700 30px Cairo, sans-serif'; g2.textAlign='center';
+  g2.fillText('تمور', 128, 190);
+  g2.font='600 17px Cairo, sans-serif'; g2.fillStyle='#7a5c34';
+  g2.fillText('DATES', 128, 218);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace=THREE.SRGBColorSpace;
+  const lb = new THREE.Mesh(new THREE.PlaneGeometry(.55,.55),
+    new THREE.MeshStandardMaterial({ map:tex, roughness:.7 }));
+  lb.position.set(0,.02,.381); parcel.add(lb);
+}
+scene.add(parcel);
+
+/* the bare date — visible in the first chapter before packing */
+const dateMesh = new THREE.Mesh(new THREE.SphereGeometry(.3,14,12), M.date);
+dateMesh.scale.set(1,1.45,1);
+dateMesh.castShadow = true;
+scene.add(dateMesh);
+const dateGlow = new THREE.PointLight(0xffb066,.85,10);
+scene.add(dateGlow);
+
+/* ---------- TRUCK ---------- */
+const truck = new THREE.Group();
+const truckWheels = [];
+{
+  B(truck,2.1,.5,7.4,M.steel,0,.72,-.4);
+  /* cab */
+  B(truck,2.2,1.9,2.2,M.amberD,0,1.85,-3.1);
+  B(truck,2.0,.62,.1,M.glass,0,2.35,-4.18);
+  B(truck,2.25,.12,2.3,M.cream,0,2.86,-3.1);
+  B(truck,.26,.16,.07,M.head,-.72,1.1,-4.24);
+  B(truck,.26,.16,.07,M.head, .72,1.1,-4.24);
+  /* cargo box */
+  B(truck,2.3,2.4,5.4,M.cream,0,2.2,.9);
+  B(truck,2.34,.12,5.44,M.amber,0,3.46,.9);
+  for(const s of [-1,1]) B(truck,.06,2.4,5.4,M.amber,s*1.17,2.2,.9);
+  {
+    const cv=document.createElement('canvas'); cv.width=512; cv.height=128;
+    const g2=cv.getContext('2d');
+    g2.fillStyle='#f4e8d0'; g2.fillRect(0,0,512,128);
+    g2.fillStyle='#c9832f'; g2.font='700 54px Cairo, sans-serif'; g2.textAlign='center';
+    g2.fillText('تمور تحت النخلة',256,58);
+    g2.fillStyle='#7a5c34'; g2.font='600 26px Cairo, sans-serif';
+    g2.fillText('UNDER THE PALM TREE',256,100);
+    const tx=new THREE.CanvasTexture(cv); tx.colorSpace=THREE.SRGBColorSpace;
+    for(const s of [-1,1]){
+      const p=new THREE.Mesh(new THREE.PlaneGeometry(4.6,1.15),
+        new THREE.MeshStandardMaterial({ map:tx, roughness:.7 }));
+      p.rotation.y = s>0?Math.PI/2:-Math.PI/2;
+      p.position.set(s*1.19,2.4,.9); truck.add(p);
+    }
+  }
+  for(const p of [[-1.05,.5,-2.6],[1.05,.5,-2.6],[-1.05,.5,1.1],[1.05,.5,1.1],[-1.05,.5,2.5],[1.05,.5,2.5]]){
+    const w = wheel(.5,.36); w.position.set(p[0],p[1],p[2]);
+    truck.add(w); truckWheels.push({ g:w, r:.5 });
+  }
+}
+truck.position.set(ROAD_X,0,-100); scene.add(truck);
+
+/* ---------- TRAIN ---------- */
+const train = new THREE.Group();
+const trainWheels = [];
+{
+  B(train,2.7,2.7,7.6,mat(0x4c5138),0,1.7,-3.6);
+  B(train,2.72,.75,1.3,M.amberD,0,1.05,-7.0);
+  B(train,2.5,.55,.1,M.glass,0,2.45,-2.1);
+  CY(train,.26,.3,.85,9,mat(0x333333),.7,3.15,-1.6);
+  B(train,.3,.3,.1,M.head,-.85,1.25,-7.3);
+  B(train,.3,.3,.1,M.head, .85,1.25,-7.3);
+  for(let a=-5.8;a<=-1.6;a+=2.1) for(const s of [-1,1]){
+    const w = wheel(.56,.32); w.position.set(s*1.32,.56,a);
+    train.add(w); trainWheels.push({ g:w, r:.56 });
+  }
+  const cols = [M.c1,M.c2,M.c3,M.c4];
+  function flat(cz){
+    B(train,2.7,.32,9,M.steel,0,1.2,cz);
+    for(const a of [-3,3]) for(const s of [-1,1]){
+      const w = wheel(.44,.3); w.position.set(s*1.24,.44,cz+a);
+      train.add(w); trainWheels.push({ g:w, r:.44 });
+    }
+  }
+  flat(5); B(train,2.5,2.5,8,cols[0],0,2.6,5);
+  flat(15); B(train,2.5,2.5,4.6,cols[2],0,2.6,17.4);
+  flat(25); B(train,2.5,2.5,8,cols[1],0,2.6,25);
+}
+train.position.set(RAIL_X,0,-230); scene.add(train);
+
+/* ---------- PORT + DHOW ---------- */
+{
+  /* quay */
+  B(scene,4.4,.6,80,M.stone,16.4,.2,-392);
+  B(scene,4.0,.18,78,M.deck,16.4,.56,-392);
+  for(let z=-356;z>-430;z-=6){
+    CY(scene,.16,.2,.85,10,M.steel,15.2,.9,z);
+    CY(scene,.22,.22,.1,10,M.steel,15.2,1.35,z);
+  }
+  /* containers on the quay */
+  const cols=[M.c1,M.c2,M.c3,M.c4,M.c5];
+  for(let i=0;i<9;i++){
+    const z=-360-i*3.4, h=(i%3)+1;
+    for(let k=0;k<h;k++) B(scene,2.3,2.2,2.9,cols[(i+k)%5],16.4,1.75+k*2.2,z);
+  }
+  /* crane — flat, industrial (no cone roofs) */
+  function crane(z){
+    const g=new THREE.Group();
+    for(const [cx,cz] of [[14.4,0],[29,0],[14.4,-3],[29,-3]])
+      B(g,.62,12,.62,M.crane,cx,6,cz);
+    B(g,16,.9,.9,M.crane,21.7,12.2,-1.5);
+    B(g,2.3,1.5,2.3,mat(0x4a4238),14.4,12.8,-1.5);
+    CY(g,.05,.05,6,6,mat(0x222222),28,9,-1.5);
+    B(g,2.5,.3,2.5,M.amber,28,5.8,-1.5);
+    g.position.z=z; scene.add(g);
+  }
+  crane(-352); crane(-382);
+  /* warehouse — Omani flat roof with crenellations */
+  const wh = omaniHouse(12,4.6,7,M.wall);
+  wh.position.set(20,0,-424); scene.add(wh);
+  /* lighthouse — stone tower, flat gallery, NO red cone */
+  const lh = new THREE.Group(); lh.position.set(44,0,-448); scene.add(lh);
+  CY(lh,2.2,3,2.4,12,M.stone,0,1.2,0);
+  CY(lh,1.3,1.9,10,12,M.wall,0,7.2,0);
+  for(let i=0;i<3;i++) CY(lh,1.34,1.4,.7,12,M.wallD,0,4.2+i*3,0);
+  CY(lh,1.6,1.6,.3,12,M.wallD,0,12.4,0);
+  for(let a=0;a<12;a++){
+    const an=a/12*6.28;
+    B(lh,.4,.5,.3,M.wall,Math.cos(an)*1.5,12.8,Math.sin(an)*1.5);
+  }
+  CY(lh,1,1,1.8,12,new THREE.MeshStandardMaterial({
+    color:0xfff4cc, emissive:0xffb84a, emissiveIntensity:1.1, transparent:true, opacity:.8 }),0,13.6,0);
+  CY(lh,1.15,1.15,.24,12,M.wallD,0,14.6,0);
+  const beacon = new THREE.PointLight(0xffb84a,2.2,55);
+  beacon.position.set(0,13.6,0); lh.add(beacon);
+  lh.userData.beacon = beacon;
+  scene.userData.lighthouse = lh;
+}
+
+const ship = new THREE.Group();
+{
+  /* dhow hull */
+  const SEC = [
+    [-11,1.5,2.3,-1.0],[-9,2.2,2.1,-1.1],[-6,2.8,1.9,-1.15],[-2,3.0,1.75,-1.18],
+    [2,3.0,1.75,-1.18],[5,2.85,1.8,-1.12],[8,2.4,2.0,-1.0],[10.5,1.7,2.3,-.8],[12,.1,2.7,-.3]
+  ];
+  const MP=18, cnt=SEC.length, pos=[], uv=[], idx=[];
+  for(let i=0;i<cnt;i++){
+    const [z,hb,dy,ky] = SEC[i];
+    const full = Math.min(1,hb/3.0);
+    const pw = .7+.55*(1-full), pr = 1.05+.6*full;
+    for(let j=0;j<=MP;j++){
+      const t=j/MP, a=t*2-1, aa=Math.abs(a);
+      pos.push(Math.sign(a)*hb*Math.pow(aa,pw), ky+(dy-ky)*Math.pow(aa,pr), z);
+      uv.push(i/(cnt-1), t);
+    }
+  }
+  for(let i=0;i<cnt-1;i++) for(let j=0;j<MP;j++){
+    const a=i*(MP+1)+j, b=a+MP+1;
+    idx.push(a,b,a+1,b,b+1,a+1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  const hull = new THREE.Mesh(geo, M.hull);
+  hull.castShadow = hull.receiveShadow = true; ship.add(hull);
+  /* deck */
+  B(ship,5.4,.2,21,M.deck,0,1.6,0);
+  /* stern cabin */
+  B(ship,4.2,.8,3.6,M.hull,0,2.05,-8.2);
+  B(ship,3.2,1.2,2.4,M.deck,0,3.05,-8.7);
+  B(ship,3.5,.1,2.7,M.hull,0,3.7,-8.7);
+  /* mast + lateen sail */
+  CY(ship,.11,.24,14,12,M.trunk,0,8.6,2.2);
+  const sailShape = new THREE.BufferGeometry();
+  {
+    const A = new THREE.Vector3(0,3.0,-2.4), Bv = new THREE.Vector3(0,15.4,7.8);
+    const rows=20, cols=16, sp=[], si=[];
+    const Tv = new THREE.Vector3(0,2.4,3.0), Cv = new THREE.Vector3(0,3.1,-1.8);
+    const H = new THREE.Vector3().lerpVectors(A,Bv,.97);
+    for(let i=0;i<=rows;i++){
+      const t=i/rows;
+      const L=new THREE.Vector3().lerpVectors(H,Tv,t), R=new THREE.Vector3().lerpVectors(H,Cv,t);
+      for(let j=0;j<=cols;j++){
+        const s=j/cols;
+        const p=new THREE.Vector3().lerpVectors(L,R,s);
+        p.x += .95*Math.sin(Math.min(1,t*1.15)*Math.PI*.85)*Math.sin(s*Math.PI);
+        sp.push(p.x,p.y,p.z);
+      }
+    }
+    for(let i=0;i<rows;i++) for(let j=0;j<cols;j++){
+      const a=i*(cols+1)+j, b=a+cols+1;
+      si.push(a,b,a+1,b,b+1,a+1);
+    }
+    sailShape.setAttribute('position', new THREE.Float32BufferAttribute(sp,3));
+    sailShape.setIndex(si); sailShape.computeVertexNormals();
+    const sail = new THREE.Mesh(sailShape, M.cloth);
+    sail.castShadow = true; ship.add(sail);
+    /* yard spar */
+    const d = new THREE.Vector3().subVectors(Bv,A);
+    const spar = new THREE.Mesh(new THREE.CylinderGeometry(.06,.13,d.length(),10), M.trunk);
+    spar.position.copy(A).addScaledVector(d,.5);
+    spar.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d.clone().normalize());
+    spar.castShadow = true; ship.add(spar);
+  }
+  /* containers on deck */
+  const cols=[M.c1,M.c2,M.c3];
+  for(let i=0;i<3;i++) B(ship,2,1.7,3.2,cols[i%3],0,2.55,-3+i*3.6);
+}
+ship.position.set(WATER_X,0,-360); scene.add(ship);
+
+/* ---------- HELICOPTER ---------- */
+const heli = new THREE.Group();
+const rotorMain = new THREE.Group();
+const rotorTail = new THREE.Group();
+{
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1.5,18,14), M.heli);
+  body.scale.set(1,1.05,2.1); body.position.y=2.6; body.castShadow=true; heli.add(body);
+  /* green stripe */
+  const stripe = new THREE.Mesh(new THREE.SphereGeometry(1.52,18,14), M.heliG);
+  stripe.scale.set(1,.34,2.05); stripe.position.set(0,2.2,0); heli.add(stripe);
+  /* cockpit glass */
+  const glass = new THREE.Mesh(new THREE.SphereGeometry(1.32,16,12), M.glass);
+  glass.scale.set(1,1,1.1); glass.position.set(0,2.75,2.35); heli.add(glass);
+  /* tail boom */
+  CY(heli,.24,.42,6,12,M.heli,0,2.9,-4.4,Math.PI/2);
+  B(heli,.16,1.5,1.1,M.heliG,0,3.5,-7.1);
+  B(heli,2.1,.14,.7,M.heli,0,3.0,-7.0);
+  /* rotor mast + blades */
+  CY(heli,.16,.2,.9,10,M.steel,0,4.35,0);
+  rotorMain.position.set(0,4.85,0); heli.add(rotorMain);
+  CY(rotorMain,.26,.26,.24,12,M.rotor,0,0,0);
+  for(let i=0;i<4;i++){
+    const bl = new THREE.Mesh(new THREE.BoxGeometry(.34,.07,9.4), M.rotor);
+    bl.rotation.y = i*Math.PI/2; bl.castShadow = true; rotorMain.add(bl);
+  }
+  rotorTail.position.set(.34,3.5,-7.1); heli.add(rotorTail);
+  for(let i=0;i<3;i++){
+    const bl = new THREE.Mesh(new THREE.BoxGeometry(.08,1.9,.2), M.rotor);
+    bl.rotation.x = i*Math.PI/3; rotorTail.add(bl);
+  }
+  /* skids */
+  for(const s of [-1,1]){
+    CY(heli,.09,.09,5.4,8,M.steel,s*1.25,.5,.2,Math.PI/2);
+    B(heli,.12,1.15,.12,M.steel,s*1.25,1.1,1.5);
+    B(heli,.12,1.15,.12,M.steel,s*1.25,1.1,-1.3);
+  }
+  /* cargo hook + lights */
+  B(heli,.3,.28,.3,M.steel,0,1.15,0);
+  B(heli,.2,.14,.06,M.head,0,2.1,3.5);
+  const bl2 = new THREE.Mesh(new THREE.SphereGeometry(.13,8,8),
+    new THREE.MeshStandardMaterial({ color:0x8a1a12, emissive:0xff2a1a, emissiveIntensity:1.4 }));
+  bl2.position.set(0,4.15,-1.2); heli.add(bl2);
+  heli.userData.beacon = bl2;
+}
+heli.position.set(AIR_X,0,-474); scene.add(heli);
+
+/* ---------- clouds + stars ---------- */
+const clouds = [];
+{
+  const cm = mat(0xffffff,{ roughness:1 });
+  for(let i=0;i<10;i++){
+    const g = new THREE.Group();
+    for(let k=0;k<3;k++){
+      const s = new THREE.Mesh(new THREE.SphereGeometry(3+r()*2.6,8,6), cm);
+      s.position.set((k-1)*3.4, r()*1.2, r()*2); s.scale.y=.58; g.add(s);
+    }
+    g.position.set(-64+r()*128, 44+r()*24, 24-r()*730);
+    scene.add(g); clouds.push(g);
+  }
+}
+const stars = (function(){
+  const n=680, pos=new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+    const a=r()*6.283, el=r()*Math.PI*.45+.05, rad=380;
+    pos[i*3]=Math.cos(a)*Math.cos(el)*rad;
+    pos[i*3+1]=Math.sin(el)*rad+10;
+    pos[i*3+2]=Math.sin(a)*Math.cos(el)*rad;
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  const m=new THREE.PointsMaterial({ color:0xffffff, size:2.2, transparent:true, opacity:0, sizeAttenuation:true });
+  m.fog=false;
+  const p=new THREE.Points(g,m); scene.add(p); return p;
+})();
+
+/* ---------- keyframes ---------- */
+const TRUCK_Z = [{t:0,v:-100},{t:.37,v:-100},{t:.45,v:-232},{t:1,v:-232}];
+const TRAIN_Z = [{t:0,v:-230},{t:.50,v:-230},{t:.59,v:-352},{t:1,v:-352}];
+const SHIP_Z  = [{t:0,v:-360},{t:.645,v:-360},{t:.735,v:-462},{t:1,v:-462}];
+const HELI_Z  = [{t:0,v:-474},{t:.805,v:-474},{t:.88,v:-640},{t:1,v:-640}];
+const HELI_Y  = [{t:0,v:0},{t:.805,v:0},{t:.83,v:16},{t:.862,v:22},{t:.9,v:5},{t:.92,v:0},{t:1,v:0}];
+
+/* date/parcel path */
+/* Tuned to the measured chapter windows:
+   palm .10-.16 · factory .24-.30 · truck .38-.44 · train .52-.58
+   ship .66-.72 · helicopter .79-.86 · home .93-1.0                        */
+const PATH = [
+  {t:.00, v:[-8, 7.4, -6]},        // up in the palm crown
+  {t:.10, v:[-8, 7.2, -6]},
+  {t:.135,v:[-8, 1.2, -6]},        // drops into the basket
+  {t:.18, v:[-9.8, .9, -12]},
+  {t:.245,v:[-16, 1.9, -64]},      // inside the factory
+  {t:.275,v:[-14.5, 1.7, -64]},
+  {t:.305,v:[-14, 1.5, -66]},      // out on the conveyor, now boxed
+  {t:.375,v:[ROAD_X, 2.6, -98]},   // onto the truck
+  {t:.45, v:[ROAD_X, 2.6, -232]},
+  {t:.478,v:[6, 6, -236]},
+  {t:.515,v:[RAIL_X, 3.1, -215]},  // onto the train wagon
+  {t:.59, v:[RAIL_X, 3.1, -337]},
+  {t:.618,v:[22, 8, -344]},
+  {t:.655,v:[WATER_X, 3.6, -357]}, // onto the dhow
+  {t:.735,v:[WATER_X, 3.6, -459]},
+  {t:.762,v:[8, 9, -466]},
+  {t:.792,v:[AIR_X, 1.4, -474]},   // hooked under the helicopter
+  {t:.808,v:[AIR_X, 1.2, -474]},
+  {t:.838,v:[AIR_X, 20, -545]},
+  {t:.878,v:[AIR_X, 5.5, -630]},
+  {t:.915,v:[-4, 2.4, -648]},
+  {t:.955,v:[4, 1.3, -658]},
+  {t:1.00,v:[7.4, .9, -664]}
+];
+
+const CAM_OFF = [
+  {t:.00,v:[13,4.5,13]},{t:.11,v:[10,3.4,11]},{t:.19,v:[16,6,16]},
+  {t:.27,v:[13,5,14]},{t:.34,v:[10,4.5,12]},{t:.45,v:[11,5,13]},
+  {t:.515,v:[-15,6,13]},{t:.59,v:[-16,7,14]},
+  {t:.655,v:[-25,9,18]},{t:.735,v:[-26,10,19]},
+  {t:.795,v:[15,6,15]},{t:.845,v:[13,5,22]},{t:.90,v:[12,5,18]},
+  {t:.94,v:[-8,4,11]},{t:1.00,v:[-9,3.4,9.5]}
+];
+const CAM_LOOK = [
+  {t:.00,v:[0,1.2,0]},{t:.19,v:[0,1.6,-3]},{t:.34,v:[0,1.4,-3]},
+  {t:.515,v:[0,1.6,-2]},{t:.655,v:[0,2.2,0]},{t:.735,v:[0,2.2,0]},
+  {t:.845,v:[0,1,-8]},{t:.90,v:[0,1.5,-4]},{t:1.00,v:[0,1,0]}
+];
+const CAM_FOV = [{t:0,v:52},{t:.3,v:55},{t:.6,v:57},{t:.80,v:62},{t:.85,v:66},{t:.93,v:56},{t:1,v:52}];
+
+const SKY = [
+  {t:0,   c:C(0xf6c47e)}, {t:.12, c:C(0xf9d49a)}, {t:.26, c:C(0xa8d4ef)},
+  {t:.45, c:C(0x8ec8ec)}, {t:.62, c:C(0xf7b267)}, {t:.72, c:C(0xef8f6e)},
+  {t:.79, c:C(0x6f5f9e)}, {t:.85, c:C(0x16224a)}, {t:.91, c:C(0x2a3f6e)},
+  {t:1,   c:C(0xbfe3d0)}
+];
+const SUN_COL = [
+  {t:0,c:C(0xffb469)},{t:.22,c:C(0xfff2d9)},{t:.5,c:C(0xfff5e0)},
+  {t:.68,c:C(0xff9a5c)},{t:.82,c:C(0x93a7d4)},{t:.88,c:C(0x7d90c8)},{t:1,c:C(0xffe0b0)}
+];
+const SUN_INT = [{t:0,v:.95},{t:.24,v:1.15},{t:.5,v:1.15},{t:.68,v:1.0},{t:.82,v:.5},{t:.88,v:.3},{t:.95,v:.6},{t:1,v:.95}];
+const HEMI_INT= [{t:0,v:.6},{t:.3,v:.72},{t:.7,v:.6},{t:.84,v:.34},{t:.94,v:.45},{t:1,v:.65}];
+const NIGHT   = [{t:0,v:0},{t:.74,v:0},{t:.83,v:.9},{t:.89,v:.9},{t:.95,v:0},{t:1,v:0}];
+
+/* ---------- scroll ---------- */
+const story = document.getElementById('story');
+let targetP = 0, curP = 0;
+function computeTarget(){
+  const rect = story.getBoundingClientRect();
+  const total = rect.height - innerHeight;
+  targetP = clamp(-rect.top/total, 0, 1);
+}
+addEventListener('scroll', computeTarget, { passive:true });
+addEventListener('resize', computeTarget);
+computeTarget();
+
+/* ---------- chapter UI ---------- */
+const CH = [
+  { tag:'البداية',        ttl:'النخلة · الفجر',      dot:'البداية',  t:0 },
+  { tag:'المرحلة ٠١',     ttl:'القطاف',              dot:'النخلة',   t:.05 },
+  { tag:'المرحلة ٠٢',     ttl:'الغسيل والتعبئة',      dot:'المصنع',   t:.17 },
+  { tag:'المرحلة ٠٣',     ttl:'على الطريق',           dot:'الشاحنة',  t:.33 },
+  { tag:'المرحلة ٠٤',     ttl:'سكة الصحراء',          dot:'القطار',   t:.51 },
+  { tag:'المرحلة ٠٥',     ttl:'الميناء والبحر',        dot:'السفينة',  t:.69 },
+  { tag:'المرحلة ٠٦',     ttl:'فوق الغيوم',           dot:'المروحية', t:.86 },
+  { tag:'النهاية',        ttl:'وصلت · فنجان وتمرة',    dot:'وصلت',    t:.97 }
+];
+/* Ranges are measured from the real sticky window of each panel, so a card is
+   never left at full opacity while it slides out of view. */
+const panels = [...document.querySelectorAll('.panel')];
+let RANGES = [];
+function computeRanges(){
+  const total = story.offsetHeight - innerHeight;
+  if(total <= 0){ RANGES = panels.map(() => [0,1]); return; }
+  const base = story.offsetTop;
+  RANGES = panels.map((pan,i) => {
+    const start = (pan.offsetTop - base) / total;
+    const stuckEnd = (pan.offsetTop - base + pan.offsetHeight - innerHeight) / total;
+    return [ clamp(start,0,1), clamp(Math.max(stuckEnd,start+.01),0,1) ];
+  });
+  RANGES[RANGES.length-1][1] = 1.02;
+}
+computeRanges();
+addEventListener('resize', computeRanges);
+
+const navEl = document.getElementById('chapterNav');
+CH.forEach((c,i) => {
+  const b = document.createElement('button');
+  b.setAttribute('data-label', c.dot);
+  b.setAttribute('aria-label', 'انتقل إلى ' + c.dot);
+  b.addEventListener('click', () => {
+    const total = story.offsetHeight - innerHeight;
+    const rg = RANGES[i] || [c.t, c.t];
+    /* land a little inside the panel's stuck window */
+    const target = rg[0] + (rg[1]-rg[0]) * .35;
+    scrollTo({ top: story.offsetTop + target*total, behavior:'smooth' });
+  });
+  navEl.appendChild(b);
+});
+const navBtns = [...navEl.children];
+const cards = [...document.querySelectorAll('.card')];
+const hudTag = document.getElementById('hudTag'), hudTtl = document.getElementById('hudTtl');
+const stamp = document.getElementById('stamp');
+const scrollPct = document.getElementById('scrollPct');
+const progressBar = document.getElementById('progressBar');
+const header = document.getElementById('siteHeader');
+let lastCh = -1;
+
+document.querySelectorAll('[data-scroll]').forEach(b =>
+  b.addEventListener('click', () => {
+    const el = document.querySelector(b.dataset.scroll);
+    if(el) el.scrollIntoView({ behavior:'smooth' });
+  }));
+document.querySelectorAll('[data-scrollt]').forEach(b =>
+  b.addEventListener('click', () => {
+    const top = story.offsetTop, total = story.offsetHeight - innerHeight;
+    scrollTo({ top: top + parseFloat(b.dataset.scrollt)*total, behavior:'smooth' });
+  }));
+
+/* ---------- resize ---------- */
+function resize(){
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}
+resize(); addEventListener('resize', resize);
+
+/* ---------- loop ---------- */
+const clock = new THREE.Clock();
+let prevTruckZ = -100, prevTrainZ = -230;
+const tmpCol = new THREE.Color();
+const offV = new THREE.Vector3(), lookV = new THREE.Vector3();
+
+function frame(){
+  const dt = Math.min(clock.getDelta(), .05);
+  const time = clock.elapsedTime;
+  curP += (targetP - curP) * (1 - Math.pow(.0009, dt));
+  const t = curP;
+
+  /* vehicles */
+  const tz = keysScalar(TRUCK_Z,t); truck.position.set(ROAD_X,0,tz);
+  const rz = keysScalar(TRAIN_Z,t); train.position.set(RAIL_X,0,rz);
+  const sz = keysScalar(SHIP_Z,t);
+  const bob = REDUCED ? .04 : .17;
+  ship.position.set(WATER_X, Math.sin(time*.85)*bob, sz);
+  if(!REDUCED){ ship.rotation.z = Math.sin(time*.68)*.02; ship.rotation.x = Math.sin(time*.5)*.012; }
+  const hz = keysScalar(HELI_Z,t), hy = keysScalar(HELI_Y,t);
+  heli.position.set(AIR_X, hy, hz);
+  heli.rotation.x = clamp((hy>.5 ? -.10 : 0), -.2, .2);
+  heli.rotation.z = Math.sin(time*.9)*.02;
+
+  /* wheels */
+  const tvs = (prevTruckZ - tz)/Math.max(dt,.001);
+  truckWheels.forEach(w => w.g.rotation.x -= (tvs*dt)/w.r);
+  const rvs = (prevTrainZ - rz)/Math.max(dt,.001);
+  trainWheels.forEach(w => w.g.rotation.x -= (rvs*dt)/w.r);
+  prevTruckZ = tz; prevTrainZ = rz;
+
+  /* rotors spin when the helicopter chapter is near */
+  const heliActive = t > .76;
+  if(!REDUCED){
+    const spin = heliActive ? 26 : 2;
+    rotorMain.rotation.y += spin*dt;
+    rotorTail.rotation.x += spin*1.7*dt;
+  }
+  if(heli.userData.beacon)
+    heli.userData.beacon.material.emissiveIntensity = 1 + Math.sin(time*7)*.9;
+
+  /* the date & its box */
+  const p = keysAt(PATH,t);
+  let bobY = 0;
+  if(t>.30 && t<.44) bobY = REDUCED?0:Math.sin(time*20)*.03;
+  else if(t>.50 && t<.62) bobY = REDUCED?0:Math.sin(time*15)*.02;
+  else if(t>.68 && t<.80) bobY = Math.sin(time*.85)*bob;
+  else if(t>.88 && t<.955) bobY = REDUCED?0:Math.sin(time*1.6)*.07;
+
+  const packed = t > .29;              /* after the factory it travels as a box */
+  parcel.visible = packed;
+  dateMesh.visible = !packed;
+  const carrier = packed ? parcel : dateMesh;
+  carrier.position.set(p[0], p[1]+bobY, p[2]);
+  if(!REDUCED){
+    carrier.rotation.z = Math.sin(time*1.3)*.05;
+    carrier.rotation.y = Math.sin(time*.7)*.06;
+  }
+  dateGlow.position.set(p[0], p[1]+bobY+.6, p[2]);
+
+  /* camera */
+  const off = keysAt(CAM_OFF,t), look = keysAt(CAM_LOOK,t), fov = keysScalar(CAM_FOV,t);
+  if(!REDUCED){
+    const a = Math.sin(time*.2)*.06, ca=Math.cos(a), sa=Math.sin(a);
+    const nx = off[0]*ca + off[2]*sa, nz = -off[0]*sa + off[2]*ca;
+    off[0]=nx; off[2]=nz; off[1] += Math.sin(time*.3)*.12;
+  }
+  offV.set(carrier.position.x+off[0], Math.max(carrier.position.y+off[1],1.4), carrier.position.z+off[2]);
+  camera.position.lerp(offV, .16);
+  lookV.set(carrier.position.x+look[0], carrier.position.y+look[1], carrier.position.z+look[2]);
+  camera.lookAt(lookV);
+  if(Math.abs(camera.fov-fov) > .05){ camera.fov = fov; camera.updateProjectionMatrix(); }
+
+  /* sun follows */
+  sun.position.set(lookV.x+38, lookV.y+52, lookV.z+24);
+  sun.target.position.copy(lookV);
+
+  /* sky / night */
+  colorAt(SKY,t,bgColor);
+  scene.fog.color.copy(bgColor);
+  colorAt(SUN_COL,t,tmpCol); sun.color.copy(tmpCol);
+  sun.intensity = keysScalar(SUN_INT,t);
+  hemi.intensity = keysScalar(HEMI_INT,t);
+  const night = keysScalar(NIGHT,t);
+  M.win.emissiveIntensity = night*1.4;
+  M.lamp.emissiveIntensity = .4 + night*1.4;
+  M.head.emissiveIntensity = .3 + night*1.1;
+  stars.material.opacity = night;
+  stars.position.set(camera.position.x, 0, camera.position.z);
+  if(scene.userData.lighthouse)
+    scene.userData.lighthouse.userData.beacon.intensity = 1 + night*3 + Math.sin(time*1.6)*.8;
+
+  /* water */
+  if(!REDUCED){
+    for(let i=0;i<wPos.count;i++){
+      const x = wBaseX[i], y = wBaseY[i];
+      wPos.setZ(i, Math.sin(x*.5+time*1.15)*.12 + Math.cos(y*.4+time*.9)*.1);
+    }
+    wPos.needsUpdate = true; waterGeo.computeVertexNormals();
+  }
+  if(!REDUCED) clouds.forEach(c => { c.position.x += .55*dt; if(c.position.x>74) c.position.x=-74; });
+
+  /* UI */
+  progressBar.style.transform = 'scaleX(' + t.toFixed(4) + ')';
+  scrollPct.textContent = String(Math.round(t*100)).padStart(2,'0') + '%';
+  let ch = 0;
+  for(let i=0;i<RANGES.length;i++) if(t>=RANGES[i][0] && t<=RANGES[i][1]) ch = i;
+  if(ch !== lastCh){
+    lastCh = ch;
+    hudTag.textContent = CH[ch].tag;
+    hudTtl.textContent = CH[ch].ttl;
+    navBtns.forEach((b,i) => b.classList.toggle('active', i===ch));
+  }
+  cards.forEach((card,i) => {
+    const rg = RANGES[i];
+    const span = Math.max(rg[1]-rg[0], .001);
+    const fm = Math.min(.03, span*.42);
+    let op = smooth(clamp((t-rg[0])/fm,0,1)) * (1 - smooth(clamp((t-(rg[1]-fm))/fm,0,1)));
+    if(i===0) op = 1 - smooth(clamp((t-rg[1]+fm)/fm,0,1));
+    card.style.opacity = op.toFixed(3);
+    card.style.transform = 'translateY(' + ((1-op)*34).toFixed(1) + 'px)';
+    card.style.pointerEvents = op < .2 ? 'none' : 'auto';
+  });
+  const past = scrollY > (story.offsetTop + story.offsetHeight - innerHeight*.55);
+  const vis = past ? 0 : 1;
+  navEl.style.opacity = vis;
+  document.getElementById('chapterHud').style.opacity = vis;
+  scrollPct.style.opacity = vis;
+  stamp.classList.toggle('show', t > .975);
+  header.classList.toggle('scrolled', scrollY > 40);
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(frame);
+setTimeout(() => document.getElementById('loader').classList.add('done'), 500);
+</script>
+</body>
+</html>

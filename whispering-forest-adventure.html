@@ -1295,6 +1295,102 @@ function drawJumanaParticles(){
 }
 jSetMode('normal');
 
+/* ================= DUCKIE (Jumana's duck friend) ================= */
+const DUCK_OUT='rgba(43,28,50,0.5)';
+const duck={x:jSt.worldX-46,vx:0,facing:1,phase:0,bubble:null,quackT:rand(6,10),blink:0,nextBlink:rand(2,4),hop:0};
+function duckSay(text,dur){duck.bubble={text:text,t:dur||2.4};}
+function updateDuck(dt){
+  duck.nextBlink-=dt;if(duck.nextBlink<0){duck.blink=0.16;duck.nextBlink=rand(2.6,6);}
+  duck.blink=Math.max(0,duck.blink-dt);duck.hop=Math.max(0,duck.hop-dt*2);
+  const target=jSt.worldX-jSt.face*46;
+  const dist=target-duck.x;
+  if(Math.abs(dist)>5)duck.facing=dist>0?1:-1;
+  const sp=clamp(Math.abs(dist)*2.2,0,250);
+  duck.vx=Math.abs(dist)>3?(dist>0?1:-1)*sp:0;
+  duck.x=clamp(duck.x+duck.vx*dt,40,WORLD_W-40);
+  duck.phase+=Math.abs(duck.vx)*dt*0.09;
+  duck.quackT-=dt;
+  if(duck.quackT<=0&&entered){duck.quackT=rand(9,18);
+    const lines=['واك!','واك واك!','*يخطر بسعادة*','النجوم رائحتها جميلة.','ابقي قريبة يا جُمانة!'];
+    duckSay(lines[(Math.random()*lines.length)|0]);}
+  if(duck.bubble){duck.bubble.t-=dt;if(duck.bubble.t<=0)duck.bubble=null;}
+}
+function drawDuck(){
+  const d=duck,sx=toScreenX(d.x);
+  if(sx<-120||sx>W+120)return;
+  const sy=groundY(d.x),u=jSt.S*1.02,f=d.facing,walking=Math.abs(d.vx)>10;
+  ctx.save();ctx.translate(sx,sy);
+  const shG=ctx.createRadialGradient(0,2,2,0,2,16*u);
+  shG.addColorStop(0,'rgba(8,10,22,0.38)');shG.addColorStop(1,'rgba(8,10,22,0)');
+  ctx.fillStyle=shG;ctx.beginPath();ctx.ellipse(0,2,16*u,5*u,0,0,TAU);ctx.fill();
+  ctx.scale(f,1);
+  const waddle=walking?Math.sin(d.phase)*0.15:Math.sin(tGlobal*2)*0.03;
+  const squash=1+Math.sin(d.phase*2)*(walking?0.06:0.02)+d.hop*0.15;
+  ctx.rotate(waddle);ctx.scale(1,squash);
+  for(let sgn2=-1;sgn2<=1;sgn2+=2){
+    const sw2=Math.sin(d.phase+sgn2*1.5)*(walking?4*u:0);
+    ctx.strokeStyle='#F2913D';ctx.lineWidth=2.6*u;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(sgn2*3*u,-7*u);ctx.lineTo(sgn2*3*u+sw2*0.4,-0.5*u);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sgn2*3*u+sw2*0.4,-0.5*u);ctx.lineTo(sgn2*3*u+sw2*0.4+2.5*u,-0.5*u);ctx.stroke();
+  }
+  const bg=ctx.createRadialGradient(-4*u,-18*u,2*u,-1*u,-13*u,14*u);
+  bg.addColorStop(0,'#fffdf2');bg.addColorStop(1,'#f4e6c2');
+  ctx.fillStyle=bg;
+  ctx.beginPath();ctx.ellipse(-1*u,-13*u,12.5*u,9.8*u,0,0,TAU);ctx.fill();
+  ctx.strokeStyle=DUCK_OUT;ctx.lineWidth=1.5*u;ctx.stroke();
+  ctx.fillStyle='#FFF6DE';
+  ctx.beginPath();ctx.moveTo(-12*u,-15*u);ctx.quadraticCurveTo(-19*u,-23*u,-14*u,-24*u);
+  ctx.quadraticCurveTo(-15*u,-19*u,-9*u,-19*u);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=DUCK_OUT;ctx.lineWidth=1.2*u;ctx.stroke();
+  ctx.fillStyle='#F0DEB8';
+  ctx.save();ctx.translate(-2*u,-13*u);ctx.rotate(Math.sin(d.phase*2)*(walking?0.28:0.06));
+  ctx.beginPath();ctx.ellipse(0,0,6.8*u,4.8*u,0.2,0,TAU);ctx.fill();
+  ctx.strokeStyle='rgba(160,130,80,0.6)';ctx.lineWidth=1*u;
+  ctx.beginPath();ctx.moveTo(-3*u,-1*u);ctx.quadraticCurveTo(1*u,-2*u,4*u,0);ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle='#E23D2E';
+  ctx.beginPath();ctx.moveTo(2*u,-19*u);ctx.quadraticCurveTo(8*u,-16.5*u,13*u,-19*u);
+  ctx.quadraticCurveTo(8*u,-14*u,2*u,-16*u);ctx.closePath();ctx.fill();
+  const flap=Math.sin(tGlobal*6)*(walking?3:1.2);
+  ctx.beginPath();ctx.moveTo(3*u,-17*u);ctx.quadraticCurveTo(-2*u,-14*u+flap,-4*u,-9*u+flap);
+  ctx.lineTo(-1*u,-8*u+flap);ctx.quadraticCurveTo(2*u,-13*u,5*u,-16*u);ctx.closePath();ctx.fill();
+  const hdg=ctx.createRadialGradient(6*u,-27*u,2*u,8*u,-24*u,9*u);
+  hdg.addColorStop(0,'#fffdf2');hdg.addColorStop(1,'#f4e6c2');
+  ctx.fillStyle=hdg;ctx.beginPath();ctx.arc(8*u,-24*u,7.4*u,0,TAU);ctx.fill();
+  ctx.strokeStyle=DUCK_OUT;ctx.lineWidth=1.5*u;ctx.stroke();
+  ctx.fillStyle='#FFF6DE';ctx.beginPath();ctx.arc(8*u,-30*u,2.6*u,0,TAU);ctx.fill();
+  const open=(d.bubble&&d.bubble.t>1.9)||d.hop>0.4;
+  ctx.fillStyle='#F2913D';
+  ctx.beginPath();ctx.moveTo(13.5*u,-25.4*u);ctx.lineTo(20.5*u,-24*u-open*0.6);ctx.lineTo(13.5*u,-22.6*u);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=DUCK_OUT;ctx.lineWidth=1*u;ctx.stroke();
+  if(open){ctx.beginPath();ctx.moveTo(13.5*u,-22.2*u);ctx.lineTo(19*u,-20.8*u);ctx.lineTo(13.5*u,-20.4*u);ctx.closePath();ctx.fill();}
+  ctx.fillStyle='rgba(250,170,150,0.5)';ctx.beginPath();ctx.arc(11*u,-21.4*u,1.8*u,0,TAU);ctx.fill();
+  const eH2=d.blink>0?0.12:1;
+  if(d.hop>0.3||d.bubble){
+    ctx.strokeStyle='#2E2620';ctx.lineWidth=1.4*u;
+    ctx.beginPath();ctx.arc(10.4*u,-26.6*u,1.8*u,Math.PI*1.1,Math.PI*1.9);ctx.stroke();
+  }else{
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(10.4*u,-26.6*u,2.2*u,2.6*u*eH2+0.3*u,0,0,TAU);ctx.fill();
+    if(eH2>0.3){ctx.fillStyle='#2E2620';
+      ctx.beginPath();ctx.ellipse(10.8*u,-26.6*u,1.3*u,1.7*u*eH2,0,0,TAU);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,0.95)';
+      ctx.beginPath();ctx.arc(11.3*u,-27.3*u,0.5*u,0,TAU);ctx.fill();}
+  }
+  ctx.restore();
+  if(d.bubble){
+    const a=clamp(d.bubble.t/0.4,0,1);
+    ctx.save();ctx.globalAlpha=a;
+    ctx.font='600 '+Math.round(13*jSt.S)+'px "Cormorant Garamond",serif';
+    const tw=ctx.measureText(d.bubble.text).width;
+    const bx=sx-tw/2-10,by=sy-64*jSt.S-32,bw=tw+20,bh=24;
+    ctx.fillStyle='rgba(255,252,245,0.95)';
+    rr2(bx,by,bw,bh,11);ctx.fill();
+    ctx.beginPath();ctx.moveTo(sx-5,by+bh);ctx.lineTo(sx+5,by+bh);ctx.lineTo(sx+(f>0?-6:6),by+bh+8);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#4A3B33';ctx.textBaseline='middle';ctx.fillText(d.bubble.text,bx+10,by+bh/2+1);
+    ctx.restore();
+  }
+}
+
 /* ================= UPDATE ================= */
 function updateFireflies(dt){
  const target=Math.round(lerp(0,MAXFF,smooth(0.45,0.8,p)));
@@ -1390,7 +1486,7 @@ function update(dt){
  for(const cp of CAPS){if(!cp.done&&p>=cp.at){cp.done=true;showCaption(cp.txt);}}
  if(AudioEng.started){AudioEng.tick();sceneAcc+=dt;
   if(sceneAcc>0.35){sceneAcc=0;AudioEng.setScene(p);}}
- if(entered)updateJumana(dt);
+ if(entered){updateJumana(dt);updateDuck(dt);}
  if(!warp.active)Scroller.update(dt);}
 
 /* ================= DRAW HELPERS ================= */
@@ -1713,7 +1809,7 @@ function render(){
  for(const m of shroomsFG)drawShroom(m);
  for(const f of flowers)drawFlower(f);
  drawGrass();
- if(entered){drawCharacter();drawJumanaParticles();}
+ if(entered){drawDuck();drawCharacter();drawJumanaParticles();}
  drawPortal();
  ctx.globalCompositeOperation='lighter';
  drawPollen();drawFireflies();drawSpirits();

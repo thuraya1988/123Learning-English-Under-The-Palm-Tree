@@ -175,6 +175,8 @@ const POOLS=[{x:7120,y:650,rx:250,ry:26},{x:16600,y:648,rx:280,ry:30},{x:20000,y
 const CHICKS=[{x:4000,tx:4000,face:1,t:1,peck:0},{x:4160,tx:4160,face:-1,t:2,peck:0}];
 const cat={blink:0,blinkT:3};
 let grandma={x:3600,y:GY-168};
+const taha={x:11200,y:GY,face:1,state:'idle',t:0.5,tx:11200,phase:0,homeX:11400,minX:10900,maxX:12000};
+const adam={x:11700,y:GY,face:-1,state:'idle',t:1.5,tx:11700,phase:0,homeX:11500,minX:10900,maxX:12000};
 
 function genWorld(){
   const R=RNG(20260812);
@@ -622,6 +624,60 @@ function drawGoat(c,dt){
   else{c.fillStyle='#2A1B12';c.beginPath();c.ellipse(4,-3,2.6,3.2,0,0,TAU);c.fill()}
   c.restore();c.restore();
 }
+function drawTaha(c){
+  const g=taha,bob=Math.sin(T*1.6+5)*1.2;
+  c.save();c.translate(g.x,GY);c.scale(g.face,1);
+  c.fillStyle='rgba(60,35,12,.2)';c.beginPath();c.ellipse(0,3,16,4.5,0,0,TAU);c.fill();
+  const walk=(g.state==='walk')?Math.sin(g.phase)*5:0;
+  c.strokeStyle='#E8D9C4';c.lineWidth=5;c.lineCap='round';
+  c.beginPath();c.moveTo(-4,-2);c.lineTo(-4+walk,-24);c.stroke();
+  c.beginPath();c.moveTo(4,-2);c.lineTo(4-walk,-24);c.stroke();
+  c.fillStyle='#F5F5F0';c.beginPath();
+  c.moveTo(-10,-2);c.quadraticCurveTo(-13,-32,-7,-46+bob);c.lineTo(7,-46+bob);
+  c.quadraticCurveTo(13,-30,10,-2);c.closePath();c.fill();
+  c.strokeStyle='#3b2d44';c.lineWidth=1.2;c.stroke();
+  c.fillStyle='#F4C69A';c.beginPath();c.arc(0,-56+bob,8.6,0,TAU);c.fill();
+  c.fillStyle='#3a2a20';
+  c.beginPath();c.arc(0,-59+bob,9,Math.PI,0);c.fill();
+  [[-7,-64],[-2,-67],[3,-66],[7,-63]].forEach(p=>{c.beginPath();c.arc(p[0],p[1]+bob,3,0,TAU);c.fill()});
+  c.fillStyle='#5a3a2c';c.beginPath();c.arc(4,-53+bob,0.9,0,TAU);c.fill();
+  c.strokeStyle='#3b2d44';c.lineWidth=1;c.beginPath();c.arc(0,-53+bob,3,0.2,Math.PI-0.2);c.stroke();
+  c.restore();
+}
+function drawAdam(c){
+  const g=adam,bob=Math.sin(T*1.7+7)*1.2;
+  c.save();c.translate(g.x,GY);c.scale(g.face,1);
+  c.fillStyle='rgba(60,35,12,.2)';c.beginPath();c.ellipse(0,3,16,4.5,0,0,TAU);c.fill();
+  const walk=(g.state==='walk')?Math.sin(g.phase)*5:0;
+  c.strokeStyle='#E8D9C4';c.lineWidth=5;c.lineCap='round';
+  c.beginPath();c.moveTo(-4,-2);c.lineTo(-4+walk,-24);c.stroke();
+  c.beginPath();c.moveTo(4,-2);c.lineTo(4-walk,-24);c.stroke();
+  c.fillStyle='#EAF3FF';c.beginPath();
+  c.moveTo(-10,-2);c.quadraticCurveTo(-13,-32,-7,-46+bob);c.lineTo(7,-46+bob);
+  c.quadraticCurveTo(13,-30,10,-2);c.closePath();c.fill();
+  c.strokeStyle='#3b2d44';c.lineWidth=1.2;c.stroke();
+  c.fillStyle='#F4C69A';c.beginPath();c.arc(0,-56+bob,8.6,0,TAU);c.fill();
+  c.fillStyle='#6b4326';
+  c.beginPath();c.arc(0,-60+bob,9,Math.PI,0);c.fill();
+  c.strokeStyle='#8a5a33';c.lineWidth=1.4;
+  c.beginPath();c.moveTo(-6,-66+bob);c.quadraticCurveTo(-3,-62+bob,-6,-59+bob);c.stroke();
+  c.beginPath();c.moveTo(4,-67+bob);c.quadraticCurveTo(7,-63+bob,4,-60+bob);c.stroke();
+  c.strokeStyle='#2e2a3e';c.lineWidth=1;
+  c.beginPath();c.arc(-3.2,-55+bob,3,0,TAU);c.stroke();
+  c.beginPath();c.arc(3.2,-55+bob,3,0,TAU);c.stroke();
+  c.beginPath();c.moveTo(-0.2,-55+bob);c.lineTo(0.2,-55+bob);c.stroke();
+  c.restore();
+}
+function updateWanderer(w,dt){
+  if(w.t<=0){
+    w.tx=clamp(w.homeX+(Math.random()-.5)*900,w.minX,w.maxX);
+    w.t=3+Math.random()*3;
+  }
+  w.t-=dt;
+  const dx=w.tx-w.x;
+  if(Math.abs(dx)>4){w.face=dx<0?-1:1;w.x+=Math.sign(dx)*22*dt;w.state='walk';w.phase+=dt*4;}
+  else w.state='idle';
+}
 function drawSalim(c){
   const x=2850,bob=Math.sin(T*1.6)*1.2;
   c.save();c.translate(x,GY);
@@ -803,6 +859,10 @@ const HS=[
  {id:'seller',x:8450,y:GY-40,r:66,vis:()=>true,
    on:()=>talk('THE SELLER · البائعة',['Dates, honey, and good wool — come see!',
       'Taha, Adam — off exploring again? Careful near the wadi, little ones.'])},
+ {id:'taha',gx:()=>taha.x,y:GY-40,r:56,vis:()=>true,
+   on:()=>talk('TAHA · طه',['ركضنا لين هنا! Look how far we explored!','ما شفت آدم؟ كان معي قبل شوي — Have you seen Adam?'])},
+ {id:'adam',gx:()=>adam.x,y:GY-40,r:56,vis:()=>true,
+   on:()=>talk('ADAM · آدم',['لقيت حجر عجيب عند الفلج! I found a strange stone by the falaj!','لا تخبر طه — Don’t tell Taha, I want to surprise him.'])},
  {id:'maryam',x:9900,y:GY-40,r:66,vis:()=>true,
    on:()=>{if(st.bracelet===1){st.bracelet=2;st.d3=1;st.jar=1;sfxPick();sfxChime();updateHUD();
        player.mood='happy';player.moodT=1.4;
@@ -1005,6 +1065,7 @@ function update(dt){
     else if(goat.state==='flee'){goat.x+=(goat.tx-goat.x)*Math.min(1,dt*4);goat.phase+=dt*12;goat.oy=-Math.abs(Math.sin(goat.phase*1.6))*7;
       if(goat.t<=0){goat.state='idle';goat.t=1;goat.oy=0}}
     else goat.oy=0}
+  updateWanderer(taha,dt);updateWanderer(adam,dt);
   CHICKS.forEach(ch=>{ch.t-=dt;
     if(Math.abs(player.x-ch.x)<70){ch.tx=clamp(ch.x+(ch.x<player.x?-140:140),3900,4320)}
     if(Math.abs(ch.tx-ch.x)>4){ch.face=ch.tx<ch.x?-1:1;ch.x+=(ch.tx-ch.x)*Math.min(1,dt*2.4);ch.peck=0}
@@ -1075,6 +1136,8 @@ function render(dt){
   if(x1>21800)drawBanana(c,22100,1.1);
   drawBirds(c);
   drawSalim(c);drawMaryam(c);drawSellerGirl(c);drawCat(c);
+  if(taha.x>x0-40&&taha.x<x1+40)drawTaha(c);
+  if(adam.x>x0-40&&adam.x<x1+40)drawAdam(c);
   CHICKS.forEach(ch=>drawChicken(c,ch));
   drawGoat(c,dt);
   if(started)drawPlayer(c,dt);

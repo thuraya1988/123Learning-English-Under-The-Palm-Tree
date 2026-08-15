@@ -1723,20 +1723,70 @@ function updateBursts(dt) {
 /* ---------------- AUDIO ---------------- */
 function startEngineAudio() {
   try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; }
+  startMusic();
 }
-function playTone(freq, dur, type) {
+function playTone(freq, dur, type, vol, at) {
   if (!audioCtx) return;
+  const t = at ?? audioCtx.currentTime;
   const o = audioCtx.createOscillator();
   const g = audioCtx.createGain();
   o.type = type || 'sine';
-  o.frequency.value = freq;
-  g.gain.setValueAtTime(0.12, audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+  o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(vol ?? 0.12, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(audioCtx.destination);
-  o.start();
-  o.stop(audioCtx.currentTime + dur + 0.03);
+  o.start(t);
+  o.stop(t + dur + 0.03);
+}
+/* filtered white-noise burst — the "crunch" texture a pure oscillator
+   can't produce, ported from the reference's noise-synthesis technique
+   for impact/explosion sounds. */
+let noiseBuf = null;
+function noiseBurst(dur, vol, f0, f1) {
+  if (!audioCtx) return;
+  if (!noiseBuf) {
+    noiseBuf = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const t = audioCtx.currentTime;
+  const s = audioCtx.createBufferSource();
+  s.buffer = noiseBuf;
+  const f = audioCtx.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.setValueAtTime(f0, t);
+  f.frequency.exponentialRampToValueAtTime(Math.max(f1, 20), t + dur);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(audioCtx.destination);
+  s.start(t); s.stop(t + dur + 0.03);
+}
+/* quiet ambient bass+arp loop so flight isn't silent between event
+   sounds — a simplified version of the reference's step sequencer. */
+let musicTimer = null, musicStep = 0, musicNextT = 0;
+const MUSIC_BASS = [98, 98, 116.5, 87.3];
+const MUSIC_ARP = [392, 466.2, 587.3, 698.5, 784, 587.3, 466.2, 523.3];
+function startMusic() {
+  if (musicTimer || !audioCtx) return;
+  musicStep = 0;
+  musicNextT = audioCtx.currentTime + 0.2;
+  musicTimer = setInterval(() => {
+    if (!audioCtx) return;
+    while (musicNextT < audioCtx.currentTime + 0.4) {
+      const bar = Math.floor(musicStep / 8) % 4;
+      if (musicStep % 8 === 0) playTone(MUSIC_BASS[bar], 1.0, 'triangle', 0.05, musicNextT);
+      if (musicStep % 4 === 2) playTone(MUSIC_ARP[(musicStep / 2) % 8], 0.3, 'sine', 0.025, musicNextT);
+      musicStep = (musicStep + 1) % 32;
+      musicNextT += 0.32;
+    }
+  }, 140);
+}
+function stopMusic() {
+  if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
 }
 function stopAudio() {
+  stopMusic();
   if (audioCtx) { try { audioCtx.close(); } catch (e) {} }
   audioCtx = null;
 }
@@ -1862,6 +1912,7 @@ function update(dt) {
       a.active = false;
       a.mesh.visible = false;
       playTone(140, 0.25, 'sawtooth');
+      noiseBurst(0.2, 0.1, 1800, 200);
     }
   });
   gs.invuln = Math.max(0, gs.invuln - dt);
@@ -1931,6 +1982,8 @@ function update(dt) {
     $('#hud-warning').style.display = distAhead < 45 && distAhead > -6 ? 'inline-block' : 'none';
     const d = blackHole.position.distanceTo(ship.position);
     if (d < 3.4) {
+      noiseBurst(0.5, 0.14, 900, 60);
+      playTone(120, 0.45, 'sine');
       endFlight('hole');
     } else if (blackHole.position.z > 14) {
       blackHole.visible = false;

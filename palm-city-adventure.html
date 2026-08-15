@@ -560,90 +560,493 @@ const PAD_START=[0,30],PAD_WATER=[-90,-40],PAD_RESCUE=[90,-50];
 pad(...PAD_START,0xffb547);pad(...PAD_WATER,0x57d9ff);pad(...PAD_RESCUE,0xff6b5e);
 
 /* ============================================================
-   HELICOPTER — detailed build
+   HELICOPTER — detailed build, ported from the user's dedicated
+   showcase model (real PBR canvas-painted panels, full cockpit,
+   working doors/hinges, spring-loaded skids). Only the aircraft
+   itself is ported — the showcase's own ground/sky/reflection-probe
+   setup is skipped since the game already has its own village scene.
+   bodyGrp / rotorGrp / tailRotor / stick / collective / hookGrp /
+   cable / spot are the exact names the flight-physics code below
+   drives every frame, so the showcase's rotorSpin/tailSpin are
+   aliased to those, and winch/searchlight/collective — absent from
+   a static showcase — are added to fit the rescue gameplay.
 ============================================================ */
 const heli=new THREE.Group();scene.add(heli);
 const bodyGrp=new THREE.Group();heli.add(bodyGrp);
-const bodyMat=mat({color:0xd94f3d,roughness:.5,metalness:.15});
-const whiteMat=mat({color:0xf2f2ec,roughness:.5,metalness:.1});
-const darkMat=mat({color:0x2b2f33,roughness:.6,metalness:.3});
-const glassMat=new THREE.MeshPhysicalMaterial({color:0xbfe6ff,transparent:true,opacity:.32,roughness:.05,metalness:0,
-  transmission:.6,side:THREE.DoubleSide,envMapIntensity:1});
 
-// Fuselage: rounded body from scaled sphere + nose
-const fus=new THREE.Mesh(new THREE.SphereGeometry(1,24,20),bodyMat);
-fus.scale.set(1.05,1.05,2.1);fus.position.set(0,.1,0);fus.castShadow=true;bodyGrp.add(fus);
-// belly (flatter underside)
-const belly=new THREE.Mesh(new THREE.SphereGeometry(.98,20,16),bodyMat);
-belly.scale.set(1,0.7,1.9);belly.position.set(0,-.25,.1);belly.castShadow=true;bodyGrp.add(belly);
-// cockpit glass dome (separate element)
-const glass=new THREE.Mesh(new THREE.SphereGeometry(.92,24,18,0,Math.PI*2,0,Math.PI*.55),glassMat);
-glass.scale.set(.95,.95,1.15);glass.position.set(0,.35,-1.35);glass.rotation.x=Math.PI*.42;bodyGrp.add(glass);
-// windshield frames
-const frame=mat({color:0x33383d,roughness:.6});
-const f1=new THREE.Mesh(new THREE.TorusGeometry(.9,.05,8,24,Math.PI),frame);
-f1.position.set(0,.5,-1.5);f1.rotation.x=.3;f1.scale.set(1,1,1.1);bodyGrp.add(f1);
-// engine housing on top
-const eng=box(.9,.5,1.4,whiteMat,0,1.02,.4);bodyGrp.add(eng);
-const intake=cyl(.18,.22,.5,darkMat,-.5,1.02,-.1,10);intake.rotation.z=Math.PI/2;bodyGrp.add(intake);
-const intake2=intake.clone();intake2.position.x=.5;bodyGrp.add(intake2);
-const exhaust=cyl(.13,.16,.6,darkMat,0,1.0,1.2,10);exhaust.rotation.x=Math.PI/2;bodyGrp.add(exhaust);
-// vents / panel lines
-for(let i=0;i<3;i++)bodyGrp.add(box(.05,.2,.6,darkMat,-.98,.3,.2+i*0));
-bodyGrp.add(box(.02,.5,1.2,frame,-1.02,.2,.3));bodyGrp.add(box(.02,.5,1.2,frame,1.02,.2,.3));
-// tail boom
-const boom=new THREE.Mesh(new THREE.CylinderGeometry(.18,.5,4.2,14),bodyMat);
-boom.rotation.x=Math.PI/2;boom.position.set(0,.35,3.2);boom.castShadow=true;bodyGrp.add(boom);
-// tail fin
-const fin=box(.14,1.5,.7,bodyMat,0,1.1,5.1);bodyGrp.add(fin);
-const stab=box(1.6,.12,.5,bodyMat,0,.5,4.6);bodyGrp.add(stab);
-// tail rotor group
-const tailRotor=new THREE.Group();tailRotor.position.set(.18,1.1,5.15);bodyGrp.add(tailRotor);
-const tHub=cyl(.12,.12,.16,darkMat,0,0,0,10);tHub.rotation.z=Math.PI/2;tailRotor.add(tHub);
-for(let i=0;i<3;i++){const b=box(.06,1.0,.14,darkMat,0,0,0);b.position.y=0;b.rotation.x=i*(Math.PI*2/3);
-  const blade=box(.07,.95,.13,darkMat);blade.position.y=.55;b.add(blade);tailRotor.add(b);}
-// main rotor
-const rotorGrp=new THREE.Group();rotorGrp.position.set(0,1.45,.3);bodyGrp.add(rotorGrp);
-const mast=cyl(.12,.14,.5,darkMat,0,-.2,0,12);rotorGrp.add(mast);
-const hub=cyl(.28,.3,.25,darkMat,0,.1,0,12);rotorGrp.add(hub);
-for(let i=0;i<4;i++){const arm=new THREE.Group();arm.rotation.y=i*Math.PI/2;
-  const bl=box(.28,.06,4.6,mat({color:0x1f2326,roughness:.6}));bl.position.z=2.4;bl.rotation.z=.03;arm.add(bl);rotorGrp.add(arm);}
-// skids
-const skidMat=mat({color:0x3a3f44,roughness:.6,metalness:.4});
-for(const s of[-1,1]){
-  const skid=cyl(.08,.08,3.4,skidMat,s*.95,-1.35,.2,10);skid.rotation.x=Math.PI/2;bodyGrp.add(skid);
-  const tip=new THREE.Mesh(new THREE.SphereGeometry(.09,8,8),skidMat);tip.position.set(s*.95,-1.35,-1.5);bodyGrp.add(tip);
-  for(const zz of[-.9,.9]){const sup=cyl(.06,.06,1.0,skidMat,s*.85,-.85,zz,8);sup.rotation.z=s*.25;bodyGrp.add(sup);}
+const maxAniso=renderer.capabilities.getMaxAnisotropy();
+function makeHeliTex(w,h,painter){
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  painter(c.getContext('2d'),w,h);
+  const t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=maxAniso;t.colorSpace=THREE.SRGBColorSpace;
+  return t;
 }
-// searchlight
+function hexA(hex,a){const n=parseInt(hex.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;}
+function mottle(g,w,h,n,r0,r1,cols,a0,a1){
+  for(let i=0;i<n;i++){
+    const x=Math.random()*w,y=Math.random()*h,r=r0+Math.random()*(r1-r0);
+    const gr=g.createRadialGradient(x,y,0,x,y,r);
+    const c=cols[(Math.random()*cols.length)|0];
+    gr.addColorStop(0,hexA(c,a0+Math.random()*(a1-a0)));gr.addColorStop(1,hexA(c,0));
+    g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2);
+  }
+}
+function speckle(g,w,h,n,cols,a0,a1,s0,s1){
+  for(let i=0;i<n;i++){
+    g.globalAlpha=a0+Math.random()*(a1-a0);g.fillStyle=cols[(Math.random()*cols.length)|0];
+    const s=s0+Math.random()*(s1-s0);
+    g.fillRect(Math.random()*w,Math.random()*h,s,s*(0.6+Math.random()*0.8));
+  }
+  g.globalAlpha=1;
+}
+function scratch(g,w,h,n,col,a0,a1,l0,l1,lw){
+  g.lineCap='round';
+  for(let i=0;i<n;i++){
+    g.strokeStyle=col;g.globalAlpha=a0+Math.random()*(a1-a0);g.lineWidth=lw||1;
+    const x=Math.random()*w,y=Math.random()*h,an=Math.random()*Math.PI*2,l=l0+Math.random()*(l1-l0);
+    g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.cos(an)*l,y+Math.sin(an)*l);g.stroke();
+  }
+  g.globalAlpha=1;
+}
+function drawPalmEmblem(g,cx,cy,s,dark){
+  g.strokeStyle=dark;g.lineCap='round';g.lineWidth=s*0.09;
+  g.beginPath();g.moveTo(cx-s*0.06,cy+s*0.5);
+  g.quadraticCurveTo(cx+s*0.10,cy+s*0.1,cx+s*0.02,cy-s*0.25);g.stroke();
+  g.lineWidth=s*0.055;const tx=cx+s*0.02,ty=cy-s*0.25;
+  for(let i=0;i<7;i++){
+    const a=-Math.PI*0.95+i*(Math.PI*0.9/6);
+    g.beginPath();g.moveTo(tx,ty);
+    g.quadraticCurveTo(tx+Math.cos(a)*s*0.32,ty+Math.sin(a)*s*0.32-s*0.08,tx+Math.cos(a)*s*0.5,ty+Math.sin(a)*s*0.42+s*0.1);
+    g.stroke();
+  }
+}
+const SEAMV=[0.10,0.20,0.34,0.465,0.585,0.70,0.82,0.92];
+const SEAMU=[0.07,0.19,0.32,0.46,0.58,0.71,0.84,0.95];
+function paintBody(g,w,h){
+  const grd=g.createLinearGradient(0,0,0,h);
+  grd.addColorStop(0,'#efe6cf');grd.addColorStop(0.5,'#e7dabd');grd.addColorStop(1,'#d8c9a8');
+  g.fillStyle=grd;g.fillRect(0,0,w,h);
+  mottle(g,w,h,34,40,140,['#f4ecd8','#cfc0a0','#e0d2b2','#c4b492'],0.08,0.18);
+  g.fillStyle='rgba(112,86,58,0.28)';g.fillRect(0,h*0.62,w,h*0.38);
+  mottle(g,w,h,26,18,70,['#70563a','#5c452e','#82683f'],0.10,0.30);
+  g.fillStyle='#4a3527';g.fillRect(0,h*0.455,w,h*0.035);
+  g.fillStyle='#c4672a';g.fillRect(0,h*0.49,w,h*0.115);
+  g.fillStyle='#a8521f';g.fillRect(0,h*0.585,w,h*0.02);
+  speckle(g,w,h,1600,['#d1793a','#b25c24','#d8874a'],0.05,0.14,1,2.5);
+  for(const u of[0.245,0.755]){
+    const cx=u*w,cy=h*0.30;
+    g.fillStyle='#f0e6cd';g.beginPath();g.arc(cx,cy,58,0,6.283);g.fill();
+    g.strokeStyle='#4a3527';g.lineWidth=5;g.beginPath();g.arc(cx,cy,58,0,6.283);g.stroke();
+    g.strokeStyle='#c4672a';g.lineWidth=2.5;g.beginPath();g.arc(cx,cy,50,0,6.283);g.stroke();
+    drawPalmEmblem(g,cx,cy,84,'#3d4a26');
+  }
+  g.strokeStyle='rgba(74,58,40,0.5)';g.lineWidth=2;
+  for(const v of SEAMV){g.beginPath();g.moveTo(0,(1-v)*h);g.lineTo(w,(1-v)*h);g.stroke();}
+  g.strokeStyle='rgba(74,58,40,0.32)';
+  for(const u of SEAMU){g.beginPath();g.moveTo(u*w,0);g.lineTo(u*w,h);g.stroke();}
+  g.fillStyle='rgba(84,66,46,0.85)';
+  for(const v of SEAMV)for(let x=8;x<w;x+=15){g.beginPath();g.arc(x,(1-v)*h+6,1.7,0,6.283);g.fill();}
+  for(const u of SEAMU)for(let y=10;y<h;y+=22){g.beginPath();g.arc(u*w+5,y,1.5,0,6.283);g.fill();}
+  scratch(g,w,h,70,'rgba(255,250,235,1)',0.08,0.30,8,60,1);
+  scratch(g,w,h,40,'rgba(60,48,36,1)',0.08,0.24,6,40,1);
+  speckle(g,w,h,900,['#fff8e8','#3a2f22','#b09a74'],0.04,0.12,1,2);
+  mottle(g,w,h,12,20,60,['#3a352e','#26221c'],0.12,0.30);
+}
+function paintBodyBump(g,w,h){
+  g.fillStyle='#808080';g.fillRect(0,0,w,h);
+  g.strokeStyle='#4c4c4c';g.lineWidth=2.4;
+  for(const v of SEAMV){g.beginPath();g.moveTo(0,(1-v)*h);g.lineTo(w,(1-v)*h);g.stroke();}
+  for(const u of SEAMU){g.beginPath();g.moveTo(u*w,0);g.lineTo(u*w,h);g.stroke();}
+  g.fillStyle='#c8c8c8';
+  for(const v of SEAMV)for(let x=8;x<w;x+=15){g.beginPath();g.arc(x,(1-v)*h+6,1.8,0,6.283);g.fill();}
+  for(const u of SEAMU)for(let y=10;y<h;y+=22){g.beginPath();g.arc(u*w+5,y,1.6,0,6.283);g.fill();}
+  scratch(g,w,h,55,'rgba(160,160,160,1)',0.10,0.30,8,50,1);
+  mottle(g,w,h,14,15,50,['#6a6a6a','#909090'],0.08,0.18);
+}
+function paintTail(g,w,h){
+  const grd=g.createLinearGradient(0,0,0,h);
+  grd.addColorStop(0,'#efe6cf');grd.addColorStop(1,'#ddceac');
+  g.fillStyle=grd;g.fillRect(0,0,w,h);
+  mottle(g,w,h,24,30,110,['#f2ead6','#cbbd9c'],0.08,0.16);
+  g.fillStyle='#c4672a';g.fillRect(w*0.46,0,w*0.09,h);
+  g.fillStyle='#4a3527';g.fillRect(w*0.435,0,w*0.018,h);g.fillRect(w*0.558,0,w*0.014,h);
+  g.strokeStyle='rgba(74,58,40,0.5)';g.lineWidth=2;
+  for(const v of[0.12,0.3,0.5,0.7,0.88]){g.beginPath();g.moveTo(0,(1-v)*h);g.lineTo(w,(1-v)*h);g.stroke();}
+  g.fillStyle='rgba(84,66,46,0.85)';
+  for(const v of[0.12,0.3,0.5,0.7,0.88])for(let x=8;x<w;x+=14){g.beginPath();g.arc(x,(1-v)*h+5,1.6,0,6.283);g.fill();}
+  scratch(g,w,h,50,'rgba(255,250,235,1)',0.07,0.26,6,46,1);
+  g.fillStyle='rgba(112,86,58,0.22)';g.fillRect(0,h*0.66,w,h*0.34);
+  speckle(g,w,h,500,['#70563a','#8a6a44'],0.05,0.18,1,2);
+}
+function paintDarkMetal(g,w,h){
+  g.fillStyle='#34373b';g.fillRect(0,0,w,h);
+  mottle(g,w,h,30,20,90,['#43484d','#26292d','#3c4045','#1e2124'],0.12,0.30);
+  speckle(g,w,h,5000,['#4a4f54','#2a2d31','#55595e','#212428'],0.05,0.20,1,2);
+  scratch(g,w,h,80,'rgba(168,173,178,1)',0.08,0.30,6,46,1);
+  scratch(g,w,h,26,'rgba(196,120,60,1)',0.06,0.18,4,26,1);
+  mottle(g,w,h,16,15,55,['#1a140e','#241a10'],0.12,0.32);
+  speckle(g,w,h,500,['#7a5a38','#8a6a44'],0.06,0.20,1,2);
+}
+function paintFabric(g,w,h){
+  g.fillStyle='#3f464e';g.fillRect(0,0,w,h);
+  for(let y=0;y<h;y+=3){g.fillStyle=(y/3)%2?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.05)';g.fillRect(0,y,w,1);}
+  for(let x=0;x<w;x+=3){g.fillStyle=(x/3)%2?'rgba(255,255,255,0.025)':'rgba(0,0,0,0.04)';g.fillRect(x,0,1,h);}
+  mottle(g,w,h,18,30,100,['#4a525b','#333a42'],0.08,0.18);
+  g.strokeStyle='#565e66';g.lineWidth=2;g.setLineDash([5,4]);
+  for(const fx of[0.30,0.70]){g.beginPath();g.moveTo(fx*w,0);g.lineTo(fx*w,h);g.stroke();}
+  g.setLineDash([]);
+}
+function paintInterior(g,w,h){
+  g.fillStyle='#26282b';g.fillRect(0,0,w,h);
+  speckle(g,w,h,3000,['#2e3134','#1d1f22','#34373b'],0.06,0.20,1,2);
+  scratch(g,w,h,24,'rgba(120,124,128,1)',0.05,0.14,4,26,1);
+}
+function paintAntiSlip(g,w,h){
+  g.fillStyle='#23262a';g.fillRect(0,0,w,h);
+  g.fillStyle='#34383d';
+  for(let y=6;y<h;y+=12)for(let x=6+((y/12)%2)*6;x<w;x+=12){g.beginPath();g.arc(x,y,2.6,0,6.283);g.fill();}
+  speckle(g,w,h,1200,['#1a1c1f','#3c4045'],0.08,0.22,1,2);
+}
+function paintGrille(g,w,h){
+  g.fillStyle='#14161a';g.fillRect(0,0,w,h);
+  g.fillStyle='#2a2e34';
+  for(let y=6;y<h;y+=16)g.fillRect(4,y,w-8,7);
+  speckle(g,w,h,800,['#3a3f46','#101214'],0.08,0.22,1,2);
+}
+function paintBlade(g,w,h){
+  g.fillStyle='#26282b';g.fillRect(0,0,w,h);
+  for(let y=0;y<h;y+=6){g.fillStyle=y%12?'rgba(255,255,255,0.02)':'rgba(0,0,0,0.05)';g.fillRect(0,y,w,3);}
+  speckle(g,w,h,2200,['#33363a','#1b1d1f','#3f4348'],0.05,0.18,1,2);
+  g.fillStyle='rgba(200,205,210,0.14)';
+  for(let i=0;i<260;i++)g.fillRect(Math.random()*w*0.2,Math.random()*h,1.6,1.6);
+  g.fillStyle='#d8b23a';g.fillRect(0,0,w,h*0.055);
+  g.fillStyle='#efe9dc';g.fillRect(0,h*0.055,w,h*0.016);
+  g.fillStyle='#17181a';g.fillRect(0,h*0.94,w,h*0.06);
+}
+function paintScreen(g,w,h,kind){
+  g.fillStyle=kind==='pfd'?'#06131a':'#061014';g.fillRect(0,0,w,h);
+  g.strokeStyle='#1d3a4a';g.lineWidth=2;g.strokeRect(3,3,w-6,h-6);
+  if(kind==='pfd'){
+    g.fillStyle='#2c6da8';g.fillRect(14,14,w-28,(h-28)*0.5);
+    g.fillStyle='#6b4a2c';g.fillRect(14,14+(h-28)*0.5,w-28,(h-28)*0.5);
+    g.strokeStyle='#e8f0f4';g.lineWidth=2;
+    g.beginPath();g.moveTo(14,h/2);g.lineTo(w-14,h/2);g.stroke();
+    g.lineWidth=1;
+    for(let i=1;i<4;i++){
+      g.beginPath();g.moveTo(w/2-26,h/2-i*14);g.lineTo(w/2+26,h/2-i*14);g.stroke();
+      g.beginPath();g.moveTo(w/2-26,h/2+i*14);g.lineTo(w/2+26,h/2+i*14);g.stroke();
+    }
+    g.strokeStyle='#ffd24a';g.lineWidth=3;
+    g.beginPath();g.moveTo(w/2-34,h/2);g.lineTo(w/2-10,h/2);g.lineTo(w/2,h/2+7);
+    g.lineTo(w/2+10,h/2);g.lineTo(w/2+34,h/2);g.stroke();
+    g.fillStyle='#4ad07a';
+    for(let i=0;i<7;i++)g.fillRect(18+i*((w-36)/7),h-22,8,4);
+  }else{
+    g.strokeStyle='#4ad07a';g.lineWidth=2;
+    g.strokeRect(14,14,(w-40)*0.44,h-40);
+    g.fillStyle='#4ad07a';
+    for(let i=0;i<5;i++)g.fillRect(20,22+i*22,(w-40)*0.44*((i*37)%60+30)/100,8);
+    g.beginPath();g.arc(w*0.72,h*0.34,22,0.7,5.9);g.stroke();
+    g.beginPath();g.arc(w*0.72,h*0.72,22,1.2,6.2);g.stroke();
+  }
+}
+function paintGauge(g,w,h){
+  g.fillStyle='#0d1114';g.fillRect(0,0,w,h);
+  const cx=w/2,cy=h/2,r=w*0.42;
+  g.strokeStyle='#c8ccd0';g.lineWidth=2;
+  g.beginPath();g.arc(cx,cy,r,0,6.283);g.stroke();
+  g.lineWidth=1.5;
+  for(let i=0;i<12;i++){
+    const a=i/12*Math.PI*2;
+    g.beginPath();g.moveTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);
+    g.lineTo(cx+Math.cos(a)*r*0.82,cy+Math.sin(a)*r*0.82);g.stroke();
+  }
+  g.strokeStyle='#ff5a3c';g.lineWidth=2.5;
+  g.beginPath();g.moveTo(cx,cy);g.lineTo(cx+Math.cos(-0.8)*r*0.75,cy+Math.sin(-0.8)*r*0.75);g.stroke();
+  g.fillStyle='#c8ccd0';g.beginPath();g.arc(cx,cy,3.4,0,6.283);g.fill();
+}
+function paintReg(g,w,h){
+  g.clearRect(0,0,w,h);
+  g.fillStyle='#3d2f22';g.font='700 44px Cairo, sans-serif';
+  g.textAlign='center';g.textBaseline='middle';
+  g.fillText('UPT-07',w/2,h/2);
+}
+function paintHeliBlur(g,w,h){
+  const gr=g.createRadialGradient(w/2,h/2,w*0.08,w/2,h/2,w/2);
+  gr.addColorStop(0,'rgba(210,205,195,0)');gr.addColorStop(0.5,'rgba(210,205,195,0.10)');
+  gr.addColorStop(0.9,'rgba(210,205,195,0.24)');gr.addColorStop(1,'rgba(210,205,195,0)');
+  g.fillStyle=gr;g.fillRect(0,0,w,h);
+}
+
+const texBody=makeHeliTex(1024,1024,paintBody);
+const texBodyB=makeHeliTex(1024,1024,paintBodyBump);
+const texTail=makeHeliTex(1024,1024,paintTail);
+const texMetal=makeHeliTex(512,512,paintDarkMetal);
+const texFabric=makeHeliTex(512,512,paintFabric);
+const texInter=makeHeliTex(256,256,paintInterior);
+const texSlip=makeHeliTex(256,256,paintAntiSlip);texSlip.repeat.set(3,3);
+const texGrille=makeHeliTex(256,256,paintGrille);
+const texBlade=makeHeliTex(256,512,paintBlade);
+const texHeliBlur=makeHeliTex(256,256,paintHeliBlur);
+const texPFD=makeHeliTex(256,200,(g,w,h)=>paintScreen(g,w,h,'pfd'));
+const texMFD=makeHeliTex(256,200,(g,w,h)=>paintScreen(g,w,h,'mfd'));
+const texGauge=makeHeliTex(128,128,paintGauge);
+const texReg=makeHeliTex(256,64,paintReg);
+
+const hstd=o=>new THREE.MeshStandardMaterial(o);
+const matBody=hstd({map:texBody,bumpMap:texBodyB,bumpScale:0.035,roughness:0.48,metalness:0.30});
+const matTail=hstd({map:texTail,bumpMap:texBodyB,bumpScale:0.03,roughness:0.5,metalness:0.3});
+const matMetal=hstd({map:texMetal,bumpMap:texMetal,bumpScale:0.05,roughness:0.42,metalness:0.75});
+const matFabric=hstd({map:texFabric,bumpMap:texFabric,bumpScale:0.04,roughness:0.95,metalness:0});
+const matInter=hstd({map:texInter,roughness:0.78,metalness:0.1});
+const matSlip=hstd({map:texSlip,roughness:0.92,metalness:0.15});
+const matGrille=hstd({map:texGrille,bumpMap:texGrille,bumpScale:0.04,roughness:0.85,metalness:0.35});
+const matBlade=hstd({map:texBlade,roughness:0.55,metalness:0.25});
+const matBlack=hstd({color:0x17181a,roughness:0.8,metalness:0.2});
+const matRubber=hstd({color:0x1d1e20,roughness:0.95,metalness:0});
+const darkMat=matBlack;
+const glassMat=new THREE.MeshPhysicalMaterial({color:0xcfe0e6,metalness:0,roughness:0.05,transmission:0.92,
+  thickness:0.03,ior:1.5,envMapIntensity:1.1,side:THREE.DoubleSide,transparent:true});
+
+function M(geo,mtl,x=0,y=0,z=0,rx=0,ry=0,rz=0,parent=bodyGrp){
+  const m=new THREE.Mesh(geo,mtl);
+  m.position.set(x,y,z);m.rotation.set(rx,ry,rz);
+  m.castShadow=true;m.receiveShadow=true;
+  parent.add(m);
+  return m;
+}
+function tubeBetween(a,b,r,mtl,parent){
+  const d=new THREE.Vector3().subVectors(b,a);const len=d.length();
+  const m=M(new THREE.CylinderGeometry(r,r,len,10),mtl,0,0,0,0,0,0,parent);
+  m.position.copy(a).addScaledVector(d,0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());
+  return m;
+}
+const heliBoltGeo=new THREE.CylinderGeometry(0.012,0.013,0.022,6);
+const heliYAxis=new THREE.Vector3(0,1,0);
+function bolt(x,y,z,dx,dy,dz,parent=bodyGrp){
+  const m=M(heliBoltGeo,matMetal,x,y,z,0,0,0,parent);
+  m.quaternion.setFromUnitVectors(heliYAxis,new THREE.Vector3(dx,dy,dz).normalize());
+  return m;
+}
+
+/* --- جسم الطائرة (بودرة معدنية انسيابية) --- */
+const podPts=[
+  [-1.80,0.30],[-1.55,0.46],[-1.10,0.62],[-0.60,0.76],[-0.10,0.84],
+  [0.35,0.86],[0.80,0.82],[1.20,0.68],[1.50,0.48],[1.72,0.24],[1.82,0.06]
+].map(p=>new THREE.Vector2(p[1],p[0]));
+const pod=M(new THREE.LatheGeometry(podPts,48),matBody,0,1.30,0.35,Math.PI/2,0,0);
+pod.scale.set(0.8,1,0.95);
+
+const canopyPts=[
+  [0.18,0.875],[0.60,0.885],[1.00,0.845],[1.35,0.70],
+  [1.62,0.50],[1.78,0.27],[1.84,0.07]
+].map(p=>new THREE.Vector2(p[1],p[0]));
+const canopyGeo=new THREE.LatheGeometry(canopyPts,36,Math.PI/2,Math.PI);
+const canopy=M(canopyGeo,glassMat,0,1.30,0.35,Math.PI/2,0,0);
+canopy.scale.set(0.8,1,0.95);canopy.renderOrder=10;
+
+M(new THREE.BoxGeometry(1.42,0.05,0.07),matMetal,0,1.31,0.52);
+M(new THREE.BoxGeometry(0.035,0.05,1.5),matMetal,0.60,1.34,1.2,0.24,0,0);
+M(new THREE.BoxGeometry(0.035,0.05,1.5),matMetal,-0.60,1.34,1.2,0.24,0,0);
+
+const heliBoom=M(new THREE.CylinderGeometry(0.27,0.10,4.4,24),matTail,0,1.43,-3.35,Math.PI/2+0.05,0,0);
+const boomR=z=>0.27+(z+1.15)*0.0386;
+for(const z of[-2.2,-3.35,-4.6])M(new THREE.TorusGeometry(boomR(z)+0.004,0.008,8,28),matMetal,0,1.43-(z+3.35)*0.05,z);
+M(new THREE.TorusGeometry(0.30,0.012,8,30),matMetal,0,1.42,-1.30);
+tubeBetween(new THREE.Vector3(0,1.72,-1.4),new THREE.Vector3(0,2.58,-5.4),0.028,matMetal);
+
+M(new THREE.BoxGeometry(0.07,1.5,0.52),matTail,0,2.15,-5.45);
+M(new THREE.BoxGeometry(0.06,0.45,0.34),matTail,0,1.28,-5.38);
+M(new THREE.BoxGeometry(1.55,0.04,0.36),matTail,0,1.62,-4.5);
+M(new THREE.BoxGeometry(0.04,0.16,0.30),matTail,0.77,1.62,-4.5);
+M(new THREE.BoxGeometry(0.04,0.16,0.30),matTail,-0.77,1.62,-4.5);
+for(let i=0;i<4;i++)bolt(0.045,1.7+i*0.32,-5.45,1,0,0);
+M(new THREE.CylinderGeometry(0.012,0.014,0.05,10),matMetal,0,2.92,-5.45);
+const beacon=M(new THREE.SphereGeometry(0.03,14,10),hstd({color:0x330805,emissive:0xff2a18,emissiveIntensity:2,roughness:0.4}),0,2.96,-5.45);
+
+M(new THREE.BoxGeometry(0.68,0.46,1.4),matTail,0,2.16,-0.7);
+M(new THREE.BoxGeometry(0.70,0.06,0.06),matMetal,0,2.16,-0.05);
+M(new THREE.BoxGeometry(0.70,0.06,0.06),matMetal,0,2.16,-1.38);
+M(new THREE.BoxGeometry(0.03,0.2,0.55),matGrille,0.345,2.20,-0.85);
+M(new THREE.BoxGeometry(0.03,0.2,0.55),matGrille,-0.345,2.20,-0.85);
+M(new THREE.BoxGeometry(0.4,0.14,0.03),matGrille,0,2.24,-0.02);
+M(new THREE.CylinderGeometry(0.055,0.06,0.5,14),matMetal,0.18,2.22,-1.55,Math.PI/2+0.25,0,0);
+M(new THREE.CylinderGeometry(0.042,0.042,0.02,12),matBlack,0.18,2.28,-1.78,Math.PI/2+0.25,0,0);
+tubeBetween(new THREE.Vector3(0.3,1.95,-0.35),new THREE.Vector3(0.28,1.72,0.0),0.012,matMetal);
+tubeBetween(new THREE.Vector3(-0.3,1.95,-0.35),new THREE.Vector3(-0.28,1.72,0.0),0.012,matMetal);
+for(const p of[[0.3,2.3,-0.3],[0.3,2.3,-1.1],[-0.3,2.3,-0.3],[-0.3,2.3,-1.1]])bolt(p[0],p[1],p[2],0,1,0);
+
+M(new THREE.CylinderGeometry(0.16,0.22,0.22,20),matBody,0,2.22,0.15);
+M(new THREE.CylinderGeometry(0.085,0.09,0.46,16),matMetal,0,2.35,0.15);
+M(new THREE.CylinderGeometry(0.30,0.32,0.03,28),matMetal,0,2.54,0.15);
+M(new THREE.TorusGeometry(0.30,0.016,8,32),matBlack,0,2.54,0.15,Math.PI/2,0,0);
+
+const rotorGrp=new THREE.Group();rotorGrp.position.set(0,2.64,0.15);bodyGrp.add(rotorGrp);
+M(new THREE.CylinderGeometry(0.22,0.24,0.05,24),matMetal,0,0,0,0,0,0,rotorGrp);
+M(new THREE.CylinderGeometry(0.05,0.06,0.09,6),matMetal,0,0.09,0,0,0,0,rotorGrp);
+function heliBladeGeo(len,cR,cT,th,tw){
+  const geo=new THREE.BoxGeometry(1,1,1,1,1,10);const pos=geo.attributes.position;
+  for(let i=0;i<pos.count;i++){
+    const vx=pos.getX(i),vy=pos.getY(i),t=pos.getZ(i)+0.5;
+    const chord=cR+(cT-cR)*t,thi=th*(1-0.35*t),a=tw*t;
+    const cx=vx*chord,cy=vy*thi;
+    pos.setXYZ(i,cx*Math.cos(a)-cy*Math.sin(a),cx*Math.sin(a)+cy*Math.cos(a),len*t);
+  }
+  geo.computeVertexNormals();return geo;
+}
+const mainBladeGeo=heliBladeGeo(4.85,0.30,0.15,0.045,0.30);
+for(let i=0;i<4;i++){
+  const a=i*Math.PI/2,cx=Math.cos(a),sz=Math.sin(a);
+  M(new THREE.BoxGeometry(0.30,0.11,0.15),matMetal,cx*0.42,0,sz*0.42,0,-a,0,rotorGrp);
+  bolt(cx*0.42+cx*0.16,0.06,sz*0.42+sz*0.16,cx,1,sz,rotorGrp);
+  bolt(cx*0.42-sz*0.07,0.06,sz*0.42+cx*0.07,cx,1,sz,rotorGrp);
+  bolt(cx*0.42+sz*0.07,0.06,sz*0.42-cx*0.07,cx,1,sz,rotorGrp);
+  M(new THREE.CylinderGeometry(0.018,0.018,0.18,10),matMetal,cx*0.30,-0.09,sz*0.30,0,0,0,rotorGrp);
+  const piv=new THREE.Group();piv.position.set(cx*0.52,0.02,sz*0.52);piv.rotation.y=Math.PI/2-a;rotorGrp.add(piv);
+  M(mainBladeGeo,matBlade,0,0,0,-0.05,0,0,piv);
+}
+const blurMain=new THREE.Mesh(new THREE.CircleGeometry(5.45,48),
+  new THREE.MeshBasicMaterial({map:texHeliBlur,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
+blurMain.rotation.x=-Math.PI/2;blurMain.position.set(0,2.70,0.15);bodyGrp.add(blurMain);
+
+const tailRotor=new THREE.Group();tailRotor.position.set(-0.15,2.45,-5.50);bodyGrp.add(tailRotor);
+M(new THREE.BoxGeometry(0.12,0.18,0.2),matMetal,0.09,0,0,0,0,0,tailRotor);
+M(new THREE.CylinderGeometry(0.05,0.05,0.08,14),matMetal,0,0,0,0,0,Math.PI/2,tailRotor);
+const tailBladeGeo=heliBladeGeo(0.72,0.12,0.07,0.02,0.25);
+M(tailBladeGeo,matBlade,0,0,0,-Math.PI/2,0,0,tailRotor);
+M(tailBladeGeo,matBlade,0,0,0,Math.PI/2,0,0,tailRotor);
+M(new THREE.ConeGeometry(0.055,0.1,14),matMetal,-0.12,0,0,0,0,Math.PI/2,tailRotor);
+bolt(-0.05,0.07,0,0,1,0,tailRotor);bolt(-0.05,-0.07,0,0,-1,0,tailRotor);
+const blurTail=new THREE.Mesh(new THREE.CircleGeometry(0.8,32),
+  new THREE.MeshBasicMaterial({map:texHeliBlur,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
+blurTail.rotation.y=Math.PI/2;blurTail.position.set(-0.24,2.45,-5.50);bodyGrp.add(blurTail);
+
+/* --- قواعد الهبوط --- */
+for(const s of[-1,1]){
+  const pts=[
+    new THREE.Vector3(s*0.85,0.13,-1.6),new THREE.Vector3(s*0.85,0.13,0.2),new THREE.Vector3(s*0.85,0.13,1.4),
+    new THREE.Vector3(s*0.85,0.17,1.8),new THREE.Vector3(s*0.85,0.34,2.08),new THREE.Vector3(s*0.85,0.58,2.26)
+  ];
+  M(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),40,0.045,10),matMetal);
+  M(new THREE.SphereGeometry(0.045,10,8),matMetal,s*0.85,0.58,2.26);
+  M(new THREE.SphereGeometry(0.045,10,8),matRubber,s*0.85,0.13,-1.6);
+  for(const z of[0.8,-0.9]){
+    M(new THREE.CylinderGeometry(0.05,0.05,0.30,12),matMetal,s*0.85,0.42,z);
+    M(new THREE.CylinderGeometry(0.028,0.028,0.22,10),matMetal,s*0.85,0.24,z);
+    M(new THREE.BoxGeometry(0.09,0.06,0.12),matMetal,s*0.85,0.15,z);
+    bolt(s*0.92,0.15,z,s,0,0);
+    tubeBetween(new THREE.Vector3(s*0.85,0.52,z+0.26*s),new THREE.Vector3(s*0.85,0.30,z),0.02,matMetal);
+    tubeBetween(new THREE.Vector3(s*0.60,0.60,z),new THREE.Vector3(s*0.85,0.52,z),0.022,matMetal);
+  }
+  M(new THREE.CylinderGeometry(0.02,0.02,0.34,8),matMetal,s*0.78,0.55,0.5,Math.PI/2,0,0);
+}
+
+/* --- البابان الجانبيان --- */
+for(const s of[-1,1]){
+  const doorG=new THREE.Group();doorG.position.set(s*0.70,1.28,0.55);bodyGrp.add(doorG);
+  M(new THREE.BoxGeometry(0.03,0.8,0.95),matBody,0,0,0,0,0,0,doorG);
+  M(new THREE.BoxGeometry(0.034,0.84,0.05),matRubber,0,0,0.48,0,0,0,doorG);
+  M(new THREE.BoxGeometry(0.034,0.84,0.05),matRubber,0,0,-0.48,0,0,0,doorG);
+  M(new THREE.BoxGeometry(0.034,0.05,0.95),matRubber,0,0.42,0,0,0,0,doorG);
+  M(new THREE.BoxGeometry(0.034,0.05,0.95),matRubber,0,-0.42,0,0,0,0,doorG);
+  const dWin=M(new THREE.PlaneGeometry(0.6,0.34),glassMat,s*0.02,0.16,0.05,0,s>0?Math.PI/2:-Math.PI/2,0,doorG);
+  dWin.renderOrder=10;
+  M(new THREE.BoxGeometry(0.025,0.04,0.13),matMetal,s*0.03,-0.16,-0.28,0,0,0,doorG);
+  M(new THREE.BoxGeometry(0.02,0.06,0.16),matBlack,s*0.025,-0.16,-0.28,0,0,0,doorG);
+  M(new THREE.CylinderGeometry(0.018,0.018,0.08,10),matMetal,s*0.01,-0.28,0.44,0,0,0,doorG);
+  M(new THREE.CylinderGeometry(0.018,0.018,0.08,10),matMetal,s*0.01,0.28,0.44,0,0,0,doorG);
+  M(new THREE.BoxGeometry(0.03,0.07,0.04),matMetal,s*0.02,-0.3,-0.42,0,0,0,doorG);
+}
+for(const s of[-1,1]){
+  const bw=M(new THREE.SphereGeometry(0.17,20,14),glassMat,s*0.62,1.52,-0.4);
+  bw.scale.set(0.45,1,1);bw.renderOrder=10;
+  M(new THREE.TorusGeometry(0.165,0.014,8,24),matRubber,s*0.64,1.52,-0.4,0,Math.PI/2,0);
+}
+
+/* --- تفاصيل خارجية --- */
+M(new THREE.CylinderGeometry(0.006,0.006,0.34,8),matMetal,0.3,1.18,2.02,Math.PI/2,0,0);
+M(new THREE.CylinderGeometry(0.007,0.009,0.4,8),matBlack,0,2.28,-0.35,0.35,0,0);
+M(new THREE.BoxGeometry(0.02,0.1,0.18),matBlack,0,0.46,-0.6);
+M(new THREE.CylinderGeometry(0.05,0.05,0.015,16),matMetal,0.67,1.15,-0.2,0,0,Math.PI/2);
+for(const s of[-1,1])M(new THREE.TorusGeometry(0.03,0.008,6,14),matMetal,s*0.2,0.66,-1.15,0,Math.PI/2,0);
+
+const regMat=new THREE.MeshBasicMaterial({map:texReg,transparent:true});
+M(new THREE.PlaneGeometry(0.8,0.2),regMat,0.196,1.43,-3.35,0,Math.PI/2,0);
+M(new THREE.PlaneGeometry(0.8,0.2),regMat,-0.196,1.43,-3.35,0,-Math.PI/2,0);
+
+/* --- تجهيزات الإنقاذ (ونش وضوء بحث — غير موجودة بالعرض الثابت، ضرورية للعبة) --- */
 const lampGrp=new THREE.Group();lampGrp.position.set(0,-.9,-1.6);bodyGrp.add(lampGrp);
-lampGrp.add(cyl(.16,.2,.3,darkMat,0,0,0,12));
+lampGrp.add(new THREE.Mesh(new THREE.CylinderGeometry(.16,.2,.3,12),matMetal));
 const spot=new THREE.SpotLight(0xfff2c0,0,120,.5,.4,1.2);lampGrp.add(spot);lampGrp.add(spot.target);
 spot.target.position.set(0,-20,-6);
-// winch + hook + basket
-const winchBox=box(.4,.4,.5,darkMat,-1.05,.6,-.2);bodyGrp.add(winchBox);
-const cableMat=mat({color:0x111111,roughness:.8});
-const cable=new THREE.Mesh(new THREE.CylinderGeometry(.02,.02,1,6),cableMat);cable.position.set(-1.2,0,-.2);bodyGrp.add(cable);
+const winchBox=M(new THREE.BoxGeometry(.4,.4,.5),matMetal,-1.05,.6,-.2);
+const cableMat=hstd({color:0x111111,roughness:.8});
+const cable=M(new THREE.CylinderGeometry(.02,.02,1,6),cableMat,-1.2,0,-.2);
 const hookGrp=new THREE.Group();hookGrp.position.set(-1.2,-2,-.2);bodyGrp.add(hookGrp);
-const basket=new THREE.Mesh(new THREE.CylinderGeometry(.55,.4,.6,10,1,true),mat({color:0xd9962f,roughness:.9,side:THREE.DoubleSide}));
-basket.position.y=-.2;hookGrp.add(basket);
-const hk=new THREE.Mesh(new THREE.TorusGeometry(.12,.03,6,12),darkMat);hk.position.y=.2;hookGrp.add(hk);
+const heliBasket=new THREE.Mesh(new THREE.CylinderGeometry(.55,.4,.6,10,1,true),
+  hstd({color:0xd9962f,roughness:.9,side:THREE.DoubleSide}));
+heliBasket.position.y=-.2;hookGrp.add(heliBasket);
+const heliHook=new THREE.Mesh(new THREE.TorusGeometry(.12,.03,6,12),matBlack);
+heliHook.position.y=.2;hookGrp.add(heliHook);
 
-// ---- cockpit interior ----
+/* ================= قمرة القيادة ================= */
 const cockpit=new THREE.Group();bodyGrp.add(cockpit);
-const dash=box(1.4,.5,.4,mat({color:0x22262a,roughness:.6}),0,.35,-1.05);cockpit.add(dash);
-for(let i=0;i<4;i++){const ggeo=new THREE.CircleGeometry(.09,16);
-  const gg=new THREE.Mesh(ggeo,mat({color:[0x57d98a,0x5fd7ff,0xffb547,0xff6b5e][i],emissive:[0x57d98a,0x5fd7ff,0xffb547,0xff6b5e][i],emissiveIntensity:.8}));
-  gg.position.set(-.45+i*.3,.42,-.84);cockpit.add(gg);}
-const stick=new THREE.Group();stick.position.set(.35,.1,-.7);cockpit.add(stick);
-stick.add(cyl(.04,.06,.5,darkMat,0,.25,0,8));
-const grip=new THREE.Mesh(new THREE.SphereGeometry(.09,10,10),mat({color:0xb3372c,roughness:.6}));grip.position.y=.52;stick.add(grip);
-const collective=box(.1,.1,.5,darkMat,-.6,.2,-.5);cockpit.add(collective);
-const seat=box(.7,.15,.6,mat({color:0x35506b,roughness:.9}),.1,.05,-.2);cockpit.add(seat);
-const seatback=box(.7,.7,.12,mat({color:0x35506b,roughness:.9}),.1,.5,.1);cockpit.add(seatback);
+M(new THREE.BoxGeometry(1.26,0.05,1.7),matSlip,0,0.84,0.6,0,0,0,cockpit);
+M(new THREE.BoxGeometry(1.25,0.75,0.05),matInter,0,1.45,-0.32,0,0,0,cockpit);
+M(new THREE.BoxGeometry(1.2,0.7,0.04),matInter,0,1.35,0.02,0,0,0,cockpit);
+
+const dash=new THREE.Group();dash.position.set(0,1.5,1.22);dash.rotation.x=-0.26;cockpit.add(dash);
+M(new THREE.BoxGeometry(1.2,0.44,0.07),matInter,0,0,0,0,0,0,dash);
+M(new THREE.BoxGeometry(1.26,0.05,0.3),matInter,0,0.24,-0.1,0.1,0,0,dash);
+for(const[sx,st]of[[-0.33,texPFD],[0.33,texMFD]]){
+  M(new THREE.BoxGeometry(0.27,0.21,0.04),matBlack,sx,0.04,0.05,0,0,0,dash);
+  M(new THREE.PlaneGeometry(0.23,0.17),new THREE.MeshBasicMaterial({map:st}),sx,0.04,0.075,0,0,0,dash);
+}
+for(let i=0;i<6;i++){
+  const gx=-0.3+i*0.12;
+  M(new THREE.CylinderGeometry(0.042,0.042,0.03,16),matBlack,gx,-0.12,0.05,Math.PI/2,0,0,dash);
+  M(new THREE.CircleGeometry(0.038,16),new THREE.MeshBasicMaterial({map:texGauge}),gx,-0.12,0.068,0,0,0,dash);
+}
+const heliSwitchGeo=new THREE.BoxGeometry(0.016,0.034,0.016);
+for(let r=0;r<2;r++)for(let i=0;i<7;i++)
+  M(heliSwitchGeo,matMetal,-0.36+i*0.12,-0.20-r*0.045,0.045,0.3*((i+r)%2?1:-1),0,0,dash);
+const lampCols=[0xff4a2a,0xffc53c,0x4ad07a,0xffc53c,0x4a9fd0];
+for(let i=0;i<5;i++)
+  M(new THREE.BoxGeometry(0.035,0.02,0.012),
+    hstd({color:0x111111,emissive:lampCols[i],emissiveIntensity:0.7,roughness:0.5}),
+    -0.28+i*0.14,0.19,0.045,0,0,0,dash);
+for(let i=0;i<8;i++)M(new THREE.CylinderGeometry(0.011,0.011,0.02,10),matBlack,-0.28+i*0.08,-0.28,0.045,Math.PI/2,0,0,dash);
+
+M(new THREE.BoxGeometry(0.3,0.42,0.5),matInter,0,1.0,0.85,0,0,0,cockpit);
+M(new THREE.CylinderGeometry(0.02,0.022,0.22,10),matMetal,0.06,1.3,0.75,0,0,-0.5,cockpit);
+M(new THREE.SphereGeometry(0.035,12,10),matRubber,0.11,1.4,0.75,0,0,0,cockpit);
+M(new THREE.ConeGeometry(0.07,0.12,14),matRubber,0,0.9,0.95,0,0,0,cockpit);
+const stick=new THREE.Group();stick.position.set(0,1.14,0.95);stick.rotation.x=0.1;cockpit.add(stick);
+M(new THREE.CylinderGeometry(0.016,0.02,0.45,10),matBlack,0,0,0,0,0,0,stick);
+M(new THREE.SphereGeometry(0.04,12,10),matRubber,0,0.22,0,0,0,0,stick);
+M(new THREE.BoxGeometry(0.05,0.03,0.06),matRubber,0,0.24,0.05,0,0,0,stick);
+const collective=M(new THREE.BoxGeometry(0.06,0.28,0.07),matBlack,-0.5,1.05,0.55,0.35,0,0,cockpit);
+
+for(const s of[-1,1]){
+  const seat=new THREE.Group();seat.position.set(s*0.34,0,0.35);cockpit.add(seat);
+  M(new THREE.BoxGeometry(0.44,0.09,0.44),matFabric,0,1.12,0,0,0,0,seat);
+  M(new THREE.BoxGeometry(0.44,0.62,0.10),matFabric,0,1.44,-0.22,0.12,0,0,seat);
+  M(new THREE.BoxGeometry(0.24,0.15,0.08),matFabric,0,1.82,-0.26,0.12,0,0,seat);
+  M(new THREE.CylinderGeometry(0.02,0.02,0.28,8),matMetal,0.16,0.96,0.14,0,0,0,seat);
+  M(new THREE.CylinderGeometry(0.02,0.02,0.28,8),matMetal,-0.16,0.96,0.14,0,0,0,seat);
+  M(new THREE.CylinderGeometry(0.02,0.02,0.28,8),matMetal,0.16,0.96,-0.16,0,0,0,seat);
+  M(new THREE.CylinderGeometry(0.02,0.02,0.28,8),matMetal,-0.16,0.96,-0.16,0,0,0,seat);
+}
+for(const s of[-1,1]){
+  M(new THREE.BoxGeometry(0.1,0.13,0.03),matMetal,s*0.22,0.96,1.42,-0.5,0,0,cockpit);
+  M(new THREE.BoxGeometry(0.03,0.03,0.3),matMetal,s*0.22,0.88,1.3,0,0,0,cockpit);
+}
+M(new THREE.BoxGeometry(0.7,0.05,0.35),matInter,0,2.0,0.55,0,0,0,cockpit);
+for(let i=0;i<6;i++)M(heliSwitchGeo,matMetal,-0.25+i*0.1,1.97,0.55,0,0,0,cockpit);
 
 heli.position.set(PAD_START[0],1.2,PAD_START[1]);
-heli.scale.setScalar(1.5);
 
 /* ============================================================
    NPCS
@@ -1161,6 +1564,10 @@ function fly(dt){
   S.rotor=lerp(S.rotor,8+S.throttle*20,dt*2);
   rotorGrp.rotation.y+=S.rotor*dt;
   tailRotor.rotation.x+=S.rotor*3.2*dt;
+  const bladeBlur=Math.min(1,S.rotor/28);
+  blurMain.material.opacity=bladeBlur*0.55;
+  blurTail.material.opacity=bladeBlur*0.5;
+  beacon.material.emissiveIntensity=0.6+Math.pow(Math.max(0,Math.sin(performance.now()*.001*3.2)),12)*4;
   // stick/collective react
   stick.rotation.x=clamp(-fwdSpeed/maxS,-1,1)*.3;
   stick.rotation.z=clamp(sideSpeed/maxS,-1,1)*.3;

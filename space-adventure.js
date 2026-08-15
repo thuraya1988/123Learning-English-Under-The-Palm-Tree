@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RAY_VERT, RAY_FRAG, COMPOSITE_VERT, COMPOSITE_FRAG } from './black-hole-shaders.js';
 import { MANDELBROT_VERT, MANDELBROT_FRAG } from './mandelbrot-shaders.js';
-import { buildShip, makeGlowTexture, makeGlowSprite } from './ship-model.js';
+import { buildShip, buildShipAlt, makeGlowTexture, makeGlowSprite } from './ship-model.js';
 
 let GLOW_TEX = null;
 
@@ -62,6 +62,7 @@ const WORD_BANK = [
 ];
 
 /* ---------------- MENU WIRING ---------------- */
+const SHIP_PREF_KEY = 'palm_space_ship';
 function initMenu() {
   $('#startFlightBtn').addEventListener('click', () => {
     showScreen('screen-game');
@@ -69,6 +70,18 @@ function initMenu() {
   });
   const best = Number(localStorage.getItem('palm_space_best') || 0);
   $('#bestScoreLabel').textContent = `أفضل نتيجة: ${best}`;
+
+  const shipOpts = { f35: $('#shipOptF35'), ember: $('#shipOptEmber') };
+  const applyShipSelection = (key) => {
+    Object.entries(shipOpts).forEach(([k, el]) => el.classList.toggle('selected', k === key));
+  };
+  applyShipSelection(localStorage.getItem(SHIP_PREF_KEY) === 'ember' ? 'ember' : 'f35');
+  Object.entries(shipOpts).forEach(([key, el]) => {
+    el.addEventListener('click', () => {
+      localStorage.setItem(SHIP_PREF_KEY, key);
+      applyShipSelection(key);
+    });
+  });
 }
 
 
@@ -1340,7 +1353,7 @@ function startFlight() {
   nebulaCloud.visible = false;
   scene.add(nebulaCloud);
 
-  ship = buildShip();
+  ship = (localStorage.getItem(SHIP_PREF_KEY) === 'ember' ? buildShipAlt : buildShip)();
   scene.add(ship);
 
   launchPad = buildLaunchPad();

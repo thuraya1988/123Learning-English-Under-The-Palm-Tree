@@ -50,6 +50,9 @@
     background:linear-gradient(180deg,rgba(8,12,26,0) 0%,rgba(8,12,26,.55) 70%)}
   #jumanaName{font-weight:600;font-size:14px;letter-spacing:.1em;color:#ffd9e8;
     text-shadow:0 0 12px rgba(255,180,210,.5),0 1px 4px rgba(0,0,10,.6)}
+  #wordHud{position:fixed;top:20px;right:20px;z-index:6;font-size:13px;font-weight:600;
+    color:#ffe4a0;text-shadow:0 1px 8px rgba(0,0,0,.6);opacity:0;transition:opacity 1.5s ease}
+  #wordHud.show{opacity:1}
   #jumanaStatus{font-style:italic;font-size:13px;letter-spacing:.06em;color:rgba(230,236,255,.85);
     text-shadow:0 1px 4px rgba(0,0,10,.6);transition:transform .15s}
   #jumanaBtns{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:900px;pointer-events:auto}
@@ -66,6 +69,7 @@
 <canvas id="scene"></canvas>
 <div id="caption"></div>
 <div id="realmBadge"><span id="realmTitle"></span><div class="anoms" id="realmList"></div></div>
+<div id="wordHud"></div>
 <div id="jumanaDeck">
   <div id="jumanaName">🌴 جُمانة</div>
   <div id="jumanaStatus"></div>
@@ -928,7 +932,7 @@ function updateJumana(dt){
       jSt.pauseNext=jSt.paused?rand(.8,1.7):rand(2.2,4.5);}
   }else jSt.paused=false;
 
-  let lockMove=false,leanAdd=0,crouchAdd=0,rootOff=0,exprOverride=null;
+  let lockMove=puzzleLock,leanAdd=0,crouchAdd=0,rootOff=0,exprOverride=null;
   let waveOn=false,surpriseOn=false,laughHop=0;
   const act=jSt.action;
   if(act){
@@ -1391,6 +1395,578 @@ function drawDuck(){
   }
 }
 
+/* ================= ENGLISH LESSONS (ported from the old world) ================= */
+function shufflePick(arr,n){
+  const a=arr.slice();
+  for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;const t=a[i];a[i]=a[j];a[j]=t;}
+  return a.slice(0,Math.min(n,a.length));
+}
+let puzzleLock=false;
+const LSPOTS={greetings:1800,whispers:5000,windows:7000,piano:9000,butterflies:15000,bees:16800,
+  sign:900,petals:2700,owl:3600,pond:11000,hill:13000};
+const wondersDone={};
+let wonderCount=0,wordsLearned=0;
+const TOTAL_WONDERS=11;
+const wordHudEl=document.getElementById('wordHud');
+function addWonder(name){wonderCount++;showCaption('✦ '+name);AudioEng.chime(0.5);
+  wordHudEl.textContent='📖 '+wordsLearned+' / '+TOTAL_WORDS+' · ✦ '+wonderCount+' / '+TOTAL_WONDERS;
+  wordHudEl.classList.add('show');}
+
+const WINDOWS_POOL=[
+  {word:'Dream',ar:'حلم',letter:'D',hint:'مثل دقّات القلب وهو نائم',shape:'moon'},
+  {word:'Star',ar:'نجمة',letter:'S',hint:'مثل همسة الرياح بين النجوم',shape:'eye'},
+  {word:'Key',ar:'مفتاح',letter:'K',hint:'مثل طرقة خفيفة على الباب',shape:'flower'},
+  {word:'Nest',ar:'عش',letter:'N',hint:'مثل بيت صغير فوق الشجرة',shape:'moon'},
+  {word:'Vine',ar:'كرمة',letter:'V',hint:'مثل غصن يلتف حول الشجرة',shape:'eye'},
+  {word:'Bird',ar:'طائر',letter:'B',hint:'مثل صوت يغرّد فوق الأغصان',shape:'flower'},
+  {word:'Tree',ar:'شجرة',letter:'T',hint:'مثل ظل يحمي جُمانة من الشمس',shape:'moon'}
+];
+const WINDOWS=shufflePick(WINDOWS_POOL,5);
+const WIN={active:false,idx:0,opts:[],chosen:-1,wrongT:0,waveT:0};
+function rollWinOptions(){
+  const w=WINDOWS[WIN.idx],pool=['D','S','K','M','N','F','W','V','T','B','L'].filter(l=>l!==w.letter);
+  const wrong=[];
+  while(wrong.length<2){const c=pool[(Math.random()*pool.length)|0];if(wrong.indexOf(c)<0)wrong.push(c);}
+  const arr=[w.letter,wrong[0],wrong[1]];
+  for(let i=arr.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;const t=arr[i];arr[i]=arr[j];arr[j]=t;}
+  WIN.opts=arr;
+}
+function openWindows(){
+  if(wondersDone.windows||WIN.active)return;
+  WIN.active=true;WIN.idx=0;WIN.chosen=-1;WIN.wrongT=0;WIN.waveT=0;
+  puzzleLock=true;rollWinOptions();
+  showCaption('نوافذ غريبة… كل واحدة تخفي عالمًا صغيرًا. أي حرف يفتحها؟');
+}
+function pickWindowLetter(letter){
+  if(!WIN.active||WIN.chosen===1)return;
+  const w=WINDOWS[WIN.idx];
+  if(letter===w.letter){
+    WIN.chosen=1;AudioEng.chime(0.5);wordsLearned++;
+    showCaption(w.word+' — '+w.ar+'. حرفها الأول '+w.letter+'، '+w.hint+'.');
+    setTimeout(()=>{WIN.idx++;WIN.chosen=-1;WIN.waveT=0;
+      if(WIN.idx>=WINDOWS.length)finishWindows();else rollWinOptions();},2300);
+  }else WIN.wrongT=0.6;
+}
+function finishWindows(){
+  wondersDone.windows=1;WIN.waveT=1.4;addWonder('نوافذ الأحلام');
+  showCaption('كل النوافذ استيقظت معًا… يا لها من لحظة!');duckSay('واك واك واك!');
+  setTimeout(()=>{WIN.active=false;puzzleLock=false;},2600);
+}
+
+const BUTTERFLIES_POOL=[
+  {en:'Red',ar:'أحمر',hex:[232,93,93]},{en:'Blue',ar:'أزرق',hex:[93,143,232]},
+  {en:'Yellow',ar:'أصفر',hex:[232,209,93]},{en:'Green',ar:'أخضر',hex:[110,196,120]},
+  {en:'Purple',ar:'بنفسجي',hex:[168,120,214]},{en:'Orange',ar:'برتقالي',hex:[232,150,80]}
+];
+const BUTTERFLIES=shufflePick(BUTTERFLIES_POOL,5);
+const BFLY={active:false,idx:0,opts:[],chosen:-1,wrongT:0,waveT:0};
+const COLOR_POOL=BUTTERFLIES_POOL;
+function rollBflyOptions(){
+  const w=BUTTERFLIES[BFLY.idx],pool=COLOR_POOL.filter(c=>c.en!==w.en);
+  const wrong=[];
+  while(wrong.length<2){const c=pool[(Math.random()*pool.length)|0];if(wrong.indexOf(c)<0)wrong.push(c);}
+  const arr=[{en:w.en,hex:w.hex},wrong[0],wrong[1]];
+  for(let i=arr.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;const t=arr[i];arr[i]=arr[j];arr[j]=t;}
+  BFLY.opts=arr;
+}
+function openButterflies(){
+  if(wondersDone.butterflies||BFLY.active)return;
+  BFLY.active=true;BFLY.idx=0;BFLY.chosen=-1;BFLY.wrongT=0;BFLY.waveT=0;
+  puzzleLock=true;rollBflyOptions();
+  showCaption('فراشاتٌ ملوّنة فوق البحيرة… أي لون تحملين لها؟');
+}
+function pickBflyColor(en){
+  if(!BFLY.active||BFLY.chosen===1)return;
+  const w=BUTTERFLIES[BFLY.idx];
+  if(en===w.en){
+    BFLY.chosen=1;AudioEng.chime(0.5);wordsLearned++;
+    showCaption(w.en+' — '+w.ar+'. لون فراشة صغيرة فوق الماء.');
+    setTimeout(()=>{BFLY.idx++;BFLY.chosen=-1;BFLY.waveT=0;
+      if(BFLY.idx>=BUTTERFLIES.length)finishButterflies();else rollBflyOptions();},2300);
+  }else BFLY.wrongT=0.6;
+}
+function finishButterflies(){
+  wondersDone.butterflies=1;BFLY.waveT=1.4;addWonder('فراشات البحيرة');
+  showCaption('كل الألوان اجتمعت فوق الماء… يا له من قوس قزح صغير!');duckSay('واك!');
+  setTimeout(()=>{BFLY.active=false;puzzleLock=false;},2600);
+}
+
+const BEES_POOL=[
+  {n:1,en:'One',ar:'واحد'},{n:2,en:'Two',ar:'اثنان'},{n:3,en:'Three',ar:'ثلاثة'},
+  {n:4,en:'Four',ar:'أربعة'},{n:5,en:'Five',ar:'خمسة'},{n:6,en:'Six',ar:'ستة'},
+  {n:7,en:'Seven',ar:'سبعة'},{n:8,en:'Eight',ar:'ثمانية'}
+];
+const BEES=shufflePick(BEES_POOL,5);
+const BEE={active:false,idx:0,opts:[],chosen:-1,wrongT:0,waveT:0,dots:[]};
+function rollBeeOptions(){
+  const w=BEES[BEE.idx],pool=[1,2,3,4,5,6,7,8].filter(v=>v!==w.n);
+  const wrong=[];
+  while(wrong.length<2){const c=pool[(Math.random()*pool.length)|0];if(wrong.indexOf(c)<0)wrong.push(c);}
+  const arr=[w.n,wrong[0],wrong[1]];
+  for(let i=arr.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;const t=arr[i];arr[i]=arr[j];arr[j]=t;}
+  BEE.opts=arr;BEE.dots=[];
+  for(let i=0;i<w.n;i++)BEE.dots.push({a:rand(0,TAU),r:rand(34,58),ph:rand(0,TAU)});
+}
+function openBees(){
+  if(wondersDone.bees||BEE.active)return;
+  BEE.active=true;BEE.idx=0;BEE.chosen=-1;BEE.wrongT=0;BEE.waveT=0;
+  puzzleLock=true;rollBeeOptions();
+  showCaption('نحلاتٌ تطير فوق الزهور… كم نحلةً تعدّين؟');
+}
+function pickBeeCount(n){
+  if(!BEE.active||BEE.chosen===1)return;
+  const w=BEES[BEE.idx];
+  if(n===w.n){
+    BEE.chosen=1;AudioEng.chime(0.5);wordsLearned++;
+    showCaption(w.en+' — '+w.ar+'. '+w.n+' نحلاتٍ صغيرة تدندن معًا.');
+    setTimeout(()=>{BEE.idx++;BEE.chosen=-1;BEE.waveT=0;
+      if(BEE.idx>=BEES.length)finishBees();else rollBeeOptions();},2300);
+  }else BEE.wrongT=0.6;
+}
+function finishBees(){
+  wondersDone.bees=1;BEE.waveT=1.4;addWonder('نحلات المرج');
+  showCaption('كل النحلات عدّت أزهارها… ورجعت للخلية سعيدة!');duckSay('واك واك!');
+  setTimeout(()=>{BEE.active=false;puzzleLock=false;},2600);
+}
+
+const PIANO_KEYS=[{m:60,label:'Do'},{m:62,label:'Re'},{m:64,label:'Mi'},{m:67,label:'Sol'},{m:69,label:'La'}];
+const PIANO={active:false,phase:'idle',seq:[],step:0,litIdx:-1,litT:0,wrongT:0,waveT:0,seqToken:0};
+function openPiano(){
+  if(wondersDone.piano||PIANO.active)return;
+  PIANO.active=true;puzzleLock=true;PIANO.wrongT=0;PIANO.waveT=0;PIANO.seqToken++;
+  const seqLen=4;
+  PIANO.seq=[];for(let i=0;i<seqLen;i++)PIANO.seq.push((Math.random()*PIANO_KEYS.length)|0);
+  PIANO.step=0;PIANO.phase='listen';PIANO.litIdx=-1;
+  showCaption('بيانو صغير بين الجذور… استمعي جيدًا، ثم رددي اللحن.');
+  playPianoSeq();
+}
+function playPianoSeq(){
+  const token=PIANO.seqToken;let i=0;
+  function step(){
+    if(token!==PIANO.seqToken)return;
+    if(i>=PIANO.seq.length){PIANO.phase='play';PIANO.litIdx=-1;PIANO.step=0;return;}
+    PIANO.litIdx=PIANO.seq[i];PIANO.litT=0.45;
+    i++;setTimeout(step,620);
+  }
+  step();
+}
+function pressPianoKey(idx){
+  if(!PIANO.active||PIANO.phase!=='play')return;
+  PIANO.litIdx=idx;PIANO.litT=0.3;
+  if(idx===PIANO.seq[PIANO.step]){
+    PIANO.step++;
+    if(PIANO.step>=PIANO.seq.length)finishPiano();
+  }else{
+    PIANO.wrongT=0.6;PIANO.step=0;PIANO.phase='wrong';
+    setTimeout(()=>{if(PIANO.active&&PIANO.phase==='wrong'){PIANO.phase='listen';playPianoSeq();}},700);
+  }
+}
+function finishPiano(){
+  wondersDone.piano=1;PIANO.waveT=1.4;PIANO.phase='done';wordsLearned++;
+  addWonder('بيانو الغابة');
+  showCaption('عزفتِ لحن الغابة كاملاً… يا له من صوتٍ جميل!');duckSay('واك واك!');
+  setTimeout(()=>{PIANO.active=false;puzzleLock=false;},2600);
+}
+
+const TRICKY_POOL_FULL=[
+  {en:'Said',ar:'قال',hint:'كلمة نسمعها كثيرًا في القصص'},{en:'They',ar:'هم',hint:'نستخدمها لمجموعة من الناس'},
+  {en:'Was',ar:'كان',hint:'كلمة عن شيء حصل بالماضي'},{en:'You',ar:'أنتَ',hint:'نقولها لما نتكلم مع شخص ثاني'},
+  {en:'The',ar:'أل التعريف',hint:'أداة تعريف نستخدمها كثير بالجمل'},{en:'Come',ar:'تعال',hint:'نقولها لما ندعو حد يجي عندنا'},
+  {en:'Into',ar:'إلى داخل',hint:'تدلّ إن حد أو شي دخل مكان'},{en:'Some',ar:'بعض',hint:'تدلّ على كمية غير محددة'},
+  {en:'Have',ar:'عنده',hint:'نقولها لما نتكلم عن الملكية'}
+];
+const TRICKY=shufflePick(TRICKY_POOL_FULL,6);
+const TRICKY_POOL=TRICKY_POOL_FULL.map(t=>t.en);
+const WHISP={active:false,idx:0,opts:[],chosen:-1,wrongT:0,waveT:0};
+function rollWhispOptions(){
+  const w=TRICKY[WHISP.idx],pool=TRICKY_POOL.filter(v=>v!==w.en);
+  const wrong=[];
+  while(wrong.length<2){const c=pool[(Math.random()*pool.length)|0];if(wrong.indexOf(c)<0&&c!==w.en)wrong.push(c);}
+  const arr=[w.en,wrong[0],wrong[1]];
+  for(let i=arr.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;const t=arr[i];arr[i]=arr[j];arr[j]=t;}
+  WHISP.opts=arr;
+}
+function openWhispers(){
+  if(wondersDone.whispers||WHISP.active)return;
+  WHISP.active=true;WHISP.idx=0;WHISP.chosen=-1;WHISP.wrongT=0;WHISP.waveT=0;
+  puzzleLock=true;rollWhispOptions();
+  showCaption('الأشجار العتيقة تهمس بكلمات… أي واحدة تعني ما أقوله؟');
+}
+function pickWhispWord(en){
+  if(!WHISP.active||WHISP.chosen===1)return;
+  const w=TRICKY[WHISP.idx];
+  if(en===w.en){
+    WHISP.chosen=1;AudioEng.chime(0.5);wordsLearned++;
+    showCaption(w.en+' — '+w.ar+'. '+w.hint+'.');
+    setTimeout(()=>{WHISP.idx++;WHISP.chosen=-1;WHISP.waveT=0;
+      if(WHISP.idx>=TRICKY.length)finishWhispers();else rollWhispOptions();},2400);
+  }else WHISP.wrongT=0.6;
+}
+function finishWhispers(){
+  wondersDone.whispers=1;WHISP.waveT=1.4;addWonder('همسات الأشجار');
+  showCaption('الأشجار العتيقة همست بأسرارها كلها… وحفظناها معًا.');duckSay('واك!');
+  setTimeout(()=>{WHISP.active=false;puzzleLock=false;},2600);
+}
+
+const GREET_POOL_FULL=[
+  {en:'Thank you',ar:'شكرًا',hint:'نقولها لما حد يساعدنا'},{en:'Please',ar:'من فضلك',hint:'نقولها لما نطلب شيئًا بلطف'},
+  {en:'Good morning',ar:'صباح الخير',hint:'نقولها أول ما نشوف حد بالصباح'},{en:'Sorry',ar:'آسف',hint:'نقولها لما نخطئ بشي'},
+  {en:'Excuse me',ar:'لو سمحت',hint:'نقولها قبل لا نقاطع أو نطلب المرور'},{en:'Good night',ar:'تصبح على خير',hint:'نقولها قبل النوم'},
+  {en:'Welcome',ar:'أهلاً وسهلاً',hint:'نقولها لما نستقبل ضيف'},{en:'How are you',ar:'كيف حالك',hint:'نسألها لما نشوف صديق'}
+];
+const GREET=shufflePick(GREET_POOL_FULL,5);
+const GREET_POOL=GREET_POOL_FULL.map(g=>g.en);
+const TOTAL_WORDS=WINDOWS.length+BUTTERFLIES.length+BEES.length+1+TRICKY.length+GREET.length+5;
+const GRT={active:false,idx:0,opts:[],chosen:-1,wrongT:0,waveT:0};
+function rollGreetOptions(){
+  const w=GREET[GRT.idx],pool=GREET_POOL.filter(v=>v!==w.en);
+  const wrong=[];
+  while(wrong.length<2){const c=pool[(Math.random()*pool.length)|0];if(wrong.indexOf(c)<0)wrong.push(c);}
+  const arr=[w.en,wrong[0],wrong[1]];
+  for(let i=arr.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;const t=arr[i];arr[i]=arr[j];arr[j]=t;}
+  GRT.opts=arr;
+}
+function openGreetings(){
+  if(wondersDone.greetings||GRT.active)return;
+  GRT.active=true;GRT.idx=0;GRT.chosen=-1;GRT.wrongT=0;GRT.waveT=0;
+  puzzleLock=true;rollGreetOptions();
+  showCaption('أرنبٌ مؤدّب يريد أن يعلّمنا كلماتٍ نستخدمها كل يوم.');
+}
+function pickGreetPhrase(en){
+  if(!GRT.active||GRT.chosen===1)return;
+  const w=GREET[GRT.idx];
+  if(en===w.en){
+    GRT.chosen=1;AudioEng.chime(0.5);wordsLearned++;
+    showCaption(w.en+' — '+w.ar+'. '+w.hint+'.');
+    setTimeout(()=>{GRT.idx++;GRT.chosen=-1;GRT.waveT=0;
+      if(GRT.idx>=GREET.length)finishGreetings();else rollGreetOptions();},2400);
+  }else GRT.wrongT=0.6;
+}
+function finishGreetings(){
+  wondersDone.greetings=1;GRT.waveT=1.4;addWonder('كلمات الأرنب المؤدّب');
+  showCaption('تعلّمنا كلماتٍ نقولها كل يوم… شكرًا أيها الأرنب!');duckSay('واك واك!');
+  setTimeout(()=>{GRT.active=false;puzzleLock=false;},2600);
+}
+
+function updatePuzzles(dt){
+  if(WIN.wrongT>0)WIN.wrongT=Math.max(0,WIN.wrongT-dt);
+  if(WIN.waveT>0)WIN.waveT=Math.max(0,WIN.waveT-dt);
+  if(BFLY.wrongT>0)BFLY.wrongT=Math.max(0,BFLY.wrongT-dt);
+  if(BFLY.waveT>0)BFLY.waveT=Math.max(0,BFLY.waveT-dt);
+  if(BEE.wrongT>0)BEE.wrongT=Math.max(0,BEE.wrongT-dt);
+  if(BEE.waveT>0)BEE.waveT=Math.max(0,BEE.waveT-dt);
+  if(PIANO.wrongT>0)PIANO.wrongT=Math.max(0,PIANO.wrongT-dt);
+  if(PIANO.waveT>0)PIANO.waveT=Math.max(0,PIANO.waveT-dt);
+  if(PIANO.litT>0)PIANO.litT=Math.max(0,PIANO.litT-dt);
+  if(WHISP.wrongT>0)WHISP.wrongT=Math.max(0,WHISP.wrongT-dt);
+  if(WHISP.waveT>0)WHISP.waveT=Math.max(0,WHISP.waveT-dt);
+  if(GRT.wrongT>0)GRT.wrongT=Math.max(0,GRT.wrongT-dt);
+  if(GRT.waveT>0)GRT.waveT=Math.max(0,GRT.waveT-dt);
+  if(!entered)return;
+  const px=jSt.worldX;
+  if(!wondersDone.sign&&Math.abs(px-LSPOTS.sign)<110){wondersDone.sign=1;addWonder('اللافتة القديمة');wordsLearned++;
+    showCaption('لافتةٌ قديمة… كُتب عليها Village — قرية. حرفها الأول V، مثل صوت الفراشة وهي تطير.');}
+  if(!wondersDone.petals&&Math.abs(px-LSPOTS.petals)<140){wondersDone.petals=1;addWonder('زهور ضوء القمر');wordsLearned++;
+    showCaption('هذي الزهور تفتح لما يطلع القمر… Moon — قمر. حرفها الأول M، مثل موج البحر.');}
+  if(!wondersDone.owl&&Math.abs(px-LSPOTS.owl)<130){wondersDone.owl=1;addWonder('البومة النائمة');duckSay('هُو؟');wordsLearned++;
+    showCaption('بومة نائمة تحت غطاء Night — الليل. حرفها الأول N، هادئ مثل نومها.');}
+  if(!wondersDone.pond&&Math.abs(px-LSPOTS.pond)<170){wondersDone.pond=1;addWonder('بركة المرآة');wordsLearned++;
+    showCaption('الماء يجري من الفلج مثل هذي البركة… Falaj — فلج. حرفها الأول F، مثل صوت الماء وهو يهمس.');}
+  if(!wondersDone.hill&&Math.abs(px-LSPOTS.hill)<180){wondersDone.hill=1;addWonder('تلة الرياح');wordsLearned++;
+    showCaption('الريح تعزف فوق التلة… Wind — رياح. حرفها الأول W، مثل صفير الهواء.');}
+  if(!wondersDone.greetings&&Math.abs(px-LSPOTS.greetings)<90)openGreetings();
+  if(!wondersDone.whispers&&Math.abs(px-LSPOTS.whispers)<90)openWhispers();
+  if(!wondersDone.windows&&Math.abs(px-LSPOTS.windows)<90)openWindows();
+  if(!wondersDone.piano&&Math.abs(px-LSPOTS.piano)<90)openPiano();
+  if(!wondersDone.butterflies&&Math.abs(px-LSPOTS.butterflies)<90)openButterflies();
+  if(!wondersDone.bees&&Math.abs(px-LSPOTS.bees)<90)openBees();
+}
+
+function drawWindowShape(shape,gray){
+  ctx.beginPath();
+  if(shape==='moon'){ctx.arc(0,0,58,0.35*Math.PI,1.65*Math.PI);ctx.arc(22,0,50,1.65*Math.PI,0.35*Math.PI,true);}
+  else if(shape==='eye'){ctx.moveTo(-72,0);ctx.quadraticCurveTo(0,-56,72,0);ctx.quadraticCurveTo(0,56,-72,0);}
+  else{for(let k=0;k<6;k++){const a=k/6*TAU;ctx.moveTo(0,0);
+    ctx.save();ctx.rotate(a);ctx.quadraticCurveTo(22,-40,0,-64);ctx.quadraticCurveTo(-22,-40,0,0);ctx.restore();}}
+  ctx.closePath();
+  ctx.fillStyle=gray?'rgba(20,26,54,0.85)':'rgba(30,38,74,0.9)';ctx.fill();
+  ctx.strokeStyle='rgba(247,239,221,0.9)';ctx.lineWidth=3;ctx.stroke();
+}
+function drawWindowsChain(){
+  if(!WIN.active)return;
+  ctx.save();ctx.fillStyle='rgba(6,8,22,0.74)';ctx.fillRect(0,0,W,H);
+  const cx=W/2,cy=H*0.29;
+  if(WIN.idx<WINDOWS.length){
+    const w=WINDOWS[WIN.idx],wob=Math.sin(tGlobal*1.1)*6,shakeX=WIN.wrongT>0?Math.sin(WIN.wrongT*60)*6:0;
+    const dots=WINDOWS.length,dcx=cx-(dots-1)*14;
+    for(let di=0;di<dots;di++){ctx.beginPath();ctx.arc(dcx+di*28,H*0.1,6,0,TAU);
+      ctx.fillStyle=di<WIN.idx?'rgba(255,225,160,0.9)':'rgba(247,239,221,0.25)';ctx.fill();}
+    ctx.save();ctx.translate(cx+shakeX,cy+wob);
+    const glowA=WIN.chosen===1?1:0.55;
+    const grd=ctx.createRadialGradient(0,0,10,0,0,140);
+    grd.addColorStop(0,'rgba(255,225,160,'+(0.4*glowA)+')');grd.addColorStop(1,'rgba(255,225,160,0)');
+    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(0,0,140,0,TAU);ctx.fill();
+    drawWindowShape(w.shape,WIN.chosen!==1);
+    ctx.fillStyle='rgba(255,236,196,'+(0.5+0.3*Math.sin(tGlobal*2.4))+')';
+    ctx.beginPath();ctx.arc(0,-6,4.4,0,TAU);ctx.fill();
+    ctx.restore();
+    ctx.fillStyle='#ffe4a0';ctx.font='16px "Cormorant Garamond",serif';ctx.textAlign='center';
+    ctx.fillText('أي حرف يبدأ به '+w.word+'؟ ('+w.ar+')',cx,H*0.47);
+    const oy=H*0.56,ox0=cx-120;
+    for(let i=0;i<3;i++){
+      const ox=ox0+i*120,isRight=WIN.chosen===1&&WIN.opts[i]===w.letter;
+      ctx.beginPath();ctx.arc(ox,oy,36,0,TAU);
+      ctx.fillStyle=isRight?'rgba(255,225,160,0.92)':'rgba(247,239,221,0.14)';ctx.fill();
+      ctx.strokeStyle='rgba(247,239,221,0.75)';ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle=isRight?'#241a20':'#f7efdd';
+      ctx.font='700 28px "Cormorant Garamond",serif';ctx.textBaseline='middle';
+      ctx.fillText(WIN.opts[i],ox,oy+2);
+    }
+  }
+  if(WIN.waveT>0){
+    const wv=WIN.waveT/1.4;
+    for(let j=0;j<WINDOWS.length;j++){
+      const jx=cx+(j-1)*150,jy=H*0.34;
+      ctx.save();ctx.translate(jx,jy);ctx.globalAlpha=wv;
+      const g2=ctx.createRadialGradient(0,0,10,0,0,130*(1.3-wv*0.3));
+      g2.addColorStop(0,'rgba(255,225,160,0.55)');g2.addColorStop(1,'rgba(255,225,160,0)');
+      ctx.fillStyle=g2;ctx.beginPath();ctx.arc(0,0,130,0,TAU);ctx.fill();
+      drawWindowShape(WINDOWS[j].shape,false);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+function drawButterfliesChain(){
+  if(!BFLY.active)return;
+  ctx.save();ctx.fillStyle='rgba(6,8,22,0.74)';ctx.fillRect(0,0,W,H);
+  const cx=W/2,cy=H*0.29;
+  if(BFLY.idx<BUTTERFLIES.length){
+    const w=BUTTERFLIES[BFLY.idx],wob=Math.sin(tGlobal*1.1)*6,shakeX=BFLY.wrongT>0?Math.sin(BFLY.wrongT*60)*6:0;
+    const dots=BUTTERFLIES.length,dcx=cx-(dots-1)*14;
+    for(let di=0;di<dots;di++){ctx.beginPath();ctx.arc(dcx+di*28,H*0.1,6,0,TAU);
+      ctx.fillStyle=di<BFLY.idx?'rgba(255,225,160,0.9)':'rgba(247,239,221,0.25)';ctx.fill();}
+    ctx.save();ctx.translate(cx+shakeX,cy+wob);
+    const glowA=BFLY.chosen===1?1:0.55;
+    const grd=ctx.createRadialGradient(0,0,10,0,0,140);
+    grd.addColorStop(0,rgba(w.hex,0.4*glowA));grd.addColorStop(1,rgba(w.hex,0));
+    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(0,0,140,0,TAU);ctx.fill();
+    const flap=0.7+0.3*Math.sin(tGlobal*4);
+    ctx.fillStyle=rgba(w.hex,0.95);ctx.strokeStyle='rgba(247,239,221,0.9)';ctx.lineWidth=2.4;
+    ctx.save();ctx.scale(flap,1);ctx.beginPath();ctx.ellipse(-26,0,26,20,0,0,TAU);ctx.fill();ctx.stroke();ctx.restore();
+    ctx.save();ctx.scale(flap,1);ctx.beginPath();ctx.ellipse(26,0,26,20,0,0,TAU);ctx.fill();ctx.stroke();ctx.restore();
+    ctx.fillStyle='rgba(40,30,30,0.85)';ctx.fillRect(-3,-24,6,48);
+    ctx.restore();
+    ctx.fillStyle='#ffe4a0';ctx.font='16px "Cormorant Garamond",serif';ctx.textAlign='center';
+    ctx.fillText('شنو لون هذي الفراشة؟ اختاري: '+w.en,cx,H*0.47);
+    const oy=H*0.56,ox0=cx-120;
+    for(let i=0;i<3;i++){
+      const ox=ox0+i*120,opt=BFLY.opts[i],isRight=BFLY.chosen===1&&opt.en===w.en;
+      ctx.beginPath();ctx.arc(ox,oy,36,0,TAU);
+      ctx.fillStyle=rgba(opt.hex,isRight?0.95:0.55);ctx.fill();
+      ctx.strokeStyle='rgba(247,239,221,0.85)';ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle='#241a20';ctx.font='700 13px "Cormorant Garamond",serif';ctx.textBaseline='middle';
+      ctx.fillText(opt.en,ox,oy+2);
+    }
+  }
+  if(BFLY.waveT>0){
+    const wv=BFLY.waveT/1.4;
+    for(let j=0;j<BUTTERFLIES.length;j++){
+      const jx=cx+(j-1)*150,jy=H*0.34,jw=BUTTERFLIES[j];
+      ctx.save();ctx.translate(jx,jy);ctx.globalAlpha=wv;
+      const g2=ctx.createRadialGradient(0,0,10,0,0,110);
+      g2.addColorStop(0,rgba(jw.hex,0.55));g2.addColorStop(1,rgba(jw.hex,0));
+      ctx.fillStyle=g2;ctx.beginPath();ctx.arc(0,0,110,0,TAU);ctx.fill();
+      ctx.fillStyle=rgba(jw.hex,0.9);ctx.strokeStyle='rgba(247,239,221,0.9)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.ellipse(-16,0,16,12,0,0,TAU);ctx.fill();ctx.stroke();
+      ctx.beginPath();ctx.ellipse(16,0,16,12,0,0,TAU);ctx.fill();ctx.stroke();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+function drawBeesChain(){
+  if(!BEE.active)return;
+  ctx.save();ctx.fillStyle='rgba(6,8,22,0.74)';ctx.fillRect(0,0,W,H);
+  const cx=W/2,cy=H*0.29;
+  if(BEE.idx<BEES.length){
+    const w=BEES[BEE.idx],shakeX=BEE.wrongT>0?Math.sin(BEE.wrongT*60)*6:0;
+    const dots=BEES.length,dcx=cx-(dots-1)*14;
+    for(let di=0;di<dots;di++){ctx.beginPath();ctx.arc(dcx+di*28,H*0.1,6,0,TAU);
+      ctx.fillStyle=di<BEE.idx?'rgba(255,225,160,0.9)':'rgba(247,239,221,0.25)';ctx.fill();}
+    ctx.save();ctx.translate(cx+shakeX,cy);
+    const glowA=BEE.chosen===1?1:0.55;
+    const grd=ctx.createRadialGradient(0,0,10,0,0,120);
+    grd.addColorStop(0,'rgba(255,214,120,'+(0.4*glowA)+')');grd.addColorStop(1,'rgba(255,214,120,0)');
+    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(0,0,120,0,TAU);ctx.fill();
+    ctx.fillStyle='rgba(255,214,120,0.9)';ctx.strokeStyle='rgba(247,239,221,0.9)';ctx.lineWidth=2.2;
+    ctx.beginPath();ctx.ellipse(0,10,26,20,0,0,TAU);ctx.fill();ctx.stroke();
+    for(let bi=0;bi<BEE.dots.length;bi++){const bd=BEE.dots[bi];
+      const bx=Math.cos(bd.a+tGlobal*0.9)*bd.r,by=Math.sin(bd.a+tGlobal*0.9+bd.ph)*bd.r*0.6-10;
+      ctx.fillStyle='rgba(255,200,60,0.95)';
+      ctx.beginPath();ctx.ellipse(bx,by,6,4.4,0,0,TAU);ctx.fill();
+      ctx.strokeStyle='rgba(40,30,10,0.8)';ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.moveTo(bx-2,by-3.6);ctx.lineTo(bx-2,by+3.6);ctx.moveTo(bx+2,by-3.4);ctx.lineTo(bx+2,by+3.4);ctx.stroke();}
+    ctx.restore();
+    ctx.fillStyle='#ffe4a0';ctx.font='16px "Cormorant Garamond",serif';ctx.textAlign='center';
+    ctx.fillText('كم نحلةً تعدّين؟',cx,H*0.47);
+    const oy=H*0.56,ox0=cx-120;
+    for(let i=0;i<3;i++){
+      const ox=ox0+i*120,isRight=BEE.chosen===1&&BEE.opts[i]===w.n;
+      ctx.beginPath();ctx.arc(ox,oy,36,0,TAU);
+      ctx.fillStyle=isRight?'rgba(255,225,160,0.92)':'rgba(247,239,221,0.14)';ctx.fill();
+      ctx.strokeStyle='rgba(247,239,221,0.75)';ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle=isRight?'#241a20':'#f7efdd';
+      ctx.font='700 28px "Cormorant Garamond",serif';ctx.textBaseline='middle';
+      ctx.fillText(String(BEE.opts[i]),ox,oy+2);
+    }
+  }
+  if(BEE.waveT>0){
+    const wv=BEE.waveT/1.4;
+    for(let j=0;j<BEES.length;j++){
+      const jx=cx+(j-1)*150,jy=H*0.34;
+      ctx.save();ctx.translate(jx,jy);ctx.globalAlpha=wv;
+      const g2=ctx.createRadialGradient(0,0,10,0,0,100);
+      g2.addColorStop(0,'rgba(255,214,120,0.55)');g2.addColorStop(1,'rgba(255,214,120,0)');
+      ctx.fillStyle=g2;ctx.beginPath();ctx.arc(0,0,100,0,TAU);ctx.fill();
+      ctx.fillStyle='rgba(255,214,120,0.9)';ctx.strokeStyle='rgba(247,239,221,0.9)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.ellipse(0,0,20,15,0,0,TAU);ctx.fill();ctx.stroke();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+function drawPianoOverlay(){
+  if(!PIANO.active)return;
+  ctx.save();ctx.fillStyle='rgba(6,8,22,0.74)';ctx.fillRect(0,0,W,H);
+  const cx=W/2,cy=H*0.34;
+  const shakeX=PIANO.wrongT>0?Math.sin(PIANO.wrongT*60)*6:0;
+  const msg=PIANO.phase==='listen'?'استمعي جيّدًا…':PIANO.phase==='wrong'?'حاولي مرة أخرى… استمعي من جديد':'رددي اللحن بنفس الترتيب';
+  ctx.fillStyle='#ffe4a0';ctx.font='16px "Cormorant Garamond",serif';ctx.textAlign='center';
+  ctx.fillText(msg,cx,H*0.24);
+  const prog=PIANO.phase==='play'?PIANO.step:0;
+  const dots=PIANO.seq.length,dcx=cx-(dots-1)*14;
+  for(let di=0;di<dots;di++){ctx.beginPath();ctx.arc(dcx+di*28,H*0.3,6,0,TAU);
+    ctx.fillStyle=di<prog?'rgba(255,225,160,0.9)':'rgba(247,239,221,0.25)';ctx.fill();}
+  const n=PIANO_KEYS.length,kw=68,gap=8,totalW=n*kw+(n-1)*gap,kx0=cx-totalW/2+shakeX,ky=cy;
+  for(let i=0;i<n;i++){
+    const kx=kx0+i*(kw+gap),lit=PIANO.litIdx===i&&PIANO.litT>0;
+    ctx.save();ctx.translate(kx+kw/2,ky);
+    ctx.fillStyle=lit?'rgba(255,225,160,0.95)':'rgba(247,239,221,0.9)';
+    ctx.strokeStyle='rgba(60,50,30,0.6)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.roundRect(-kw/2,-70,kw,140,8);ctx.fill();ctx.stroke();
+    if(lit){ctx.save();ctx.globalCompositeOperation='lighter';
+      ctx.fillStyle='rgba(255,225,160,0.5)';ctx.beginPath();ctx.arc(0,0,60,0,TAU);ctx.fill();ctx.restore();}
+    ctx.fillStyle='#5a4a30';ctx.font='700 14px "Cormorant Garamond",serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(PIANO_KEYS[i].label,0,58);
+    ctx.restore();
+  }
+  if(PIANO.waveT>0){
+    const wv=PIANO.waveT/1.4;ctx.save();ctx.globalAlpha=wv;ctx.globalCompositeOperation='lighter';
+    const g2=ctx.createRadialGradient(cx,ky,10,cx,ky,220);
+    g2.addColorStop(0,'rgba(255,225,160,0.5)');g2.addColorStop(1,'rgba(255,225,160,0)');
+    ctx.fillStyle=g2;ctx.beginPath();ctx.arc(cx,ky,220,0,TAU);ctx.fill();ctx.restore();
+  }
+  ctx.restore();
+}
+function drawWhispersChain(){
+  if(!WHISP.active)return;
+  ctx.save();ctx.fillStyle='rgba(6,8,22,0.74)';ctx.fillRect(0,0,W,H);
+  const cx=W/2,cy=H*0.27;
+  if(WHISP.idx<TRICKY.length){
+    const w=TRICKY[WHISP.idx],wob=Math.sin(tGlobal*1.1)*4,shakeX=WHISP.wrongT>0?Math.sin(WHISP.wrongT*60)*6:0;
+    const dots=TRICKY.length,dcx=cx-(dots-1)*14;
+    for(let di=0;di<dots;di++){ctx.beginPath();ctx.arc(dcx+di*28,H*0.1,6,0,TAU);
+      ctx.fillStyle=di<WHISP.idx?'rgba(255,225,160,0.9)':'rgba(247,239,221,0.25)';ctx.fill();}
+    ctx.save();ctx.translate(cx+shakeX,cy+wob);
+    const glowA=WHISP.chosen===1?1:0.55;
+    const grd=ctx.createRadialGradient(0,0,10,0,0,110);
+    grd.addColorStop(0,'rgba(255,225,160,'+(0.35*glowA)+')');grd.addColorStop(1,'rgba(255,225,160,0)');
+    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(0,0,110,0,TAU);ctx.fill();
+    ctx.fillStyle='rgba(30,24,20,0.9)';ctx.strokeStyle='rgba(247,239,221,0.7)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.ellipse(0,0,44,60,0,0,TAU);ctx.fill();ctx.stroke();
+    ctx.fillStyle='rgba(255,225,160,0.85)';
+    ctx.beginPath();ctx.ellipse(0,10,10,6,0,0,TAU);ctx.fill();
+    ctx.restore();
+    ctx.fillStyle='#ffe4a0';ctx.font='16px "Cormorant Garamond",serif';ctx.textAlign='center';
+    ctx.fillText('الشجرة تهمس: «'+w.ar+'»… أي كلمة تعنيها؟',cx,H*0.47);
+    const oy=H*0.58,pw=132,pgap=16,totalW=3*pw+2*pgap,ox0=cx-totalW/2;
+    for(let i=0;i<3;i++){
+      const ox=ox0+i*(pw+pgap),opt=WHISP.opts[i],isRight=WHISP.chosen===1&&opt===w.en;
+      ctx.beginPath();ctx.roundRect(ox,oy-26,pw,52,26);
+      ctx.fillStyle=isRight?'rgba(255,225,160,0.92)':'rgba(247,239,221,0.14)';ctx.fill();
+      ctx.strokeStyle='rgba(247,239,221,0.75)';ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle=isRight?'#241a20':'#f7efdd';
+      ctx.font='700 20px "Cormorant Garamond",serif';ctx.textBaseline='middle';
+      ctx.fillText(opt,ox+pw/2,oy+2);
+    }
+  }
+  if(WHISP.waveT>0){
+    const wv=WHISP.waveT/1.4;
+    for(let j=0;j<TRICKY.length;j++){
+      const jx=cx+(j-1)*140,jy=H*0.32;
+      ctx.save();ctx.translate(jx,jy);ctx.globalAlpha=wv;
+      const g2=ctx.createRadialGradient(0,0,10,0,0,90);
+      g2.addColorStop(0,'rgba(255,225,160,0.5)');g2.addColorStop(1,'rgba(255,225,160,0)');
+      ctx.fillStyle=g2;ctx.beginPath();ctx.arc(0,0,90,0,TAU);ctx.fill();
+      ctx.fillStyle='rgba(30,24,20,0.9)';ctx.strokeStyle='rgba(247,239,221,0.7)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.ellipse(0,0,34,48,0,0,TAU);ctx.fill();ctx.stroke();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+function drawGreetChain(){
+  if(!GRT.active)return;
+  ctx.save();ctx.fillStyle='rgba(6,8,22,0.74)';ctx.fillRect(0,0,W,H);
+  const cx=W/2,cy=H*0.27;
+  if(GRT.idx<GREET.length){
+    const w=GREET[GRT.idx],bounce=Math.abs(Math.sin(tGlobal*2.2))*8,shakeX=GRT.wrongT>0?Math.sin(GRT.wrongT*60)*6:0;
+    const dots=GREET.length,dcx=cx-(dots-1)*14;
+    for(let di=0;di<dots;di++){ctx.beginPath();ctx.arc(dcx+di*28,H*0.1,6,0,TAU);
+      ctx.fillStyle=di<GRT.idx?'rgba(255,225,160,0.9)':'rgba(247,239,221,0.25)';ctx.fill();}
+    ctx.save();ctx.translate(cx+shakeX,cy-bounce);
+    const glowA=GRT.chosen===1?1:0.5;
+    const grd=ctx.createRadialGradient(0,0,10,0,0,100);
+    grd.addColorStop(0,'rgba(255,225,160,'+(0.3*glowA)+')');grd.addColorStop(1,'rgba(255,225,160,0)');
+    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(0,0,100,0,TAU);ctx.fill();
+    ctx.fillStyle='#f0ede4';ctx.strokeStyle='rgba(60,50,40,0.5)';ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.ellipse(0,20,26,20,0,0,TAU);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.ellipse(0,-8,18,20,0,0,TAU);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.ellipse(-7,-32,5.5,18,-0.15,0,TAU);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.ellipse(7,-32,5.5,18,0.15,0,TAU);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#2a2420';ctx.beginPath();ctx.arc(-6,-10,2.2,0,TAU);ctx.arc(6,-10,2.2,0,TAU);ctx.fill();
+    ctx.restore();
+    ctx.fillStyle='#ffe4a0';ctx.font='16px "Cormorant Garamond",serif';ctx.textAlign='center';
+    ctx.fillText('الأرنب يقول: «'+w.ar+'»… أي عبارة تعنيها؟',cx,H*0.5);
+    const oy=H*0.6,pw=176,pgap=14,totalW=3*pw+2*pgap,ox0=cx-totalW/2;
+    for(let i=0;i<3;i++){
+      const ox=ox0+i*(pw+pgap),opt=GRT.opts[i],isRight=GRT.chosen===1&&opt===w.en;
+      ctx.beginPath();ctx.roundRect(ox,oy-26,pw,52,26);
+      ctx.fillStyle=isRight?'rgba(255,225,160,0.92)':'rgba(247,239,221,0.14)';ctx.fill();
+      ctx.strokeStyle='rgba(247,239,221,0.75)';ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle=isRight?'#241a20':'#f7efdd';
+      ctx.font='700 17px "Cormorant Garamond",serif';ctx.textBaseline='middle';
+      ctx.fillText(opt,ox+pw/2,oy+2);
+    }
+  }
+  if(GRT.waveT>0){
+    const wv=GRT.waveT/1.4;
+    for(let j=0;j<GREET.length;j++){
+      const jx=cx+(j-1)*180,jy=H*0.32,jw=GREET[j];
+      ctx.save();ctx.translate(jx,jy);ctx.globalAlpha=wv;
+      const g2=ctx.createRadialGradient(0,0,10,0,0,90);
+      g2.addColorStop(0,'rgba(255,225,160,0.5)');g2.addColorStop(1,'rgba(255,225,160,0)');
+      ctx.fillStyle=g2;ctx.beginPath();ctx.arc(0,0,90,0,TAU);ctx.fill();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+function drawPuzzleOverlays(){
+  drawWindowsChain();drawButterfliesChain();drawBeesChain();drawPianoOverlay();drawWhispersChain();drawGreetChain();
+}
+
 /* ================= UPDATE ================= */
 function updateFireflies(dt){
  const target=Math.round(lerp(0,MAXFF,smooth(0.45,0.8,p)));
@@ -1486,7 +2062,7 @@ function update(dt){
  for(const cp of CAPS){if(!cp.done&&p>=cp.at){cp.done=true;showCaption(cp.txt);}}
  if(AudioEng.started){AudioEng.tick();sceneAcc+=dt;
   if(sceneAcc>0.35){sceneAcc=0;AudioEng.setScene(p);}}
- if(entered){updateJumana(dt);updateDuck(dt);}
+ if(entered){updateJumana(dt);updateDuck(dt);updatePuzzles(dt);}
  if(!warp.active)Scroller.update(dt);}
 
 /* ================= DRAW HELPERS ================= */
@@ -1820,6 +2396,7 @@ function render(){
  drawMistLayer(2);
  drawVignette(nig);
  drawForeFlowers();
+ if(entered)drawPuzzleOverlays();
  drawWarpFlash();}
 
 /* ================= CAPTIONS & UI ================= */
@@ -1845,8 +2422,37 @@ addEventListener('pointermove',e=>{
  const nx=e.clientX,ny=e.clientY;
  pointer.accX+=nx-pointer.x;pointer.accY+=ny-pointer.y;
  pointer.x=nx;pointer.y=ny;pointer.seen=true;pointer.lastMove=tGlobal;});
+function handlePuzzleClick(px,py){
+ const oy=H*0.56,ox0=W/2-120;let i,ox;
+ if(WIN.active&&WIN.idx<WINDOWS.length&&WIN.chosen!==1){
+   for(i=0;i<3;i++){ox=ox0+i*120;if(Math.hypot(px-ox,py-oy)<40){pickWindowLetter(WIN.opts[i]);return true;}}
+ }
+ if(BFLY.active&&BFLY.idx<BUTTERFLIES.length&&BFLY.chosen!==1){
+   for(i=0;i<3;i++){ox=ox0+i*120;if(Math.hypot(px-ox,py-oy)<40){pickBflyColor(BFLY.opts[i].en);return true;}}
+ }
+ if(BEE.active&&BEE.idx<BEES.length&&BEE.chosen!==1){
+   for(i=0;i<3;i++){ox=ox0+i*120;if(Math.hypot(px-ox,py-oy)<40){pickBeeCount(BEE.opts[i]);return true;}}
+ }
+ if(PIANO.active&&PIANO.phase==='play'){
+   const pn=PIANO_KEYS.length,pkw=68,pgap=8,ptotalW=pn*pkw+(pn-1)*pgap,pkx0=W/2-ptotalW/2,pky=H*0.34;
+   for(i=0;i<pn;i++){const pkx=pkx0+i*(pkw+pgap);
+     if(px>=pkx&&px<=pkx+pkw&&py>=pky-70&&py<=pky+70){pressPianoKey(i);return true;}}
+ }
+ if(WHISP.active&&WHISP.idx<TRICKY.length&&WHISP.chosen!==1){
+   const woy=H*0.58,wpw=132,wpgap=16,wtotalW=3*wpw+2*wpgap,wox0=W/2-wtotalW/2;
+   for(i=0;i<3;i++){const wox=wox0+i*(wpw+wpgap);
+     if(px>=wox&&px<=wox+wpw&&py>=woy-26&&py<=woy+26){pickWhispWord(WHISP.opts[i]);return true;}}
+ }
+ if(GRT.active&&GRT.idx<GREET.length&&GRT.chosen!==1){
+   const goy=H*0.6,gpw=176,gpgap=14,gtotalW=3*gpw+2*gpgap,gox0=W/2-gtotalW/2;
+   for(i=0;i<3;i++){const gox=gox0+i*(gpw+gpgap);
+     if(px>=gox&&px<=gox+gpw&&py>=goy-26&&py<=goy+26){pickGreetPhrase(GRT.opts[i]);return true;}}
+ }
+ return false;
+}
 addEventListener('pointerdown',e=>{
  if(!entered)return;
+ if(puzzleLock&&handlePuzzleClick(e.clientX,e.clientY))return;
  if(AudioEng.ctx&&AudioEng.ctx.state==='suspended')AudioEng.ctx.resume();
  pointer.down=true;
  pointer.x=e.clientX;pointer.y=e.clientY;

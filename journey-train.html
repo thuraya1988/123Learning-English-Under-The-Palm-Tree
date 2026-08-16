@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تحت شجرة النخيل · قطار الصحراء</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/700.css">
+<link rel="icon" type="image/png" href="public/favicon.png">
+<style>
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; overflow:hidden; background:#171208;
+    font-family:'Cairo','Segoe UI',sans-serif; }
+  #app{ position:fixed; inset:0; }
+  #app canvas{ display:block; }
+  .vignette{ position:fixed; inset:0; pointer-events:none; z-index:5;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(24,10,2,.45) 100%); }
+  .panel{ position:fixed; z-index:10; background:rgba(24,17,8,.74);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(226,178,110,.28); border-radius:12px;
+    box-shadow:0 10px 34px rgba(0,0,0,.45); color:#efe3cd; }
+  #info{ top:18px; right:18px; padding:14px 18px 12px; max-width:370px; text-align:right; }
+  #info h1{ margin:0; font-size:24px; font-weight:700; color:#f4e8d0; line-height:1.3; }
+  #info h1 em{ font-style:normal; color:#e0a35c; }
+  #info .latin{ font-size:10px; letter-spacing:.3em; color:#a98d5f; font-weight:600; margin-top:2px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .chip{ font-size:11px; color:#e2d3b4; border:1px solid rgba(226,178,110,.32);
+    border-radius:20px; padding:2px 10px; background:rgba(226,178,110,.08); }
+  #back{ position:fixed; top:18px; left:18px; z-index:11; padding:9px 15px; border-radius:999px;
+    background:rgba(24,17,8,.82); border:1px solid rgba(226,178,110,.4); color:#f0e4c8;
+    font-family:inherit; font-size:12px; font-weight:700; text-decoration:none;
+    backdrop-filter:blur(8px); }
+  #back:hover{ background:rgba(96,68,34,.95); }
+  #controls{ bottom:18px; left:50%; transform:translateX(-50%); padding:10px 16px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;
+    max-width:calc(100vw - 24px); }
+  .grp{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .grp > span{ font-size:11px; font-weight:700; color:#c99d5f; margin-left:4px; }
+  .sep{ width:1px; height:26px; background:rgba(226,178,110,.25); }
+  .btn{ font-family:inherit; font-size:12px; font-weight:600; color:#f0e4c8;
+    background:rgba(52,38,20,.8); border:1px solid rgba(226,178,110,.4);
+    border-radius:7px; padding:6px 12px; cursor:pointer; transition:all .18s ease; }
+  .btn:hover{ background:rgba(96,68,34,.95); border-color:rgba(240,200,140,.7); }
+  .btn.active{ background:#e0a35c; color:#241505; border-color:#e0a35c;
+    box-shadow:0 0 16px rgba(224,163,92,.4); }
+  .btn:focus-visible{ outline:2px solid #f0c987; outline-offset:2px; }
+  #hint{ position:fixed; bottom:20px; left:18px; z-index:10; font-size:11px;
+    color:rgba(240,227,200,.55); line-height:1.9; pointer-events:none; text-align:left; }
+  #loading{ position:fixed; inset:0; z-index:50; background:#171208;
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    transition:opacity .7s ease; }
+  #loading.done{ opacity:0; pointer-events:none; }
+  .ld-t{ font-size:30px; font-weight:700; color:#f4e8d0; }
+  .ld-t em{ font-style:normal; color:#e0a35c; }
+  .ld-s{ margin-top:10px; font-size:13px; color:#c99d5f; animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:.35; } 50%{ opacity:1; } }
+  @media (max-width:760px){
+    #info{ max-width:250px; padding:10px 14px; }
+    #info h1{ font-size:18px; }
+    #hint{ display:none; }
+    .sep{ display:none; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="vignette"></div>
+
+<a id="back" href="date-journey.html">→ رجوع للرحلة</a>
+
+<header id="info" class="panel">
+  <h1>تحت <em>شجرة النخيل</em></h1>
+  <div class="latin">UNDER THE PALM TREE · DESERT RAILWAY</div>
+  <div class="chips">
+    <span class="chip">قاطرة معدنية مفصلة</span>
+    <span class="chip">عربات بأبواب منزلقة</span>
+    <span class="chip">سكة بعوارض خشبية</span>
+    <span class="chip">واحة نخيل وقناة ماء</span>
+    <span class="chip">صدأ وزيت وغبار</span>
+    <span class="chip">بدون شخصيات</span>
+  </div>
+</header>
+
+<div id="controls" class="panel">
+  <div class="grp"><span>التحكم</span>
+    <button id="btnMove" class="btn active" title="حركة القطار على السكة">حركة القطار</button>
+    <button id="btnFollow" class="btn active" title="تتبع الكاميرا للقطار">تتبع الكاميرا</button>
+    <button id="btnOrbit" class="btn active" title="دوران الكاميرا">دوران</button>
+    <button id="btnWire" class="btn" title="عرض سلكي">شبكة سلكية</button>
+  </div>
+  <div class="sep"></div>
+  <div class="grp"><span>زوايا العرض</span>
+    <button class="btn view active" data-v="general">عامة</button>
+    <button class="btn view" data-v="loco">القاطرة</button>
+    <button class="btn view" data-v="cars">العربات</button>
+    <button class="btn view" data-v="track">السكة</button>
+    <button class="btn view" data-v="oasis">الواحة</button>
+  </div>
+</div>
+
+<div id="hint">اسحب: تدوير &nbsp;·&nbsp; العجلة: تقريب &nbsp;·&nbsp; الزر الأيمن: تحريك</div>
+
+<div id="loading">
+  <div class="ld-t">تحت <em>شجرة النخيل</em></div>
+  <div class="ld-s">جارٍ بناء القطار…</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 1400))]);
+
+/* ================= أساسيات العرض ================= */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xe6bb8c, 60, 240);
+
+const camera = new THREE.PerspectiveCamera(44, innerWidth/innerHeight, 0.1, 500);
+camera.position.set(17, 7, 26);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 2.5, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 4;
+controls.maxDistance = 90;
+controls.maxPolarAngle = 1.50;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.4;
+
+/* ================= أدوات الرسم الإجرائي ================= */
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+function makeTex(w, h, painter, srgb = true){
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  painter(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = maxAniso;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function hexA(hex, a){ const n = parseInt(hex.slice(1),16);
+  return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+function mottle(g, w, h, n, r0, r1, cols, a0, a1){
+  for (let i=0;i<n;i++){
+    const x = Math.random()*w, y = Math.random()*h, r = r0 + Math.random()*(r1-r0);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    const c = cols[(Math.random()*cols.length)|0];
+    gr.addColorStop(0, hexA(c, a0 + Math.random()*(a1-a0)));
+    gr.addColorStop(1, hexA(c, 0));
+    g.fillStyle = gr; g.fillRect(x-r, y-r, r*2, r*2);
+  }
+}
+function speckle(g, w, h, n, cols, a0, a1, s0, s1){
+  for (let i=0;i<n;i++){
+    g.globalAlpha = a0 + Math.random()*(a1-a0);
+    g.fillStyle = cols[(Math.random()*cols.length)|0];
+    const s = s0 + Math.random()*(s1-s0);
+    g.fillRect(Math.random()*w, Math.random()*h, s, s*(0.6+Math.random()*0.8));
+  }
+  g.globalAlpha = 1;
+}
+function scratch(g, w, h, n, col, a0, a1, l0, l1){
+  g.lineCap = 'round';
+  for (let i=0;i<n;i++){
+    g.strokeStyle = col; g.globalAlpha = a0 + Math.random()*(a1-a0); g.lineWidth = 1;
+    const x = Math.random()*w, y = Math.random()*h, an = Math.random()*6.283;
+    const l = l0 + Math.random()*(l1-l0);
+    g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(an)*l, y+Math.sin(an)*l); g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+function drawPalm(g, cx, cy, s, dark){
+  g.strokeStyle = dark; g.lineCap = 'round';
+  g.lineWidth = s*0.09;
+  g.beginPath(); g.moveTo(cx - s*0.06, cy + s*0.5);
+  g.quadraticCurveTo(cx + s*0.10, cy + s*0.1, cx + s*0.02, cy - s*0.25); g.stroke();
+  g.lineWidth = s*0.055;
+  const tx = cx + s*0.02, ty = cy - s*0.25;
+  for (let i=0;i<7;i++){
+    const a = -Math.PI*0.95 + i*(Math.PI*0.9/6);
+    g.beginPath(); g.moveTo(tx, ty);
+    g.quadraticCurveTo(tx + Math.cos(a)*s*0.32, ty + Math.sin(a)*s*0.32 - s*0.08,
+      tx + Math.cos(a)*s*0.5, ty + Math.sin(a)*s*0.42 + s*0.1);
+    g.stroke();
+  }
+}
+function rivets(g, w, h, xs, ys){
+  g.fillStyle = 'rgba(52,46,38,0.9)';
+  for (const y of ys) for (let x = 10; x < w; x += 26){
+    g.beginPath(); g.arc(x, y, 2, 0, 6.283); g.fill(); }
+  for (const x of xs) for (let y = 10; y < h; y += 30){
+    g.beginPath(); g.arc(x, y, 2, 0, 6.283); g.fill(); }
+}
+function rustStreaks(g, w, h, n){
+  for (let i=0;i<n;i++){
+    const x = Math.random()*w, y0 = Math.random()*h*0.5, l = 20 + Math.random()*80;
+    const gr = g.createLinearGradient(0, y0, 0, y0+l);
+    gr.addColorStop(0, 'rgba(122,74,42,0.35)');
+    gr.addColorStop(1, 'rgba(122,74,42,0)');
+    g.fillStyle = gr;
+    g.fillRect(x, y0, 2 + Math.random()*3, l);
+  }
+}
+function dustBottom(g, w, h){
+  const gr = g.createLinearGradient(0, h*0.72, 0, h);
+  gr.addColorStop(0, 'rgba(160,140,105,0)');
+  gr.addColorStop(1, 'rgba(160,140,105,0.5)');
+  g.fillStyle = gr; g.fillRect(0, h*0.72, w, h*0.28);
+  speckle(g, w, h, 500, ['#b3a179','#a08e66'], 0.08, 0.25, 1, 2.5);
+}
+function paintChevron(g, w, h){
+  g.fillStyle = '#2a2a24'; g.fillRect(0,0,w,h);
+  g.save(); g.beginPath(); g.rect(0,0,w,h); g.clip();
+  g.fillStyle = '#d8b23a'; g.lineWidth = 0;
+  for (let x = -h; x < w + h; x += 28){
+    g.beginPath();
+    g.moveTo(x, h); g.lineTo(x + h, 0); g.lineTo(x + h + 14, 0); g.lineTo(x + 14, h);
+    g.closePath(); g.fill();
+  }
+  g.restore();
+  g.strokeStyle = '#171712'; g.lineWidth = 4; g.strokeRect(2,2,w-4,h-4);
+}
+function paintLogoPlate(g, w, h){
+  g.fillStyle = '#4c5138'; g.fillRect(0,0,w,h);
+  mottle(g, w, h, 10, 20, 70, ['#575d40','#414630'], 0.1, 0.2);
+  g.strokeStyle = '#d8cba4'; g.lineWidth = 4; g.strokeRect(8,8,w-16,h-16);
+  g.strokeStyle = '#a89a6c'; g.lineWidth = 1.5; g.strokeRect(16,16,w-32,h-32);
+  const r = h*0.3;
+  g.strokeStyle = '#e6dcc0'; g.lineWidth = r*0.14;
+  g.beginPath(); g.arc(w*0.14, h/2, r, 0, 6.283); g.stroke();
+  drawPalm(g, w*0.14, h/2, r*1.5, '#e6dcc0');
+  g.font = `700 ${h*0.26}px Cairo, sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  try { g.letterSpacing = '4px'; } catch(e){}
+  g.fillStyle = '#2e2a1c';
+  g.fillText('UNDER THE PALM TREE', w*0.59 + 2, h/2 + 2);
+  g.fillStyle = '#ece2c2';
+  g.fillText('UNDER THE PALM TREE', w*0.59, h/2);
+}
+function paintLoco(g, w, h){
+  g.fillStyle = '#d9cba6'; g.fillRect(0,0,w,h);
+  g.fillStyle = '#6d7248'; g.fillRect(0, 0, w, h*0.30);
+  g.fillStyle = '#565b3a'; g.fillRect(0, h*0.285, w, h*0.03);
+  g.fillStyle = '#4c5138'; g.fillRect(0, h*0.80, w, h*0.20);
+  g.fillStyle = '#b8642e'; g.fillRect(0, h*0.78, w, h*0.022);
+  mottle(g, w, h, 30, 30, 120, ['#e4d8b6','#c4b892','#7a7f54','#5d6240'], 0.06, 0.16);
+  g.strokeStyle = 'rgba(40,38,30,0.55)'; g.lineWidth = 2;
+  for (const x of [0.09, 0.21, 0.34, 0.47, 0.60, 0.73, 0.86]){
+    g.beginPath(); g.moveTo(x*w, 0); g.lineTo(x*w, h); g.stroke(); }
+  g.beginPath(); g.moveTo(0, h*0.315); g.lineTo(w, h*0.315); g.stroke();
+  g.beginPath(); g.moveTo(0, h*0.78); g.lineTo(w, h*0.78); g.stroke();
+  rivets(g, w, h, [0.09,0.21,0.34,0.47,0.60,0.73,0.86].map(v=>v*w), [h*0.06, h*0.26, h*0.36, h*0.74, h*0.9]);
+  rustStreaks(g, w, h, 26);
+  mottle(g, w, h, 12, 12, 45, ['#6e4a2a','#54371f'], 0.1, 0.24);
+  scratch(g, w, h, 60, 'rgba(240,235,215,1)', 0.06, 0.24, 8, 50);
+  scratch(g, w, h, 30, 'rgba(40,36,28,1)', 0.06, 0.2, 6, 36);
+  g.fillStyle = 'rgba(20,16,10,0.5)';
+  for (let i=0;i<7;i++){
+    const x = Math.random()*w;
+    g.beginPath(); g.ellipse(x, h*0.96, 14+Math.random()*22, 6+Math.random()*6, 0, 0, 6.283); g.fill();
+  }
+  dustBottom(g, w, h);
+}
+function paintCar(g, w, h, base, dark){
+  g.fillStyle = base; g.fillRect(0,0,w,h);
+  mottle(g, w, h, 26, 30, 110, [base, dark, '#00000000'], 0.05, 0.14);
+  for (let x = 0; x < w; x += 26){
+    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x, 0, 3, h);
+    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(x+3, 0, 2, h);
+  }
+  g.fillStyle = dark; g.fillRect(0, 0, w, h*0.07); g.fillRect(0, h*0.93, w, h*0.07);
+  g.strokeStyle = 'rgba(25,22,16,0.6)'; g.lineWidth = 2;
+  g.strokeRect(1, h*0.07, w-2, h*0.86);
+  rivets(g, w, h, [], [h*0.045, h*0.12, h*0.88, h*0.955]);
+  rustStreaks(g, w, h, 22);
+  mottle(g, w, h, 10, 10, 40, ['#6e4a2a','#54371f'], 0.1, 0.22);
+  scratch(g, w, h, 50, 'rgba(235,225,200,1)', 0.05, 0.2, 6, 44);
+  for (const cx of [w*0.06, w*0.94]){
+    g.save();
+    g.beginPath(); g.rect(cx - w*0.05, h*0.80, w*0.10, h*0.13); g.clip();
+    g.fillStyle = '#2a2a24'; g.fillRect(cx - w*0.05, h*0.80, w*0.10, h*0.13);
+    g.fillStyle = '#d8b23a';
+    for (let x = -30; x < 60; x += 22){
+      g.beginPath();
+      g.moveTo(cx - w*0.05 + x, h*0.93); g.lineTo(cx - w*0.05 + x + 30, h*0.80);
+      g.lineTo(cx - w*0.05 + x + 40, h*0.80); g.lineTo(cx - w*0.05 + x + 10, h*0.93);
+      g.closePath(); g.fill();
+    }
+    g.restore();
+  }
+  g.fillStyle = 'rgba(20,16,10,0.45)';
+  for (let i=0;i<6;i++){
+    const x = Math.random()*w;
+    g.beginPath(); g.ellipse(x, h*0.97, 12+Math.random()*20, 5, 0, 0, 6.283); g.fill();
+  }
+  dustBottom(g, w, h);
+}
+function paintWood(g, w, h){
+  g.fillStyle = '#6d4f30'; g.fillRect(0,0,w,h);
+  const cols = ['#74542f','#63472a','#7d5b36','#5a4026','#6f5131'];
+  for (let i=0;i<5;i++){
+    g.fillStyle = cols[i]; g.fillRect(0, i*h/5, w, h/5);
+    for (let k=0;k<6;k++){
+      g.strokeStyle = 'rgba(40,26,14,0.3)'; g.lineWidth = 1 + Math.random();
+      const y = i*h/5 + Math.random()*h/5;
+      g.beginPath(); g.moveTo(0, y);
+      for (let x=0;x<=w;x+=w/5) g.lineTo(x, y + Math.sin(x*0.03+k)*2);
+      g.stroke();
+    }
+    g.fillStyle = 'rgba(25,16,8,0.8)'; g.fillRect(0, i*h/5 - 1, w, 2.2);
+  }
+  speckle(g, w, h, 2500, ['#4a3520','#2e2012','#8a6a44'], 0.05, 0.2, 1, 2);
+  mottle(g, w, h, 14, 12, 45, ['#241a10','#3a2a18'], 0.12, 0.3);
+}
+function paintBallast(g, w, h){
+  g.fillStyle = '#8a7a62'; g.fillRect(0,0,w,h);
+  speckle(g, w, h, 9000, ['#9a8a70','#756650','#a89878','#5f5340','#8d7d64','#4f4536'], 0.2, 0.6, 1, 3);
+  mottle(g, w, h, 20, 20, 70, ['#6f6250','#a09078','#57493a'], 0.1, 0.24);
+  speckle(g, w, h, 500, ['#b8642e','#6e4a2a'], 0.05, 0.18, 1, 2);
+}
+function paintGround(g, w, h){
+  g.fillStyle = '#a3855c'; g.fillRect(0,0,w,h);
+  mottle(g, w, h, 40, 40, 150, ['#b2946a','#8f744e','#a89066','#7c6544','#6f7a48'], 0.08, 0.22);
+  speckle(g, w, h, 9000, ['#b2946a','#8f744e','#c2a478','#7c6544','#6d7a46'], 0.05, 0.2, 1, 2.5);
+  mottle(g, w, h, 26, 20, 80, ['#6d7a48','#7d8a52','#5f6b40'], 0.08, 0.2);
+  speckle(g, w, h, 700, ['#75824c','#8a9658'], 0.1, 0.3, 1, 2.2);
+  speckle(g, w, h, 400, ['#5c4832','#6d563c'], 0.1, 0.3, 1.5, 3.5);
+}
+function paintRail(g, w, h){
+  g.fillStyle = '#54585e'; g.fillRect(0,0,w,h);
+  speckle(g, w, h, 3000, ['#5e6268','#484c52','#6a6e74','#3e4248'], 0.08, 0.25, 1, 2);
+  mottle(g, w, h, 22, 12, 55, ['#6e4a2a','#7d5533','#54371f'], 0.1, 0.3);
+  scratch(g, w, h, 40, 'rgba(190,195,200,1)', 0.06, 0.2, 6, 40);
+}
+function paintTrunk(g, w, h){
+  g.fillStyle = '#8a6a4a'; g.fillRect(0,0,w,h);
+  for (let y = 6; y < h; y += 13){
+    g.strokeStyle = 'rgba(70,50,30,0.7)'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(0, y);
+    for (let x=0;x<=w;x+=w/6) g.lineTo(x, y + Math.sin(x*0.08 + y)*2.5);
+    g.stroke();
+    g.strokeStyle = 'rgba(150,120,88,0.35)'; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(0, y+4);
+    for (let x=0;x<=w;x+=w/6) g.lineTo(x, y+4 + Math.sin(x*0.08 + y)*2.5);
+    g.stroke();
+  }
+  for (let i=0;i<300;i++){
+    g.fillStyle = 'rgba(60,42,26,0.3)';
+    g.fillRect(Math.random()*w, Math.random()*h, 1.5, 4+Math.random()*6);
+  }
+}
+function paintFrond(g, w, h){
+  g.clearRect(0,0,w,h);
+  g.strokeStyle = '#3f5a26'; g.lineWidth = 6; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(w/2, h); g.lineTo(w/2, h*0.04); g.stroke();
+  for (let y = h*0.96; y > h*0.05; y -= 7){
+    const t = 1 - (y - h*0.05)/(h*0.91);
+    const len = (w*0.48)*(0.35 + 0.65*Math.sin(Math.min(1, t*1.3)*Math.PI*0.5))*(1 - t*0.25);
+    const droop = 6 + t*10;
+    g.strokeStyle = t < 0.5 ? '#4c6a2c' : (Math.random()<0.5 ? '#5a7a34' : '#68883c');
+    g.lineWidth = 2.6 - t*1.2;
+    for (const s of [-1, 1]){
+      g.beginPath();
+      g.moveTo(w/2, y);
+      g.quadraticCurveTo(w/2 + s*len*0.6, y - 2, w/2 + s*len, y + droop*(0.4 + t));
+      g.stroke();
+    }
+  }
+}
+function paintGrass(g, w, h){
+  g.clearRect(0,0,w,h);
+  const cols = ['#7d8a4a','#a89a56','#6f7a42','#c2a862','#8a9658'];
+  for (let i=0;i<9;i++){
+    const bx = w*0.5 + (Math.random()*24-12);
+    const tx = bx + (Math.random()*30-15), ty = h*0.06 + Math.random()*h*0.2;
+    g.strokeStyle = cols[i%5]; g.lineWidth = 2.6; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(bx, h); g.quadraticCurveTo((bx+tx)/2, h*0.55, tx, ty); g.stroke();
+  }
+}
+function paintSky(g, w, h){
+  const gr = g.createLinearGradient(0,0,0,h);
+  gr.addColorStop(0,'#3f5a84'); gr.addColorStop(0.32,'#8f7e82'); gr.addColorStop(0.48,'#e8a862');
+  gr.addColorStop(0.55,'#f6c47e'); gr.addColorStop(0.60,'#d8a06a'); gr.addColorStop(1,'#6a4f36');
+  g.fillStyle = gr; g.fillRect(0,0,w,h);
+  const sun = g.createRadialGradient(w*0.403, h*0.52, 4, w*0.403, h*0.52, 200);
+  sun.addColorStop(0,'rgba(255,244,210,1)'); sun.addColorStop(0.22,'rgba(255,214,150,0.55)'); sun.addColorStop(1,'rgba(255,200,130,0)');
+  g.fillStyle = sun; g.fillRect(0,0,w,h);
+  g.fillStyle = 'rgba(255,222,186,0.15)';
+  for (let i=0;i<12;i++){
+    const x = Math.random()*w, y = h*(0.26+Math.random()*0.18), r = 40+Math.random()*100;
+    g.beginPath(); g.ellipse(x, y, r*2.5, r*0.30, 0, 0, 6.283); g.fill();
+  }
+}
+function paintSmoke(g, w, h){
+  const gr = g.createRadialGradient(w/2,h/2,2,w/2,h/2,w/2);
+  gr.addColorStop(0,'rgba(120,115,108,0.55)'); gr.addColorStop(0.5,'rgba(120,115,108,0.25)'); gr.addColorStop(1,'rgba(120,115,108,0)');
+  g.fillStyle = gr; g.fillRect(0,0,w,h);
+}
+
+/* ================= الإكساء ================= */
+const texLoco   = makeTex(1024, 512, paintLoco);
+const texCarA   = makeTex(1024, 512, (g,w,h)=>paintCar(g,w,h,'#8a4630','#5e2f20'));
+const texCarB   = makeTex(1024, 512, (g,w,h)=>paintCar(g,w,h,'#6b7048','#4a4e32'));
+const texCarC   = makeTex(1024, 512, (g,w,h)=>paintCar(g,w,h,'#b3946a','#82694a'));
+const texWood   = makeTex(512, 512, paintWood);
+const texBallast= makeTex(512, 512, paintBallast);
+texBallast.repeat.set(2, 60);
+const texGround = makeTex(1024, 1024, paintGround);
+texGround.repeat.set(7, 7);
+const texRail   = makeTex(512, 256, paintRail);
+texRail.repeat.set(40, 1);
+const texTrunk  = makeTex(256, 512, paintTrunk);
+const texFrond  = makeTex(256, 512, paintFrond);
+const texGrass  = makeTex(128, 128, paintGrass);
+const texSky    = makeTex(1024, 512, paintSky);
+texSky.mapping = THREE.EquirectangularReflectionMapping;
+const texSmoke  = makeTex(128, 128, paintSmoke, false);
+const texLogo   = makeTex(640, 200, paintLogoPlate);
+const texChev   = makeTex(256, 128, paintChevron);
+scene.background = texSky;
+
+const mats = [];
+const std = o => { const m = new THREE.MeshStandardMaterial(o); m.envMapIntensity = 0.8; mats.push(m); return m; };
+const matLoco  = std({ map:texLoco, bumpMap:texLoco, bumpScale:0.02, roughness:0.55, metalness:0.45 });
+const matCarA  = std({ map:texCarA, bumpMap:texCarA, bumpScale:0.02, roughness:0.6, metalness:0.4 });
+const matCarB  = std({ map:texCarB, bumpMap:texCarB, bumpScale:0.02, roughness:0.6, metalness:0.4 });
+const matCarC  = std({ map:texCarC, bumpMap:texCarC, bumpScale:0.02, roughness:0.6, metalness:0.4 });
+const matFrame = std({ color:0x26221c, roughness:0.75, metalness:0.5 });
+const matDark  = std({ color:0x1c1a16, roughness:0.8, metalness:0.3 });
+const matSteel = std({ color:0x7a7e84, roughness:0.45, metalness:0.85 });
+const matRail  = std({ map:texRail, bumpMap:texRail, bumpScale:0.03, roughness:0.55, metalness:0.75 });
+const matRailT = std({ color:0x9ba0a6, roughness:0.28, metalness:0.95 });
+const matWood  = std({ map:texWood, bumpMap:texWood, bumpScale:0.04, roughness:0.9, metalness:0 });
+const matBallast = std({ map:texBallast, bumpMap:texBallast, bumpScale:0.05, roughness:1, metalness:0 });
+const matGround  = std({ map:texGround, bumpMap:texGround, bumpScale:0.04, roughness:1, metalness:0 });
+const matTrunk = std({ map:texTrunk, bumpMap:texTrunk, bumpScale:0.05, roughness:0.9, metalness:0 });
+const matFrond = std({ map:texFrond, alphaTest:0.4, side:THREE.DoubleSide, roughness:0.9, metalness:0 });
+const matGrass = std({ map:texGrass, alphaTest:0.45, side:THREE.DoubleSide, roughness:1, metalness:0 });
+const matGlass = std({ color:0x9fb6bd, roughness:0.08, metalness:0.6, transparent:true, opacity:0.55, emissive:0x141e22, emissiveIntensity:0.4 });
+const matLens  = std({ color:0x3a3020, emissive:0xffd98a, emissiveIntensity:2.2, roughness:0.4 });
+const matGlow  = std({ color:0x1a1008, emissive:0xffb46a, emissiveIntensity:1.5, roughness:0.8 });
+const matLogo  = std({ map:texLogo, bumpMap:texLogo, bumpScale:0.02, roughness:0.55, metalness:0.35 });
+const matChev  = std({ map:texChev, roughness:0.7, metalness:0.2 });
+const matRubber= std({ color:0x181818, roughness:0.95, metalness:0 });
+const matWater = std({ color:0x2e6a72, roughness:0.12, metalness:0.7, emissive:0x0a2a30, emissiveIntensity:0.4 });
+const matInsul = std({ color:0xd8d2c2, roughness:0.35, metalness:0.05 });
+
+/* بيئة الانعكاسات */
+const pm = new THREE.PMREMGenerator(renderer);
+const envS = new THREE.Scene();
+envS.add(new THREE.Mesh(new THREE.SphereGeometry(60,24,12),
+  new THREE.MeshBasicMaterial({ map:texSky, side:THREE.BackSide })));
+const envG = new THREE.Mesh(new THREE.CircleGeometry(55,24),
+  new THREE.MeshBasicMaterial({ color:0x8a744e }));
+envG.rotation.x = -Math.PI/2; envS.add(envG);
+scene.environment = pm.fromScene(envS, 0.08).texture;
+
+/* ================= الإضاءة ================= */
+scene.add(new THREE.HemisphereLight(0xffd9ae, 0x44503a, 0.55));
+const sun = new THREE.DirectionalLight(0xffb469, 3.2);
+sun.position.set(-18, 9, 26);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -30; sun.shadow.camera.right = 30;
+sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30;
+sun.shadow.camera.near = 2; sun.shadow.camera.far = 120;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
+scene.add(sun, sun.target);
+const fillL = new THREE.DirectionalLight(0x7fa8c4, 0.5);
+fillL.position.set(14, 8, -12);
+scene.add(fillL);
+
+/* ================= البيئة ================= */
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(260, 260), matGround);
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+/* قناة الماء البعيدة */
+{
+  const wtr = new THREE.Mesh(new THREE.PlaneGeometry(7, 250), matWater);
+  wtr.rotation.x = -Math.PI/2;
+  wtr.position.set(-50, 0.03, 0);
+  scene.add(wtr);
+  for (const bx of [-46.2, -53.8]){
+    const bank = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 250),
+      std({ color:0xc2a476, roughness:1 }));
+    bank.rotation.x = -Math.PI/2;
+    bank.position.set(bx, 0.02, 0);
+    bank.receiveShadow = true;
+    scene.add(bank);
+  }
+}
+/* كثبان بعيدة */
+for (const [dx, dz, s] of [[70,-90,26],[95,20,32],[-95,-70,30],[-85,60,24],[40,110,28],[-30,-115,26]]){
+  const dune = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12),
+    std({ color:0xc8a276, roughness:1 }));
+  dune.scale.set(s, s*0.16, s*0.7);
+  dune.position.set(dx, 0.3, dz);
+  scene.add(dune);
+}
+
+/* ================= السكة ================= */
+const TRK_LEN = 220, TRK_Z0 = -110;
+{
+  const bed = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.16, TRK_LEN), matBallast);
+  bed.position.set(0, 0.06, 0);
+  bed.receiveShadow = true;
+  scene.add(bed);
+  for (const sx of [-0.72, 0.72]){
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.17, TRK_LEN), matRail);
+    rail.position.set(sx, 0.325, 0);
+    rail.castShadow = true; rail.receiveShadow = true;
+    scene.add(rail);
+    const shine = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.016, TRK_LEN), matRailT);
+    shine.position.set(sx, 0.415, 0);
+    scene.add(shine);
+  }
+  for (let i=0;i<12;i++){
+    const z = -100 + Math.random()*200, sx = Math.random()<0.5 ? -0.72 : 0.72;
+    const rust = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.12),
+      std({ map:texRail, color:0x8a5a33, roughness:0.9, metalness:0.3, transparent:true, opacity:0.85 }));
+    rust.position.set(sx + (sx>0 ? 0.048 : -0.048), 0.32, z);
+    rust.rotation.y = sx>0 ? Math.PI/2 : -Math.PI/2;
+    scene.add(rust);
+  }
+}
+/* العوارض الخشبية */
+const sleeperGeo = new THREE.BoxGeometry(2.5, 0.13, 0.28);
+const NSLEEP = Math.floor(TRK_LEN/0.65);
+const sleepers = new THREE.InstancedMesh(sleeperGeo, matWood, NSLEEP);
+const dm = new THREE.Object3D();
+const tint = new THREE.Color();
+for (let i=0;i<NSLEEP;i++){
+  dm.position.set((Math.random()-0.5)*0.06, 0.175, TRK_Z0 + 0.3 + i*0.65);
+  dm.rotation.set(0, (Math.random()-0.5)*0.05, 0);
+  dm.updateMatrix();
+  sleepers.setMatrixAt(i, dm.matrix);
+  tint.setHSL(0.08, 0.35, 0.3 + Math.random()*0.2);
+  sleepers.setColorAt(i, tint);
+}
+sleepers.receiveShadow = true; sleepers.castShadow = true;
+scene.add(sleepers);
+/* براغي التثبيت */
+const spikeGeo = new THREE.CylinderGeometry(0.016, 0.016, 0.05, 6);
+const spikes = new THREE.InstancedMesh(spikeGeo, matSteel, NSLEEP*4);
+let si = 0;
+for (let i=0;i<NSLEEP;i++){
+  const z = TRK_Z0 + 0.3 + i*0.65;
+  for (const sx of [-0.82, -0.62, 0.62, 0.82]){
+    dm.position.set(sx, 0.25, z); dm.rotation.set(0,0,0); dm.updateMatrix();
+    spikes.setMatrixAt(si++, dm.matrix);
+  }
+}
+scene.add(spikes);
+/* حصى السكة */
+const pebGeo = new THREE.IcosahedronGeometry(1, 0);
+const pebbles = new THREE.InstancedMesh(pebGeo, std({ color:0xffffff, roughness:1 }), 700);
+for (let i=0;i<700;i++){
+  dm.position.set((Math.random()-0.5)*4.6, 0.12, TRK_Z0 + Math.random()*TRK_LEN);
+  dm.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
+  const s = 0.02 + Math.random()*0.05;
+  dm.scale.set(s, s*0.6, s);
+  dm.updateMatrix();
+  pebbles.setMatrixAt(i, dm.matrix);
+  tint.setHSL(0.08, 0.15 + Math.random()*0.2, 0.35 + Math.random()*0.3);
+  pebbles.setColorAt(i, tint);
+}
+scene.add(pebbles);
+/* أعشاب على جانبي السكة */
+const gPlane1 = new THREE.PlaneGeometry(0.26, 0.2); gPlane1.translate(0, 0.1, 0);
+const gPlane2 = new THREE.PlaneGeometry(0.26, 0.2); gPlane2.rotateY(Math.PI/2); gPlane2.translate(0, 0.1, 0);
+const tuftGeo = mergeGeometries([gPlane1, gPlane2]);
+const grassInst = new THREE.InstancedMesh(tuftGeo, matGrass, 420);
+for (let i=0;i<420;i++){
+  let x = (Math.random()-0.5)*120;
+  if (Math.abs(x) < 3.2) x = x < 0 ? -3.2 - Math.random()*20 : 3.2 + Math.random()*20;
+  dm.position.set(x, 0, (Math.random()-0.5)*200);
+  dm.rotation.set(0, Math.random()*Math.PI, 0);
+  const s = 0.7 + Math.random()*1.2;
+  dm.scale.set(s, s, s);
+  dm.updateMatrix();
+  grassInst.setMatrixAt(i, dm.matrix);
+  tint.setHSL(0.16 + Math.random()*0.06, 0.35, 0.55 + Math.random()*0.3);
+  grassInst.setColorAt(i, tint);
+}
+scene.add(grassInst);
+/* أحجار صغيرة منتشرة */
+const rocks = new THREE.InstancedMesh(pebGeo, std({ color:0xffffff, roughness:1 }), 240);
+for (let i=0;i<240;i++){
+  let x = (Math.random()-0.5)*160;
+  if (Math.abs(x) < 4) x = x < 0 ? -4 - Math.random()*40 : 4 + Math.random()*40;
+  dm.position.set(x, 0.03, (Math.random()-0.5)*200);
+  dm.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
+  const s = 0.05 + Math.random()*0.16;
+  dm.scale.set(s, s*0.6, s*(0.7+Math.random()*0.5));
+  dm.updateMatrix();
+  rocks.setMatrixAt(i, dm.matrix);
+  tint.setHSL(0.08, 0.12 + Math.random()*0.15, 0.38 + Math.random()*0.25);
+  rocks.setColorAt(i, tint);
+}
+rocks.castShadow = true;
+scene.add(rocks);
+
+/* ================= أشجار النخيل ================= */
+const frondGeo = new THREE.PlaneGeometry(0.6, 3.4, 1, 12);
+{
+  const fp = frondGeo.attributes.position;
+  for (let i=0;i<fp.count;i++){
+    const y = fp.getY(i) + 1.7;
+    const t = Math.max(0, y)/3.4;
+    fp.setX(i, fp.getX(i)*(1 - t*0.75));
+    fp.setZ(i, t*t*1.5);
+    fp.setY(i, y);
+  }
+  frondGeo.computeVertexNormals();
+}
+function palmTree(x, z, sc, leanA){
+  const P = new THREE.Group();
+  P.position.set(x, 0, z);
+  P.scale.setScalar(sc);
+  scene.add(P);
+  const segs = 5, hSeg = 1.5;
+  let px = 0, py = 0;
+  for (let i=0;i<segs;i++){
+    const rB = 0.22 - i*0.026, rT = 0.22 - (i+1)*0.026;
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(rT, rB, hSeg, 10), matTrunk);
+    px += Math.cos(leanA)*0.16*i/segs*2;
+    const pz = Math.sin(leanA)*0.16*i*i/segs;
+    seg.position.set(px, py + hSeg/2, pz);
+    seg.rotation.z = -Math.cos(leanA)*0.05*i;
+    seg.rotation.x = Math.sin(leanA)*0.05*i;
+    seg.castShadow = true;
+    P.add(seg);
+    py += hSeg*0.94;
+  }
+  const crown = new THREE.Group();
+  crown.position.set(px + Math.cos(leanA)*0.3, py + 0.1, Math.sin(leanA)*0.3);
+  P.add(crown);
+  const bud = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), matTrunk);
+  crown.add(bud);
+  for (let i=0;i<3;i++){
+    const nut = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6),
+      std({ color:0x7a8a3c, roughness:0.8 }));
+    nut.position.set(Math.cos(i*2.1)*0.18, -0.12, Math.sin(i*2.1)*0.18);
+    crown.add(nut);
+  }
+  const NF = 13;
+  for (let i=0;i<NF;i++){
+    const fr = new THREE.Mesh(frondGeo, matFrond);
+    fr.rotation.y = i*2.399;
+    const ring = i % 3;
+    fr.rotation.x = ring === 0 ? 0.25 : (ring === 1 ? 0.65 : 1.05);
+    fr.castShadow = true;
+    crown.add(fr);
+  }
+}
+for (let i=0;i<9;i++)
+  palmTree(7 + Math.random()*36, (Math.random()-0.5)*180, 0.8 + Math.random()*0.5, Math.random()*6.28);
+for (let i=0;i<5;i++)
+  palmTree(-(8 + Math.random()*26), (Math.random()-0.5)*180, 0.8 + Math.random()*0.5, Math.random()*6.28);
+for (let i=0;i<4;i++)
+  palmTree(-44 + (Math.random()-0.5)*6, (Math.random()-0.5)*160, 0.9 + Math.random()*0.4, Math.random()*6.28);
+
+/* ================= القطار ================= */
+const train = new THREE.Group();
+scene.add(train);
+const wheelData = [];
+const X_AXIS = new THREE.Vector3(1, 0, 0);
+
+function M2(parent, geo, mtl, x=0, y=0, z=0, rx=0, ry=0, rz=0){
+  const m = new THREE.Mesh(geo, mtl);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  m.castShadow = true; m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+const BX = (w,h,d)=>new THREE.BoxGeometry(w,h,d);
+const CY = (rt,rb,h,s=14)=>new THREE.CylinderGeometry(rt,rb,h,s);
+function tubeBetween(parent, a, b, r, mtl){
+  const d = new THREE.Vector3().subVectors(b, a);
+  const len = d.length();
+  const m = M2(parent, CY(r, r, len, 8), mtl);
+  m.position.copy(a).addScaledVector(d, 0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d.normalize());
+  return m;
+}
+function registerWheels(parent, zc, r, axles){
+  for (const az of axles){
+    M2(parent, CY(0.07, 0.07, 1.96, 10), matFrame, 0, 0, zc + az, 0, 0, Math.PI/2);
+    for (const sx of [-0.98, 0.98])
+      wheelData.push({ x:sx, y: 0.41 + r, z: zc + az, r, side: sx < 0 ? -1 : 1 });
+    for (const sx of [-1.12, 1.12])
+      M2(parent, BX(0.22, 0.32, 0.34), matFrame, sx, 0, zc + az);
+  }
+  M2(parent, BX(2.3, 0.4, 3.4), matFrame, 0, -0.05, zc);
+  for (const sx of [-1.13, 1.13]){
+    M2(parent, BX(0.09, 0.55, 3.4), matFrame, sx, -0.02, zc);
+    M2(parent, BX(0.12, 0.4, 0.6), matSteel, sx*1.03, 0.1, zc);
+    M2(parent, BX(0.10, 0.08, 0.5), matSteel, sx*1.03, -0.18, zc);
+  }
+}
+function bogieGroup(parent, zc, r){
+  const B = new THREE.Group();
+  B.position.y = 0.41 + r;
+  parent.add(B);
+  registerWheels(B, zc, r, [-1.15, 1.15]);
+  return B;
+}
+function coupler(parent, z, front){
+  M2(parent, BX(0.32, 0.24, 0.55), matFrame, 0, 0.9, z + front*0.28);
+  M2(parent, BX(0.2, 0.3, 0.3), matFrame, 0, 0.9, z + front*0.62);
+  M2(parent, CY(0.05, 0.05, 0.16, 8), matSteel, 0, 0.78, z + front*0.62);
+  const hose = new THREE.QuadraticBezierCurve3(
+    new THREE.Vector3(0.3, 0.85, z),
+    new THREE.Vector3(0.34, 0.6, z + front*0.4),
+    new THREE.Vector3(0.3, 0.55, z + front*0.7));
+  M2(parent, new THREE.TubeGeometry(hose, 12, 0.025, 6), matRubber);
+}
+function ladder(parent, x, y0, z, h){
+  M2(parent, CY(0.02, 0.02, h, 6), matSteel, x - 0.12, y0 + h/2, z);
+  M2(parent, CY(0.02, 0.02, h, 6), matSteel, x + 0.12, y0 + h/2, z);
+  for (let i=1;i<Math.floor(h/0.35);i++)
+    M2(parent, CY(0.015, 0.015, 0.26, 6), matSteel, x, y0 + i*0.35, z, 0, 0, Math.PI/2);
+}
+function grabIron(parent, pts){
+  for (let i=0;i<pts.length-1;i++)
+    tubeBetween(parent, new THREE.Vector3(...pts[i]), new THREE.Vector3(...pts[i+1]), 0.018, matSteel);
+}
+function addBoltRing(parent, x, y, z, axis, n, rad){
+  for (let i=0;i<n;i++){
+    const a = i/n*Math.PI*2;
+    const b = M2(parent, CY(0.014, 0.015, 0.03, 6), matSteel, x, y, z);
+    b.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), axis);
+    const off = new THREE.Vector3(0, 0, 0);
+    if (Math.abs(axis.x) > 0.9){ off.y = Math.cos(a)*rad; off.z = Math.sin(a)*rad; }
+    else { off.x = Math.cos(a)*rad; off.z = Math.sin(a)*rad; }
+    b.position.add(off);
+  }
+}
+
+/* --- القاطرة --- */
+const loco = new THREE.Group();
+train.add(loco);
+{
+  M2(loco, BX(2.9, 0.45, 14.6), matFrame, 0, 1.56, 1.2);
+  M2(loco, BX(2.3, 0.85, 3.4), matDark, 0, 0.95, 1.0);
+  M2(loco, CY(0.09, 0.09, 0.1, 10), matSteel, 0.7, 1.42, 1.0);
+  M2(loco, BX(0.08, 0.9, 0.14), matFrame, -0.8, 0.95, -0.55);
+  M2(loco, BX(0.08, 0.9, 0.14), matFrame, -0.8, 0.95, 2.55);
+  M2(loco, CY(0.28, 0.28, 2.6, 14), matDark, -0.7, 1.0, -1.6, 0, 0, Math.PI/2);
+  M2(loco, CY(0.28, 0.28, 2.6, 14), matDark, 0.7, 1.0, -1.6, 0, 0, Math.PI/2);
+  M2(loco, BX(1.0, 0.6, 1.4), matFrame, 1.15, 1.05, -3.4);
+  /* مقدمة + مصد */
+  M2(loco, BX(2.9, 0.5, 0.14), matFrame, 0, 0.72, 8.42);
+  const pilot = M2(loco, BX(2.9, 0.14, 1.1), matFrame, 0, 0.52, 7.95, -0.75, 0, 0);
+  M2(loco, new THREE.PlaneGeometry(2.6, 0.95), matChev, 0, 0.55, 8.0, -0.75, 0, 0);
+  coupler(loco, 8.5, 1);
+  /* الأنف القصير */
+  M2(loco, BX(2.7, 1.65, 1.7), matLoco, 0, 2.62, 7.3);
+  M2(loco, BX(2.7, 0.14, 0.8), matLoco, 0, 3.32, 7.9, 0.6, 0, 0);
+  M2(loco, BX(2.75, 0.1, 1.75), matFrame, 0, 3.48, 7.3);
+  /* المصابيح الأمامية */
+  for (const sx of [-0.7, 0.7]){
+    M2(loco, CY(0.17, 0.19, 0.14, 16), matDark, sx, 2.75, 8.18, Math.PI/2, 0, 0);
+    M2(loco, new THREE.CircleGeometry(0.13, 16), matLens, sx, 2.75, 8.26);
+    addBoltRing(loco, sx, 2.75, 8.2, new THREE.Vector3(0,0,1), 6, 0.17);
+  }
+  M2(loco, CY(0.1, 0.12, 0.12, 12), matDark, 0, 3.35, 8.0, Math.PI/2, 0, 0);
+  M2(loco, new THREE.CircleGeometry(0.07, 12), matLens, 0, 3.35, 8.07);
+  const spot = new THREE.SpotLight(0xffd9a0, 60, 45, 0.5, 0.5, 1.2);
+  spot.position.set(0, 2.8, 8.0);
+  spot.target.position.set(0, 0.5, 24);
+  loco.add(spot, spot.target);
+  /* المقصورة */
+  M2(loco, BX(2.8, 2.25, 1.95), matLoco, 0, 2.92, 5.9);
+  M2(loco, BX(2.9, 0.1, 2.15), matFrame, 0, 4.08, 5.9);
+  for (const sx of [-0.58, 0.58]){
+    M2(loco, BX(1.0, 0.72, 0.05), matDark, sx, 3.5, 6.9, -0.12, 0, 0);
+    M2(loco, BX(0.88, 0.6, 0.04), matGlass, sx, 3.5, 6.92, -0.12, 0, 0);
+  }
+  M2(loco, BX(2.5, 0.06, 0.06), matFrame, 0, 3.12, 6.92);
+  for (const sx of [-1.41, 1.41]){
+    M2(loco, BX(0.04, 0.62, 0.85), matGlass, sx, 3.45, 6.1);
+    M2(loco, BX(0.06, 1.6, 0.9), matLoco, sx, 2.6, 5.35);
+    M2(loco, BX(0.07, 0.05, 0.3), matSteel, sx + Math.sign(sx)*0.02, 2.7, 5.05);
+    M2(loco, CY(0.018, 0.018, 0.08, 8), matSteel, sx + Math.sign(sx)*0.03, 2.62, 5.62);
+    M2(loco, CY(0.02, 0.02, 0.06, 8), matSteel, sx + Math.sign(sx)*0.04, 3.1, 4.95);
+    M2(loco, CY(0.02, 0.02, 0.06, 8), matSteel, sx + Math.sign(sx)*0.04, 2.2, 4.95);
+  }
+  M2(loco, BX(0.9, 0.55, 0.04), matGlass, 0, 3.4, 4.92);
+  /* بوق + عوازل */
+  for (const sx of [-0.25, 0.25]){
+    M2(loco, new THREE.ConeGeometry(0.09, 0.34, 10), matSteel, sx, 4.28, 6.3, -Math.PI/2 + 0.15, 0, 0);
+    M2(loco, CY(0.03, 0.03, 0.16, 8), matSteel, sx, 4.16, 6.3);
+    M2(loco, CY(0.035, 0.05, 0.09, 10), matInsul, sx, 4.1, 6.05);
+    tubeBetween(loco, new THREE.Vector3(sx, 4.14, 6.05), new THREE.Vector3(sx, 4.14, 6.3), 0.008, matRubber);
+  }
+  M2(loco, CY(0.02, 0.025, 0.5, 8), matDark, 0.8, 4.3, 5.4);
+  /* الغطاء الطويل */
+  M2(loco, BX(2.7, 1.95, 9.9), matLoco, 0, 2.765, -0.5);
+  M2(loco, BX(0.85, 0.05, 9.9), matDark, 0, 3.77, -0.5);
+  for (const sx of [-0.46, 0.46])
+    M2(loco, CY(0.018, 0.018, 9.8, 6), matSteel, sx, 3.83, -0.5, Math.PI/2, 0, 0);
+  /* مداخن العادم */
+  for (const sx of [-0.45, 0.45]){
+    M2(loco, CY(0.15, 0.17, 0.42, 12), matDark, sx, 3.95, 3.4);
+    M2(loco, CY(0.2, 0.2, 0.06, 12), matFrame, sx, 4.18, 3.4);
+    M2(loco, CY(0.12, 0.12, 0.03, 12), matDark, sx, 4.2, 3.4);
+  }
+  /* فتحات تهوية وشبكات تبريد */
+  for (const sx of [-1.37, 1.37]){
+    for (const vz of [-4.2, -3.0]){
+      M2(loco, BX(0.06, 1.0, 1.3), matDark, sx, 2.9, vz);
+      for (let i=0;i<6;i++)
+        M2(loco, BX(0.07, 0.05, 1.2), matSteel, sx, 2.5 + i*0.16, vz, 0.5, 0, 0);
+    }
+    for (const lz of [1.6, 0.2, -1.2]){
+      M2(loco, BX(0.05, 0.55, 0.95), matFrame, sx, 3.2, lz);
+      for (let i=0;i<4;i++)
+        M2(loco, BX(0.06, 0.04, 0.88), matSteel, sx, 3.02 + i*0.12, lz, 0.5, 0, 0);
+    }
+  }
+  /* أبواب الصيانة + مقابض + مفصلات + أقفال */
+  for (const sx of [-1.38, 1.38]){
+    for (const dz of [3.0, 0.6, -2.2]){
+      M2(loco, BX(0.05, 1.15, 1.05), matDark, sx, 2.55, dz);
+      M2(loco, BX(0.06, 0.05, 0.28), matSteel, sx + Math.sign(sx)*0.02, 2.55, dz + 0.3);
+      M2(loco, CY(0.02, 0.02, 0.05, 8), matSteel, sx + Math.sign(sx)*0.04, 2.4, dz + 0.38);
+      M2(loco, CY(0.022, 0.022, 0.07, 8), matSteel, sx + Math.sign(sx)*0.03, 2.95, dz - 0.42);
+      M2(loco, CY(0.022, 0.022, 0.07, 8), matSteel, sx + Math.sign(sx)*0.03, 2.15, dz - 0.42);
+      M2(loco, BX(0.05, 0.1, 0.06), matFrame, sx + Math.sign(sx)*0.03, 2.2, dz + 0.42);
+      for (let i=0;i<3;i++)
+        M2(loco, CY(0.012, 0.012, 0.02, 6), matSteel, sx + Math.sign(sx)*0.03, 2.15 + i*0.4, dz - 0.5);
+    }
+  }
+  /* شعار الهوية على القاطرة */
+  for (const sx of [-1, 1]){
+    M2(loco, new THREE.PlaneGeometry(2.4, 0.75), matLogo, sx*1.39, 2.62, -3.6, 0, sx>0 ? Math.PI/2 : -Math.PI/2, 0);
+  }
+  /* أنابيب جانبية + صمامات */
+  for (const sx of [-1.43, 1.43]){
+    M2(loco, CY(0.045, 0.045, 8.6, 10), matSteel, sx, 1.95, -0.6, Math.PI/2, 0, 0);
+    M2(loco, CY(0.035, 0.035, 6.0, 10), matDark, sx, 2.2, -1.0, Math.PI/2, 0, 0);
+    for (const pz of [3.6, -4.8]){
+      M2(loco, CY(0.045, 0.045, 0.5, 10), matSteel, sx, 2.2, pz);
+      M2(loco, new THREE.SphereGeometry(0.07, 10, 8), matSteel, sx, 1.95, pz);
+    }
+    M2(loco, new THREE.TorusGeometry(0.09, 0.018, 8, 16), matSteel, sx, 2.45, 2.2, 0, Math.PI/2, 0);
+    M2(loco, CY(0.02, 0.02, 0.12, 8), matSteel, sx, 2.45, 2.2, Math.PI/2, 0, 0);
+  }
+  /* درابزين جانبي */
+  for (const sx of [-1.48, 1.48]){
+    const pts = [];
+    for (let z = 4.4; z >= -5.3; z -= 1.62){
+      M2(loco, CY(0.018, 0.018, 1.0, 6), matSteel, sx, 2.3, z);
+      pts.push([sx, 2.82, z]);
+    }
+    grabIron(loco, pts);
+    ladder(loco, sx, 1.3, 4.6, 1.6);
+    ladder(loco, sx*0.85, 1.3, -5.3, 2.5);
+  }
+  grabIron(loco, [[-1.2, 2.2, 8.3], [-1.2, 3.3, 8.1], [1.2, 2.2, 8.3], [1.2, 3.3, 8.1]]);
+  /* درجات */
+  for (const sx of [-1.2, 1.2]){
+    M2(loco, BX(0.5, 0.05, 0.4), matFrame, sx, 0.85, 8.1);
+    M2(loco, BX(0.5, 0.05, 0.4), matFrame, sx, 0.5, 8.3);
+    M2(loco, BX(0.5, 0.05, 0.45), matFrame, sx, 0.9, -5.6);
+  }
+  /* أغطية الرمل + فتحات سطح */
+  for (const pz of [2.2, 0.0, -2.4]) for (const sx of [-0.8, 0.8])
+    M2(loco, CY(0.11, 0.12, 0.06, 12), matFrame, sx, 3.77, pz);
+  M2(loco, CY(0.14, 0.14, 0.05, 14), matSteel, 0, 3.5, 7.3);
+  /* عجلات القاطرة */
+  bogieGroup(loco, 4.4, 0.62);
+  bogieGroup(loco, -3.0, 0.62);
+  coupler(loco, -5.95, -1);
+  /* بقع زيت أسفل الخزان */
+  for (const ox of [-0.5, 0.4]){
+    const oil = new THREE.Mesh(new THREE.CircleGeometry(0.4, 14),
+      std({ color:0x0d0a06, roughness:0.3, metalness:0.4, transparent:true, opacity:0.65 }));
+    oil.rotation.x = -Math.PI/2;
+    oil.position.set(ox, 0.16, 1.0 + ox);
+    loco.add(oil);
+  }
+}
+
+/* --- العربات --- */
+const carMats = [matCarA, matCarB, matCarC];
+const carGroups = [];
+function boxcar(idx, doorOpen){
+  const C = new THREE.Group();
+  C.position.z = -13.0 - idx*13.2;
+  train.add(C);
+  carGroups.push(C);
+  const cm = carMats[idx % 3];
+  M2(C, BX(2.6, 0.35, 12.6), matFrame, 0, 1.3, 0);
+  M2(C, BX(2.7, 2.55, 11.9), cm, 0, 2.76, 0);
+  M2(C, BX(2.75, 0.12, 12.0), matFrame, 0, 4.09, 0);
+  M2(C, BX(0.7, 0.04, 11.8), matDark, 0, 4.17, 0);
+  for (const vz of [-3.2, 3.2])
+    M2(C, BX(0.55, 0.2, 0.95), matFrame, 0, 4.25, vz);
+  for (const sx of [-1.38, 1.38]){
+    M2(C, BX(0.06, 0.09, 3.6), matFrame, sx, 3.92, 0.3);
+    M2(C, BX(0.06, 0.09, 3.6), matFrame, sx, 1.58, 0.3);
+    const dz = doorOpen && sx > 0 ? 1.9 : 0.3;
+    M2(C, BX(0.07, 2.25, 2.5), cm, sx + Math.sign(sx)*0.02, 2.75, dz);
+    M2(C, BX(0.08, 0.06, 2.5), matFrame, sx + Math.sign(sx)*0.02, 3.86, dz);
+    M2(C, CY(0.028, 0.028, 0.95, 8), matSteel, sx + Math.sign(sx)*0.07, 2.75, dz - 1.05);
+    M2(C, BX(0.05, 0.1, 0.16), matFrame, sx + Math.sign(sx)*0.05, 2.2, dz - 1.05);
+    M2(C, BX(0.06, 0.14, 0.1), matFrame, sx + Math.sign(sx)*0.05, 3.4, dz + 1.15);
+    if (doorOpen && sx > 0){
+      M2(C, BX(0.05, 2.2, 1.9), matDark, sx - 0.06, 2.75, -0.4);
+      M2(C, new THREE.PlaneGeometry(1.7, 0.12), matGlow, sx - 0.09, 3.6, -0.4, 0, Math.PI/2, 0);
+      M2(C, new THREE.PlaneGeometry(1.6, 1.9), matGlow, sx - 0.08, 2.5, -0.4, 0, Math.PI/2, 0);
+    }
+    for (const wz of [-4.3, 4.3]){
+      M2(C, BX(0.05, 0.5, 0.6), matFrame, sx, 3.3, wz);
+      M2(C, BX(0.05, 0.4, 0.5), matGlass, sx + Math.sign(sx)*0.01, 3.3, wz);
+    }
+    for (const cz of [-5.4, 5.4]){
+      M2(C, new THREE.PlaneGeometry(0.55, 0.35), matChev, sx + Math.sign(sx)*0.01, 1.65, cz, 0, Math.sign(sx)*Math.PI/2, 0);
+    }
+    M2(C, BX(0.45, 0.05, 0.4), matFrame, sx*0.8, 1.05, 3.0);
+    M2(C, BX(0.45, 0.05, 0.4), matFrame, sx*0.8, 1.05, -3.0);
+  }
+  if (idx === 0){
+    M2(C, CY(0.03, 0.03, 1.0, 8), matSteel, 0.95, 2.3, 6.1);
+    const bw = new THREE.Group();
+    bw.position.set(0.95, 2.9, 6.1);
+    C.add(bw);
+    M2(bw, new THREE.TorusGeometry(0.28, 0.035, 8, 20), matSteel, 0, 0, 0);
+    for (let i=0;i<4;i++)
+      M2(bw, CY(0.02, 0.02, 0.56, 6), matSteel, 0, 0, 0, 0, 0, i*Math.PI/4);
+    M2(bw, CY(0.05, 0.05, 0.08, 10), matSteel, 0, 0, 0, Math.PI/2, 0, 0);
+    M2(C, new THREE.PlaneGeometry(0.8, 0.4), matChev, 0, 2.0, 6.31);
+  }
+  for (const ez of [-6.0, 6.0]){
+    ladder(C, 1.1, 1.3, ez, 2.6);
+    grabIron(C, [[-1.38, 2.0, ez], [-1.38, 3.9, ez]]);
+  }
+  coupler(C, -6.5, -1);
+  coupler(C, 6.5, 1);
+  bogieGroup(C, 4.3, 0.55);
+  bogieGroup(C, -4.3, 0.55);
+  M2(C, new THREE.PlaneGeometry(1.6, 0.5), matLogo, 1.39, 3.1, -3.4, 0, Math.PI/2, 0);
+}
+boxcar(0, true);
+boxcar(1, false);
+boxcar(2, false);
+/* أسلاك بين العربات */
+for (let i=0;i<2;i++){
+  const zGap = -13.0 - i*13.2 - 6.6;
+  for (const sx of [-0.8, 0.8]){
+    const c = new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(sx, 1.1, zGap + 0.25),
+      new THREE.Vector3(sx, 0.75, zGap - 0.35),
+      new THREE.Vector3(sx, 1.1, zGap - 0.95));
+    M2(train, new THREE.TubeGeometry(c, 14, 0.022, 6), matRubber, 0,0,0);
+  }
+}
+
+/* عجلات القطار (Instanced) */
+function buildWheelGeo(flangeSide){
+  const parts = [
+    new THREE.CylinderGeometry(0.62, 0.62, 0.13, 26).rotateZ(Math.PI/2),
+    new THREE.TorusGeometry(0.585, 0.04, 10, 26).rotateY(Math.PI/2).translate(flangeSide*0.075, 0, 0),
+    new THREE.CylinderGeometry(0.17, 0.17, 0.17, 14).rotateZ(Math.PI/2),
+    new THREE.CylinderGeometry(0.06, 0.14, 0.06, 12).rotateZ(Math.PI/2).translate(flangeSide*0.1, 0, 0)
+  ];
+  return mergeGeometries(parts);
+}
+const wheelsL = new THREE.InstancedMesh(buildWheelGeo(1), matSteel, wheelData.filter(w=>w.side<0).length);
+const wheelsR = new THREE.InstancedMesh(buildWheelGeo(-1), matSteel, wheelData.filter(w=>w.side>0).length);
+wheelsL.castShadow = true; wheelsR.castShadow = true;
+train.add(wheelsL, wheelsR);
+const wListL = wheelData.filter(w=>w.side<0);
+const wListR = wheelData.filter(w=>w.side>0);
+function updateWheels(inst, list, dist){
+  for (let i=0;i<list.length;i++){
+    const w = list[i];
+    dm.position.set(w.x, w.y, w.z);
+    dm.quaternion.setFromAxisAngle(X_AXIS, dist / w.r);
+    dm.scale.setScalar(w.r / 0.62);
+    dm.updateMatrix();
+    inst.setMatrixAt(i, dm.matrix);
+  }
+  inst.instanceMatrix.needsUpdate = true;
+}
+
+/* دخان العادم */
+const smokeSprites = [];
+for (let i=0;i<8;i++){
+  const sm = new THREE.SpriteMaterial({ map:texSmoke, transparent:true, opacity:0, depthWrite:false });
+  const sp = new THREE.Sprite(sm);
+  sp.scale.set(0.6, 0.6, 1);
+  scene.add(sp);
+  smokeSprites.push({ sp, k: i*0.27, sx: i%2 ? 0.45 : -0.45 });
+}
+
+/* ================= الواجهة والحركة ================= */
+const VIEWS = {
+  general:{ pos:[17, 7, 26],   tgt:[0, 2.5, 0]   },
+  loco:   { pos:[9, 4, 20],    tgt:[0, 2.8, 12]  },
+  cars:   { pos:[10, 4.5, -14],tgt:[0, 2.6, -12] },
+  track:  { pos:[6.5, 1.8, 9], tgt:[0, 0.8, 0]   },
+  oasis:  { pos:[-18, 5, 16],  tgt:[-12, 3, -4]  }
+};
+let camTween = null;
+let zNose = 30, dist = 0, moveOn = true, followOn = true, wireOn = false;
+const SPEED = 2.3;
+
+function flyTo(v){
+  const mid = zNose - 26;
+  camTween = {
+    p0: camera.position.clone(),
+    p1: new THREE.Vector3(v.pos[0], v.pos[1], v.pos[2] + mid),
+    t0: controls.target.clone(),
+    t1: new THREE.Vector3(v.tgt[0], v.tgt[1], v.tgt[2] + mid),
+    k: 0
+  };
+}
+const viewBtns = document.querySelectorAll('.view');
+viewBtns.forEach(b => b.addEventListener('click', () => {
+  viewBtns.forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  flyTo(VIEWS[b.dataset.v]);
+}));
+
+const btnMove   = document.getElementById('btnMove');
+const btnFollow = document.getElementById('btnFollow');
+const btnOrbit  = document.getElementById('btnOrbit');
+const btnWire   = document.getElementById('btnWire');
+btnMove.addEventListener('click', () => {
+  moveOn = !moveOn; btnMove.classList.toggle('active', moveOn);
+});
+btnFollow.addEventListener('click', () => {
+  followOn = !followOn; btnFollow.classList.toggle('active', followOn);
+});
+btnOrbit.addEventListener('click', () => {
+  controls.autoRotate = !controls.autoRotate;
+  btnOrbit.classList.toggle('active', controls.autoRotate);
+});
+btnWire.addEventListener('click', () => {
+  wireOn = !wireOn;
+  mats.forEach(m => m.wireframe = wireOn);
+  btnWire.classList.toggle('active', wireOn);
+});
+controls.addEventListener('start', () => { camTween = null; });
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+const clock = new THREE.Clock();
+const loading = document.getElementById('loading');
+let shown = false;
+const tmpV = new THREE.Vector3();
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  if (moveOn){
+    zNose += SPEED * dt;
+    if (zNose > 96) zNose = -96;
+    dist += SPEED * dt;
+  }
+  train.position.z = zNose - 8.2;
+  loco.rotation.z = 0.003 * Math.sin(t * 2.6);
+  carGroups.forEach((c, i) => { c.rotation.z = 0.003 * Math.sin(t * 2.6 + i * 1.3); });
+
+  updateWheels(wheelsL, wListL, dist);
+  updateWheels(wheelsR, wListR, dist);
+
+  const mid = zNose - 26;
+  sun.position.set(-18, 9, mid + 26);
+  sun.target.position.set(0, 1.5, mid);
+
+  if (followOn && !camTween){
+    tmpV.set(0, 2.5, mid);
+    tmpV.sub(controls.target);
+    controls.target.addScaledVector(tmpV, 0.06);
+    camera.position.addScaledVector(tmpV, 0.06);
+  }
+
+  for (const s of smokeSprites){
+    const ph = ((t * 0.55 + s.k) % 2) / 2;
+    s.sp.position.set(
+      s.sx + Math.sin(t * 1.3 + s.k * 9) * 0.12,
+      4.25 + ph * 3.2,
+      train.position.z + 3.4 - ph * 2.2
+    );
+    const sc = 0.5 + ph * 2.6;
+    s.sp.scale.set(sc, sc, 1);
+    s.sp.material.opacity = (moveOn ? 0.32 : 0.14) * (1 - ph) * Math.min(1, ph * 6);
+  }
+
+  if (camTween){
+    camTween.k += dt / 1.5;
+    const k = Math.min(camTween.k, 1);
+    const e = k < 0.5 ? 4*k*k*k : 1 - Math.pow(-2*k + 2, 3) / 2;
+    camera.position.lerpVectors(camTween.p0, camTween.p1, e);
+    controls.target.lerpVectors(camTween.t0, camTween.t1, e);
+    if (k >= 1) camTween = null;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+  if (!shown){ shown = true; loading.classList.add('done'); }
+}
+animate();
+</script>
+</body>
+</html>

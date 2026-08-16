@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تحت شجرة النخيل · مصنع التمور الفاخر</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/700.css">
+<link rel="icon" type="image/png" href="public/favicon.png">
+<style>
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; overflow:hidden; background:#14100a;
+    font-family:'Cairo','Segoe UI',sans-serif; }
+  #app{ position:fixed; inset:0; }
+  #app canvas{ display:block; }
+  .vignette{ position:fixed; inset:0; pointer-events:none; z-index:5;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(20,10,2,.42) 100%); }
+  .panel{ position:fixed; z-index:10; background:rgba(24,17,8,.76);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(226,178,110,.28); border-radius:12px;
+    box-shadow:0 10px 34px rgba(0,0,0,.45); color:#efe3cd; }
+  #info{ top:16px; right:16px; padding:12px 16px 10px; max-width:380px; text-align:right; }
+  #info h1{ margin:0; font-size:22px; font-weight:700; color:#f4e8d0; line-height:1.3; }
+  #info h1 em{ font-style:normal; color:#e0a35c; }
+  #info .latin{ font-size:9px; letter-spacing:.3em; color:#a98d5f; font-weight:600; margin-top:2px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+  .chip{ font-size:10px; color:#e2d3b4; border:1px solid rgba(226,178,110,.32);
+    border-radius:20px; padding:2px 9px; background:rgba(226,178,110,.08); }
+  #back{ position:fixed; top:16px; left:16px; z-index:11; padding:9px 15px; border-radius:999px;
+    background:rgba(24,17,8,.82); border:1px solid rgba(226,178,110,.4); color:#f0e4c8;
+    font-family:inherit; font-size:12px; font-weight:700; text-decoration:none;
+    backdrop-filter:blur(8px); }
+  #back:hover{ background:rgba(96,68,34,.95); }
+  #controls{ bottom:16px; left:50%; transform:translateX(-50%); padding:9px 14px;
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center;
+    max-width:calc(100vw - 20px); }
+  .grp{ display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .grp > span{ font-size:10px; font-weight:700; color:#c99d5f; margin-left:3px; }
+  .sep{ width:1px; height:24px; background:rgba(226,178,110,.25); }
+  .btn{ font-family:inherit; font-size:11px; font-weight:600; color:#f0e4c8;
+    background:rgba(52,38,20,.8); border:1px solid rgba(226,178,110,.4);
+    border-radius:7px; padding:5px 10px; cursor:pointer; transition:all .18s ease; }
+  .btn:hover{ background:rgba(96,68,34,.95); border-color:rgba(240,200,140,.7); }
+  .btn.active{ background:#e0a35c; color:#241505; border-color:#e0a35c;
+    box-shadow:0 0 16px rgba(224,163,92,.4); }
+  .btn:focus-visible{ outline:2px solid #f0c987; outline-offset:2px; }
+  #hint{ position:fixed; bottom:18px; left:16px; z-index:10; font-size:10px;
+    color:rgba(240,227,200,.55); line-height:1.9; pointer-events:none; text-align:left; }
+  #loading{ position:fixed; inset:0; z-index:50; background:#14100a;
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    transition:opacity .7s ease; }
+  #loading.done{ opacity:0; pointer-events:none; }
+  .ld-t{ font-size:28px; font-weight:700; color:#f4e8d0; }
+  .ld-t em{ font-style:normal; color:#e0a35c; }
+  .ld-s{ margin-top:10px; font-size:13px; color:#c99d5f; animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:.35; } 50%{ opacity:1; } }
+  @media (max-width:760px){
+    #info{ max-width:250px; }
+    #info h1{ font-size:17px; }
+    #hint{ display:none; }
+    .sep{ display:none; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="vignette"></div>
+
+<a id="back" href="date-journey.html">→ رجوع للرحلة</a>
+
+<header id="info" class="panel">
+  <h1>مصنع التمور <em>الفاخر</em></h1>
+  <div class="latin">UNDER THE PALM TREE · DATE FACTORY</div>
+  <div class="chips">
+    <span class="chip">18 مرحلة إنتاج آلية</span>
+    <span class="chip">عمارة عمانية حديثة</span>
+    <span class="chip">شوكولاتة ومكسرات وزعفران</span>
+    <span class="chip">بخار ودخان واقعي</span>
+    <span class="chip">نار قسم الطبخ</span>
+    <span class="chip">بدون شخصيات · تشغيل آلي كامل</span>
+  </div>
+</header>
+
+<div id="controls" class="panel">
+  <div class="grp"><span>التحكم</span>
+    <button id="btnLine" class="btn active" title="تشغيل خط الإنتاج">خط الإنتاج</button>
+    <button id="btnOrbit" class="btn active" title="دوران الكاميرا">دوران</button>
+    <button id="btnWire" class="btn" title="عرض سلكي">شبكة سلكية</button>
+  </div>
+  <div class="sep"></div>
+  <div class="grp"><span>الجولات</span>
+    <button class="btn view active" data-v="overview">عامة</button>
+    <button class="btn view" data-v="arrival">الاستقبال</button>
+    <button class="btn view" data-v="wash">الغسيل</button>
+    <button class="btn view" data-v="cook">الطبخ</button>
+    <button class="btn view" data-v="choco">الشوكولاتة</button>
+    <button class="btn view" data-v="pack">التغليف</button>
+    <button class="btn view" data-v="ship">الشحن</button>
+    <button class="btn view" data-v="facade">الواجهة</button>
+  </div>
+</div>
+
+<div id="hint">اسحب: تدوير &nbsp;·&nbsp; العجلة: تقريب &nbsp;·&nbsp; الزر الأيمن: تحريك</div>
+
+<div id="loading">
+  <div class="ld-t">تحت <em>شجرة النخيل</em></div>
+  <div class="ld-s">جارٍ بناء مصنع التمور…</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 1400))]);
+
+/* ================= العرض ================= */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xe8c496, 70, 220);
+
+const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.1, 400);
+camera.position.set(2, 15, 33);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 2, -2);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2;
+controls.maxDistance = 80;
+controls.maxPolarAngle = 1.53;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.35;
+
+/* ================= أدوات ================= */
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+function makeTex(w, h, painter, srgb = true){
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  painter(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = maxAniso;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function hexA(hex, a){ const n = parseInt(hex.slice(1),16);
+  return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+function mottle(g, w, h, n, r0, r1, cols, a0, a1){
+  for (let i=0;i<n;i++){
+    const x = Math.random()*w, y = Math.random()*h, r = r0 + Math.random()*(r1-r0);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    const c = cols[(Math.random()*cols.length)|0];
+    gr.addColorStop(0, hexA(c, a0 + Math.random()*(a1-a0)));
+    gr.addColorStop(1, hexA(c, 0));
+    g.fillStyle = gr; g.fillRect(x-r, y-r, r*2, r*2);
+  }
+}
+function speckle(g, w, h, n, cols, a0, a1, s0, s1){
+  for (let i=0;i<n;i++){
+    g.globalAlpha = a0 + Math.random()*(a1-a0);
+    g.fillStyle = cols[(Math.random()*cols.length)|0];
+    const s = s0 + Math.random()*(s1-s0);
+    g.fillRect(Math.random()*w, Math.random()*h, s, s);
+  }
+  g.globalAlpha = 1;
+}
+function drawPalm(g, cx, cy, s, dark){
+  g.strokeStyle = dark; g.lineCap = 'round';
+  g.lineWidth = s*0.09;
+  g.beginPath(); g.moveTo(cx - s*0.06, cy + s*0.5);
+  g.quadraticCurveTo(cx + s*0.10, cy + s*0.1, cx + s*0.02, cy - s*0.25); g.stroke();
+  g.lineWidth = s*0.055;
+  const tx = cx + s*0.02, ty = cy - s*0.25;
+  for (let i=0;i<7;i++){
+    const a = -Math.PI*0.95 + i*(Math.PI*0.9/6);
+    g.beginPath(); g.moveTo(tx, ty);
+    g.quadraticCurveTo(tx + Math.cos(a)*s*0.32, ty + Math.sin(a)*s*0.32 - s*0.08,
+      tx + Math.cos(a)*s*0.5, ty + Math.sin(a)*s*0.42 + s*0.1);
+    g.stroke();
+  }
+}
+function paintSign(g, w, h){
+  g.fillStyle = '#d8c8a2'; g.fillRect(0,0,w,h);
+  mottle(g, w, h, 14, 30, 90, ['#e2d4b2','#c8b890'], 0.1, 0.2);
+  g.strokeStyle = '#5c452a'; g.lineWidth = 8; g.strokeRect(10,10,w-20,h-20);
+  g.strokeStyle = '#a8875a'; g.lineWidth = 2.5; g.strokeRect(22,22,w-44,h-44);
+  const r = h*0.30;
+  g.strokeStyle = '#4c3a20'; g.lineWidth = r*0.13;
+  g.beginPath(); g.arc(w*0.12, h/2, r, 0, 6.283); g.stroke();
+  drawPalm(g, w*0.12, h/2, r*1.5, '#4c3a20');
+  g.font = `700 ${h*0.30}px Cairo, sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  try { g.letterSpacing = '6px'; } catch(e){}
+  g.fillStyle = 'rgba(232,214,170,0.6)';
+  g.fillText('UNDER THE PALM TREE', w*0.58 + 3, h/2 + 3);
+  g.fillStyle = '#3c2d16';
+  g.fillText('UNDER THE PALM TREE', w*0.58, h/2);
+}
+function paintBrandBox(g, w, h){
+  g.fillStyle = '#efe4ca'; g.fillRect(0,0,w,h);
+  g.fillStyle = '#b8642e'; g.fillRect(0, h*0.86, w, h*0.14);
+  g.fillStyle = '#5c452a'; g.fillRect(0, h*0.82, w, h*0.045);
+  const r = w*0.16;
+  g.strokeStyle = '#5c452a'; g.lineWidth = r*0.15;
+  g.beginPath(); g.arc(w*0.5, h*0.30, r, 0, 6.283); g.stroke();
+  drawPalm(g, w*0.5, h*0.30, r*1.5, '#5c452a');
+  g.font = `700 ${h*0.085}px Cairo, sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  try { g.letterSpacing = '2px'; } catch(e){}
+  g.fillStyle = '#3c2d16';
+  g.fillText('UNDER THE PALM TREE', w*0.5, h*0.62);
+  g.fillStyle = '#efe4ca';
+  g.font = `600 ${h*0.07}px Cairo, sans-serif`;
+  g.fillText('DATES · تمور فاخرة', w*0.5, h*0.93);
+}
+function paintCarton(g, w, h){
+  g.fillStyle = '#b3946a'; g.fillRect(0,0,w,h);
+  speckle(g, w, h, 2500, ['#a8875c','#bd9e74','#9c7c52'], 0.1, 0.3, 1, 2);
+  g.strokeStyle = 'rgba(60,42,22,0.5)'; g.lineWidth = 3;
+  g.strokeRect(w*0.05, h*0.05, w*0.9, h*0.9);
+  const r = w*0.13;
+  g.strokeStyle = '#3c2d16'; g.lineWidth = r*0.16;
+  g.beginPath(); g.arc(w*0.5, h*0.34, r, 0, 6.283); g.stroke();
+  drawPalm(g, w*0.5, h*0.34, r*1.5, '#3c2d16');
+  g.font = `700 ${h*0.09}px Cairo, sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = '#3c2d16';
+  g.fillText('UNDER THE PALM TREE', w*0.5, h*0.66);
+}
+function paintWall(g, w, h){
+  g.fillStyle = '#d3b98e'; g.fillRect(0,0,w,h);
+  mottle(g, w, h, 30, 40, 140, ['#dcc69e','#c4a87c','#cdb388','#b89c72'], 0.08, 0.2);
+  speckle(g, w, h, 5000, ['#dcc69e','#b89c72','#c8ad82','#a8906a'], 0.05, 0.18, 1, 2);
+  g.strokeStyle = 'rgba(120,95,64,0.25)'; g.lineWidth = 2;
+  for (let y = h*0.2; y < h; y += h*0.2){
+    g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke();
+  }
+  g.fillStyle = 'rgba(90,72,50,0.35)'; g.fillRect(0, h*0.94, w, h*0.06);
+  for (let i=0;i<10;i++){
+    const x = Math.random()*w;
+    g.fillStyle = 'rgba(105,85,60,' + (0.04+Math.random()*0.08) + ')';
+    g.fillRect(x, Math.random()*h*0.3, 3+Math.random()*5, h*0.3 + Math.random()*h*0.4);
+  }
+}
+function paintSlats(g, w, h){
+  g.fillStyle = '#8a8f94'; g.fillRect(0,0,w,h);
+  for (let y=0; y<h; y+=18){
+    g.fillStyle = y%36 ? '#7c8186' : '#969ba0';
+    g.fillRect(0, y, w, 16);
+    g.fillStyle = 'rgba(20,22,24,0.6)'; g.fillRect(0, y+16, w, 2);
+    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, y+1, w, 2);
+  }
+  speckle(g, w, h, 800, ['#6a6f74','#a4a9ae'], 0.08, 0.2, 1, 2);
+}
+function paintFloor(g, w, h){
+  const PX = x => (x + 48)/96*w, PZ = z => (z + 18)/36*h;
+  g.fillStyle = '#98938a'; g.fillRect(0,0,w,h);
+  mottle(g, w, h, 50, 40, 180, ['#a29d92','#8c877c','#9a958a','#847f74'], 0.08, 0.2);
+  speckle(g, w, h, 16000, ['#a4a096','#86817a','#b0aba0','#787470','#8f8a80'], 0.05, 0.2, 1, 2.4);
+  g.strokeStyle = 'rgba(60,58,54,0.5)'; g.lineWidth = 2.5;
+  for (let x=-48; x<=48; x+=6){ g.beginPath(); g.moveTo(PX(x),0); g.lineTo(PX(x),h); g.stroke(); }
+  for (let z=-16; z<=16; z+=8){ g.beginPath(); g.moveTo(0,PZ(z)); g.lineTo(w,PZ(z)); g.stroke(); }
+  g.fillStyle = '#d8b23a';
+  g.fillRect(PX(-42), PZ(-5.6), PX(32)-PX(-42), 5);
+  g.fillRect(PX(-42), PZ(-2.4)-5, PX(32)-PX(-42), 5);
+  g.strokeStyle = '#d8b23a'; g.lineWidth = 4;
+  for (let i=0;i<18;i++){
+    const cx = PX(-40.5 + i*4.7), cy = PZ(-4);
+    g.beginPath(); g.arc(cx, cy, 1.9/96*w, 0, 6.283); g.stroke();
+  }
+  g.fillStyle = '#dcdad2';
+  g.fillRect(PX(-42), PZ(3.4), PX(44)-PX(-42), 4);
+  g.fillRect(PX(-42), PZ(5.6)-4, PX(44)-PX(-42), 4);
+  g.fillStyle = 'rgba(220,218,210,0.85)';
+  for (let x=-40; x<=42; x+=8)
+    g.fillRect(PX(x), PZ(4.4), 2/96*w*18, PZ(4.7)-PZ(4.4));
+  const arrow = (x, z, dir) => {
+    g.fillStyle = '#d8b23a';
+    g.beginPath();
+    g.moveTo(PX(x + dir*1.4), PZ(z));
+    g.lineTo(PX(x - dir*0.4), PZ(z - 0.7));
+    g.lineTo(PX(x - dir*0.4), PZ(z + 0.7));
+    g.closePath(); g.fill();
+    g.fillRect(PX(Math.min(x - dir*0.4, x - dir*1.8)), PZ(z) - 4, Math.abs(PX(x-dir*0.4)-PX(x-dir*1.8)), 8);
+  };
+  arrow(-38, -4, 1); arrow(38, -4, 1); arrow(38, 9, 1); arrow(33, 9, 1);
+  g.fillStyle = 'rgba(110,140,150,0.22)';
+  g.beginPath(); g.ellipse(PX(-35.8), PZ(-4), 4.5/96*w, 3/36*h, 0, 0, 6.283); g.fill();
+  g.fillStyle = 'rgba(150,180,190,0.14)';
+  g.beginPath(); g.ellipse(PX(-35), PZ(-3), 2.5/96*w, 1.6/36*h, 0, 0, 6.283); g.fill();
+  for (const [ox, oz] of [[-20, 2], [3, 1], [14, -8], [31, 6], [-8, 8]]){
+    g.fillStyle = 'rgba(42,38,32,0.3)';
+    g.beginPath(); g.ellipse(PX(ox), PZ(oz), 0.9/96*w, 0.5/36*h, Math.random(), 0, 6.283); g.fill();
+  }
+  g.strokeStyle = 'rgba(70,66,60,0.28)'; g.lineWidth = 6;
+  g.strokeRect(PX(30), PZ(4), PX(43)-PX(30), PZ(12)-PZ(4));
+  g.strokeStyle = 'rgba(52,50,46,0.5)'; g.lineWidth = 1.4;
+  for (let i=0;i<9;i++){
+    let x = Math.random()*w, y = Math.random()*h;
+    g.beginPath(); g.moveTo(x, y);
+    for (let k=0;k<5;k++){ x += (Math.random()-0.5)*40; y += (Math.random()-0.5)*30; g.lineTo(x, y); }
+    g.stroke();
+  }
+  for (const [dx, dz] of [[-35.8, -6.3], [-33, -2], [-2.9, -6.3]]){
+    g.fillStyle = 'rgba(30,30,30,0.75)';
+    g.fillRect(PX(dx)-0.4/96*w, PZ(dz)-0.15/36*h, 0.8/96*w, 0.3/36*h);
+  }
+  speckle(g, w, h, 3000, ['#7c786f','#6a665e','#b8b3a8'], 0.05, 0.16, 1, 2);
+}
+function paintWood(g, w, h){
+  g.fillStyle = '#6d4f30'; g.fillRect(0,0,w,h);
+  const cols = ['#74542f','#63472a','#7d5b36','#5a4026','#6f5131'];
+  for (let i=0;i<5;i++){
+    g.fillStyle = cols[i]; g.fillRect(0, i*h/5, w, h/5);
+    for (let k=0;k<5;k++){
+      g.strokeStyle = 'rgba(40,26,14,0.3)'; g.lineWidth = 1;
+      const y = i*h/5 + Math.random()*h/5;
+      g.beginPath(); g.moveTo(0,y);
+      for (let x=0;x<=w;x+=w/5) g.lineTo(x, y + Math.sin(x*0.03+k)*2);
+      g.stroke();
+    }
+    g.fillStyle = 'rgba(25,16,8,0.8)'; g.fillRect(0, i*h/5-1, w, 2.2);
+  }
+  speckle(g, w, h, 1800, ['#4a3520','#2e2012','#8a6a44'], 0.05, 0.2, 1, 2);
+}
+function paintTrunk(g, w, h){
+  g.fillStyle = '#8a6a4a'; g.fillRect(0,0,w,h);
+  for (let y=6; y<h; y+=13){
+    g.strokeStyle = 'rgba(70,50,30,0.7)'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(0,y);
+    for (let x=0;x<=w;x+=w/6) g.lineTo(x, y + Math.sin(x*0.08+y)*2.5);
+    g.stroke();
+  }
+}
+function paintFrond(g, w, h){
+  g.clearRect(0,0,w,h);
+  g.strokeStyle = '#3f5a26'; g.lineWidth = 6; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(w/2,h); g.lineTo(w/2,h*0.04); g.stroke();
+  for (let y=h*0.96; y>h*0.05; y-=7){
+    const t = 1 - (y - h*0.05)/(h*0.91);
+    const len = (w*0.48)*(0.35 + 0.65*Math.sin(Math.min(1,t*1.3)*Math.PI*0.5));
+    g.strokeStyle = t<0.5 ? '#4c6a2c' : (Math.random()<0.5 ? '#5a7a34' : '#68883c');
+    g.lineWidth = 2.6 - t;
+    for (const s of [-1,1]){
+      g.beginPath(); g.moveTo(w/2,y);
+      g.quadraticCurveTo(w/2 + s*len*0.6, y-2, w/2 + s*len, y + 6 + t*10);
+      g.stroke();
+    }
+  }
+}
+function paintSky(g, w, h){
+  const gr = g.createLinearGradient(0,0,0,h);
+  gr.addColorStop(0,'#3f5a84'); gr.addColorStop(0.32,'#8f7e82'); gr.addColorStop(0.48,'#e8a862');
+  gr.addColorStop(0.55,'#f6c47e'); gr.addColorStop(0.62,'#d8a06a'); gr.addColorStop(1,'#6a4f36');
+  g.fillStyle = gr; g.fillRect(0,0,w,h);
+  const sun = g.createRadialGradient(w*0.55, h*0.5, 4, w*0.55, h*0.5, 190);
+  sun.addColorStop(0,'rgba(255,244,210,1)'); sun.addColorStop(0.25,'rgba(255,214,150,0.5)'); sun.addColorStop(1,'rgba(255,200,130,0)');
+  g.fillStyle = sun; g.fillRect(0,0,w,h);
+}
+function paintSmoke(g, w, h){
+  const gr = g.createRadialGradient(w/2,h/2,2,w/2,h/2,w/2);
+  gr.addColorStop(0,'rgba(150,145,138,0.5)'); gr.addColorStop(0.5,'rgba(150,145,138,0.22)'); gr.addColorStop(1,'rgba(150,145,138,0)');
+  g.fillStyle = gr; g.fillRect(0,0,w,h);
+}
+function paintSteam(g, w, h){
+  const gr = g.createRadialGradient(w/2,h/2,2,w/2,h/2,w/2);
+  gr.addColorStop(0,'rgba(235,240,242,0.5)'); gr.addColorStop(0.6,'rgba(235,240,242,0.18)'); gr.addColorStop(1,'rgba(235,240,242,0)');
+  g.fillStyle = gr; g.fillRect(0,0,w,h);
+}
+
+/* ================= الإكساء ================= */
+const texSign   = makeTex(1024, 384, paintSign);
+const texBrand  = makeTex(512, 512, paintBrandBox);
+const texCarton = makeTex(512, 512, paintCarton);
+const texWall   = makeTex(1024, 512, paintWall);
+const texSlats  = makeTex(256, 512, paintSlats);
+const texFloor  = makeTex(2048, 1024, paintFloor);
+const texWood   = makeTex(512, 512, paintWood);
+const texTrunk  = makeTex(256, 512, paintTrunk);
+const texFrond  = makeTex(256, 512, paintFrond);
+const texSky    = makeTex(1024, 512, paintSky);
+texSky.mapping = THREE.EquirectangularReflectionMapping;
+const texSmoke  = makeTex(128, 128, paintSmoke, false);
+const texSteam  = makeTex(128, 128, paintSteam, false);
+scene.background = texSky;
+
+const mats = [];
+const std = o => { const m = new THREE.MeshStandardMaterial(o); m.envMapIntensity = 0.9; mats.push(m); return m; };
+const matWall  = std({ map:texWall, bumpMap:texWall, bumpScale:0.02, roughness:0.9, metalness:0 });
+const matFloor = std({ map:texFloor, bumpMap:texFloor, bumpScale:0.02, roughness:0.85, metalness:0.05 });
+const matSteel = std({ color:0xb8bcc2, roughness:0.24, metalness:0.92 });
+const matSteelD= std({ color:0x7c8288, roughness:0.35, metalness:0.85 });
+const matFrame = std({ color:0x3a4a5a, roughness:0.6, metalness:0.6 });
+const matDark  = std({ color:0x22242a, roughness:0.7, metalness:0.4 });
+const matRubber= std({ color:0x1c1d20, roughness:0.95, metalness:0 });
+const matBelt  = std({ color:0x2c2e33, roughness:0.9, metalness:0.05 });
+const matWood  = std({ map:texWood, bumpMap:texWood, bumpScale:0.03, roughness:0.85, metalness:0 });
+const matPlastB= std({ color:0x2e6ca8, roughness:0.5, metalness:0.05 });
+const matPlastW= std({ color:0xd8d8d2, roughness:0.55, metalness:0.02 });
+const matDates = std({ color:0x5a3418, roughness:0.55, metalness:0.05 });
+const matChoco = std({ color:0x3a2113, roughness:0.25, metalness:0.15 });
+const matChocoW= std({ color:0x4a2a16, roughness:0.35, metalness:0.1 });
+const matNut   = std({ color:0xa87c4a, roughness:0.7, metalness:0 });
+const matSaff  = std({ color:0xc4481c, roughness:0.6, metalness:0 });
+const matGlass = std({ color:0xbcd4da, roughness:0.06, metalness:0.4, transparent:true, opacity:0.35, envMapIntensity:1.4 });
+const matAcryl = std({ color:0xcfe4e8, roughness:0.08, metalness:0.1, transparent:true, opacity:0.28 });
+const matScreen= std({ color:0x0a1a14, emissive:0x2ad08a, emissiveIntensity:0.8, roughness:0.4 });
+const matLamp  = std({ color:0x333028, emissive:0xffd9a0, emissiveIntensity:1.6, roughness:0.5 });
+const matWarn  = std({ color:0x553300, emissive:0xffa22a, emissiveIntensity:1.4, roughness:0.4 });
+const matRedBtn= std({ color:0xa02018, roughness:0.4, metalness:0.2 });
+const matGreen = std({ color:0x1a7a3a, roughness:0.4, metalness:0.2 });
+const matYellow= std({ color:0xd8b23a, roughness:0.55, metalness:0.2 });
+const matFlameO= std({ color:0x000000, emissive:0xff7a1c, emissiveIntensity:2.4, transparent:true, opacity:0.85 });
+const matFlameY= std({ color:0x000000, emissive:0xffd04a, emissiveIntensity:3.0, transparent:true, opacity:0.9 });
+const matFlameB= std({ color:0x000000, emissive:0x6ab8ff, emissiveIntensity:2.0, transparent:true, opacity:0.8 });
+const matGlow  = std({ color:0x000000, emissive:0xff5a14, emissiveIntensity:2.0, transparent:true, opacity:0.55 });
+const matHeat  = std({ color:0x1a1210, emissive:0xff8a30, emissiveIntensity:0.9, roughness:0.6 });
+const matCool  = std({ color:0x22323a, emissive:0xbce8ff, emissiveIntensity:1.1, roughness:0.5 });
+const matSlats = std({ map:texSlats, bumpMap:texSlats, bumpScale:0.02, roughness:0.5, metalness:0.7 });
+const matSign  = std({ map:texSign, bumpMap:texSign, bumpScale:0.02, roughness:0.7, metalness:0.05, emissive:0xffb46a, emissiveIntensity:0.12 });
+const matBrand = std({ map:texBrand, roughness:0.6, metalness:0 });
+const matCarton= std({ map:texCarton, bumpMap:texCarton, bumpScale:0.02, roughness:0.85, metalness:0 });
+const matTrunk = std({ map:texTrunk, roughness:0.9, metalness:0 });
+const matFrond = std({ map:texFrond, alphaTest:0.4, side:THREE.DoubleSide, roughness:0.9 });
+const matWater = std({ color:0x6ab8cc, roughness:0.1, metalness:0.5, transparent:true, opacity:0.65 });
+const matRedPipe = std({ color:0xb03028, roughness:0.5, metalness:0.5 });
+
+/* بيئة الانعكاسات */
+const pm = new THREE.PMREMGenerator(renderer);
+const envS = new THREE.Scene();
+envS.add(new THREE.Mesh(new THREE.SphereGeometry(50,24,12),
+  new THREE.MeshBasicMaterial({ map:texSky, side:THREE.BackSide })));
+const envG = new THREE.Mesh(new THREE.CircleGeometry(48,24),
+  new THREE.MeshBasicMaterial({ color:0xb09468 }));
+envG.rotation.x = -Math.PI/2; envS.add(envG);
+scene.environment = pm.fromScene(envS, 0.08).texture;
+
+/* ================= الإضاءة ================= */
+scene.add(new THREE.HemisphereLight(0xffe2b8, 0x4a4238, 0.5));
+const sun = new THREE.DirectionalLight(0xffc07a, 2.6);
+sun.position.set(28, 26, 42);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -55; sun.shadow.camera.right = 55;
+sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -40;
+sun.shadow.camera.near = 2; sun.shadow.camera.far = 140;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
+scene.add(sun);
+for (const lx of [-26, 0, 26]){
+  const pl = new THREE.PointLight(0xffd9a8, 70, 48, 2);
+  pl.position.set(lx, 9.6, -2);
+  scene.add(pl);
+}
+const fireLight = new THREE.PointLight(0xff7a24, 40, 14, 2);
+scene.add(fireLight);
+const coolLight = new THREE.PointLight(0xbce8ff, 20, 16, 2);
+scene.add(coolLight);
+
+/* ================= مساعدات البناء ================= */
+const root = new THREE.Group();
+scene.add(root);
+const anims = { fans:[], rots:[], arms:[] };
+function bx(w,h,d,mtl,x,y,z,parent=root,rx=0,ry=0,rz=0){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mtl);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  m.castShadow = true; m.receiveShadow = true;
+  parent.add(m); return m;
+}
+function cy(rt,rb,h,mtl,x,y,z,parent=root,rx=0,ry=0,rz=0,seg=16){
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg), mtl);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  m.castShadow = true; m.receiveShadow = true;
+  parent.add(m); return m;
+}
+function tr(R,tube,mtl,x,y,z,parent=root,rx=0,ry=0,rz=0){
+  const m = new THREE.Mesh(new THREE.TorusGeometry(R,tube,8,24), mtl);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  m.castShadow = true; parent.add(m); return m;
+}
+function pl(w,h,mtl,x,y,z,parent=root,rx=0,ry=0,rz=0){
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h), mtl);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  parent.add(m); return m;
+}
+function tube(a, b, r, mtl, parent=root){
+  const d = new THREE.Vector3().subVectors(b, a);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),10), mtl);
+  m.position.copy(a).addScaledVector(d, 0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d.clone().normalize());
+  m.castShadow = true; parent.add(m); return m;
+}
+const SX = i => -40.5 + i*4.7;
+const BELT_Y = 0.8;
+
+/* ================= الخارج ================= */
+{
+  const g = new THREE.Mesh(new THREE.PlaneGeometry(300, 300),
+    std({ color:0xb3946a, roughness:1 }));
+  g.rotation.x = -Math.PI/2; g.position.y = -0.02;
+  g.receiveShadow = true; scene.add(g);
+}
+function palmTree(x, z, sc, leanA){
+  const P = new THREE.Group();
+  P.position.set(x, 0, z); P.scale.setScalar(sc); scene.add(P);
+  let px = 0, py = 0;
+  for (let i=0;i<5;i++){
+    const seg = cy(0.20 - (i+1)*0.024, 0.20 - i*0.024, 1.5, matTrunk, 0,0,0, P);
+    px += Math.cos(leanA)*0.3*i/5;
+    seg.position.set(px, py + 0.75, Math.sin(leanA)*0.3*i*i/5);
+    seg.rotation.z = -Math.cos(leanA)*0.05*i;
+    py += 1.41;
+  }
+  const crown = new THREE.Group();
+  crown.position.set(px + Math.cos(leanA)*0.3, py + 0.1, Math.sin(leanA)*0.3);
+  P.add(crown);
+  crown.add(new THREE.Mesh(new THREE.SphereGeometry(0.22,10,8), matTrunk));
+  const fg = new THREE.PlaneGeometry(0.6, 3.4, 1, 12);
+  {
+    const fp = fg.attributes.position;
+    for (let i=0;i<fp.count;i++){
+      const y = fp.getY(i) + 1.7, t = Math.max(0,y)/3.4;
+      fp.setX(i, fp.getX(i)*(1 - t*0.75));
+      fp.setZ(i, t*t*1.5); fp.setY(i, y);
+    }
+    fg.computeVertexNormals();
+  }
+  for (let i=0;i<13;i++){
+    const fr = new THREE.Mesh(fg, matFrond);
+    fr.rotation.y = i*2.399;
+    fr.rotation.x = [0.25, 0.65, 1.05][i%3];
+    fr.castShadow = true;
+    crown.add(fr);
+  }
+}
+palmTree(-14, 26, 1.1, 0.5); palmTree(-6, 30, 0.9, 2.1); palmTree(7, 28, 1.2, 4.0);
+palmTree(16, 26, 1.0, 1.2); palmTree(24, 31, 0.85, 5.1);
+/* صوامع خارجية + مدخنة */
+for (const sx of [52, 57]){
+  cy(2.2, 2.2, 8, matSteelD, sx, 5, -6);
+  cy(0.2, 2.2, 2.2, matSteelD, sx, 1.1, -6);
+  cy(0.3, 0.3, 1.2, matSteel, sx, 9.5, -6);
+  tube(new THREE.Vector3(sx, 3, -4), new THREE.Vector3(46, 3, -4), 0.15, matSteel);
+}
+cy(0.7, 0.9, 13, matWall, -52, 6.5, -10);
+cy(0.85, 0.85, 0.5, matDark, -52, 13, -10);
+
+/* ================= هيكل المبنى ================= */
+const HW = 45, HD = 16, HH = 12;
+{
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(96, 36), matFloor);
+  floor.rotation.x = -Math.PI/2; floor.position.y = 0.001;
+  floor.receiveShadow = true; root.add(floor);
+  bx(90, 12, 0.4, matWall, 0, 6, -HD);
+  bx(0.4, 12, 32, matWall, -HW, 6, 0);
+  bx(0.4, 12, 32, matWall, HW, 6, 0);
+  bx(11, 12, 0.4, matWall, -39.5, 6, HD);
+  bx(4, 6.5, 0.4, matWall, -32, 9.25, HD);
+  bx(4, 12, 0.4, matWall, -24, 6, HD);
+  bx(20, 4.5, 0.4, matWall, -12, 9.75, HD);
+  bx(3, 12, 0.4, matWall, -3.5, 6, HD);
+  bx(4, 8.8, 0.4, matWall, 0, 7.6, HD);
+  bx(3, 12, 0.4, matWall, 3.5, 6, HD);
+  bx(24, 4.5, 0.4, matWall, 14, 9.75, HD);
+  bx(6, 12, 0.4, matWall, 29, 6, HD);
+  bx(1, 6.5, 0.4, matWall, 33, 9.25, HD);
+  bx(1, 12, 0.4, matWall, 44.5, 6, HD);
+  bx(40, 3.4, 0.1, matGlass, -2, 7.4, HD - 0.1);
+  for (let x = -22; x <= 18; x += 4)
+    bx(0.15, 3.4, 0.3, matFrame, x, 7.4, HD - 0.1);
+  bx(40, 0.2, 0.3, matFrame, -2, 5.7, HD - 0.1);
+  bx(40, 0.2, 0.3, matFrame, -2, 9.1, HD - 0.1);
+  bx(92, 0.3, 34, std({ color:0x4a4640, roughness:0.9 }), 0, HH + 0.15, 0);
+  for (const cx of [-30, -15, 0, 15, 30]){
+    bx(0.5, HH, 0.5, matWall, cx, HH/2, -HD + 0.6);
+    bx(0.5, HH, 0.5, matWall, cx, HH/2, HD - 0.6);
+  }
+  /* شرفات مسننة عمانية */
+  for (let x = -44; x <= 44; x += 2.2)
+    bx(1.1, 0.7, 0.5, matWall, x, HH + 0.55, HD);
+  for (const cx of [-3.2, 3.2]){
+    bx(0.7, 5.4, 0.7, matWall, cx, 2.7, HD + 1.6);
+    bx(0.9, 0.3, 0.9, matWall, cx, 5.5, HD + 1.6);
+  }
+  bx(8.2, 0.6, 1.2, matWall, 0, 5.8, HD + 1.6);
+  bx(7.2, 1.9, 0.25, matSign, 0, 4.3, HD + 1.7);
+  for (const lx of [-18, 18, -38, 38]){
+    bx(0.3, 0.4, 0.16, matDark, lx, 6.5, HD + 0.3);
+    bx(0.24, 0.28, 0.05, matLamp, lx, 6.45, HD + 0.39);
+  }
+}
+function doorDetails(x, y, z, w, h, ry, mtl){
+  const g = new THREE.Group();
+  g.position.set(x, y, z); g.rotation.y = ry; root.add(g);
+  bx(w, h, 0.08, mtl, 0, 0, 0, g);
+  bx(w + 0.24, 0.12, 0.16, matFrame, 0, h/2 + 0.06, 0, g);
+  bx(0.12, h, 0.16, matFrame, -w/2 - 0.06, 0, 0, g);
+  bx(0.12, h, 0.16, matFrame, w/2 + 0.06, 0, 0, g);
+  bx(w - 0.1, 0.03, 0.1, matRubber, 0, -h/2 + 0.02, 0, g);
+  bx(0.05, 0.34, 0.05, matSteel, w/2 - 0.12, 0, 0.07, g);
+  bx(0.12, 0.08, 0.04, matSteel, w/2 - 0.12, -0.1, 0.07, g);
+  for (const hy of [-h*0.35, 0, h*0.35])
+    cy(0.03, 0.03, 0.16, matSteel, -w/2 - 0.01, hy, 0.02, g, 0, 0, 0);
+  for (const [px, py] of [[-w/2+0.08, h/2-0.08],[w/2-0.08, h/2-0.08],[-w/2+0.08,-h/2+0.08],[w/2-0.08,-h/2+0.08]])
+    cy(0.014, 0.015, 0.03, matSteelD, px, py, 0.05, g, Math.PI/2, 0, 0);
+  return g;
+}
+doorDetails(-1.05, 1.6, HD - 0.05, 1.8, 3.2, 0, matWood);
+doorDetails(1.05, 1.6, HD - 0.05, 1.8, 3.2, 0, matWood);
+doorDetails(-HW + 0.05, 1.5, 6, 1.4, 3, Math.PI/2, std({ color:0x2e7a44, roughness:0.6, metalness:0.3 }));
+bx(0.06, 0.1, 1.1, matSteel, -HW + 0.14, 1.4, 6);
+doorDetails(HW - 0.05, 1.5, -2, 1.5, 3, -Math.PI/2, matSteelD);
+function rollDoor(x, w, h, open){
+  cy(w/2*0.18, w/2*0.18, w, matSlats, x, h + 0.5, HD + 0.1, root, 0, 0, Math.PI/2);
+  bx(w + 0.3, 0.3, 0.2, matFrame, x, h + 0.5, HD + 0.1);
+  if (!open) bx(w, h, 0.12, matSlats, x, h/2, HD + 0.05);
+  bx(0.15, h, 0.25, matFrame, x - w/2 - 0.1, h/2, HD + 0.05);
+  bx(0.15, h, 0.25, matFrame, x + w/2 + 0.1, h/2, HD + 0.05);
+}
+rollDoor(-30, 7, 5.4, true);
+rollDoor(37, 7, 5.4, true);
+bx(8, 0.25, 5, std({ color:0x8f8a80, roughness:0.95 }), 37, 0.12, HD + 3.5);
+
+/* ================= السقف: جسور وأنظمة ================= */
+for (let x = -42; x <= 42; x += 7){
+  bx(0.28, 0.28, 31.5, matFrame, x, 10.7, 0);
+  bx(0.24, 0.24, 31.5, matFrame, x, 11.8, 0);
+  for (const vz of [-10, 0, 10])
+    bx(0.12, 1.1, 0.12, matFrame, x, 11.25, vz);
+}
+bx(90, 0.16, 0.5, matDark, 0, 10.4, -10);
+bx(90, 0.16, 0.5, matDark, 0, 10.4, 2);
+for (const cz of [-10, 2]) for (const k of [-0.12, 0, 0.12])
+  cy(0.02, 0.02, 90, matRubber, 0, 10.52, cz + k, root, 0, 0, Math.PI/2);
+cy(0.06, 0.06, 90, matRedPipe, 0, 11.2, 0, root, 0, 0, Math.PI/2);
+for (let x = -40; x <= 40; x += 5){
+  cy(0.02, 0.03, 0.1, matRedPipe, x, 11.1, 0);
+  bx(0.9, 0.08, 0.3, matLamp, x, 10.55, -4);
+  bx(0.9, 0.08, 0.3, matLamp, x, 10.55, 8);
+}
+tube(new THREE.Vector3(-44, 11.6, -12), new THREE.Vector3(44, 11.6, -12), 0.28, matSteelD);
+tube(new THREE.Vector3(-44, 11.3, 12), new THREE.Vector3(44, 11.3, 12), 0.2, matSteel);
+
+/* ================= لوحة كهرباء + كوابل ================= */
+function elecPanel(x, z, ry){
+  const g = new THREE.Group();
+  g.position.set(x, 0, z); g.rotation.y = ry; root.add(g);
+  bx(0.9, 1.3, 0.22, matFrame, 0, 1.7, 0, g);
+  bx(0.7, 0.5, 0.03, matScreen, 0, 2.0, 0.13, g);
+  for (let i=0;i<4;i++)
+    cy(0.03, 0.03, 0.05, i===0 ? matRedBtn : matGreen, -0.24 + i*0.16, 1.5, 0.13, g, Math.PI/2, 0, 0);
+  bx(0.08, 0.08, 0.05, matWarn, 0.32, 2.26, 0.13, g);
+  cy(0.035, 0.035, 1.05, matDark, 0.35, 2.85, 0, g);
+  cy(0.035, 0.035, 1.05, matDark, -0.35, 2.85, 0, g);
+}
+elecPanel(-22, -15.6, 0); elecPanel(2, -15.6, 0); elecPanel(26, -15.6, 0);
+elecPanel(-44.6, -8, Math.PI/2);
+
+/* ================= خط الإنتاج ================= */
+function conveyor(x0, x1, z, y = BELT_Y, parent = root){
+  const L = x1 - x0, cx = (x0 + x1)/2;
+  bx(L, 0.14, 0.75, matSteelD, cx, y - 0.11, z, parent);
+  bx(L, 0.05, 0.56, matBelt, cx, y, z, parent);
+  bx(L, 0.06, 0.04, matSteel, cx, y + 0.03, z - 0.36, parent);
+  bx(L, 0.06, 0.04, matSteel, cx, y + 0.03, z + 0.36, parent);
+  for (let x = x0 + 0.4; x < x1; x += 2.2){
+    bx(0.08, y - 0.12, 0.08, matFrame, x, (y - 0.12)/2, z - 0.3, parent);
+    bx(0.08, y - 0.12, 0.08, matFrame, x, (y - 0.12)/2, z + 0.3, parent);
+    cy(0.015, 0.015, 0.1, matSteelD, x, 0.06, z - 0.3, parent);
+    cy(0.015, 0.015, 0.1, matSteelD, x, 0.06, z + 0.3, parent);
+  }
+  cy(0.09, 0.09, 0.6, matSteel, x0 + 0.08, y - 0.05, z, parent, Math.PI/2, 0, 0);
+  cy(0.09, 0.09, 0.6, matSteel, x1 - 0.08, y - 0.05, z, parent, Math.PI/2, 0, 0);
+  bx(0.4, 0.3, 0.5, matFrame, x1 - 0.5, y - 0.45, z + 0.65, parent);
+  cy(0.1, 0.1, 0.2, matDark, x1 - 0.5, y - 0.45, z + 0.95, parent, Math.PI/2, 0, 0);
+}
+conveyor(-44, -40.7, -4);
+conveyor(-40.5, 30.5, -4);
+conveyor(30.6, 43.5, -4);
+
+function sensorArch(x, z = -4){
+  bx(0.08, 1.5, 0.08, matSteel, x, BELT_Y + 0.75, z - 0.55);
+  bx(0.08, 1.5, 0.08, matSteel, x, BELT_Y + 0.75, z + 0.55);
+  bx(0.1, 0.1, 1.2, matSteel, x, BELT_Y + 1.5, z);
+  bx(0.12, 0.1, 0.14, matDark, x, BELT_Y + 1.38, z);
+  bx(0.03, 0.03, 0.02, std({ color:0x111111, emissive:0x38e060, emissiveIntensity:2 }), x, BELT_Y + 1.34, z);
+}
+function ctrlPanel(x, z, ry = 0){
+  const g = new THREE.Group();
+  g.position.set(x, 0, z); g.rotation.y = ry; root.add(g);
+  cy(0.04, 0.04, 1.0, matSteel, 0, 0.5, 0, g);
+  bx(0.6, 0.45, 0.12, matFrame, 0, 1.2, 0, g);
+  bx(0.42, 0.2, 0.02, matScreen, 0, 1.3, 0.07, g);
+  cy(0.035, 0.035, 0.05, matGreen, -0.15, 1.06, 0.07, g, Math.PI/2, 0, 0);
+  cy(0.035, 0.035, 0.05, matRedBtn, 0.15, 1.06, 0.07, g, Math.PI/2, 0, 0);
+}
+function woodenCrate(x, z, ry, withDates){
+  const g = new THREE.Group();
+  g.position.set(x, 0, z); g.rotation.y = ry; root.add(g);
+  bx(1.0, 0.55, 0.7, matWood, 0, 0.28, 0, g);
+  bx(1.04, 0.06, 0.74, matWood, 0, 0.56, 0, g);
+  if (withDates){
+    const heap = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 8), matDates);
+    heap.scale.set(1.1, 0.4, 0.75); heap.position.y = 0.6; heap.castShadow = true;
+    g.add(heap);
+  }
+  return g;
+}
+function plasticCrate(x, y, z, col){
+  bx(0.6, 0.3, 0.4, col, x, y, z);
+  bx(0.62, 0.04, 0.42, col, x, y + 0.16, z);
+}
+
+/* --- المرحلة 01: استقبال التمور --- */
+{
+  const x = SX(0);
+  woodenCrate(x - 2.6, -7.5, 0.2, true); woodenCrate(x - 1.4, -7.2, -0.15, true);
+  woodenCrate(x - 2.0, -6.9, 0.5, false);
+  woodenCrate(x - 2.0, -6.88, 0.5, false).position.y = 0.6;
+  plasticCrate(x - 0.5, 0.16, -7.4, matPlastB); plasticCrate(x - 0.5, 0.48, -7.4, matPlastW);
+  plasticCrate(x + 0.3, 0.16, -7.2, matPlastB);
+  const heap = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), matDates);
+  heap.scale.set(1.1, 0.5, 0.8); heap.position.set(x + 0.3, 0.42, -7.2); heap.castShadow = true; root.add(heap);
+  sensorArch(-41.6);
+  ctrlPanel(x - 1.5, -2.2, 0.4);
+  tube(new THREE.Vector3(x - 1.5, 1.4, -2.4), new THREE.Vector3(x - 1.5, 3.5, -2.4), 0.03, matDark);
+}
+/* --- المرحلة 02: الغسيل --- */
+const droplets = (() => {
+  const N = 130, pos = new Float32Array(N*3);
+  for (let i=0;i<N;i++){
+    pos[i*3] = SX(1) + (Math.random()-0.5)*4.4;
+    pos[i*3+1] = 1.0 + Math.random()*0.5;
+    pos[i*3+2] = -4 + (Math.random()-0.5)*1.0;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({
+    color:0xbce8f4, size:0.035, transparent:true, opacity:0.7, depthWrite:false }));
+  root.add(pts); return pts;
+})();
+{
+  const x = SX(1);
+  bx(5.2, 0.7, 1.7, matSteel, x, 0.72, -4);
+  pl(4.9, 1.4, matWater, x, 1.02, -4, root, -Math.PI/2, 0, 0);
+  for (const dx of [-1.6, 0, 1.6]){
+    cy(0.045, 0.045, 1.6, matSteel, x + dx, 1.62, -4, root, Math.PI/2, 0, 0);
+    for (const dz of [-0.5, 0, 0.5]){
+      cy(0.02, 0.035, 0.09, matSteelD, x + dx, 1.55, -4 + dz);
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 10, 1, true),
+        std({ color:0xbce8f4, transparent:true, opacity:0.14, depthWrite:false, side:THREE.DoubleSide }));
+      cone.position.set(x + dx, 1.25, -4 + dz);
+      root.add(cone);
+    }
+    tube(new THREE.Vector3(x + dx, 1.62, -3.2), new THREE.Vector3(x + dx, 2.8, -3.2), 0.04, matSteel);
+  }
+  bx(0.7, 0.8, 0.5, matSteelD, x + 2.2, 0.4, -6.2);
+  cy(0.16, 0.16, 0.5, matDark, x + 2.2, 0.55, -6.55, root, Math.PI/2, 0, 0);
+  bx(0.5, 0.7, 0.4, matSteel, x - 2.4, 0.35, -6.2);
+  tube(new THREE.Vector3(x + 2.2, 0.8, -6.2), new THREE.Vector3(x + 1.5, 1.62, -4.8), 0.05, matSteel);
+  bx(5.0, 0.04, 1.5, matAcryl, x, 2.0, -4, root, 0.5, 0, 0);
+  cy(0.06, 0.06, 0.6, matSteel, x + 1.8, 0.35, -5.9, root);
+  bx(0.8, 0.06, 0.5, matSteelD, x, 0.03, -6.3);
+  sensorArch(x + 2.3);
+  ctrlPanel(x + 1.0, -1.8, 0.3);
+}
+/* --- المرحلة 03: التجفيف --- */
+{
+  const x = SX(2);
+  bx(4.4, 1.6, 1.9, matSteel, x, 1.85, -4);
+  bx(4.4, 0.06, 1.9, matSteelD, x, 2.68, -4);
+  for (const dx of [-1.3, 0, 1.3]){
+    cy(0.34, 0.34, 0.16, matSteelD, x + dx, 2.78, -4);
+    const fan = new THREE.Group();
+    fan.position.set(x + dx, 2.8, -4);
+    root.add(fan);
+    for (let i=0;i<4;i++)
+      bx(0.28, 0.02, 0.08, matSteel, 0, 0, 0, fan, 0, i*Math.PI/2, 0.3);
+    anims.fans.push({ g:fan, s:9 });
+    pl(0.9, 0.7, matHeat, x + dx, 1.35, -4.96, root);
+  }
+  tube(new THREE.Vector3(x, 2.7, -4), new THREE.Vector3(x, 10.2, -4), 0.22, matSteelD);
+  bx(0.35, 0.5, 0.2, matFrame, x + 2.0, 1.6, -3.0);
+  bx(0.2, 0.14, 0.02, matScreen, x + 2.0, 1.7, -2.89);
+}
+/* --- المرحلة 04: الفرز --- */
+{
+  const x = SX(3);
+  bx(0.1, 1.9, 0.1, matSteel, x - 0.9, BELT_Y + 0.95, -5.2);
+  bx(0.1, 1.9, 0.1, matSteel, x + 0.9, BELT_Y + 0.95, -5.2);
+  bx(2.0, 0.14, 0.3, matSteel, x, BELT_Y + 1.9, -5.2);
+  for (const dx of [-0.6, 0, 0.6]){
+    bx(0.18, 0.14, 0.16, matDark, x + dx, BELT_Y + 1.75, -5.2);
+    cy(0.035, 0.045, 0.08, matGlass, x + dx, BELT_Y + 1.66, -5.2);
+    const beam = pl(0.5, 1.1, std({ color:0x38e060, transparent:true, opacity:0.08, depthWrite:false, side:THREE.DoubleSide }),
+      x + dx, BELT_Y + 0.6, -4.6);
+    beam.rotation.x = -0.5;
+  }
+  for (const [dx, ang] of [[0.9, 0.6], [1.6, 0.9]]){
+    bx(0.5, 0.05, 0.22, matYellow, x + dx*0.5, BELT_Y + 0.1, -4 + ang, root, 0, ang, 0);
+  }
+  for (let i=0;i<3;i++){
+    bx(0.7, 0.5, 0.6, i===0 ? matGreen : (i===1 ? matYellow : matRedBtn), x + 0.6 + i*0.4, 0.25, -6.6 + i*0.15);
+    bx(0.6, 0.06, 0.9, matSteel, x + 0.6 + i*0.4, 0.62, -5.9 + i*0.15, root, 0.5, 0, 0);
+  }
+  sensorArch(x - 1.6);
+}
+/* --- المرحلة 05: إزالة النوى --- */
+{
+  const x = SX(4);
+  bx(3.4, 1.5, 1.7, matSteel, x, 1.75, -4);
+  for (let i=0;i<4;i++){
+    cy(0.1, 0.1, 0.8, matSteelD, x - 1.2 + i*0.8, 1.6, -3.1, root, Math.PI/2, 0, 0);
+    bx(0.06, 0.28, 0.02, matDark, x - 1.2 + i*0.8, 1.45, -3.0);
+    bx(0.14, 0.05, 0.05, matSteel, x - 1.2 + i*0.8, 1.62, -3.0);
+  }
+  for (let i=0;i<3;i++)
+    tube(new THREE.Vector3(x - 0.8 + i*0.8, 1.0, -3.4), new THREE.Vector3(x - 0.8 + i*0.8, 0.5, -4.6), 0.035, matSteelD);
+  bx(0.7, 0.55, 0.55, matPlastW, x + 1.2, 0.28, -5.6);
+  const pits = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8),
+    std({ color:0x3c2410, roughness:0.8 }));
+  pits.scale.set(1.2, 0.4, 1.0); pits.position.set(x + 1.2, 0.58, -5.6); root.add(pits);
+  bx(0.5, 0.5, 0.4, matFrame, x - 1.9, 0.9, -4.6);
+  cy(0.12, 0.12, 0.3, matDark, x - 1.9, 0.95, -4.3, root, Math.PI/2, 0, 0);
+}
+/* --- المرحلة 06: الشوكولاتة --- */
+const chocoSurface = (() => {
+  const x = SX(5);
+  cy(1.7, 1.7, 3.2, matSteel, x, 2.0, -10);
+  cy(1.75, 1.75, 0.15, matSteelD, x, 3.65, -10);
+  cy(1.75, 1.75, 0.15, matSteelD, x, 0.5, -10);
+  const surf = new THREE.Mesh(new THREE.CircleGeometry(1.55, 28), matChoco);
+  surf.rotation.x = -Math.PI/2; surf.position.set(x, 3.45, -10);
+  root.add(surf);
+  bx(0.55, 0.5, 0.55, matFrame, x, 3.95, -10);
+  cy(0.06, 0.06, 1.0, matSteel, x, 3.2, -10);
+  anims.rots.push({ m:surf, axis:'z', s:0.15 });
+  cy(0.3, 0.3, 0.06, matSteelD, x + 1.1, 2.2, -8.35, root, Math.PI/2, 0, 0);
+  cy(0.24, 0.24, 0.04, matDark, x + 1.1, 2.2, -8.32, root, Math.PI/2, 0, 0);
+  cy(0.09, 0.09, 0.12, matSteel, x + 0.6, 2.8, -8.4, root, Math.PI/2, 0, 0);
+  tr(0.09, 0.02, matRedBtn, x + 0.6, 2.8, -8.3, root);
+  tr(2.0, 0.05, matSteelD, x, 1.2, -10, root, Math.PI/2, 0, 0);
+  tr(2.0, 0.05, matSteelD, x, 2.8, -10, root, Math.PI/2, 0, 0);
+  tube(new THREE.Vector3(x - 1.2, 0.6, -8.6), new THREE.Vector3(x - 1.2, 0.6, -4.6), 0.07, matSteel);
+  tube(new THREE.Vector3(x - 1.2, 0.6, -4.6), new THREE.Vector3(SX(10), 2.4, -4.6), 0.07, matSteel);
+  tube(new THREE.Vector3(SX(10), 2.4, -4.6), new THREE.Vector3(SX(10), 2.0, -4.0), 0.07, matSteel);
+  cy(0.12, 0.12, 0.1, matSteel, x - 1.2, 0.6, -6.5, root, 0, 0, Math.PI/2);
+  tr(0.12, 0.025, matRedBtn, x - 1.2, 0.72, -6.5);
+  bx(0.8, 0.5, 0.25, matFrame, x + 2.2, 1.2, -9.0);
+  bx(0.5, 0.25, 0.02, matScreen, x + 2.2, 1.3, -8.86);
+  return surf;
+})();
+/* --- المرحلة 07: المكسرات --- */
+const roaster = (() => {
+  const x = SX(6);
+  const nutCols = [std({color:0xc8a060, roughness:0.7}), std({color:0x7a9440, roughness:0.7}),
+                   std({color:0x8a5c34, roughness:0.7}), std({color:0x9c6c3c, roughness:0.7})];
+  for (let i=0;i<4;i++){
+    const hx = x - 1.5 + i*1.0;
+    cy(0.42, 0.42, 0.9, matSteel, hx, 2.5, -8.5);
+    cy(0.05, 0.42, 0.55, matSteel, hx, 1.8, -8.5);
+    bx(0.06, 1.55, 0.06, matFrame, hx - 0.35, 0.78, -8.5);
+    bx(0.06, 1.55, 0.06, matFrame, hx + 0.35, 0.78, -8.5);
+    const top = new THREE.Mesh(new THREE.CircleGeometry(0.4, 18), nutCols[i]);
+    top.rotation.x = -Math.PI/2; top.position.set(hx, 2.96, -8.5); root.add(top);
+    tube(new THREE.Vector3(hx, 1.55, -8.5), new THREE.Vector3(hx, 1.1, -5.0), 0.045, matSteel);
+  }
+  const drum = cy(0.4, 0.4, 1.4, matSteelD, x + 2.3, 0.9, -7.5, root, 0, 0, Math.PI/2);
+  cy(0.42, 0.42, 0.08, matHeat, x + 1.58, 0.9, -7.5, root, 0, 0, Math.PI/2);
+  bx(0.2, 0.5, 0.2, matFrame, x + 2.3, 0.35, -7.5);
+  anims.rots.push({ m:drum, axis:'x', s:0.8 });
+  conveyor(x - 1.8, x + 1.8, -5.2, 1.0);
+  sensorArch(x + 1.5, -5.2);
+  return drum;
+})();
+/* --- المرحلة 08: غرفة الزعفران النظيفة --- */
+{
+  const x0 = -7, x1 = -1, z0 = -15.7, z1 = -10.5;
+  bx(0.08, 3.0, z1 - z0 + 5.2, matGlass, x0, 1.5, (z0 + z1)/2);
+  bx(0.08, 3.0, z1 - z0 + 5.2, matGlass, x1, 1.5, (z0 + z1)/2);
+  bx(x1 - x0, 3.0, 0.08, matGlass, (x0+x1)/2, 1.5, z1);
+  bx(x1 - x0, 0.12, z1 - z0 + 5.2, matSteelD, (x0+x1)/2, 3.02, (z0+z1)/2);
+  doorDetails((x0+x1)/2 + 1.5, 1.05, z1, 1.0, 2.1, Math.PI, matSteel);
+  for (let i=0;i<3;i++){
+    bx(2.6, 0.06, 0.4, matSteel, x0 + 1.6, 0.8 + i*0.6, z0 + 0.5);
+    for (let j=0;j<6;j++){
+      cy(0.05, 0.05, 0.16, matGlass, x0 + 0.6 + j*0.4, 0.92 + i*0.6, z0 + 0.5);
+      cy(0.035, 0.035, 0.06, matSaff, x0 + 0.6 + j*0.4, 0.88 + i*0.6, z0 + 0.5);
+    }
+  }
+  bx(0.5, 0.9, 0.5, matSteel, x1 - 1.0, 0.45, z1 - 1.2);
+  bx(0.4, 0.04, 0.4, matSteelD, x1 - 1.0, 0.92, z1 - 1.2);
+  cy(0.02, 0.02, 0.3, matSteel, x1 - 1.0, 1.05, z1 - 1.35);
+  cy(0.09, 0.09, 0.02, matSteelD, x1 - 1.0, 1.2, z1 - 1.35);
+  bx(0.6, 1.2, 0.5, matPlastW, x0 + 1.2, 0.6, z1 - 1.3);
+  cy(0.03, 0.03, 0.4, matSteel, x0 + 1.5, 1.3, z1 - 1.3);
+  bx(0.8, 2.2, 0.5, matSteelD, x1 - 0.6, 1.1, z0 + 0.6);
+}
+/* --- المرحلة 09: الطبخ --- */
+const flames = [];
+{
+  const x = SX(8);
+  bx(2.6, 0.25, 2.6, matFrame, x, 0.5, -7.5);
+  bx(0.18, 0.5, 0.18, matFrame, x - 1.1, 0.25, -8.6);
+  bx(0.18, 0.5, 0.18, matFrame, x + 1.1, 0.25, -8.6);
+  bx(0.18, 0.5, 0.18, matFrame, x - 1.1, 0.25, -6.4);
+  bx(0.18, 0.5, 0.18, matFrame, x + 1.1, 0.25, -6.4);
+  cy(1.25, 1.15, 1.3, matSteel, x, 1.35, -7.5, root, 0, 0, 0, 24);
+  cy(1.3, 1.3, 0.1, matSteelD, x, 2.02, -7.5, root, 0, 0, 0, 24);
+  const mix = new THREE.Mesh(new THREE.CircleGeometry(1.12, 24),
+    std({ color:0x4a2c12, roughness:0.4, metalness:0.1 }));
+  mix.rotation.x = -Math.PI/2; mix.position.set(x, 1.95, -7.5); root.add(mix);
+  tr(0.9, 0.06, matDark, x, 0.72, -7.5, root, Math.PI/2, 0, 0);
+  for (let i=0;i<8;i++){
+    const a = i/8*Math.PI*2;
+    const fx = x + Math.cos(a)*0.9, fz = -7.5 + Math.sin(a)*0.9;
+    const f1 = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.5, 8), matFlameO);
+    f1.position.set(fx, 1.0, fz); root.add(f1);
+    const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.34, 8), matFlameY);
+    f2.position.set(fx, 0.95, fz); root.add(f2);
+    const f3 = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.16, 6), matFlameB);
+    f3.position.set(fx, 0.85, fz); root.add(f3);
+    flames.push({ m:f1, b:0.5, ph:i*0.8 }, { m:f2, b:0.34, ph:i*0.8 + 0.4 });
+  }
+  const glow = new THREE.Mesh(new THREE.CircleGeometry(1.2, 24), matGlow);
+  glow.rotation.x = -Math.PI/2; glow.position.set(x, 0.66, -7.5); root.add(glow);
+  const bottomGlow = new THREE.Mesh(new THREE.CircleGeometry(1.1, 24),
+    std({ color:0x1a1210, emissive:0xff6a20, emissiveIntensity:0.7, roughness:0.5 }));
+  bottomGlow.rotation.x = Math.PI/2; bottomGlow.position.set(x, 0.71, -7.5); root.add(bottomGlow);
+  fireLight.position.set(x, 1.2, -7.5);
+  tube(new THREE.Vector3(x - 4, 0.3, -12), new THREE.Vector3(x - 1.4, 0.3, -8.8), 0.07, matYellow);
+  tube(new THREE.Vector3(x - 1.4, 0.3, -8.8), new THREE.Vector3(x - 1.0, 0.55, -8.2), 0.07, matYellow);
+  tr(0.14, 0.03, matRedBtn, x - 2.5, 0.42, -10.4);
+  cy(0.05, 0.05, 0.25, matSteel, x - 2.5, 0.42, -10.4, root, 0, 0, Math.PI/2);
+  cy(0.08, 0.08, 0.06, matSteel, x + 1.28, 1.7, -7.5, root, 0, 0, Math.PI/2);
+  pl(0.12, 0.12, std({ color:0xfff2d0, emissive:0xffb46a, emissiveIntensity:1 }), x + 1.32, 1.7, -7.5, root, 0, Math.PI/2, 0);
+  const stir = new THREE.Group();
+  stir.position.set(x, 2.35, -7.5); root.add(stir);
+  cy(0.05, 0.05, 0.9, matSteel, 0, -0.2, 0, stir);
+  bx(0.08, 0.7, 0.16, matSteelD, 0.5, -0.55, 0, stir, 0, 0, 0.4);
+  bx(0.9, 0.12, 0.12, matFrame, 0, 0.3, 0, stir);
+  anims.rots.push({ m:stir, axis:'y', s:0.5 });
+}
+/* --- المرحلة 10: الخلط --- */
+{
+  const x = SX(9);
+  cy(1.15, 0.95, 1.5, matSteel, x, 1.15, -8, root, 0, 0, 0, 22);
+  cy(1.2, 1.2, 0.1, matSteelD, x, 1.92, -8, root, 0, 0, 0, 22);
+  const arm = new THREE.Group();
+  arm.position.set(x, 1.95, -8); root.add(arm);
+  cy(0.07, 0.07, 1.2, matSteel, 0, -0.5, 0, arm);
+  bx(0.12, 0.9, 0.3, matSteelD, 0.55, -0.7, 0, arm, 0, 0, 0.35);
+  bx(0.12, 0.9, 0.3, matSteelD, -0.55, -0.7, 0, arm, 0, 0, -0.35);
+  anims.rots.push({ m:arm, axis:'y', s:1.2 });
+  bx(0.6, 0.6, 0.6, matFrame, x, 2.55, -8);
+  tr(0.26, 0.05, matSteelD, x + 0.35, 2.55, -8, root, 0, Math.PI/2, 0);
+  tr(0.18, 0.045, matSteelD, x + 0.36, 2.35, -8, root, 0, Math.PI/2, 0);
+  cy(0.2, 0.2, 0.4, matDark, x + 1.3, 0.7, -8, root, 0, 0, Math.PI/2);
+  cy(0.14, 0.14, 0.08, matSteelD, x + 1.05, 0.7, -8, root, 0, 0, Math.PI/2);
+  const beltLoop = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.03, 6, 24), matRubber);
+  beltLoop.scale.set(1, 1.6, 1);
+  beltLoop.position.set(x + 0.85, 1.6, -8);
+  beltLoop.rotation.y = Math.PI/2;
+  root.add(beltLoop);
+  bx(2.6, 1.9, 2.6, std({ color:0xd8b23a, transparent:true, opacity:0.12, wireframe:true }), x, 1.3, -8);
+  bx(0.04, 1.9, 0.04, matYellow, x - 1.3, 1.3, -6.7);
+  bx(0.04, 1.9, 0.04, matYellow, x + 1.3, 1.3, -6.7);
+  bx(2.6, 0.04, 0.04, matYellow, x, 2.25, -6.7);
+  ctrlPanel(x + 2.2, -6.0, -0.5);
+}
+/* --- المرحلة 11: التغطية بالشوكولاتة --- */
+{
+  const x = SX(10);
+  bx(3.2, 1.4, 1.8, matSteel, x, 1.8, -4);
+  bx(3.2, 0.08, 1.8, matSteelD, x, 2.54, -4);
+  const curtain = bx(0.05, 0.75, 0.5, matChocoW, x, BELT_Y + 0.4, -4);
+  cy(0.04, 0.04, 0.55, matChocoW, x, BELT_Y + 0.02, -4, root, Math.PI/2, 0, 0);
+  for (const dz of [-0.2, 0, 0.2])
+    cy(0.025, 0.05, 0.1, matSteelD, x, BELT_Y + 0.82, -4 + dz);
+  bx(2.8, 0.5, 1.4, matSteel, x, 0.35, -4);
+  const inner = new THREE.Mesh(new THREE.CircleGeometry(0.6, 18), matChoco);
+  inner.rotation.x = -Math.PI/2; inner.position.set(x, 0.62, -4); root.add(inner);
+  bx(0.4, 0.35, 0.4, matFrame, x + 1.8, 0.3, -5.2);
+  cy(0.12, 0.12, 0.25, matDark, x + 1.8, 0.35, -5.5, root, Math.PI/2, 0, 0);
+  for (const fx of [x - 1.2, x + 1.2]){
+    cy(0.28, 0.28, 0.12, matSteelD, fx, 2.68, -4);
+    const f = new THREE.Group(); f.position.set(fx, 2.7, -4); root.add(f);
+    for (let i=0;i<4;i++) bx(0.22, 0.02, 0.06, matSteel, 0,0,0, f, 0, i*Math.PI/2, 0.3);
+    anims.fans.push({ g:f, s:12 });
+  }
+  sensorArch(x + 1.9);
+}
+/* --- المرحلة 12: تغطية المكسرات --- */
+const nutFall = (() => {
+  const x = SX(11);
+  cy(0.7, 0.7, 1.0, matSteel, x, 3.4, -4);
+  cy(0.08, 0.7, 0.8, matSteel, x, 2.5, -4);
+  bx(0.06, 1.6, 0.06, matFrame, x - 0.8, 2.6, -4.8);
+  bx(0.06, 1.6, 0.06, matFrame, x + 0.8, 2.6, -4.8);
+  bx(0.06, 1.6, 0.06, matFrame, x - 0.8, 2.6, -3.2);
+  bx(0.06, 1.6, 0.06, matFrame, x + 0.8, 2.6, -3.2);
+  const dist = cy(0.22, 0.22, 0.12, matSteelD, x, 2.16, -4);
+  anims.rots.push({ m:dist, axis:'y', s:3 });
+  bx(0.3, 0.25, 0.3, matFrame, x, 3.95, -4);
+  const N = 90, pos = new Float32Array(N*3);
+  for (let i=0;i<N;i++){
+    pos[i*3] = x + (Math.random()-0.5)*0.4;
+    pos[i*3+1] = BELT_Y + 0.1 + Math.random()*1.2;
+    pos[i*3+2] = -4 + (Math.random()-0.5)*0.4;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({
+    color:0xb8874a, size:0.045, transparent:true, opacity:0.95 }));
+  root.add(pts);
+  sensorArch(x + 1.4);
+  return pts;
+})();
+/* --- المرحلة 13: تشطيب الزعفران --- */
+{
+  const x = SX(12);
+  bx(0.08, 1.4, 0.08, matSteel, x - 0.7, BELT_Y + 0.7, -4.8);
+  bx(0.08, 1.4, 0.08, matSteel, x + 0.7, BELT_Y + 0.7, -4.8);
+  bx(1.5, 0.1, 0.25, matSteel, x, BELT_Y + 1.4, -4.8);
+  bx(0.25, 0.3, 0.22, matPlastW, x, BELT_Y + 1.15, -4.8);
+  cy(0.02, 0.04, 0.12, matSteel, x, BELT_Y + 0.95, -4.8);
+  bx(1.6, 1.3, 0.05, matAcryl, x, BELT_Y + 0.65, -3.9);
+  cy(0.09, 0.09, 0.2, matGlass, x + 1.1, 0.9, -5.2);
+  cy(0.06, 0.06, 0.08, matSaff, x + 1.1, 0.85, -5.2);
+  tube(new THREE.Vector3(x + 1.1, 1.0, -5.2), new THREE.Vector3(x + 0.2, 1.5, -4.8), 0.015, matSteelD);
+}
+/* --- المرحلة 14: نفق التبريد --- */
+{
+  const x = SX(13);
+  bx(6.5, 1.5, 1.9, matSteel, x, 1.8, -4);
+  bx(6.5, 0.9, 0.05, matGlass, x, 1.75, -3.04);
+  bx(6.5, 0.9, 0.05, matGlass, x, 1.75, -4.96);
+  for (let i=0;i<4;i++){
+    bx(0.8, 0.05, 0.2, matCool, x - 2.4 + i*1.6, 2.5, -4);
+    cy(0.24, 0.24, 0.1, matSteelD, x - 2.4 + i*1.6, 2.62, -4);
+    const f = new THREE.Group(); f.position.set(x - 2.4 + i*1.6, 2.64, -4); root.add(f);
+    for (let k=0;k<4;k++) bx(0.18, 0.02, 0.05, matSteel, 0,0,0, f, 0, k*Math.PI/2, 0.3);
+    anims.fans.push({ g:f, s:14 });
+  }
+  tube(new THREE.Vector3(x - 3, 2.7, -4), new THREE.Vector3(x + 3, 2.7, -4), 0.14, matSteel);
+  coolLight.position.set(x, 2.2, -4);
+}
+/* --- المرحلة 15: مراقبة الجودة --- */
+{
+  const x = SX(14);
+  bx(0.12, 1.9, 0.12, matFrame, x - 1.0, BELT_Y + 0.95, -5.0);
+  bx(0.12, 1.9, 0.12, matFrame, x + 1.0, BELT_Y + 0.95, -5.0);
+  bx(2.2, 0.16, 0.35, matFrame, x, BELT_Y + 1.9, -5.0);
+  for (const dx of [-0.5, 0.5]){
+    bx(0.2, 0.16, 0.18, matDark, x + dx, BELT_Y + 1.72, -5.0);
+    cy(0.04, 0.05, 0.08, matGlass, x + dx, BELT_Y + 1.62, -5.0);
+  }
+  const scan = pl(1.8, 0.9, std({ color:0x38e060, transparent:true, opacity:0.1, depthWrite:false, side:THREE.DoubleSide }),
+    x, BELT_Y + 0.7, -4.4);
+  scan.rotation.x = -0.6;
+  bx(0.4, 0.06, 0.18, matYellow, x + 1.1, BELT_Y + 0.12, -3.5, root, 0, 0.7, 0);
+  bx(0.5, 0.4, 0.4, matPlastW, x + 1.6, 0.2, -2.8);
+  sensorArch(x - 1.5);
+}
+/* --- المرحلة 16: التغليف --- */
+const packArm = (() => {
+  const x = SX(15);
+  cy(0.5, 0.5, 0.35, matSteelD, x - 2.2, 1.6, -6.5, root, 0, 0, Math.PI/2);
+  bx(0.12, 1.6, 0.12, matFrame, x - 2.2, 0.8, -6.5);
+  pl(1.1, 0.02, std({ color:0xd8cfc0, roughness:0.4, side:THREE.DoubleSide }), x - 1.4, 1.3, -6.5, root, 0.9, 0, 0);
+  bx(0.8, 0.7, 0.7, matSteel, x - 0.6, 1.3, -5.2);
+  cy(0.1, 0.1, 0.3, matSteelD, x - 0.6, 1.3, -4.8, root, Math.PI/2, 0, 0);
+  bx(0.5, 0.5, 0.4, matFrame, x + 0.6, 1.2, -5.4);
+  bx(0.08, 0.3, 0.35, matSteelD, x + 0.6, 0.95, -5.2, root, 0, 0, 0.4);
+  bx(0.45, 0.4, 0.35, matPlastW, x + 1.6, 1.1, -5.6);
+  pl(0.34, 0.26, matScreen, x + 1.6, 1.18, -5.41);
+  const armG = new THREE.Group();
+  armG.position.set(x + 0.4, 0.9, -4.6); root.add(armG);
+  cy(0.16, 0.2, 0.4, matFrame, 0, 0.2, 0, armG);
+  bx(0.12, 0.85, 0.12, matYellow, 0, 0.8, 0.1, armG, 0.5, 0, 0);
+  bx(0.1, 0.6, 0.1, matYellow, 0, 1.25, 0.55, armG, 1.6, 0, 0);
+  bx(0.16, 0.1, 0.18, matSteelD, 0, 1.2, 0.9, armG);
+  anims.arms.push(armG);
+  sensorArch(x + 2.0);
+  return armG;
+})();
+/* --- المرحلة 17: التعبئة في الكراتين --- */
+{
+  const x = SX(16);
+  bx(0.15, 1.4, 1.0, matFrame, x - 1.6, 0.9, -6.2, root, 0, 0, -0.25);
+  for (let i=0;i<6;i++)
+    bx(0.04, 1.2, 0.9, matCarton, x - 1.62 + i*0.05, 0.95 + i*0.02, -6.2, root, 0, 0, -0.25);
+  bx(1.4, 1.2, 1.2, matSteel, x - 0.2, 0.8, -6.2);
+  bx(0.5, 0.5, 0.5, matFrame, x - 0.2, 1.65, -6.2);
+  bx(0.12, 1.6, 0.12, matFrame, x + 1.2, BELT_Y + 0.8, -4.9);
+  bx(0.12, 1.6, 0.12, matFrame, x + 1.9, BELT_Y + 0.8, -4.9);
+  bx(0.9, 0.3, 0.3, matWarn, x + 1.55, BELT_Y + 1.5, -4.9);
+  bx(0.06, 0.2, 0.5, matDark, x + 1.55, BELT_Y + 1.25, -4.9);
+  cy(0.09, 0.09, 0.2, matYellow, x + 2.5, 1.1, -5.6, root, 0, 0, Math.PI/2);
+}
+/* --- المرحلة 18: الشحن --- */
+const agv = (() => {
+  for (const rz of [-13.5, -11.0]){
+    bx(7.5, 0.12, 0.35, matSteel, 39.5, 0.4, rz);
+    bx(7.5, 0.12, 0.35, matSteel, 39.5, 1.6, rz);
+    bx(7.5, 0.12, 0.35, matSteel, 39.5, 2.8, rz);
+    for (const cx of [36.2, 39.5, 42.8])
+      bx(0.12, 3.0, 0.12, matFrame, cx, 1.5, rz);
+    for (let i=0;i<4;i++){
+      const b = bx(0.7, 0.6, 0.7, matCarton, 36.6 + i*1.9, 0.72, rz + (i%2 ? 0.05 : -0.05));
+      if (i%2 === 0) bx(0.72, 0.62, 0.02, matCarton, 36.6 + i*1.9, 0.72, rz + 0.36);
+    }
+    bx(0.7, 0.6, 0.7, matCarton, 38.3, 1.95, rz);
+  }
+  bx(1.2, 0.14, 1.0, matWood, 34, 0.12, 8);
+  bx(1.2, 0.14, 1.0, matWood, 34, 0.12, 10.5);
+  for (let i=0;i<3;i++) bx(0.8, 0.55, 0.8, matCarton, 34, 0.5 + i*0.58, 8);
+  bx(0.8, 0.55, 0.8, matCarton, 34, 0.5, 10.5);
+  const A = new THREE.Group(); root.add(A);
+  bx(1.4, 0.28, 0.9, matFrame, 0, 0.34, 0, A);
+  bx(1.3, 0.06, 0.8, matYellow, 0, 0.5, 0, A);
+  for (const [wx, wz] of [[-0.5,-0.4],[0.5,-0.4],[-0.5,0.4],[0.5,0.4]])
+    cy(0.14, 0.14, 0.08, matRubber, wx, 0.14, wz, A, Math.PI/2, 0, 0);
+  bx(0.7, 0.5, 0.7, matCarton, 0, 0.78, 0, A);
+  bx(0.1, 0.14, 0.1, matWarn, 0.55, 0.62, 0.3, A);
+  return A;
+})();
+
+/* ================= منتجات متحركة ================= */
+const dm = new THREE.Object3D();
+function productLine(x0, x1, count, geo, mtl, y, jitter){
+  const inst = new THREE.InstancedMesh(geo, mtl, count);
+  inst.castShadow = true; root.add(inst);
+  const items = [];
+  for (let i=0;i<count;i++)
+    items.push({ x: x0 + Math.random()*(x1-x0), z: -4 + (Math.random()-0.5)*jitter, r: Math.random()*6.28 });
+  return { inst, items, x0, x1, y };
+}
+const dateGeo = new THREE.SphereGeometry(0.055, 10, 8);
+dateGeo.scale(1, 0.8, 1.35);
+const lineRaw   = productLine(-43, 6, 70, dateGeo, matDates, BELT_Y + 0.09, 0.3);
+const lineChoco = productLine(7, 11, 26, dateGeo, matChoco, BELT_Y + 0.09, 0.3);
+const nutDateGeo = dateGeo.clone();
+const lineNut   = productLine(11.5, 30, 60, nutDateGeo, std({ color:0x6a4526, roughness:0.6 }), BELT_Y + 0.1, 0.3);
+const boxGeo = new THREE.BoxGeometry(0.34, 0.24, 0.26);
+const lineBoxes = productLine(30.8, 43, 14, boxGeo, matBrand, BELT_Y + 0.17, 0.1);
+const lineCartons = productLine(34.5, 43, 8, new THREE.BoxGeometry(0.6, 0.42, 0.5), matCarton, BELT_Y + 0.26, 0.08);
+const prodLines = [lineRaw, lineChoco, lineNut, lineBoxes, lineCartons];
+
+/* ================= بخار ودخان ================= */
+const smokeSystems = [];
+function smokePool(x, y, z, n, scale, op, drift, tex, rise){
+  const grp = [];
+  for (let i=0;i<n;i++){
+    const m = new THREE.SpriteMaterial({ map:tex, transparent:true, opacity:0, depthWrite:false });
+    const sp = new THREE.Sprite(m);
+    sp.scale.set(scale, scale, 1);
+    root.add(sp);
+    grp.push(sp);
+  }
+  smokeSystems.push({ grp, x, y, z, n, scale, op, drift, rise, off: Math.random()*10 });
+}
+smokePool(SX(1), 1.5, -4, 4, 0.7, 0.14, 0.2, texSteam, 1.6);
+smokePool(SX(2), 2.8, -4, 5, 0.9, 0.2, 0.3, texSteam, 2.0);
+smokePool(SX(8), 2.2, -7.5, 6, 1.1, 0.22, 0.35, texSteam, 2.6);
+smokePool(SX(8) + 0.4, 2.6, -7.5, 3, 0.8, 0.1, 0.4, texSmoke, 3.2);
+smokePool(SX(13), 2.6, -4, 4, 0.8, 0.1, 0.2, texSteam, 1.4);
+smokePool(-52, 13.5, -10, 5, 1.6, 0.16, 0.8, texSmoke, 4.0);
+
+/* ================= الواجهة والحركة ================= */
+const VIEWS = {
+  overview:{ pos:[2, 15, 33],    tgt:[0, 2, -2]   },
+  arrival: { pos:[-36, 3.5, 4],  tgt:[-40, 1.2, -4] },
+  wash:    { pos:[-31, 3, 3],    tgt:[-35.5, 1.3, -4] },
+  cook:    { pos:[3, 3.4, 1],    tgt:[-2.9, 1.5, -7] },
+  choco:   { pos:[-12, 3.6, -3], tgt:[-17, 2, -8] },
+  pack:    { pos:[34, 3.6, 4],   tgt:[30, 1.4, -4.5] },
+  ship:    { pos:[43, 4.5, 10],  tgt:[38, 1.5, -2] },
+  facade:  { pos:[0, 6, 46],     tgt:[0, 6, 16]  }
+};
+let camTween = null;
+function flyTo(v){
+  camTween = {
+    p0: camera.position.clone(), p1: new THREE.Vector3(...v.pos),
+    t0: controls.target.clone(), t1: new THREE.Vector3(...v.tgt), k: 0
+  };
+}
+const viewBtns = document.querySelectorAll('.view');
+viewBtns.forEach(b => b.addEventListener('click', () => {
+  viewBtns.forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  flyTo(VIEWS[b.dataset.v]);
+}));
+const btnLine  = document.getElementById('btnLine');
+const btnOrbit = document.getElementById('btnOrbit');
+const btnWire  = document.getElementById('btnWire');
+let lineOn = true, wireOn = false, beltScroll = 0;
+btnLine.addEventListener('click', () => {
+  lineOn = !lineOn; btnLine.classList.toggle('active', lineOn);
+});
+btnOrbit.addEventListener('click', () => {
+  controls.autoRotate = !controls.autoRotate;
+  btnOrbit.classList.toggle('active', controls.autoRotate);
+});
+btnWire.addEventListener('click', () => {
+  wireOn = !wireOn;
+  mats.forEach(m => m.wireframe = wireOn);
+  btnWire.classList.toggle('active', wireOn);
+});
+controls.addEventListener('start', () => { camTween = null; });
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+const clock = new THREE.Clock();
+const loading = document.getElementById('loading');
+let shown = false;
+const SPEED = 0.9;
+const agvPath = [[38, 3],[38, 12.5],[31, 12.5],[31, 3]];
+let agvT = 0;
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+  const run = lineOn;
+
+  if (run){
+    beltScroll -= SPEED * dt * 0.55;
+    for (const ln of prodLines){
+      for (let i=0;i<ln.items.length;i++){
+        const it = ln.items[i];
+        it.x += SPEED * dt;
+        if (it.x > ln.x1) it.x = ln.x0;
+        dm.position.set(it.x, ln.y, it.z);
+        dm.rotation.set(0, it.r, 0);
+        dm.scale.setScalar(1);
+        dm.updateMatrix();
+        ln.inst.setMatrixAt(i, dm.matrix);
+      }
+      ln.inst.instanceMatrix.needsUpdate = true;
+    }
+    for (const f of anims.fans) f.g.rotation.y += f.s * dt;
+    for (const r of anims.rots) r.m.rotation[r.axis] += r.s * dt;
+    packArm.rotation.y = Math.sin(t * 0.8) * 0.6;
+    agvT = (agvT + dt * 0.06) % 1;
+    const seg = Math.floor(agvT * 4), lt = (agvT * 4) % 1;
+    const a = agvPath[seg], b = agvPath[(seg + 1) % 4];
+    agv.position.set(a[0] + (b[0]-a[0])*lt, 0, a[1] + (b[1]-a[1])*lt);
+    agv.rotation.y = Math.atan2(b[0]-a[0], b[1]-a[1]);
+    const dp = droplets.geometry.attributes.position;
+    for (let i=0;i<dp.count;i++){
+      let y = dp.getY(i) - dt * 1.6;
+      if (y < 0.95) y = 1.5;
+      dp.setY(i, y);
+    }
+    dp.needsUpdate = true;
+    const np = nutFall.geometry.attributes.position;
+    for (let i=0;i<np.count;i++){
+      let y = np.getY(i) - dt * 1.3;
+      if (y < BELT_Y + 0.12) y = BELT_Y + 1.3;
+      np.setY(i, y);
+    }
+    np.needsUpdate = true;
+  }
+
+  for (const f of flames){
+    const s = 1 + 0.28*Math.sin(t*13 + f.ph) + 0.15*Math.sin(t*23 + f.ph*2);
+    f.m.scale.set(1, s, 1);
+    f.m.position.y = f.b + 0.5 + (s - 1) * 0.2;
+  }
+  fireLight.intensity = 34 + 14*Math.sin(t*11) + 8*Math.sin(t*27);
+
+  for (const sys of smokeSystems){
+    for (let i=0;i<sys.n;i++){
+      const ph = ((t * 0.4 + sys.off + i / sys.n) % 1);
+      const sp = sys.grp[i];
+      sp.position.set(
+        sys.x + Math.sin(t * 0.9 + i * 2.4) * sys.drift * ph * 2,
+        sys.y + ph * sys.rise,
+        sys.z + Math.cos(t * 0.7 + i * 1.9) * sys.drift * ph * 2
+      );
+      const sc = sys.scale * (0.5 + ph * 1.8);
+      sp.scale.set(sc, sc, 1);
+      sp.material.opacity = sys.op * (1 - ph) * Math.min(1, ph * 5);
+    }
+  }
+
+  if (camTween){
+    camTween.k += dt / 1.5;
+    const k = Math.min(camTween.k, 1);
+    const e = k < 0.5 ? 4*k*k*k : 1 - Math.pow(-2*k + 2, 3) / 2;
+    camera.position.lerpVectors(camTween.p0, camTween.p1, e);
+    controls.target.lerpVectors(camTween.t0, camTween.t1, e);
+    if (k >= 1) camTween = null;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+  if (!shown){ shown = true; loading.classList.add('done'); }
+}
+animate();
+</script>
+</body>
+</html>

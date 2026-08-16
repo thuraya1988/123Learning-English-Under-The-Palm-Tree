@@ -448,23 +448,125 @@ function makeDesk(g,x,z){
 }
 
 /* ---------- الشخصيات ---------- */
+/* وجه كارتوني: عينان كبيرتان ببؤبؤ وبريق، وفم مبتسم — يُرسم على لوحة
+   ويُلصق كنسيج، فتظل الشخصية خفيفة على الجهاز. */
+function faceTex(mood){
+  const k='face'+mood; if(TEX[k])return TEX[k];
+  const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
+  x.clearRect(0,0,256,256);
+  const eye=(ex,ey,r)=>{
+    x.fillStyle='#fbf6ea';x.beginPath();x.ellipse(ex,ey,r,r*1.22,0,0,7);x.fill();
+    x.lineWidth=7;x.strokeStyle='#1a1226';x.stroke();
+    x.fillStyle='#1a1226';x.beginPath();x.ellipse(ex+r*.16,ey+r*.14,r*.42,r*.52,0,0,7);x.fill();
+    x.fillStyle='#ffffff';x.beginPath();x.arc(ex+r*.34,ey-r*.3,r*.19,0,7);x.fill();
+  };
+  eye(94,104,30); eye(166,104,30);
+  /* حاجبان */
+  x.strokeStyle='#1a1226';x.lineWidth=8;x.lineCap='round';
+  x.beginPath();x.moveTo(70,62);x.quadraticCurveTo(94,50,118,60);x.stroke();
+  x.beginPath();x.moveTo(138,60);x.quadraticCurveTo(162,50,186,62);x.stroke();
+  /* فم */
+  x.lineWidth=9;x.strokeStyle='#1a1226';
+  if(mood==='talk'){
+    x.fillStyle='#7a2540';x.beginPath();x.ellipse(128,178,30,22,0,0,7);x.fill();
+    x.stroke();
+    x.fillStyle='#fbf6ea';x.beginPath();x.ellipse(128,164,24,7,0,0,7);x.fill();
+  }else{
+    x.beginPath();x.arc(128,158,36,.28*Math.PI,.72*Math.PI);x.stroke();
+    x.fillStyle='#e8637f';x.beginPath();x.arc(128,182,9,0,7);x.fill();
+  }
+  /* خدّان ورديّان */
+  x.fillStyle='rgba(232,99,127,.42)';
+  x.beginPath();x.arc(62,146,17,0,7);x.fill();
+  x.beginPath();x.arc(194,146,17,0,7);x.fill();
+  const t=new THREE.CanvasTexture(c);return TEX[k]=t;
+}
+
+/* شخصية كارتونية بروح الرسوم المطاطية القديمة:
+   رأس كبير مستدير، عينان كبيرتان، قفازان أبيضان،
+   أذرع وسيقان مطاطية منحنية — بألوان النيون. */
 function makeCharacter(trim,isPlayer){
   const grp=new THREE.Group();
-  const bodyM=new THREE.MeshStandardMaterial({color:0x151028,roughness:.55,metalness:.35,emissive:trim,emissiveIntensity:.14});
-  const body=new THREE.Mesh(new THREE.CylinderGeometry(.3,.42,1.05,10),bodyM);body.position.y=.85;grp.add(body);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.27,12,10),new THREE.MeshStandardMaterial({color:0x0e0a1e,roughness:.4,metalness:.5}));
-  head.position.y=1.66;grp.add(head);
-  const visor=new THREE.Mesh(new THREE.BoxGeometry(.36,.09,.06),new THREE.MeshBasicMaterial({color:trim}));
-  visor.position.set(0,1.7,.24);grp.add(visor);
-  const belt=new THREE.Mesh(new THREE.TorusGeometry(.36,.045,6,18),new THREE.MeshBasicMaterial({color:trim}));
-  belt.rotation.x=Math.PI/2;belt.position.y=1.05;grp.add(belt);
-  const sh=new THREE.Mesh(new THREE.SphereGeometry(.14,8,6),bodyM);
-  sh.position.set(.4,1.32,0);grp.add(sh);const sh2=sh.clone();sh2.position.x=-.4;grp.add(sh2);
-  const blob=new THREE.Mesh(new THREE.CircleGeometry(.55,16),
+  const skin =new THREE.MeshStandardMaterial({color:0xf6dcb4,roughness:.8,metalness:0,
+                                              emissive:0x3a2418,emissiveIntensity:.5});
+  const cloth=new THREE.MeshStandardMaterial({color:0x1d1440,roughness:.6,metalness:.2,
+                                              emissive:trim,emissiveIntensity:.22});
+  const glove=new THREE.MeshStandardMaterial({color:0xfbf6ea,roughness:.55,metalness:0,
+                                              emissive:trim,emissiveIntensity:.1});
+  const shoe =new THREE.MeshStandardMaterial({color:0x2a1c1c,roughness:.65,metalness:.15});
+  const trimM=new THREE.MeshBasicMaterial({color:trim});
+
+  /* ===== الجسم: كمثري صغير مثل شخصيات الرسوم المطاطية ===== */
+  const body=new THREE.Mesh(new THREE.SphereGeometry(.34,16,14),cloth);
+  body.scale.set(1,1.06,.86);body.position.y=.86;grp.add(body);
+  /* ياقة نيون */
+  const collar=new THREE.Mesh(new THREE.TorusGeometry(.235,.05,8,20),trimM);
+  collar.rotation.x=Math.PI/2;collar.position.y=1.14;grp.add(collar);
+  /* شريط قطري على الصدر */
+  const sash=new THREE.Mesh(new THREE.BoxGeometry(.1,.62,.04),trimM);
+  sash.position.set(0,.88,.3);sash.rotation.z=.42;grp.add(sash);
+
+  /* ===== الرأس: كبير ومستدير ===== */
+  const headG=new THREE.Group();headG.position.y=1.62;grp.add(headG);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.42,20,16),skin);
+  head.scale.set(1,.96,.92);headG.add(head);
+  /* الوجه */
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(.62,.62),
+    new THREE.MeshBasicMaterial({map:faceTex('smile'),transparent:true,
+                                 depthWrite:false,toneMapped:false}));
+  face.position.set(0,-.02,.405);face.renderOrder=3;headG.add(face);
+  /* أذنان */
+  for(const s of [-1,1]){
+    const ear=new THREE.Mesh(new THREE.SphereGeometry(.1,10,8),skin);
+    ear.scale.set(.55,1,.8);ear.position.set(s*.41,-.03,0);headG.add(ear);
+  }
+  /* شعر مموّج */
+  const hairM=new THREE.MeshStandardMaterial({color:0x2a1a12,roughness:.85});
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(.435,18,14,0,Math.PI*2,0,Math.PI*.42),hairM);
+  hair.scale.set(1,.92,.95);hair.position.y=.05;headG.add(hair);
+  for(let i=0;i<3;i++){
+    const tuft=new THREE.Mesh(new THREE.ConeGeometry(.08,.2,7),hairM);
+    tuft.position.set(-.1+i*.1,.4,.12);tuft.rotation.z=(i-1)*.5;headG.add(tuft);
+  }
+  /* عصابة رأس نيون */
+  const band=new THREE.Mesh(new THREE.TorusGeometry(.415,.035,8,22),trimM);
+  band.rotation.x=Math.PI/2;band.position.y=.2;headG.add(band);
+
+  /* ===== الأذرع المطاطية + القفازان ===== */
+  const armPivots=[];
+  for(const s of [-1,1]){
+    const piv=new THREE.Group();piv.position.set(s*.3,1.02,0);grp.add(piv);
+    const arm=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,.34,8),cloth);
+    arm.position.y=-.2;piv.add(arm);
+    const elbow=new THREE.Mesh(new THREE.SphereGeometry(.055,8,6),cloth);
+    elbow.position.y=-.37;piv.add(elbow);
+    const g2=new THREE.Mesh(new THREE.SphereGeometry(.115,12,10),glove);
+    g2.position.y=-.44;piv.add(g2);
+    piv.rotation.z=s*.28;
+    armPivots.push({piv,side:s});
+  }
+
+  /* ===== الساقان + الحذاءان ===== */
+  const legPivots=[];
+  for(const s of [-1,1]){
+    const piv=new THREE.Group();piv.position.set(s*.15,.58,0);grp.add(piv);
+    const leg=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.3,8),cloth);
+    leg.position.y=-.18;piv.add(leg);
+    const knee=new THREE.Mesh(new THREE.SphereGeometry(.06,8,6),cloth);
+    knee.position.y=-.33;piv.add(knee);
+    const sh=new THREE.Mesh(new THREE.SphereGeometry(.115,12,10),shoe);
+    sh.scale.set(.9,.7,1.5);sh.position.set(0,-.37,.05);piv.add(sh);
+    legPivots.push({piv,side:s});
+  }
+
+  /* ظل أرضي + هالة نيون */
+  const blob=new THREE.Mesh(new THREE.CircleGeometry(.5,18),
     new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.4,depthWrite:false}));
   blob.rotation.x=-Math.PI/2;blob.position.y=.02;grp.add(blob);
-  const glow=makeGlowSprite(trim,1.8,.3);glow.position.y=1.1;grp.add(glow);
-  grp.userData.bodyParts={body,head};
+  const glow=makeGlowSprite(trim,1.5,.12);glow.position.y=.55;grp.add(glow);
+
+  grp.userData.bodyParts={body,head:headG,face,armPivots,legPivots};
+  grp.userData.setMood=m=>{ face.material.map=faceTex(m); face.material.needsUpdate=true; };
   return grp;
 }
 
@@ -499,8 +601,13 @@ function makeNPC(cfg){
   const gl=makeGlowSprite(cfg.color,2.6,.35);gl.position.y=1.4;grp.add(gl);
   const npc={group:grp,name:cfg.name,lines:cfg.lines,color:cfg.color,met:false,ex,base:grp.position.clone()};
   grp.userData.npc=npc;
+  const BPn=grp.userData.bodyParts;
   animFns.push(t=>{
     grp.position.y=Math.sin(t*1.6+npc.base.x)*0.05;
+    /* تنفّس وأطراف حيّة */
+    BPn.body.position.y=.86+Math.sin(t*1.6+npc.base.x)*.018;
+    BPn.head.rotation.z=Math.sin(t*.9+npc.base.z)*.07;
+    BPn.armPivots.forEach(a=>{a.piv.rotation.x=Math.sin(t*1.4+npc.base.x)*.09;});
     ex.position.y=2.95+Math.sin(t*3)*.12;
     const d=grp.position.distanceTo(player.position);
     if(d<7){const a=Math.atan2(player.position.x-grp.position.x,player.position.z-grp.position.z);
@@ -820,6 +927,7 @@ function collectOrb(o){
 let dlg=null;
 function openDialog(npc){
   dlg={npc,idx:0};sfx.talk();mode.v='dialogue';
+  if(npc.group.userData.setMood)npc.group.userData.setMood('talk');
   $('dlgName').textContent='◈ '+npc.name;
   $('dlgText').textContent=npc.lines[0];
   $('dialogue').classList.add('on');
@@ -831,6 +939,7 @@ function advanceDialog(){
   else{
     $('dialogue').classList.remove('on');
     const npc=dlg.npc;dlg=null;mode.v='play';
+    if(npc.group.userData.setMood)npc.group.userData.setMood('smile');
     if(!npc.met){npc.met=true;npc.ex.visible=false;state.npcs++;totals.npcs++;
       toast('👤 قابلت: <b>'+npc.name+'</b>');refreshHUD();checkGate();}
   }
@@ -935,11 +1044,24 @@ function loop(now){
       const tr=Math.atan2(dx,dz);
       let da=tr-player.rotation.y;while(da>Math.PI)da-=Math.PI*2;while(da<-Math.PI)da+=Math.PI*2;
       player.rotation.y+=da*.18;
-      player.userData.bodyParts.body.position.y=.85+Math.abs(Math.sin(T*10))*.09;
-      player.rotation.z=Math.sin(T*10)*.04;
+      /* مشية مطاطية: قفز خفيف + تأرجح الأذرع والسيقان */
+      const BP=player.userData.bodyParts;
+      const step=Math.sin(T*10);
+      BP.body.position.y=.86+Math.abs(step)*.09;
+      BP.head.position.y=1.62+Math.abs(step)*.07;
+      BP.head.rotation.z=step*.06;
+      player.rotation.z=step*.04;
+      BP.armPivots.forEach(a=>{a.piv.rotation.x=step*a.side*.85;a.piv.rotation.z=a.side*.28;});
+      BP.legPivots.forEach(l=>{l.piv.rotation.x=-step*l.side*.75;});
     }else{
-      player.userData.bodyParts.body.position.y=lerp(player.userData.bodyParts.body.position.y,.85,.2);
+      /* وقوف: تنفّس هادئ وعودة الأطراف */
+      const BP=player.userData.bodyParts;
+      BP.body.position.y=lerp(BP.body.position.y,.86+Math.sin(T*1.7)*.012,.2);
+      BP.head.position.y=lerp(BP.head.position.y,1.62+Math.sin(T*1.7)*.016,.2);
+      BP.head.rotation.z=lerp(BP.head.rotation.z,Math.sin(T*.8)*.04,.1);
       player.rotation.z=lerp(player.rotation.z,0,.2);
+      BP.armPivots.forEach(a=>{a.piv.rotation.x=lerp(a.piv.rotation.x,Math.sin(T*1.7)*.06,.14);});
+      BP.legPivots.forEach(l=>{l.piv.rotation.x=lerp(l.piv.rotation.x,0,.16);});
     }
     const r=Math.hypot(player.position.x,player.position.z);
     if(r>42){player.position.x*=42/r;player.position.z*=42/r;}

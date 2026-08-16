@@ -701,81 +701,125 @@ for (let i=0;i<240;i++){
 rocks.castShadow = true;
 scene.add(rocks);
 
-/* ================= أشجار النخيل ================= */
-const frondGeo = new THREE.PlaneGeometry(0.6, 3.4, 1, 12);
-{
-  const fp = frondGeo.attributes.position;
-  for (let i=0;i<fp.count;i++){
-    const y = fp.getY(i) + 1.7;
-    const t = Math.max(0, y)/3.4;
-    fp.setX(i, fp.getX(i)*(1 - t*0.75));
-    fp.setZ(i, t*t*1.5);
-    fp.setY(i, y);
+/* ================= أشجار النخيل =================
+   نفس نخلة «مدينة النخيل»: جذع بستّ عقد منحنية، تسعة سعفات
+   عريضة متهدّلة، وعذق تمر — مدموجة بألوان رأسية ومرسومة
+   بـ InstancedMesh مع شيدر تمايل مع الريح. */
+function mergeGeos(list){
+  const pos=[],norm=[],uv=[],col=[];
+  for(const {geo:gg,color:c} of list){
+    const g = gg.index ? gg.toNonIndexed() : gg;
+    pos.push(...g.attributes.position.array);
+    norm.push(...g.attributes.normal.array);
+    uv.push(...g.attributes.uv.array);
+    for(let i=0;i<g.attributes.position.count;i++) col.push(c.r, c.g, c.b);
   }
-  frondGeo.computeVertexNormals();
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('normal',   new THREE.Float32BufferAttribute(norm,3));
+  geo.setAttribute('uv',       new THREE.Float32BufferAttribute(uv,2));
+  geo.setAttribute('color',    new THREE.Float32BufferAttribute(col,3));
+  return geo;
 }
-function palmTree(x, z, sc, leanA){
-  const P = new THREE.Group();
-  P.position.set(x, 0, z);
-  P.scale.setScalar(sc);
-  scene.add(P);
-  const segs = 5, hSeg = 1.5;
-  let px = 0, py = 0;
-  for (let i=0;i<segs;i++){
-    const rB = 0.22 - i*0.026, rT = 0.22 - (i+1)*0.026;
-    const seg = new THREE.Mesh(new THREE.CylinderGeometry(rT, rB, hSeg, 10), matTrunk);
-    px += Math.cos(leanA)*0.16*i/segs*2;
-    const pz = Math.sin(leanA)*0.16*i*i/segs;
-    seg.position.set(px, py + hSeg/2, pz);
-    seg.rotation.z = -Math.cos(leanA)*0.05*i;
-    seg.rotation.x = Math.sin(leanA)*0.05*i;
-    seg.castShadow = true;
-    P.add(seg);
-    py += hSeg*0.94;
+function buildPalmGeo(){
+  const geos=[];
+  const trunkColor=new THREE.Color(0x8a6a45);
+  const frondColorBase=new THREE.Color(0x3f7a35);
+  const dateColor=new THREE.Color(0x7a3a1e);
+  let y=0, bend=0; const segs=6, segH=1.1;
+  for(let i=0;i<segs;i++){
+    const r0=.34-(i/segs)*.16, r1=.34-((i+1)/segs)*.16;
+    const cg=new THREE.CylinderGeometry(r1,r0,segH,7);
+    bend+=.06;
+    cg.translate(bend*i*.15, y+segH/2, 0);
+    cg.rotateZ(-bend*.12);
+    geos.push({geo:cg,color:trunkColor}); y+=segH*.96;
   }
-  const crown = new THREE.Group();
-  crown.position.set(px + Math.cos(leanA)*0.3, py + 0.1, Math.sin(leanA)*0.3);
-  P.add(crown);
-  const bud = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), matTrunk);
-  crown.add(bud);
-  for (let i=0;i<3;i++){
-    const nut = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6),
-      std({ color:0x7a8a3c, roughness:0.8 }));
-    nut.position.set(Math.cos(i*2.1)*0.18, -0.12, Math.sin(i*2.1)*0.18);
-    crown.add(nut);
+  const topY=y+.3, topX=bend*segs*.15;
+  const fr=9;
+  for(let i=0;i<fr;i++){
+    const a=(i/fr)*Math.PI*2;
+    const len=3+Math.random()*.8;
+    const fg=new THREE.PlaneGeometry(len,.85,4,1);
+    const p=fg.attributes.position;
+    for(let v=0;v<p.count;v++){
+      const px=p.getX(v); const tt=(px+len/2)/len;
+      p.setY(v, p.getY(v)*(1-tt*.4)-tt*tt*1.4);
+      p.setZ(v, p.getZ(v)*(.9-tt*.4));
+    }
+    fg.translate(len/2,0,0);
+    fg.rotateZ(.5-Math.random()*.4);
+    fg.rotateY(a);
+    fg.translate(topX,topY,0);
+    fg.computeVertexNormals();
+    const frondColor=frondColorBase.clone()
+      .offsetHSL((Math.random()-.5)*.03,(Math.random()-.5)*.1,(Math.random()-.5)*.08);
+    geos.push({geo:fg,color:frondColor});
   }
-  const NF = 13;
-  for (let i=0;i<NF;i++){
-    const fr = new THREE.Mesh(frondGeo, matFrond);
-    fr.rotation.y = i*2.399;
-    const ring = i % 3;
-    fr.rotation.x = ring === 0 ? 0.25 : (ring === 1 ? 0.65 : 1.05);
-    fr.castShadow = true;
-    crown.add(fr);
-  }
+  const dg=new THREE.SphereGeometry(.32,7,6);
+  dg.scale(1,1.3,1); dg.translate(topX+.3, topY-.4, 0);
+  geos.push({geo:dg,color:dateColor});
+  return mergeGeos(geos);
 }
+const palmGeo = buildPalmGeo();
+const palmMat = std({ color:0xffffff, vertexColors:true, roughness:.9, side:THREE.DoubleSide });
+const uPalmTime={value:0}, uPalmWind={value:0.55};
+palmMat.onBeforeCompile=(sh)=>{
+  sh.uniforms.uTime=uPalmTime; sh.uniforms.uWind=uPalmWind;
+  sh.vertexShader='uniform float uTime;uniform float uWind;\n'+sh.vertexShader.replace(
+   '#include <begin_vertex>',
+   `#include <begin_vertex>
+    float ph=instanceMatrix[3][0]*.35+instanceMatrix[3][2]*.27;
+    float sw=pow(max(transformed.y,0.)/7.,1.6);
+    transformed.x+=sin(uTime*1.6+ph)*.5*sw*uWind+uWind*.4*sw;
+    transformed.z+=cos(uTime*1.2+ph)*.4*sw*uWind;`);
+};
+
+/* اجمع كل مواقع النخيل أولاً، ثم ارسمها دفعة واحدة.
+   نترك فراغاً حول مواقع الكاميرا حتى لا تحجب سعفة المشهد. */
+const CAM_SPOTS = [[17,26],[9,20],[10,-14],[6.5,9],[-18,16]];
+const palmSpots=[];
+function palmTree(x, z, sc, rotY){
+  for (const [cx,cz] of CAM_SPOTS)
+    if (Math.hypot(x-cx, z-cz) < 11) return;   // قريبة جداً من الكاميرا
+  palmSpots.push({x,z,sc,rotY});
+}
+
 /* صف نخيل منتظم يحاذي السكة على الجهتين، من أولها لآخرها */
-for (let z = TRK_Z0 + 6; z <= TRK_Z0 + TRK_LEN - 6; z += 15){
+for (let z = TRK_Z0 + 6; z <= TRK_Z0 + TRK_LEN - 6; z += 13){
   for (const side of [-1, 1]){
     const x = side * (9.5 + Math.random()*1.8);
-    palmTree(x, z + (Math.random()-0.5)*2.5, 0.8 + Math.random()*0.3, Math.random()*6.28);
+    palmTree(x, z + (Math.random()-0.5)*2.5, 0.95 + Math.random()*0.35, Math.random()*6.28);
   }
 }
 /* بساتين نخيل خلف الصف الأول */
-for (let i=0;i<28;i++)
-  palmTree(17 + Math.random()*44, (Math.random()-0.5)*230, 0.75 + Math.random()*0.55, Math.random()*6.28);
-for (let i=0;i<24;i++)
-  palmTree(-(17 + Math.random()*26), (Math.random()-0.5)*230, 0.75 + Math.random()*0.55, Math.random()*6.28);
+for (let i=0;i<40;i++)
+  palmTree(17 + Math.random()*46, (Math.random()-0.5)*230, 0.85 + Math.random()*0.55, Math.random()*6.28);
+for (let i=0;i<34;i++)
+  palmTree(-(17 + Math.random()*28), (Math.random()-0.5)*230, 0.85 + Math.random()*0.55, Math.random()*6.28);
 /* نخيل تحفّ القناة */
-for (let i=0;i<10;i++)
-  palmTree(-44 + (Math.random()-0.5)*7, (Math.random()-0.5)*210, 0.9 + Math.random()*0.4, Math.random()*6.28);
+for (let i=0;i<14;i++)
+  palmTree(-44 + (Math.random()-0.5)*7, (Math.random()-0.5)*210, 1.0 + Math.random()*0.4, Math.random()*6.28);
 /* نخيل على سفوح التلال القريبة */
 for (const [hx,hz,hw,,hd] of HILLS_NEAR){
-  for (let i=0;i<4;i++){
+  for (let i=0;i<5;i++){
     const a = Math.random()*Math.PI*2, r = 0.55 + Math.random()*0.45;
-    palmTree(hx + Math.cos(a)*hw*r, hz + Math.sin(a)*hd*r, 0.8 + Math.random()*0.4, Math.random()*6.28);
+    palmTree(hx + Math.cos(a)*hw*r, hz + Math.sin(a)*hd*r, 0.9 + Math.random()*0.4, Math.random()*6.28);
   }
 }
+const palms = new THREE.InstancedMesh(palmGeo, palmMat, palmSpots.length);
+palms.castShadow = true; palms.receiveShadow = true;
+{
+  const d = new THREE.Object3D();
+  palmSpots.forEach((p,i)=>{
+    d.position.set(p.x, 0, p.z);
+    d.rotation.set(0, p.rotY, 0);
+    d.scale.set(p.sc, p.sc*(0.9+Math.random()*0.3), p.sc);
+    d.updateMatrix();
+    palms.setMatrixAt(i, d.matrix);
+  });
+}
+scene.add(palms);
 
 /* ================= حقول الزهور ================= */
 /* بتلات على شكل صليب مزدوج — رخيصة وتقرأ جيداً من بعيد */
@@ -935,6 +979,10 @@ for (let i=0;i<24;i++){
 /* ================= تحديث حياة المرج ================= */
 const _fm = new THREE.Object3D();
 function updateMeadow(t, dt){
+  /* تمايل النخيل مع الريح */
+  uPalmTime.value = t;
+  uPalmWind.value = 0.45 + 0.28*Math.sin(t*0.23) + 0.12*Math.sin(t*0.71);
+
   /* ميلان الزهور مع النسيم */
   for (const F of flowerFields){
     for (let i=0;i<F.base.length;i++){

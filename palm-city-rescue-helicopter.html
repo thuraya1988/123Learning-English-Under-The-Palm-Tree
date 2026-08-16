@@ -204,19 +204,17 @@
     <p>أنتم قادة مروحية الإنقاذ الحمراء فوق <b style="color:var(--green)">مدينة النخيل</b> — مدينة خضراء
     مستوحاة من القرى العُمانية القديمة: بيوت طينية، أفلاج جارية، نخيل يتمايل، وأسواق تراثية.<br>
     طيروا، أنقذوا، أطفئوا الحرائق، والتقطوا <b style="color:var(--amber)">الكلمات والجمل الإنجليزية</b>
-    عبر <b style="color:var(--amber)">عشرة مستويات</b> يتدرّج فيها المنهج من المفردات إلى تصحيح الجمل.</p>
+    عبر <b style="color:var(--amber)">مئة مستوى</b> يتدرّج فيها المنهج من الكلمات الأولى إلى إتقان الجملة.</p>
     <div class="cols">
       <div><h3>🎮 الطيران</h3><div>W/S أمام–خلف · A/D دوران<br>Q/E انزلاق جانبي<br>R صعود · F نزول<br>Shift تسريع · Space تحويم<br>C تبديل الكاميرا</div></div>
       <div><h3>🎯 المهام</h3><div>التقطوا الإجابة الصحيحة بالطيران إليها<br>💧 V رش الماء لإطفاء الحريق<br>🪝 F ونش لإنقاذ الأشخاص<br>عودوا لمحطة التزويد للتعبئة<br>كل مستوى له هدف ونجوم</div></div>
       <div><h3>🌦️ الطقس</h3><div>نهار وليل متغيّران<br>رياح، مطر، ضباب وعواصف<br>يشتدّ الطقس كلما تقدّمتم<br>احذروا البرق والرياح القوية!</div></div>
     </div>
     <div class="cols" style="flex-wrap:wrap">
-      <div style="flex:1 1 100%"><h3>📚 المستويات العشرة</h3><div style="line-height:2.1">
-        <b>1</b> كلمات البيت والعائلة · <b>2</b> المدينة والسوق · <b>3</b> الطبيعة والنخيل ·
-        <b>4</b> الأضداد · <b>5</b> الجموع<br>
-        <b>6</b> حروف الجر · <b>7</b> الأزمنة: مضارع وماضٍ · <b>8</b> المقارنة والتفضيل ·
-        <b>9</b> تصحيح الجمل · <b>10</b> التحدّي الكبير
-      </div></div>
+      <div style="flex:1 1 100%"><h3>📚 مئة مستوى · عشر وحدات</h3>
+        <div id="unitList" style="line-height:2.1"></div>
+        <div id="bankLine" style="margin-top:10px;font-size:12px;color:#9fc4b2"></div>
+      </div>
     </div>
     <button class="bigbtn" id="btnStart">🛫 ابدأ المهمة</button>
   </div>
@@ -247,6 +245,7 @@
 </script>
 <script type="module">
 import * as THREE from 'three';
+import { LEVELS, UNITS, STATS, makeQuestion } from './curriculum.js';
 
 /* ============================================================
    SETUP
@@ -1167,249 +1166,9 @@ const orbGroup=new THREE.Group();scene.add(orbGroup);
 
 /* ============================================================
    CHALLENGE DATA
-   بنوك المحتوى التعليمي — مرتّبة حسب المهارة، والمستويات
-   تسحب منها حسب موضوع كل مستوى.
+   المحتوى كله يأتي من منهج الموقع المشترك curriculum.js
+   ليبقى منهجاً واحداً لكل الألعاب.
 ============================================================ */
-
-/* ---------- مفردات: عربي ↔ إنجليزي، موزّعة على مواضيع ---------- */
-const VOCAB={
-  home:[ // البيت والعائلة
-    {en:"house",ar:"بيت",e:"🏠"},{en:"door",ar:"باب",e:"🚪"},{en:"window",ar:"نافذة",e:"🪟"},
-    {en:"kitchen",ar:"مطبخ",e:"🍳"},{en:"room",ar:"غرفة",e:"🛏️"},{en:"table",ar:"طاولة",e:"🪑"},
-    {en:"chair",ar:"كرسي",e:"🪑"},{en:"key",ar:"مفتاح",e:"🔑"},{en:"lamp",ar:"مصباح",e:"💡"},
-    {en:"mother",ar:"أم",e:"👩"},{en:"father",ar:"أب",e:"👨"},{en:"sister",ar:"أخت",e:"👧"},
-    {en:"brother",ar:"أخ",e:"👦"},{en:"family",ar:"عائلة",e:"👨‍👩‍👧"},{en:"grandmother",ar:"جدة",e:"👵"}
-  ],
-  city:[ // المدينة والسوق
-    {en:"market",ar:"سوق",e:"🏪"},{en:"street",ar:"شارع",e:"🛣️"},{en:"school",ar:"مدرسة",e:"🏫"},
-    {en:"mosque",ar:"مسجد",e:"🕌"},{en:"hospital",ar:"مستشفى",e:"🏥"},{en:"shop",ar:"دكان",e:"🛒"},
-    {en:"bridge",ar:"جسر",e:"🌉"},{en:"tower",ar:"برج",e:"🗼"},{en:"fort",ar:"قلعة",e:"🏰"},
-    {en:"port",ar:"ميناء",e:"⚓"},{en:"road",ar:"طريق",e:"🛤️"},{en:"village",ar:"قرية",e:"🏘️"}
-  ],
-  nature:[ // الطبيعة العُمانية
-    {en:"palm tree",ar:"نخلة",e:"🌴"},{en:"date",ar:"تمرة",e:"🌰"},{en:"falaj",ar:"فلج",e:"💧"},
-    {en:"water",ar:"ماء",e:"💧"},{en:"mountain",ar:"جبل",e:"⛰️"},{en:"sea",ar:"بحر",e:"🌊"},
-    {en:"sand",ar:"رمل",e:"🏜️"},{en:"sun",ar:"شمس",e:"☀️"},{en:"moon",ar:"قمر",e:"🌙"},
-    {en:"star",ar:"نجمة",e:"⭐"},{en:"cloud",ar:"غيمة",e:"☁️"},{en:"rain",ar:"مطر",e:"🌧️"},
-    {en:"wind",ar:"ريح",e:"🌬️"},{en:"flower",ar:"زهرة",e:"🌸"},{en:"tree",ar:"شجرة",e:"🌳"}
-  ],
-  animals:[
-    {en:"camel",ar:"جمل",e:"🐪"},{en:"goat",ar:"ماعز",e:"🐐"},{en:"bird",ar:"طائر",e:"🐦"},
-    {en:"fish",ar:"سمكة",e:"🐟"},{en:"cat",ar:"قطة",e:"🐱"},{en:"dog",ar:"كلب",e:"🐕"},
-    {en:"horse",ar:"حصان",e:"🐎"},{en:"turtle",ar:"سلحفاة",e:"🐢"},{en:"bee",ar:"نحلة",e:"🐝"},
-    {en:"butterfly",ar:"فراشة",e:"🦋"},{en:"falcon",ar:"صقر",e:"🦅"},{en:"donkey",ar:"حمار",e:"🫏"}
-  ],
-  rescue:[ // مفردات الإنقاذ والطيران
-    {en:"helicopter",ar:"مروحية",e:"🚁"},{en:"pilot",ar:"طيّار",e:"👨‍✈️"},{en:"rescue",ar:"إنقاذ",e:"🆘"},
-    {en:"fire",ar:"حريق",e:"🔥"},{en:"smoke",ar:"دخان",e:"💨"},{en:"rope",ar:"حبل",e:"🪢"},
-    {en:"help",ar:"مساعدة",e:"🙌"},{en:"danger",ar:"خطر",e:"⚠️"},{en:"safe",ar:"آمن",e:"✅"},
-    {en:"fuel",ar:"وقود",e:"⛽"},{en:"landing",ar:"هبوط",e:"🛬"},{en:"takeoff",ar:"إقلاع",e:"🛫"}
-  ],
-  food:[
-    {en:"bread",ar:"خبز",e:"🍞"},{en:"rice",ar:"أرز",e:"🍚"},{en:"milk",ar:"حليب",e:"🥛"},
-    {en:"honey",ar:"عسل",e:"🍯"},{en:"coffee",ar:"قهوة",e:"☕"},{en:"fish",ar:"سمك",e:"🐟"},
-    {en:"lemon",ar:"ليمون",e:"🍋"},{en:"mango",ar:"مانجو",e:"🥭"},{en:"banana",ar:"موز",e:"🍌"},
-    {en:"apple",ar:"تفاحة",e:"🍎"},{en:"egg",ar:"بيضة",e:"🥚"},{en:"salt",ar:"ملح",e:"🧂"}
-  ],
-  verbs:[
-    {en:"fly",ar:"يطير",e:"🛩️"},{en:"run",ar:"يركض",e:"🏃"},{en:"swim",ar:"يسبح",e:"🏊"},
-    {en:"read",ar:"يقرأ",e:"📖"},{en:"write",ar:"يكتب",e:"✍️"},{en:"eat",ar:"يأكل",e:"🍽️"},
-    {en:"drink",ar:"يشرب",e:"🥤"},{en:"sleep",ar:"ينام",e:"😴"},{en:"listen",ar:"يستمع",e:"👂"},
-    {en:"speak",ar:"يتكلم",e:"🗣️"},{en:"carry",ar:"يحمل",e:"📦"},{en:"climb",ar:"يتسلق",e:"🧗"},
-    {en:"build",ar:"يبني",e:"🧱"},{en:"plant",ar:"يزرع",e:"🌱"},{en:"wash",ar:"يغسل",e:"🧼"}
-  ]
-};
-const VOCAB_ALL=Object.values(VOCAB).flat();
-
-/* ---------- الأضداد ---------- */
-const OPPOSITES=[
-  {w:"big",o:"small",d:["tall","new"]},      {w:"hot",o:"cold",d:["warm","wet"]},
-  {w:"old",o:"new",d:["young","long"]},      {w:"fast",o:"slow",d:["quick","near"]},
-  {w:"open",o:"close",d:["push","enter"]},   {w:"day",o:"night",d:["morning","week"]},
-  {w:"up",o:"down",d:["over","in"]},         {w:"long",o:"short",d:["wide","thin"]},
-  {w:"happy",o:"sad",d:["angry","tired"]},   {w:"clean",o:"dirty",d:["wet","empty"]},
-  {w:"full",o:"empty",d:["heavy","open"]},   {w:"strong",o:"weak",d:["hard","soft"]},
-  {w:"easy",o:"hard",d:["light","simple"]},  {w:"near",o:"far",d:["next","under"]},
-  {w:"wet",o:"dry",d:["cold","fresh"]},      {w:"light",o:"heavy",d:["bright","dark"]},
-  {w:"loud",o:"quiet",d:["soft","deep"]},    {w:"rich",o:"poor",d:["kind","busy"]},
-  {w:"first",o:"last",d:["next","best"]},    {w:"start",o:"end",d:["stop","try"]},
-  {w:"give",o:"take",d:["send","hold"]},     {w:"buy",o:"sell",d:["pay","keep"]},
-  {w:"come",o:"go",d:["stay","walk"]},       {w:"remember",o:"forget",d:["think","learn"]},
-  {w:"question",o:"answer",d:["problem","idea"]},{w:"north",o:"south",d:["east","left"]},
-  {w:"above",o:"below",d:["beside","around"]},{w:"inside",o:"outside",d:["between","near"]},
-  {w:"begin",o:"finish",d:["try","open"]},   {w:"true",o:"false",d:["real","right"]}
-];
-
-/* ---------- الجموع ---------- */
-const PLURALS=[
-  {s:"child",p:"children",d:["childs","childes"]},  {s:"man",p:"men",d:["mans","mens"]},
-  {s:"woman",p:"women",d:["womans","womens"]},      {s:"foot",p:"feet",d:["foots","feets"]},
-  {s:"tooth",p:"teeth",d:["tooths","teeths"]},      {s:"mouse",p:"mice",d:["mouses","mices"]},
-  {s:"person",p:"people",d:["persons","peoples"]},  {s:"leaf",p:"leaves",d:["leafs","leafes"]},
-  {s:"knife",p:"knives",d:["knifes","knive"]},      {s:"wife",p:"wives",d:["wifes","wive"]},
-  {s:"box",p:"boxes",d:["boxs","boxies"]},          {s:"baby",p:"babies",d:["babys","babyes"]},
-  {s:"city",p:"cities",d:["citys","cityes"]},       {s:"story",p:"stories",d:["storys","storyes"]},
-  {s:"bus",p:"buses",d:["buss","busies"]},          {s:"watch",p:"watches",d:["watchs","watchies"]},
-  {s:"dish",p:"dishes",d:["dishs","dishies"]},      {s:"sheep",p:"sheep",d:["sheeps","sheepes"]},
-  {s:"fish",p:"fish",d:["fishs","fishies"]},        {s:"country",p:"countries",d:["countrys","countryes"]},
-  {s:"family",p:"families",d:["familys","familyes"]},{s:"tomato",p:"tomatoes",d:["tomatos","tomatoies"]},
-  {s:"potato",p:"potatoes",d:["potatos","potatoies"]},{s:"church",p:"churches",d:["churchs","churchies"]},
-  {s:"class",p:"classes",d:["clasess","classs"]},   {s:"shelf",p:"shelves",d:["shelfs","shelfes"]}
-];
-
-/* ---------- حروف الجر ---------- */
-const PREPS=[
-  {q:"The cat is ___ the box.",a:"in",d:["on","at"],h:"in = داخل"},
-  {q:"The book is ___ the table.",a:"on",d:["in","under"],h:"on = على سطح"},
-  {q:"The ball is ___ the chair.",a:"under",d:["on","over"],h:"under = تحت"},
-  {q:"We meet ___ 6 o'clock.",a:"at",d:["in","on"],h:"at + ساعة محددة"},
-  {q:"My birthday is ___ May.",a:"in",d:["at","on"],h:"in + شهر"},
-  {q:"School starts ___ Sunday.",a:"on",d:["in","at"],h:"on + يوم"},
-  {q:"He walked ___ the bridge.",a:"across",d:["between","among"],h:"across = عبر"},
-  {q:"The falaj runs ___ the village.",a:"through",d:["over","above"],h:"through = خلال"},
-  {q:"She sat ___ me and my sister.",a:"between",d:["among","along"],h:"between = بين اثنين"},
-  {q:"The plane flew ___ the clouds.",a:"above",d:["on","in"],h:"above = فوق دون لمس"},
-  {q:"I am waiting ___ the bus.",a:"for",d:["to","at"],h:"wait for = ينتظر"},
-  {q:"This gift is ___ you.",a:"for",d:["to","of"],h:"for = لأجل"},
-  {q:"He is good ___ English.",a:"at",d:["in","on"],h:"good at = بارع في"},
-  {q:"We arrived ___ Muscat.",a:"in",d:["to","at"],h:"arrive in + مدينة"},
-  {q:"Put the dates ___ the basket.",a:"into",d:["onto","off"],h:"into = إلى داخل"},
-  {q:"The bird flew ___ the tree.",a:"onto",d:["into","off"],h:"onto = إلى فوق"},
-  {q:"He jumped ___ the wall.",a:"over",d:["under","across"],h:"over = فوق قفزاً"},
-  {q:"The shop is ___ the mosque.",a:"next to",d:["between","through"],h:"next to = بجانب"},
-  {q:"She comes ___ Oman.",a:"from",d:["of","by"],h:"come from = ينحدر من"},
-  {q:"We travelled ___ car.",a:"by",d:["with","on"],h:"by + وسيلة نقل"},
-  {q:"Cut the bread ___ a knife.",a:"with",d:["by","from"],h:"with + أداة"},
-  {q:"The picture is ___ the wall.",a:"on",d:["in","at"],h:"on the wall = على الجدار"}
-];
-
-const SENTENCES=[ // [words..., errorIndex, correction, hint]
-  {w:["She","like","bananas"],e:1,c:"likes",h:"He/She/It + verb + s"},
-  {w:["He","go","to","school"],e:1,c:"goes",h:"He/She/It + verb + s/es"},
-  {w:["They","is","happy"],e:1,c:"are",h:"They/We/You + are"},
-  {w:["I","has","a","cat"],e:1,c:"have",h:"I/You/We/They + have"},
-  {w:["It","rain","a","lot"],e:1,c:"rains",h:"It + verb + s"},
-  {w:["We","was","late"],e:1,c:"were",h:"We + were"},
-  {w:["She","don't","like","tea"],e:1,c:"doesn't",h:"She/He/It + doesn't"},
-  {w:["He","can","swims"],e:2,c:"swim",h:"بعد can نستخدم الفعل الأصلي"},
-  {w:["The","boy","play","football"],e:2,c:"plays",h:"مفرد + verb + s"},
-  {w:["I","am","reading","a","book"],e:-1,c:"",h:"جملة صحيحة!"},
-  {w:["They","was","at","home"],e:1,c:"were",h:"They + were"},
-  {w:["You","is","my","friend"],e:1,c:"are",h:"You + are"},
-  {w:["He","have","two","dogs"],e:1,c:"has",h:"He/She/It + has"},
-  {w:["We","goes","to","the","market"],e:1,c:"go",h:"We + go (بدون s)"},
-  {w:["She","eat","breakfast","every","day"],e:1,c:"eats",h:"She + verb + s"},
-  {w:["I","doesn't","know","the","answer"],e:1,c:"don't",h:"I + don't"},
-  {w:["The","cats","was","sleeping"],e:2,c:"were",h:"جمع + were"},
-  {w:["My","brother","play","the","oud"],e:2,c:"plays",h:"مفرد + verb + s"},
-  {w:["Yesterday","I","go","to","school"],e:2,c:"went",h:"الماضي: go → went"},
-  {w:["Last","year","we","visit","Muscat"],e:3,c:"visited",h:"الماضي: verb + ed"},
-  {w:["She","is","reading","a","book","now"],e:-1,c:"",h:"جملة صحيحة!"},
-  {w:["There","is","many","palm","trees"],e:1,c:"are",h:"جمع بعد There + are"},
-  {w:["This","are","my","books"],e:1,c:"These",h:"جمع: These are"},
-  {w:["These","is","my","shoes"],e:1,c:"are",h:"جمع + are"},
-  {w:["He","is","taller","than","me"],e:-1,c:"",h:"جملة صحيحة!"},
-  {w:["She","is","more","tall","than","him"],e:2,c:"taller",h:"صفة قصيرة + er"},
-  {w:["I","don't","have","no","money"],e:3,c:"any",h:"لا نستخدم نفي مزدوج: no → any"},
-  {w:["He","is","a","honest","boy"],e:2,c:"an",h:"قبل حرف صوتي نستخدم an"},
-  {w:["I","seen","the","falaj","yesterday"],e:1,c:"saw",h:"الماضي البسيط: saw"},
-  {w:["We","are","play","in","the","garden"],e:2,c:"playing",h:"are + verb+ing"},
-  {w:["The","children","is","laughing"],e:2,c:"are",h:"جمع + are"},
-  {w:["My","father","work","at","the","souq"],e:2,c:"works",h:"مفرد + verb + s"},
-  {w:["I","will","went","home","soon"],e:2,c:"go",h:"will + الفعل الأصلي"},
-  {w:["She","can","plays","the","piano"],e:2,c:"play",h:"can + الفعل الأصلي"},
-  {w:["We","was","swimming","yesterday"],e:1,c:"were",h:"We + were"},
-  {w:["He","don't","likes","dates"],e:1,c:"doesn't",h:"He + doesn't"},
-  {w:["The","sun","rise","in","the","east"],e:2,c:"rises",h:"مفرد + verb + s"},
-  {w:["They","has","a","big","house"],e:1,c:"have",h:"They + have"},
-  {w:["The","boys","plays","football"],e:1,c:"play",h:"جمع + play (بدون s)"},
-  {w:["I","is","from","Oman"],e:1,c:"am",h:"I + am"}
-];
-const SPELLING=[
-  {bad:"frend",opts:["friend","freind","frend"],ans:0},
-  {bad:"appel",opts:["apple","apel","appel"],ans:0},
-  {bad:"becaus",opts:["because","becaus","becouse"],ans:0},
-  {bad:"beutiful",opts:["beautiful","beutiful","beautifull"],ans:0},
-  {bad:"scool",opts:["school","scool","schol"],ans:0},
-  {bad:"watr",opts:["water","watr","watar"],ans:0},
-  {bad:"hause",opts:["house","hause","hows"],ans:0},
-  {bad:"nife",opts:["knife","nife","knive"],ans:0},
-  {bad:"fammily",opts:["family","famly","fammily"],ans:0},
-  {bad:"pepel",opts:["people","pepel","peeple"],ans:0},
-  {bad:"televisoin",opts:["television","televisoin","telavision"],ans:0},
-  {bad:"restrant",opts:["restaurant","restrant","resturant"],ans:0},
-  {bad:"febuary",opts:["February","febuary","Febuary"],ans:0},
-  {bad:"wensday",opts:["Wednesday","wensday","Wendsday"],ans:0},
-  {bad:"buisness",opts:["business","buisness","bussiness"],ans:0},
-  {bad:"goverment",opts:["government","goverment","govermant"],ans:0},
-  {bad:"reciev",opts:["receive","reciev","receve"],ans:0},
-  {bad:"beleive",opts:["believe","beleive","belive"],ans:0},
-  {bad:"wich",opts:["which","wich","whitch"],ans:0},
-  {bad:"thier",opts:["their","thier","theyr"],ans:0},
-  {bad:"tommorow",opts:["tomorrow","tommorow","tomorow"],ans:0},
-  {bad:"allways",opts:["always","allways","alway"],ans:0},
-  {bad:"diffrent",opts:["different","diffrent","differant"],ans:0},
-  {bad:"favrite",opts:["favorite","favrite","favorit"],ans:0},
-  {bad:"litle",opts:["little","litle","liddle"],ans:0},
-  {bad:"happyness",opts:["happiness","happyness","hapiness"],ans:0},
-  {bad:"neccessary",opts:["necessary","neccessary","neccesary"],ans:0},
-  {bad:"speach",opts:["speech","speach","speeche"],ans:0},
-  {bad:"gramer",opts:["grammar","gramer","grammer"],ans:0},
-  {bad:"languege",opts:["language","languege","languaje"],ans:0},
-  {bad:"mesage",opts:["message","mesage","massage"],ans:0},
-  {bad:"strenght",opts:["strength","strenght","strengh"],ans:0},
-  {bad:"garantee",opts:["guarantee","garantee","garuntee"],ans:0},
-  {bad:"seperate",opts:["separate","seperate","seperete"],ans:0},
-  {bad:"untill",opts:["until","untill","untile"],ans:0},
-  {bad:"begining",opts:["beginning","begining","beggining"],ans:0},
-  {bad:"writting",opts:["writing","writting","writeing"],ans:0},
-  {bad:"comming",opts:["coming","comming","comeing"],ans:0},
-  {bad:"runing",opts:["running","runing","runnning"],ans:0},
-  {bad:"stoped",opts:["stopped","stoped","stopeed"],ans:0}
-];
-const GRAMMAR=[
-  {q:"___ is a doctor.",opts:["She","They","We"],ans:0,h:"She + is"},
-  {q:"I ___ happy.",opts:["am","is","are"],ans:0,h:"I + am"},
-  {q:"There ___ many palms.",opts:["are","is","am"],ans:0,h:"جمع + are"},
-  {q:"He goes ___ school.",opts:["to","in","on"],ans:0,h:"go to school"},
-  {q:"We ___ football yesterday.",opts:["played","play","plays"],ans:0,h:"ماضي: played"},
-  {q:"She will ___ tomorrow.",opts:["come","comes","came"],ans:0,h:"will + فعل أصلي"},
-  {q:"They ___ playing now.",opts:["are","is","am"],ans:0,h:"They + are"},
-  {q:"___ you like tea?",opts:["Do","Does","Is"],ans:0,h:"You + Do"},
-  {q:"She ___ like coffee.",opts:["doesn't","don't","isn't"],ans:0,h:"She + doesn't"},
-  {q:"We ___ to the souq yesterday.",opts:["went","go","goes"],ans:0,h:"الماضي: go → went"},
-  {q:"I ___ a book right now.",opts:["am reading","reads","read"],ans:0,h:"الحاضر المستمر: am + verb+ing"},
-  {q:"He is the ___ boy in class.",opts:["tallest","taller","tall"],ans:0,h:"أفضل صفة: the + tallest"},
-  {q:"This is ___ apple.",opts:["an","a","the"],ans:0,h:"قبل حرف صوتي: an"},
-  {q:"___ is your name?",opts:["What","Who","Where"],ans:0,h:"سؤال عن الاسم: What"},
-  {q:"___ do you live?",opts:["Where","What","When"],ans:0,h:"سؤال عن المكان: Where"},
-  {q:"I have ___ brothers.",opts:["two","secondly","twice"],ans:0,h:"عدد: two"},
-  {q:"She can ___ Arabic and English.",opts:["speak","speaks","speaking"],ans:0,h:"can + الفعل الأصلي"},
-  {q:"We must ___ our hands.",opts:["wash","washes","washed"],ans:0,h:"must + الفعل الأصلي"},
-  {q:"He ___ his homework already.",opts:["finished","finish","finishing"],ans:0,h:"الماضي: finished"},
-  {q:"I ___ never been to Salalah.",opts:["have","has","had"],ans:0,h:"I + have"},
-  {q:"___ they at home?",opts:["Are","Is","Do"],ans:0,h:"They + Are"},
-  {q:"This falaj is ___ than that one.",opts:["older","old","oldest"],ans:0,h:"مقارنة: older"},
-  {q:"My mother is ___ the kitchen.",opts:["in","on","at"],ans:0,h:"in + مكان مغلق"},
-  {q:"The book is ___ the table.",opts:["on","in","under"],ans:0,h:"on + سطح"},
-  {q:"We usually eat dinner ___ 7 pm.",opts:["at","in","on"],ans:0,h:"at + وقت محدد"},
-  {q:"I was born ___ 2014.",opts:["in","at","on"],ans:0,h:"in + سنة"},
-  {q:"She ___ swimming every Friday.",opts:["goes","go","going"],ans:0,h:"مفرد + goes"},
-  {q:"___ he like dates?",opts:["Does","Do","Is"],ans:0,h:"He + Does"},
-  {q:"They ___ finished their meal.",opts:["haven't","hasn't","don't"],ans:0,h:"They + haven't"},
-  {q:"I would like ___ water, please.",opts:["some","any","many"],ans:0,h:"جمل مثبتة: some"},
-  {q:"Is there ___ milk left?",opts:["any","some","much"],ans:0,h:"أسئلة: any"},
-  {q:"He runs ___ than his brother.",opts:["faster","fast","fastest"],ans:0,h:"مقارنة: faster"},
-  {q:"This is the ___ falaj in Oman.",opts:["oldest","older","old"],ans:0,h:"التفضيل: the oldest"},
-  {q:"___ should we go now?",opts:["Why","What","Who"],ans:0,h:"سؤال عن السبب: Why"},
-  {q:"I ___ my keys somewhere.",opts:["lost","loses","losing"],ans:0,h:"الماضي: lost"},
-  {q:"She was ___ when I called.",opts:["sleeping","sleep","slept"],ans:0,h:"الماضي المستمر: was + verb+ing"},
-  {q:"We will ___ to the beach tomorrow.",opts:["go","went","goes"],ans:0,h:"will + الفعل الأصلي"},
-  {q:"There ___ no water in the falaj.",opts:["is","are","am"],ans:0,h:"مفرد: is"},
-  {q:"The palm trees ___ tall.",opts:["are","is","am"],ans:0,h:"جمع + are"},
-  {q:"He is ___ than his sister.",opts:["younger","young","youngest"],ans:0,h:"مقارنة: younger"}
-];
-function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
 /* ============================================================
    GAME STATE
@@ -1435,43 +1194,8 @@ const S={
 };
 
 /* ============================================================
-   المنهج — عشرة مستويات، كل مستوى موضوع ومهارة وهدف
-   type: نوع الأسئلة المسموحة في المستوى
-   need: عدد الإجابات الصحيحة للعبور
+   المنهج — مئة مستوى موزّعة على عشر وحدات، تأتي من curriculum.js
 ============================================================ */
-const LEVELS=[
-  { n:1,  ar:"كلمات البيت والعائلة", en:"Home & Family",
-    types:["vocab"],                     pool:["home"],
-    need:6,  weather:1, mission:"حلّق فوق البيوت والتقط كلمات البيت والعائلة 🏠" },
-  { n:2,  ar:"المدينة والسوق", en:"City & Market",
-    types:["vocab","spelling"],          pool:["city","home"],
-    need:7,  weather:2, mission:"طِر فوق السوق والتقط كلمات المدينة 🏪" },
-  { n:3,  ar:"الطبيعة والنخيل", en:"Nature & Palms",
-    types:["vocab","spelling"],          pool:["nature","animals"],
-    need:8,  weather:3, mission:"فوق النخيل والفلج — كلمات الطبيعة 🌴" },
-  { n:4,  ar:"الأضداد", en:"Opposites",
-    types:["opposite","vocab"],          pool:["nature","food","animals"],
-    need:8,  weather:2, mission:"أمسك ضد الكلمة المعروضة ↔️" },
-  { n:5,  ar:"الجموع", en:"Plurals",
-    types:["plural","spelling"],         pool:[],
-    need:9,  weather:4, mission:"حوّل المفرد إلى جمع صحيح 👥" },
-  { n:6,  ar:"حروف الجر", en:"Prepositions",
-    types:["prep","vocab"],              pool:["city","home","rescue"],
-    need:9,  weather:5, mission:"املأ الفراغ بحرف الجر الصحيح 📍" },
-  { n:7,  ar:"الأزمنة: مضارع وماضٍ", en:"Present & Past",
-    types:["grammar","sentence"],        pool:[],
-    need:10, weather:6, mission:"صحّح زمن الفعل في الجملة ⏳" },
-  { n:8,  ar:"المقارنة والتفضيل", en:"Comparatives",
-    types:["grammar","opposite"],        pool:[],
-    need:10, weather:7, mission:"قارن وفضّل بين الأشياء 📊" },
-  { n:9,  ar:"تصحيح الجمل", en:"Fix the Sentence",
-    types:["sentence"],                  pool:[],
-    need:11, weather:8, mission:"أمسك الكلمة الخاطئة في الجملة 🔍" },
-  { n:10, ar:"التحدّي الكبير", en:"Master Challenge",
-    types:["vocab","spelling","grammar","sentence","opposite","plural","prep"],
-    pool:[],
-    need:14, weather:9, mission:"كل المهارات معاً — تحدّي النسر الذهبي 🦅" }
-];
 function LV(){ return LEVELS[Math.min(S.level,LEVELS.length)-1]; }
 
 const MISSIONS=[
@@ -1486,6 +1210,21 @@ const MISSIONS=[
    UI refs
 ============================================================ */
 const $=id=>document.getElementById(id);
+
+/* اعرض الوحدات العشر وحجم بنوك المنهج في شاشة البداية */
+{
+  const ul=$('unitList');
+  if(ul) ul.innerHTML = UNITS.map(u =>
+    `<b>و${u.n}</b> ${u.ar} <span style="opacity:.55">(${(u.n-1)*10+1}–${u.n*10})</span>`
+  ).join(' · ');
+  const bl=$('bankLine');
+  if(bl) bl.textContent =
+    `بنك المنهج: ${STATS.words} مفردة في ${STATS.themes} موضوعاً · ${STATS.spelling} إملاء · `
+   +`${STATS.grammar} قاعدة · ${STATS.sentences} جملة · ${STATS.opposites} ضداً · `
+   +`${STATS.plurals} جمعاً · ${STATS.preps} حرف جر · ${STATS.tenses} زمناً · `
+   +`${STATS.compare} مقارنة · ${STATS.questions} استفهام · ${STATS.articles} أداة تعريف · `
+   +`${STATS.pronouns} ضميراً — المجموع ${STATS.total} عنصراً`;
+}
 function toast(big,sub='',hint='',color='#57d98a',dur=1800){
   const t=$('toast');$('toastbig').textContent=big;$('toastbig').style.color=color;
   $('toastsub').textContent=sub;$('toasthint').textContent=hint;
@@ -1497,91 +1236,42 @@ setMission(0);
 /* ============================================================
    CHALLENGE SPAWNING
 ============================================================ */
-const pick=a=>a[Math.floor(Math.random()*a.length)];
-/* اختر مشتّتات مختلفة عن الجواب */
-function distractors(all, correct, n){
-  const out=[];const seen=new Set([correct]);
-  let guard=0;
-  while(out.length<n && guard++<200){
-    const c=pick(all);
-    if(!seen.has(c)){seen.add(c);out.push(c);}
-  }
-  return out;
-}
-
+/* ============================================================
+   توليد التحدّي — السؤال يأتي جاهزاً من المنهج، واللعبة
+   تحوّله إلى كرات عائمة تُلتقط بالطيران.
+============================================================ */
 function spawnChallenge(){
   clearOrbs();
-  const L=LV();
-  const type=pick(L.types);
+  const L = LV();
+  const Q = makeQuestion(L);
+
   const fwd=new THREE.Vector3(-Math.sin(S.yaw),0,-Math.cos(S.yaw));
   const center=S.pos.clone().addScaledVector(fwd,26);
   center.x=clamp(center.x,-140,140);center.z=clamp(center.z,-130,150);
   center.y=clamp(S.pos.y+rand(-2,4),6,30);
-  let ch;
-  if(type==='sentence'){
-    const s=SENTENCES[Math.floor(Math.random()*SENTENCES.length)];
-    const hasErr=s.e>=0;
-    ch={type,prompt:hasErr?"أمسك الكلمة الخاطئة 🔍":"هذه جملة صحيحة — أمسك كلمة OK ✅",
-        sentence:s.w.join(' '),target:hasErr?s.e:s.w.length,correction:hasErr?
-          s.w.map((w,i)=>i===s.e?s.c:w).join(' '):s.w.join(' '),hint:s.h,
-        learn:(hasErr?s.w.map((w,i)=>i===s.e?s.c:w).join(' '):s.w.join(' ')),orbs:[]};
-    const words=[...s.w];if(!hasErr)words.push("OK");
-    words.forEach((w,i)=>{
-      const isTarget=(hasErr&&i===s.e)||(!hasErr&&w==="OK");
-      addOrb(w,center,i,words.length,isTarget?'#ff6b5e':'#5fd7ff',i===ch.target,isTarget);
+
+  const ch={ type:Q.type, prompt:Q.prompt, correction:Q.correct,
+             hint:Q.hint, learn:Q.learn, sentence:Q.sentence, orbs:[] };
+
+  if(Q.kind==='sentence'){
+    /* الجملة: كل كلمة كرة، والمطلوب التقاط الكلمة الخاطئة */
+    Q.words.forEach((w,i)=>{
+      const isTarget = (i===Q.targetIndex);
+      addOrb(w,center,i,Q.words.length,isTarget?'#ff6b5e':'#5fd7ff',i,isTarget);
     });
-  }else if(type==='spelling'){
-    const s=SPELLING[Math.floor(Math.random()*SPELLING.length)];
-    ch={type,prompt:`الكلمة الصحيحة لـ «${s.bad}» هي؟ 📝`,target:-1,correction:s.opts[s.ans],
-        hint:`الصواب: ${s.opts[s.ans]} — وليس ${s.bad}`,learn:s.opts[s.ans],orbs:[]};
-    const order=shuffleArr(s.opts.map((o,i)=>({o,good:i===s.ans})));
-    order.forEach((it,i)=>addOrb(it.o,center,i,order.length,it.good?'#57d98a':'#c9a67a',i, it.good));
-    // store good index after shuffle
-    ch.target=order.findIndex(it=>it.good);
-  }else if(type==='vocab'){
-    /* مفردات: يُعرض المعنى بالعربية والرمز، وتُلتقط الكلمة الإنجليزية */
-    const pool=(L.pool&&L.pool.length)?L.pool.flatMap(k=>VOCAB[k]||[]):VOCAB_ALL;
-    const s=pick(pool);
-    const wrong=distractors(VOCAB_ALL.map(v=>v.en), s.en, 2);
-    ch={type,prompt:`${s.e}  ما الكلمة الإنجليزية لـ «${s.ar}»؟`,target:-1,
-        correction:s.en,hint:`${s.ar} = ${s.en}`,learn:`${s.en} = ${s.ar}`,orbs:[]};
-    const order=shuffleArr([{o:s.en,good:true},...wrong.map(o=>({o,good:false}))]);
-    order.forEach((it,i)=>addOrb(it.o,center,i,order.length,it.good?'#57d98a':'#c9a67a',i,it.good));
-    ch.target=order.findIndex(it=>it.good);
-  }else if(type==='opposite'){
-    const s=pick(OPPOSITES);
-    ch={type,prompt:`ما ضدّ «${s.w}»؟ ↔️`,target:-1,correction:s.o,
-        hint:`${s.w} ↔ ${s.o}`,learn:`${s.w} ↔ ${s.o}`,orbs:[]};
-    const order=shuffleArr([{o:s.o,good:true},...s.d.map(o=>({o,good:false}))]);
-    order.forEach((it,i)=>addOrb(it.o,center,i,order.length,it.good?'#57d98a':'#c9a67a',i,it.good));
-    ch.target=order.findIndex(it=>it.good);
-  }else if(type==='plural'){
-    const s=pick(PLURALS);
-    ch={type,prompt:`ما جمع «${s.s}»؟ 👥`,target:-1,correction:s.p,
-        hint:`${s.s} → ${s.p}`,learn:`${s.s} → ${s.p}`,orbs:[]};
-    const order=shuffleArr([{o:s.p,good:true},...s.d.map(o=>({o,good:false}))]);
-    order.forEach((it,i)=>addOrb(it.o,center,i,order.length,it.good?'#57d98a':'#c9a67a',i,it.good));
-    ch.target=order.findIndex(it=>it.good);
-  }else if(type==='prep'){
-    const s=pick(PREPS);
-    ch={type,prompt:s.q+' 📍',target:-1,correction:s.a,hint:s.h,
-        learn:s.q.replace('___',s.a),orbs:[]};
-    const order=shuffleArr([{o:s.a,good:true},...s.d.map(o=>({o,good:false}))]);
-    order.forEach((it,i)=>addOrb(it.o,center,i,order.length,it.good?'#57d98a':'#c9a67a',i,it.good));
-    ch.target=order.findIndex(it=>it.good);
+    ch.target=Q.targetIndex;
   }else{
-    const s=GRAMMAR[Math.floor(Math.random()*GRAMMAR.length)];
-    ch={type,prompt:s.q,target:-1,correction:s.opts[s.ans],hint:s.h,
-        learn:s.q.replace('___',s.opts[s.ans]),orbs:[]};
-    const order=shuffleArr(s.opts.map((o,i)=>({o,good:i===s.ans})));
-    order.forEach((it,i)=>addOrb(it.o,center,i,order.length,it.good?'#57d98a':'#c9a67a',i,it.good));
-    ch.target=order.findIndex(it=>it.good);
+    Q.choices.forEach((o,i)=>
+      addOrb(o,center,i,Q.choices.length,o===Q.correct?'#57d98a':'#c9a67a',i,o===Q.correct));
+    ch.target=Q.choices.indexOf(Q.correct);
   }
+
   ch.center=center;
   S.challenge=ch;
   $('prompt').textContent=ch.prompt+(ch.sentence?` — "${ch.sentence}"`:'');
-  // beacon light column at challenge
-  const beacon=textSprite('⬇','#ffb547','#241300',.8);beacon.position.copy(center).add(new THREE.Vector3(0,5,0));orbGroup.add(beacon);ch.beacon=beacon;
+  const beacon=textSprite('⬇','#ffb547','#241300',.8);
+  beacon.position.copy(center).add(new THREE.Vector3(0,5,0));
+  orbGroup.add(beacon);ch.beacon=beacon;
 }
 function addOrb(text,center,i,n,color,idx,isGood){
   const sp=textSprite(text,color,'#fff');
@@ -1618,7 +1308,7 @@ function resolveOrb(sp){
 /* ---------- تقدّم المستوى ---------- */
 function levelLabel(){
   const L=LV();
-  return `${L.n}/10 · ${L.ar}`;
+  return `${L.n}/100 · و${L.unit}: ${L.ar}`;
 }
 function refreshLevelUI(){
   const L=LV();
@@ -1642,17 +1332,22 @@ function showLevelUp(done){
   const tot=S.lvlDone+S.lvlWrong;
   const acc=tot?Math.round(S.lvlDone/tot*100):100;
   const stars=acc>=90?3:acc>=70?2:1;
-  const recent=S.learned.slice(-8);
-  $('lvupTitle').textContent=`✅ اجتزتم المستوى ${done.n} — ${done.ar}`;
+  const recent=S.learned.slice(-10);
+  const unitDone = nxt.unit !== done.unit;      // أنهينا وحدة كاملة؟
+  $('lvupTitle').textContent = unitDone
+    ? `🏅 أنهيتم الوحدة ${done.unit} — ${done.unitAr}`
+    : `✅ اجتزتم المستوى ${done.n} من ١٠٠ — ${done.ar}`;
   $('lvupStars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
   $('lvupBody').innerHTML=
-    `<div class="stat"><span>إجابات صحيحة</span><b>${S.lvlDone}</b></div>
+    `<div class="stat"><span>الوحدة</span><b>${done.unit}/10 — ${done.unitAr}</b></div>
+     <div class="stat"><span>إجابات صحيحة</span><b>${S.lvlDone}</b></div>
      <div class="stat"><span>أخطاء</span><b>${S.lvlWrong}</b></div>
      <div class="stat"><span>الدقة Accuracy</span><b>${acc}%</b></div>
      <div class="stat"><span>النقاط Score</span><b>${S.score}</b></div>
+     <div class="stat"><span>ما تعلّمتموه حتى الآن</span><b>${S.learned.length} عنصراً</b></div>
      <div class="learned"><h4>📚 تعلّمتم في هذا المستوى</h4>
        ${recent.map(w=>`<span class="lw">${w}</span>`).join('')}</div>
-     <div class="nextlv">▶️ التالي: المستوى ${nxt.n} — <b>${nxt.ar}</b> · ${nxt.en}
+     <div class="nextlv">▶️ التالي: المستوى ${nxt.n}/100 — <b>${nxt.ar}</b> · ${nxt.en}
        <br><span style="opacity:.75">${nxt.mission}</span></div>`;
   $('lvup').classList.remove('hidden');
 }

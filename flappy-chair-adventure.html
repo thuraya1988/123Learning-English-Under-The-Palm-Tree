@@ -563,6 +563,9 @@ canvas#gameCanvas {
   </div>
 </div>
 
+<!-- منهج الموقع المشترك: مئة مستوى وبنوك المحتوى -->
+<script src="./curriculum.js"></script>
+
 <script>
 // ============================================================
 // FLAPPY CHAIR - Complete Game
@@ -1359,30 +1362,50 @@ const LEARN_COLORS = [
 ];
 
 // ===== COLLECTIBLE (floating letter / number / color to catch mid-flight) =====
+/* ===== منهج الموقع: مئة مستوى — كل عشر أنابيب مستوى ===== */
+const PIPES_PER_LEVEL = 10;
+function flappyLevel(score){
+  const i = Math.min(Math.floor(score / PIPES_PER_LEVEL), PALM.LEVELS.length - 1);
+  return PALM.LEVELS[i];
+}
+
 class Collectible {
-  constructor(x, y) {
+  constructor(x, y, level) {
     this.x = x;
     this.y = y;
     this.bobPhase = Math.random() * Math.PI * 2;
+    const L = level || PALM.LEVELS[0];
     const roll = Math.random();
-    if (roll < 0.45) {
+
+    /* في المستويات الأولى نُبقي الحروف والأرقام والألوان لأنها أساس القراءة،
+       وبعدها يغلب المحتوى القادم من منهج الموقع. */
+    const early = L.n <= 6;
+    if (roll < (early ? 0.34 : 0.12)) {
       const pick = LEARN_LETTERS[(Math.random() * LEARN_LETTERS.length) | 0];
       this.kind = 'letter';
       this.label = pick[0];
       this.caption = `🔤 ${pick[0]} — ${pick[1]} ${pick[2]}`;
       this.color = '#FFD700';
-    } else if (roll < 0.75) {
+    } else if (roll < (early ? 0.56 : 0.22)) {
       const pick = LEARN_NUMBERS[(Math.random() * LEARN_NUMBERS.length) | 0];
       this.kind = 'number';
       this.label = pick[0];
       this.caption = `🔢 ${pick[0]} — ${pick[1]}`;
       this.color = '#4FC3F7';
-    } else {
+    } else if (roll < (early ? 0.72 : 0.32)) {
       const pick = LEARN_COLORS[(Math.random() * LEARN_COLORS.length) | 0];
       this.kind = 'color';
       this.label = pick[1];
       this.caption = `🎨 ${pick[0]} — ${pick[1]}`;
       this.color = pick[2];
+    } else {
+      /* عنصر من منهج الموقع حسب المستوى الحالي */
+      const Q = PALM.makeQuestion(L);
+      this.kind = 'palm';
+      this.label = Q.correct.length > 12 ? Q.correct.slice(0, 11) + '…' : Q.correct;
+      this.full  = Q.correct;
+      this.caption = `📚 ${Q.correct} — ${Q.hint}`;
+      this.color = '#8BC34A';
     }
   }
 
@@ -1810,7 +1833,7 @@ class Game {
         const gapY = minY + Math.random() * (maxY - minY);
         this.pipes.push(new Pipe(W + PIPE_WIDTH, gapY, this.pipeGap));
         if (Math.random() < 0.6) {
-          this.collectibles.push(new Collectible(W + PIPE_WIDTH + PIPE_WIDTH / 2, gapY));
+          this.collectibles.push(new Collectible(W + PIPE_WIDTH + PIPE_WIDTH / 2, gapY, flappyLevel(this.score)));
         }
       }
     }
@@ -1852,6 +1875,13 @@ class Game {
 
         // Sparkle effect
         this.sparkles.push(new Sparkle(pipe.x + PIPE_WIDTH / 2, pipe.gapY));
+
+        // مستوى جديد من منهج الموقع كل عشر أنابيب
+        if (this.score % PIPES_PER_LEVEL === 0) {
+          const L = flappyLevel(this.score);
+          this.showCollectCaption(
+            `🎓 المستوى ${L.n}/100 · و${L.unit}: ${L.ar} — ${L.en}`);
+        }
 
         // Increase difficulty
         this.difficulty = Math.min(this.score, 50);

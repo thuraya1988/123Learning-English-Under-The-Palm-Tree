@@ -21,10 +21,13 @@
      LEVELS       مئة مستوى مبنية على الوحدات
 ============================================================ */
 
+(function (root) {
+'use strict';
+
 /* ============================================================
    ١) المفردات — {en: إنجليزي، ar: عربي، e: رمز}
 ============================================================ */
-export const VOCAB = {
+const VOCAB = {
 
 family: { ar:"العائلة", en:"Family", items:[
   {en:"mother",ar:"أم",e:"👩"},{en:"father",ar:"أب",e:"👨"},{en:"sister",ar:"أخت",e:"👧"},
@@ -324,13 +327,13 @@ places: { ar:"أماكن ومواقع", en:"Places", items:[
 };
 
 /* كل المفردات في قائمة واحدة، وقائمة أسماء المواضيع */
-export const VOCAB_KEYS = Object.keys(VOCAB);
-export const VOCAB_ALL  = VOCAB_KEYS.flatMap(k => VOCAB[k].items);
+const VOCAB_KEYS = Object.keys(VOCAB);
+const VOCAB_ALL  = VOCAB_KEYS.flatMap(k => VOCAB[k].items);
 
 /* ============================================================
    ٢) الإملاء — الخطأ الشائع ثم الخيارات (الصواب أولاً)
 ============================================================ */
-export const SPELLING = [
+const SPELLING = [
   {bad:"frend",opts:["friend","freind","frend"]},
   {bad:"appel",opts:["apple","apel","appel"]},
   {bad:"becaus",opts:["because","becaus","becouse"]},
@@ -427,7 +430,7 @@ export const SPELLING = [
 /* ============================================================
    ٣) القواعد — سؤال بفراغ + خيارات (الصواب أولاً) + شرح
 ============================================================ */
-export const GRAMMAR = [
+const GRAMMAR = [
   {q:"___ is a doctor.",opts:["She","They","We"],h:"She + is"},
   {q:"I ___ happy.",opts:["am","is","are"],h:"I + am"},
   {q:"There ___ many palms.",opts:["are","is","am"],h:"جمع + are"},
@@ -522,7 +525,7 @@ export const GRAMMAR = [
 /* ============================================================
    ٤) تصحيح الجمل — w: الكلمات، e: فهرس الخطأ (-1 = صحيحة)
 ============================================================ */
-export const SENTENCES = [
+const SENTENCES = [
   {w:["She","like","bananas"],e:1,c:"likes",h:"He/She/It + verb + s"},
   {w:["He","go","to","school"],e:1,c:"goes",h:"He/She/It + verb + es"},
   {w:["They","is","happy"],e:1,c:"are",h:"They/We/You + are"},
@@ -625,7 +628,7 @@ export const SENTENCES = [
 /* ============================================================
    ٥) الأضداد
 ============================================================ */
-export const OPPOSITES = [
+const OPPOSITES = [
   {w:"big",o:"small",d:["tall","new"]},        {w:"hot",o:"cold",d:["warm","wet"]},
   {w:"old",o:"new",d:["young","long"]},        {w:"fast",o:"slow",d:["quick","near"]},
   {w:"open",o:"close",d:["push","enter"]},     {w:"day",o:"night",d:["morning","week"]},
@@ -659,7 +662,7 @@ export const OPPOSITES = [
 /* ============================================================
    ٦) الجموع
 ============================================================ */
-export const PLURALS = [
+const PLURALS = [
   {s:"child",p:"children",d:["childs","childes"]},   {s:"man",p:"men",d:["mans","mens"]},
   {s:"woman",p:"women",d:["womans","womens"]},       {s:"foot",p:"feet",d:["foots","feets"]},
   {s:"tooth",p:"teeth",d:["tooths","teeths"]},       {s:"mouse",p:"mice",d:["mouses","mices"]},
@@ -690,7 +693,7 @@ export const PLURALS = [
 /* ============================================================
    ٧) حروف الجر
 ============================================================ */
-export const PREPS = [
+const PREPS = [
   {q:"The cat is ___ the box.",a:"in",d:["on","at"],h:"in = داخل"},
   {q:"The book is ___ the table.",a:"on",d:["in","under"],h:"on = على سطح"},
   {q:"The ball is ___ the chair.",a:"under",d:["on","over"],h:"under = تحت"},
@@ -741,7 +744,7 @@ export const PREPS = [
 /* ============================================================
    ٨) الأزمنة — s: الجملة بفراغ، a: الصواب، d: بدائل
 ============================================================ */
-export const TENSES = [
+const TENSES = [
   {q:"Every day he ___ to school.",a:"walks",d:["walked","is walking"],h:"مضارع بسيط: عادة"},
   {q:"Right now she ___ a letter.",a:"is writing",d:["writes","wrote"],h:"مضارع مستمر: الآن"},
   {q:"Yesterday we ___ dates.",a:"picked",d:["pick","are picking"],h:"ماضٍ بسيط"},
@@ -777,7 +780,7 @@ export const TENSES = [
 /* ============================================================
    ٩) المقارنة والتفضيل
 ============================================================ */
-export const COMPARE = [
+const COMPARE = [
   {q:"A camel is ___ than a goat.",a:"bigger",d:["big","biggest"],h:"صفة قصيرة + er"},
   {q:"This is the ___ fort in Oman.",a:"oldest",d:["older","old"],h:"the + est"},
   {q:"She runs ___ than me.",a:"faster",d:["fast","fastest"],h:"faster"},
@@ -808,7 +811,7 @@ export const COMPARE = [
 /* ============================================================
    ١٠) أدوات الاستفهام
 ============================================================ */
-export const QUESTIONS = [
+const QUESTIONS = [
   {q:"___ is your name?",a:"What",d:["Who","Where"],h:"سؤال عن شيء"},
   {q:"___ are you from?",a:"Where",d:["What","When"],h:"سؤال عن المكان"},
   {q:"___ is your teacher?",a:"Who",d:["What","Which"],h:"سؤال عن شخص"},
@@ -834,7 +837,7 @@ export const QUESTIONS = [
 /* ============================================================
    ١١) أدوات التعريف a / an / the
 ============================================================ */
-export const ARTICLES = [
+const ARTICLES = [
   {q:"I saw ___ falcon on the roof.",a:"a",d:["an","the"],h:"حرف ساكن: a"},
   {q:"She ate ___ apple.",a:"an",d:["a","the"],h:"حرف صوتي: an"},
   {q:"He is ___ honest man.",a:"an",d:["a","the"],h:"h صامتة → an"},
@@ -860,7 +863,7 @@ export const ARTICLES = [
 /* ============================================================
    ١٢) الضمائر
 ============================================================ */
-export const PRONOUNS = [
+const PRONOUNS = [
   {q:"___ am a student.",a:"I",d:["Me","My"],h:"فاعل: I"},
   {q:"Give the book to ___ .",a:"me",d:["I","my"],h:"مفعول: me"},
   {q:"This is ___ bag.",a:"my",d:["me","mine"],h:"صفة ملكية + اسم"},
@@ -886,7 +889,7 @@ export const PRONOUNS = [
 /* ============================================================
    الوحدات العشر — كل وحدة عشرة مستويات
 ============================================================ */
-export const UNITS = [
+const UNITS = [
   { n:1,  ar:"المفردات الأولى",        en:"First Words",
     themes:["family","home","kitchen","colours","numbers","body","clothes","food","fruits","farm"],
     types:["vocab"],            need:[6,14] },
@@ -917,7 +920,7 @@ export const UNITS = [
    المستويات المئة — تُبنى من الوحدات
    كل وحدة: عشرة مستويات يتصاعد فيها الهدف والطقس والموضوع.
 ============================================================ */
-export const LEVELS = (() => {
+const LEVELS = (() => {
   const out = [];
   for (const U of UNITS){
     for (let i = 0; i < 10; i++){
@@ -946,7 +949,7 @@ export const LEVELS = (() => {
 })();
 
 /* عدد عناصر كل بنك — مفيد للعرض في الشاشات */
-export const STATS = {
+const STATS = {
   themes:      VOCAB_KEYS.length,
   words:       VOCAB_ALL.length,
   spelling:    SPELLING.length,
@@ -991,7 +994,7 @@ function otherWords(correct, n){
   return out;
 }
 
-export function makeQuestion(level){
+function makeQuestion(level){
   const L = level || LEVELS[0];
   const type = pick(L.types);
   const pool = (L.pool && L.pool.length)
@@ -1079,3 +1082,16 @@ export function makeQuestion(level){
     }
   }
 }
+
+
+/* ============================================================
+   التصدير — يعمل كسكربت عادي (window.PALM) وكوحدة ES
+============================================================ */
+root.PALM = {
+  VOCAB, VOCAB_KEYS, VOCAB_ALL,
+  SPELLING, GRAMMAR, SENTENCES, OPPOSITES, PLURALS, PREPS,
+  TENSES, COMPARE, QUESTIONS, ARTICLES, PRONOUNS,
+  UNITS, LEVELS, STATS, makeQuestion
+};
+
+})(typeof globalThis !== 'undefined' ? globalThis : this);

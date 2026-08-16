@@ -469,67 +469,33 @@ const deepSea = new THREE.Mesh(new THREE.CircleGeometry(500, 48),
 deepSea.rotation.x = -Math.PI/2; deepSea.position.y = -2.2;
 scene.add(deepSea);
 
-const waterUni = {
-  uTime: { value: 0 },
-  uSunDir: { value: new THREE.Vector3(-25, 15, 35).normalize() }
-};
-const waterMat = new THREE.ShaderMaterial({
-  uniforms: waterUni, transparent: true, depthWrite: false,
-  vertexShader: `
-    uniform float uTime;
-    varying vec3 vW; varying vec3 vN;
-    float waveH(vec2 p, float t){
-      float h = 0.0;
-      h += sin(dot(p, vec2(0.20, 0.16)) + t*0.9)*0.20;
-      h += sin(dot(p, vec2(-0.14, 0.27)) + t*0.62)*0.13;
-      h += sin(dot(p, vec2(0.42, -0.20)) + t*1.55)*0.05;
-      h += sin(dot(p, vec2(-0.48, -0.40)) + t*2.1)*0.03;
-      return h;
-    }
-    void main(){
-      vec4 wp = modelMatrix * vec4(position, 1.0);
-      float e = 0.35;
-      float hC = waveH(wp.xz, uTime);
-      float hX = waveH(wp.xz + vec2(e, 0.0), uTime);
-      float hZ = waveH(wp.xz + vec2(0.0, e), uTime);
-      wp.y += hC;
-      vW = wp.xyz;
-      vN = normalize(vec3(-(hX-hC)/e, 1.0, -(hZ-hC)/e));
-      gl_Position = projectionMatrix * viewMatrix * wp;
-    }`,
-  fragmentShader: `
-    uniform float uTime; uniform vec3 uSunDir;
-    varying vec3 vW; varying vec3 vN;
-    float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
-    void main(){
-      vec3 N = normalize(vN);
-      vec3 V = normalize(cameraPosition - vW);
-      float ndv = max(dot(N, V), 0.0);
-      float fr = pow(1.0 - ndv, 3.0);
-      vec3 R = reflect(-V, N);
-      vec3 sky = mix(vec3(1.05,0.62,0.34), vec3(0.38,0.55,0.72), clamp(R.y*1.4+0.35, 0.0, 1.0));
-      vec3 col = mix(vec3(0.035,0.13,0.16), vec3(0.10,0.30,0.32), clamp(0.35+ndv*0.4, 0.0, 1.0));
-      col = mix(col, sky, fr*0.72);
-      float s1 = pow(max(dot(R, normalize(uSunDir)), 0.0), 220.0);
-      float s2 = pow(max(dot(R, normalize(uSunDir)), 0.0), 60.0);
-      col += vec3(1.0, 0.78, 0.5) * (s1*3.2 + s2*0.35);
-      float d = length(vec2(vW.x/4.6, (vW.z-0.6)/14.8));
-      float wob = 0.06*sin(vW.x*1.7+uTime*1.3) + 0.05*sin(vW.z*1.1-uTime*1.7);
-      float band = smoothstep(1.06+wob, 1.0+wob, d) * smoothstep(0.88, 0.99, d);
-      float nz = hash(floor(vW.xz*3.0));
-      float foam = band * (0.45 + 0.55*smoothstep(0.25, 0.75, nz));
-      foam += smoothstep(0.30, 0.0, abs(d-1.0)) * 0.22 * (0.5+0.5*sin(vW.x*4.0+uTime*2.2));
-      foam = clamp(foam, 0.0, 1.0);
-      col = mix(col, vec3(0.96,0.97,0.94), foam*0.85);
-      float a = clamp(0.60 + fr*0.22 + foam*0.30, 0.0, 0.96);
-      gl_FragColor = vec4(col, a);
-    }`
-});
-const water = new THREE.Mesh(new THREE.PlaneGeometry(500, 500, 200, 200), waterMat);
+/* ماء البحر — نفس خامة الماء المستخدمة في مصنع التمور
+   (تركوازي فاتح لامع) مع موج متحرّك على شبكة السطح. */
+const matWater = std({ color:0x6ab8cc, roughness:0.1, metalness:0.5,
+                       transparent:true, opacity:0.65 });
+const waterGeo = new THREE.PlaneGeometry(500, 500, 120, 120);
+const water = new THREE.Mesh(waterGeo, matWater);
 water.rotation.x = -Math.PI/2;
 water.position.y = 0;
 water.renderOrder = 2;
+water.receiveShadow = true;
 scene.add(water);
+
+/* أساس الموج: نحفظ إحداثيات كل نقطة قبل التحريك */
+const wPos = waterGeo.attributes.position;
+const wBaseX = new Float32Array(wPos.count), wBaseY = new Float32Array(wPos.count);
+for (let i=0; i<wPos.count; i++){ wBaseX[i] = wPos.getX(i); wBaseY[i] = wPos.getY(i); }
+function updateWater(t){
+  for (let i=0; i<wPos.count; i++){
+    const x = wBaseX[i], y = wBaseY[i];
+    const h = Math.sin(x*0.055 + t*0.9)*0.22
+            + Math.cos(y*0.043 + t*0.62)*0.15
+            + Math.sin((x+y)*0.11 + t*1.5)*0.06;
+    wPos.setZ(i, h);
+  }
+  wPos.needsUpdate = true;
+  waterGeo.computeVertexNormals();
+}
 
 /* ================= بناء السفينة الرئيسية (مضخمة) ================= */
 const ship = new THREE.Group();
@@ -1388,7 +1354,7 @@ function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
   const t = clock.elapsedTime;
-  waterUni.uTime.value = t;
+  updateWater(t);
 
   if (rockOn){
     ship.position.y = 0.15*Math.sin(t*0.5);

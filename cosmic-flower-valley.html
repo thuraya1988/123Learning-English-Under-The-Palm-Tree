@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🌸 وادي الأزهار الكونية — عالم ثلاثي الأبعاد</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@latest/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@latest/700.css">
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;
+    font-family:'Cairo',system-ui,sans-serif;background:#241b3a;}
+  #webgl{position:fixed;inset:0;display:block;touch-action:none;cursor:grab;}
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:2;
+    background:radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(40,15,50,.28) 100%);}
+  .ui{position:fixed;left:0;right:0;display:flex;justify-content:center;z-index:5;pointer-events:none;}
+  .ui.top{top:16px;flex-direction:column;align-items:center;gap:6px;}
+  .ui.bottom{bottom:18px;flex-direction:column;align-items:center;gap:10px;}
+  .title{pointer-events:auto;display:flex;align-items:center;gap:10px;
+    background:rgba(255,255,255,.14);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:9px 26px;
+    box-shadow:0 10px 30px rgba(30,10,45,.35);}
+  .title h1{margin:0;font-size:clamp(15px,2.6vw,22px);font-weight:700;color:#ffe3f2;}
+  .title .emoji{font-size:clamp(20px,3vw,26px);}
+  .subtitle{font-size:12.5px;color:rgba(255,228,242,.9);background:rgba(255,255,255,.12);
+    backdrop-filter:blur(8px);border-radius:999px;padding:4px 16px;border:1px solid rgba(255,255,255,.28);}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;pointer-events:auto;}
+  .controls button{font-family:inherit;font-weight:700;font-size:13px;color:#ffe3f2;
+    background:rgba(255,255,255,.16);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.35);
+    border-radius:999px;padding:10px 18px;cursor:pointer;
+    transition:transform .18s ease, background .18s ease;
+    box-shadow:0 6px 18px rgba(30,10,45,.3);}
+  .controls button:hover{transform:translateY(-2px);background:rgba(255,255,255,.3);}
+  .controls button.active{background:rgba(255,143,203,.4);border-color:rgba(255,175,219,.7);color:#fff;}
+  .hint{font-size:11.5px;color:rgba(255,228,242,.8);background:rgba(255,255,255,.12);
+    border-radius:999px;padding:5px 16px;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.25);}
+  #loader{position:fixed;inset:0;z-index:10;display:grid;place-items:center;
+    background:linear-gradient(180deg,#241b3a,#6b3a6e 60%,#e8a8c4);transition:opacity .9s ease;}
+  #loader.hidden{opacity:0;pointer-events:none;}
+  #loader .box{display:flex;flex-direction:column;align-items:center;gap:14px;}
+  #loader .fl{font-size:58px;animation:bounce 1.2s ease infinite;}
+  #loader p{margin:0;font-weight:700;color:#ffe3f2;}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="vignette"></div>
+
+<div class="ui top">
+  <div class="title"><span class="emoji">🌸</span><h1>وادي الأزهار الكونية</h1></div>
+  <div class="subtitle">ممرّ وردي تحت الكوكب المتوهّج — عالم ثلاثي الأبعاد عالي الجودة</div>
+</div>
+
+<div class="ui bottom">
+  <div class="controls">
+    <button id="btnRotate" class="active">🔄 الدوران التلقائي</button>
+    <button id="btnMotion">⏸️ إيقاف الحركة</button>
+    <button id="btnSpores" class="active">✨ الجسيمات المتوهجة</button>
+    <button id="btnReset">🎯 إعادة الكاميرا</button>
+  </div>
+  <div class="hint">اسحب للتدوير • العجلة للتقريب • انقر على الأزهار العملاقة لتتمايل</div>
+</div>
+
+<div id="loader"><div class="box"><div class="fl">🌸</div><p>جارٍ زراعة الحديقة الكونية…</p></div></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const rand = (a,b)=> a + Math.random()*(b-a);
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+const sstep = (a,b,v)=>{ const t=Math.min(1,Math.max(0,(v-a)/(b-a))); return t*t*(3-2*t); };
+const v3 = (x,y,z)=> new THREE.Vector3(x,y,z);
+
+/* ================= المُصيِّر ================= */
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.domElement.id = 'webgl';
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xf3c4d8, 28, 115);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 400);
+camera.position.set(0, 2.4, 12.8);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 2.4, -8);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 32;
+controls.maxPolarAngle = Math.PI * 0.52;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.55;
+
+/* ================= السماء والنجوم والكوكب ================= */
+const skyMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite:false,
+  vertexShader:`varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader:`varying vec3 vP;
+    void main(){
+      float h = normalize(vP).y;
+      vec3 top = vec3(0.12,0.08,0.22);
+      vec3 mid = vec3(0.70,0.42,0.60);
+      vec3 bot = vec3(1.00,0.82,0.72);
+      vec3 col = mix(bot, mid, smoothstep(-0.05,0.18,h));
+      col = mix(col, top, smoothstep(0.15,0.55,h));
+      gl_FragColor = vec4(col,1.0);
+    }`
+});
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(180, 32, 20), skyMat));
+
+const starSprite = (function(){
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0,'rgba(255,255,255,1)');
+  g.addColorStop(0.28,'rgba(255,255,255,.55)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0,0,64,64);
+  return new THREE.CanvasTexture(c);
+})();
+function starField(count, size, colorHex){
+  const pos = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    const a = rand(0,Math.PI*2), e = rand(0.12,1.4);
+    const r = 160;
+    pos[i*3]   = Math.cos(a)*Math.cos(e)*r;
+    pos[i*3+1] = Math.sin(e)*r*0.75 + 12;
+    pos[i*3+2] = Math.sin(a)*Math.cos(e)*r;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  /* بلا خريطة كانت النجوم مربّعات بيضاء صلبة تسبح أمام المشهد */
+  const m = new THREE.PointsMaterial({ color:colorHex, size, map:starSprite, alphaTest:0.02,
+    transparent:true, opacity:0.9, sizeAttenuation:false,
+    blending:THREE.AdditiveBlending, depthWrite:false });
+  m.fog = false;
+  const p = new THREE.Points(g,m);
+  scene.add(p);
+  return m;
+}
+const starMatA = starField(420, 2.6, 0xffffff);
+const starMatB = starField(260, 3.6, 0xffc9e2);
+
+function planetTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 512;
+  const x = c.getContext('2d');
+  const g = x.createLinearGradient(0,0,512,512);
+  g.addColorStop(0,'#7ef0d8'); g.addColorStop(0.45,'#8fd8e0');
+  g.addColorStop(0.75,'#f2a6d8'); g.addColorStop(1,'#f7c6e0');
+  x.fillStyle = g; x.fillRect(0,0,512,512);
+  for(let i=0;i<240;i++){
+    x.fillStyle = `rgba(${200+Math.random()*55|0},${80+Math.random()*80|0},${200+Math.random()*55|0},${0.05+Math.random()*0.12})`;
+    x.beginPath(); x.arc(Math.random()*512, Math.random()*512, 4+Math.random()*26, 0, 7); x.fill();
+  }
+  for(let i=0;i<40;i++){
+    x.fillStyle = `rgba(90,220,190,${0.08+Math.random()*0.1})`;
+    x.beginPath(); x.arc(Math.random()*300, Math.random()*300, 10+Math.random()*30, 0, 7); x.fill();
+  }
+  for(let i=0;i<170;i++){
+    x.fillStyle = `rgba(255,255,255,${0.3+Math.random()*0.7})`;
+    x.fillRect(Math.random()*512, Math.random()*512, 1.6, 1.6);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const planet = new THREE.Mesh(new THREE.SphereGeometry(20, 48, 32),
+  new THREE.MeshBasicMaterial({ map: planetTexture() }));
+planet.material.fog = false;
+planet.position.set(-4, 32, -98);
+scene.add(planet);
+
+function glowTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(128,128,10,128,128,128);
+  g.addColorStop(0,'rgba(255,214,236,0.9)');
+  g.addColorStop(0.4,'rgba(255,170,215,0.35)');
+  g.addColorStop(1,'rgba(255,170,215,0)');
+  x.fillStyle = g; x.fillRect(0,0,256,256);
+  return new THREE.CanvasTexture(c);
+}
+const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(),
+  blending: THREE.AdditiveBlending, depthWrite:false, transparent:true }));
+glow.material.fog = false;
+glow.scale.setScalar(95);
+glow.position.copy(planet.position).multiplyScalar(1.02);
+scene.add(glow);
+
+const ring = new THREE.Mesh(new THREE.TorusGeometry(30, 0.5, 8, 80, Math.PI*0.8),
+  new THREE.MeshBasicMaterial({ color:0xffcf9a, transparent:true, opacity:0.35,
+    blending:THREE.AdditiveBlending, depthWrite:false }));
+ring.material.fog = false;
+ring.position.set(30, 46, -105);
+ring.rotation.set(0.5, 0, -0.6);
+scene.add(ring);
+
+/* ================= الإضاءة ================= */
+scene.add(new THREE.HemisphereLight(0xffd6e8, 0x31573c, 0.65));
+const sun = new THREE.DirectionalLight(0xffdcb2, 1.7);
+sun.position.set(0, 12, -20);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -24; sun.shadow.camera.right = 24;
+sun.shadow.camera.top = 24;   sun.shadow.camera.bottom = -24;
+sun.shadow.camera.near = 1;   sun.shadow.camera.far = 80;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+const fillLight = new THREE.DirectionalLight(0xffc9e2, 0.55);
+fillLight.position.set(6, 7, 12);
+scene.add(fillLight);
+
+/* ================= الممر والمنحنيات ================= */
+const pathCurve = new THREE.CatmullRomCurve3([
+  v3(0,0,11), v3(0.7,0,7), v3(-0.9,0,3), v3(0.6,0,-1),
+  v3(-0.7,0,-5), v3(0.2,0,-9), v3(0,0,-14), v3(0.3,0,-20), v3(0,0,-27)
+]);
+const pathSamples = pathCurve.getSpacedPoints(140);
+function distToPath(x,z){
+  let d = 1e9;
+  for(let i=0;i<pathSamples.length;i+=2){
+    const dx = x-pathSamples[i].x, dz = z-pathSamples[i].z;
+    const dd = dx*dx+dz*dz;
+    if(dd < d) d = dd;
+  }
+  return Math.sqrt(d);
+}
+function terrainH(x,z){
+  let h = Math.sin(x*0.16)*Math.cos(z*0.12)*0.9 + Math.sin(x*0.45+z*0.3)*0.35;
+  h += sstep(7,16,Math.abs(x))*2.6;
+  return h * sstep(1.7, 4.2, distToPath(x,z));
+}
+
+/* أرضية */
+const terrGeo = new THREE.PlaneGeometry(150, 150, 110, 110);
+terrGeo.rotateX(-Math.PI/2);
+{
+  const pos = terrGeo.attributes.position;
+  const colors = new Float32Array(pos.count*3);
+  const cDark = new THREE.Color(0x2c5a3c), cLight = new THREE.Color(0x79b071), tmp = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    const h = terrainH(x,z);
+    pos.setY(i, h);
+    tmp.lerpColors(cDark, cLight, Math.min(1, Math.max(0, h/3 + Math.random()*0.25)));
+    colors[i*3] = tmp.r; colors[i*3+1] = tmp.g; colors[i*3+2] = tmp.b;
+  }
+  terrGeo.setAttribute('color', new THREE.BufferAttribute(colors,3));
+  terrGeo.computeVertexNormals();
+}
+const terrain = new THREE.Mesh(terrGeo, new THREE.MeshStandardMaterial({ vertexColors:true, roughness:1 }));
+terrain.receiveShadow = true;
+scene.add(terrain);
+
+/* أدوات دمج */
+const _e = new THREE.Euler(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(),
+      _p = new THREE.Vector3(), _sc = new THREE.Vector3();
+function xform(geo, x,y,z, rx,ry,rz, sx,sy,sz){
+  const g = geo.clone();
+  _e.set(rx||0, ry||0, rz||0); _q.setFromEuler(_e);
+  _m.compose(_p.set(x,y,z), _q, _sc.set(sx===undefined?1:sx, sy===undefined?1:sy, sz===undefined?1:sz));
+  g.applyMatrix4(_m);
+  return g;
+}
+
+/* ألواح الممر الوردي */
+{
+  const parts = [];
+  const box = new THREE.BoxGeometry(1.75, 0.07, 0.42);
+  const pts = pathCurve.getSpacedPoints(110);
+  for(let i=0;i<pts.length;i++){
+    const p = pts[i];
+    const t = pathCurve.getTangentAt(i/110);
+    parts.push(xform(box, p.x, 0.06, p.z, 0, Math.atan2(t.x, t.z), 0));
+  }
+  const walk = new THREE.Mesh(mergeGeometries(parts),
+    new THREE.MeshStandardMaterial({ color:0xecc9e0, roughness:0.85 }));
+  walk.receiveShadow = true; walk.castShadow = true;
+  scene.add(walk);
+}
+
+/* ================= الجسر المقوس ================= */
+{
+  const parts = [];
+  const bez = new THREE.QuadraticBezierCurve3(v3(-8.5,0.15,-16), v3(0,3.6,-16), v3(8.5,0.15,-16));
+  const plank = new THREE.BoxGeometry(0.55, 0.09, 1.9);
+  const N = 42;
+  for(let i=0;i<=N;i++){
+    const p = bez.getPoint(i/N), t = bez.getTangent(i/N);
+    parts.push(xform(plank, p.x, p.y, p.z, 0, 0, Math.atan2(t.y, t.x)));
+    if(i%3===0 && i>0 && i<N){
+      const post = new THREE.CylinderGeometry(0.03, 0.03, 1.05, 6);
+      parts.push(xform(post, p.x, p.y+0.55, p.z+0.85, 0,0,0));
+      parts.push(xform(post, p.x, p.y+0.55, p.z-0.85, 0,0,0));
+    }
+  }
+  [0.85, -0.85].forEach(off=>{
+    const railPts = [];
+    for(let i=0;i<=40;i++){ const p = bez.getPoint(i/40); railPts.push(v3(p.x, p.y+1.1, p.z+off)); }
+    parts.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(railPts), 40, 0.055, 8));
+    const midPts = railPts.map(q=>v3(q.x, q.y-0.45, q.z));
+    parts.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(midPts), 40, 0.025, 6));
+  });
+  const bridge = new THREE.Mesh(mergeGeometries(parts),
+    new THREE.MeshStandardMaterial({ color:0xf7f0f4, roughness:0.6 }));
+  bridge.castShadow = bridge.receiveShadow = true;
+  scene.add(bridge);
+}
+
+/* ================= الأزهار العملاقة ================= */
+const PETAL = (()=>{
+  const s = new THREE.Shape();
+  s.moveTo(0,0);
+  s.quadraticCurveTo(0.32,0.35, 0.22,0.9);
+  s.quadraticCurveTo(0.12,1.25, 0,1.35);
+  s.quadraticCurveTo(-0.12,1.25, -0.22,0.9);
+  s.quadraticCurveTo(-0.32,0.35, 0,0);
+  const g = new THREE.ShapeGeometry(s, 6);
+  const pos = g.attributes.position;
+  for(let i=0;i<pos.count;i++){ const y = pos.getY(i); pos.setZ(i, -0.38*y*y); }
+  g.computeVertexNormals();
+  return g;
+})();
+const stemMat = new THREE.MeshStandardMaterial({ color:0xf0e6ec, roughness:0.8 });
+const hubMat  = new THREE.MeshStandardMaterial({ color:0xffd7ea, roughness:0.6, emissive:0xff77c1, emissiveIntensity:0.25 });
+const petalMats = [
+  new THREE.MeshStandardMaterial({ color:0xe0559f, roughness:0.55, side:THREE.DoubleSide, emissive:0xff5fae, emissiveIntensity:0.22 }),
+  new THREE.MeshStandardMaterial({ color:0xcf6bd0, roughness:0.55, side:THREE.DoubleSide, emissive:0xb06ff0, emissiveIntensity:0.22 }),
+  new THREE.MeshStandardMaterial({ color:0xf286c0, roughness:0.55, side:THREE.DoubleSide, emissive:0xff9fd0, emissiveIntensity:0.25 })
+];
+const trees = [];
+function buildTree(matPetal){
+  const g = new THREE.Group();
+  const H = 5;
+  const curve = new THREE.CatmullRomCurve3([v3(0,0,0), v3(0.3,H*0.5,0.12), v3(0.12,H,0)]);
+  const stem = new THREE.Mesh(new THREE.TubeGeometry(curve, 10, 0.14, 8), stemMat);
+  stem.castShadow = true;
+  g.add(stem);
+  const head = new THREE.Group();
+  head.position.y = H;
+  head.scale.setScalar(1.25);
+  const hub = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), hubMat);
+  head.add(hub);
+  for(let i=0;i<12;i++){
+    const p = new THREE.Mesh(PETAL, matPetal);
+    p.rotation.order = 'YXZ';
+    p.rotation.y = (i/12)*Math.PI*2;
+    p.rotation.x = 1.15 + (i%2)*0.08;
+    p.castShadow = true;
+    head.add(p);
+  }
+  g.add(head);
+  return g;
+}
+const treeSpots = [
+  [-4.5,6,1.1],[-6,1,1.4],[-5,-4,1.0],[-7.5,-9,1.5],[-3.5,-12,0.9],
+  [4.5,4,1.2],[6,-1,1.5],[5,-6,1.1],[7.5,-11,1.4],[3.5,-13,0.9],
+  [-2,-24,1.4],[2.5,-26,1.5],[0,-31,1.8],[-6,-28,1.6],[6,-30,1.6],
+  [-8.5,9,2.1],[8.5,9,2.1]
+];
+treeSpots.forEach(sp=>{
+  const tr = buildTree(pick(petalMats));
+  tr.position.set(sp[0], terrainH(sp[0],sp[1])-0.1, sp[1]);
+  tr.scale.setScalar(sp[2]);
+  tr.rotation.y = rand(0, Math.PI*2);
+  tr.userData = { phase: rand(0,6.28), impulse: 0 };
+  scene.add(tr);
+  trees.push(tr);
+});
+
+/* ================= نباتات الأرض ================= */
+const coneBlade = new THREE.ConeGeometry(0.05, 0.7, 5);
+coneBlade.translate(0, 0.35, 0);
+{
+  const tuftA = [], tuftB = [];
+  for(let k=0;k<70;k++){
+    const a = rand(0,Math.PI*2), r = rand(2.4, 26);
+    const x = Math.cos(a)*r, z = rand(-32, 12);
+    const xx = (Math.abs(x) < 2.2 ? (x<0?-1:1)*rand(2.4,20) : x);
+    const y = terrainH(xx, z);
+    const list = (k%2===0) ? tuftA : tuftB;
+    for(let j=0;j<10;j++){
+      const ba = (j/10)*Math.PI*2 + rand(-0.3,0.3);
+      list.push(xform(coneBlade,
+        xx + Math.cos(ba)*0.12, y, z + Math.sin(ba)*0.12,
+        Math.cos(ba)*0.5, 0, -Math.sin(ba)*0.5,
+        rand(0.7,1.6), rand(0.7,1.7), rand(0.7,1.6)));
+    }
+  }
+  const mA = new THREE.Mesh(mergeGeometries(tuftA), new THREE.MeshStandardMaterial({ color:0x3f8f4f, roughness:1 }));
+  const mB = new THREE.Mesh(mergeGeometries(tuftB), new THREE.MeshStandardMaterial({ color:0x2e6b3f, roughness:1 }));
+  mA.castShadow = mB.castShadow = true;
+  scene.add(mA, mB);
+}
+/* سرخس */
+{
+  const fernBlade = new THREE.ConeGeometry(0.09, 1.2, 5);
+  fernBlade.translate(0, 0.6, 0);
+  const parts = [];
+  for(let k=0;k<34;k++){
+    const x = (Math.random()<0.5?-1:1)*rand(2.6, 14), z = rand(-30, 10);
+    const y = terrainH(x,z);
+    for(let j=0;j<8;j++){
+      const ba = (j/8)*Math.PI*2;
+      parts.push(xform(fernBlade, x, y+0.05, z,
+        Math.cos(ba)*1.15, 0, -Math.sin(ba)*1.15, 1, rand(0.8,1.4), 0.35));
+    }
+  }
+  const ferns = new THREE.Mesh(mergeGeometries(parts),
+    new THREE.MeshStandardMaterial({ color:0x245c33, roughness:1 }));
+  ferns.castShadow = true;
+  scene.add(ferns);
+}
+/* ورديات وردية */
+{
+  const partsP = [], partsL = [];
+  for(let k=0;k<30;k++){
+    const x = (Math.random()<0.5?-1:1)*rand(2.2, 12), z = rand(-28, 9);
+    const y = terrainH(x,z);
+    const list = (k%2===0) ? partsP : partsL;
+    for(let j=0;j<9;j++){
+      const ba = (j/9)*Math.PI*2;
+      const g = xform(PETAL, x, y+0.06, z, ba*0 + 1.35, ba, 0, 0.55, 0.55, 0.55);
+      list.push(g);
+    }
+  }
+  const mP = new THREE.Mesh(mergeGeometries(partsP),
+    new THREE.MeshStandardMaterial({ color:0xf0a2cf, roughness:0.7, side:THREE.DoubleSide }));
+  const mL = new THREE.Mesh(mergeGeometries(partsL),
+    new THREE.MeshStandardMaterial({ color:0xc39be0, roughness:0.7, side:THREE.DoubleSide }));
+  mP.castShadow = mL.castShadow = true;
+  scene.add(mP, mL);
+}
+
+/* ================= الجسيمات المتوهجة ================= */
+const SPORES = 150;
+const sporeGeo = new THREE.BufferGeometry();
+const sporePos = new Float32Array(SPORES*3);
+const sporeSpeed = new Float32Array(SPORES);
+for(let i=0;i<SPORES;i++){
+  sporePos[i*3]   = rand(-7,7);
+  sporePos[i*3+1] = rand(0.2,4.5);
+  sporePos[i*3+2] = rand(-24,11);
+  sporeSpeed[i]   = rand(0.15,0.5);
+}
+sporeGeo.setAttribute('position', new THREE.BufferAttribute(sporePos,3));
+/* بلا خريطة كانت الجسيمات مربّعات بيضاء صلبة */
+const sporeMat = new THREE.PointsMaterial({ color:0xffb3d9, size:0.34, map:starSprite,
+  alphaTest:0.02, transparent:true,
+  opacity:0.85, blending:THREE.AdditiveBlending, depthWrite:false });
+const spores = new THREE.Points(sporeGeo, sporeMat);
+scene.add(spores);
+
+/* ================= التفاعل ================= */
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let downX = 0, downY = 0;
+function treeAt(cx, cy){
+  ndc.x = (cx/innerWidth)*2 - 1;
+  ndc.y = -(cy/innerHeight)*2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObjects(trees, true);
+  if(!hits.length) return null;
+  let o = hits[0].object;
+  while(o && !trees.includes(o)) o = o.parent;
+  return o;
+}
+renderer.domElement.addEventListener('pointerdown', e=>{ downX=e.clientX; downY=e.clientY; });
+renderer.domElement.addEventListener('pointerup', e=>{
+  if(Math.hypot(e.clientX-downX, e.clientY-downY) > 6) return;
+  const tr = treeAt(e.clientX, e.clientY);
+  if(tr) tr.userData.impulse = 1;
+});
+let hoverEv = null;
+renderer.domElement.addEventListener('pointermove', e=>{ hoverEv = e; });
+
+/* ================= الأزرار ================= */
+const btnRotate = document.getElementById('btnRotate');
+const btnMotion = document.getElementById('btnMotion');
+const btnSpores = document.getElementById('btnSpores');
+const btnReset  = document.getElementById('btnReset');
+btnRotate.addEventListener('click', ()=>{
+  controls.autoRotate = !controls.autoRotate;
+  btnRotate.classList.toggle('active', controls.autoRotate);
+});
+let motionOn = true;
+btnMotion.addEventListener('click', ()=>{
+  motionOn = !motionOn;
+  btnMotion.textContent = motionOn ? '⏸️ إيقاف الحركة' : '▶️ تشغيل الحركة';
+  btnMotion.classList.toggle('active', !motionOn);
+});
+btnSpores.addEventListener('click', ()=>{
+  spores.visible = !spores.visible;
+  btnSpores.classList.toggle('active', spores.visible);
+});
+function resetCamera(){
+  camera.position.set(0, 2.4, 12.8);
+  controls.target.set(0, 2.4, -8);
+  controls.update();
+}
+btnReset.addEventListener('click', resetCamera);
+renderer.domElement.addEventListener('dblclick', resetCamera);
+window.addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ================= حلقة التحريك ================= */
+const clock = new THREE.Clock();
+let animTime = 0, loaderHidden = false;
+function tick(){
+  requestAnimationFrame(tick);
+  const delta = Math.min(clock.getDelta(), 0.05);
+  if(motionOn) animTime += delta;
+  const t = animTime;
+
+  trees.forEach(tr=>{
+    const ud = tr.userData;
+    if(ud.impulse > 0.001) ud.impulse *= Math.exp(-delta*1.8); else ud.impulse = 0;
+    tr.rotation.z = Math.sin(t*0.6 + ud.phase)*0.02 + Math.sin(t*7 + ud.phase)*0.09*ud.impulse;
+    tr.rotation.x = Math.cos(t*0.5 + ud.phase)*0.015 + Math.cos(t*6.3 + ud.phase)*0.07*ud.impulse;
+  });
+
+  planet.rotation.y = t*0.02;
+  starMatA.opacity = 0.65 + 0.3*Math.sin(t*1.8);
+  starMatB.opacity = 0.65 + 0.3*Math.sin(t*1.8 + Math.PI);
+  sporeMat.opacity = 0.7 + 0.25*Math.sin(t*2.6);
+
+  if(motionOn && spores.visible){
+    for(let i=0;i<SPORES;i++){
+      sporePos[i*3+1] += sporeSpeed[i]*delta;
+      sporePos[i*3]   += Math.sin(t*0.8 + i)*delta*0.2;
+      if(sporePos[i*3+1] > 5) sporePos[i*3+1] = 0.2;
+    }
+    sporeGeo.attributes.position.needsUpdate = true;
+  }
+
+  if(hoverEv){
+    renderer.domElement.style.cursor = treeAt(hoverEv.clientX, hoverEv.clientY) ? 'pointer' : 'grab';
+    hoverEv = null;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+
+  if(!loaderHidden){
+    loaderHidden = true;
+    document.getElementById('loader').classList.add('hidden');
+  }
+}
+tick();
+</script>
+</body>
+</html>

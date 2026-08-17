@@ -1209,145 +1209,147 @@ function groundAt(x,z){
 }
 
 /* ---------- شموسة ---------- */
-var FACE_CACHE={};
-function shamoosaFace(mood){
-  if(FACE_CACHE[mood]) return FACE_CACHE[mood];
-  var c=document.createElement('canvas'); c.width=c.height=256;
-  var x=c.getContext('2d'); x.clearRect(0,0,256,256);
-  function eye(ex,ey,r){
-    x.fillStyle='#fffaf0'; x.beginPath(); x.ellipse(ex,ey,r,r*1.24,0,0,7); x.fill();
-    x.lineWidth=7; x.strokeStyle='#3d2415'; x.stroke();
-    x.fillStyle='#3d2415'; x.beginPath(); x.ellipse(ex+r*0.14,ey+r*0.14,r*0.42,r*0.54,0,0,7); x.fill();
-    x.fillStyle='#fff'; x.beginPath(); x.arc(ex+r*0.34,ey-r*0.3,r*0.2,0,7); x.fill();
-    x.strokeStyle='#3d2415'; x.lineWidth=5; x.lineCap='round';
-    x.beginPath(); x.moveTo(ex-r*0.95,ey-r*0.75); x.lineTo(ex-r*1.35,ey-r*1.1); x.stroke();
-  }
-  eye(94,106,30); eye(166,106,30);
-  x.strokeStyle='#3a2113'; x.lineWidth=9; x.lineCap='round';
-  x.lineWidth=8;
-  x.beginPath(); x.moveTo(68,52);  x.quadraticCurveTo(94,36,120,50);  x.stroke();
-  x.beginPath(); x.moveTo(136,50); x.quadraticCurveTo(162,36,188,52); x.stroke();
-
-  /* ---- الفم: ابتسامة ممتلئة تُقرأ من بعيد ---- */
-  if(mood==='wow'){
-    x.fillStyle='#7d2b40';
-    x.beginPath(); x.ellipse(128,180,23,28,0,0,7); x.fill();
-    x.lineWidth=8; x.strokeStyle='#3d2415'; x.stroke();
-    x.fillStyle='#e0708c';
-    x.beginPath(); x.ellipse(128,192,13,12,0,0,7); x.fill();
-  }else{
-    /* نصف قرص = فم مفتوح بابتسامة عريضة */
-    x.save();
-    x.beginPath(); x.moveTo(76,158); x.quadraticCurveTo(128,152,180,158);
-    x.quadraticCurveTo(128,216,76,158); x.closePath();
-    x.fillStyle='#7d2b40'; x.fill();
-    x.clip();
-    x.fillStyle='#fffdf6';                       /* صفّ الأسنان العلوي */
-    x.fillRect(72,152,112,16);
-    x.fillStyle='#e0708c';                       /* اللسان */
-    x.beginPath(); x.ellipse(128,202,26,17,0,0,7); x.fill();
-    x.restore();
-    x.lineWidth=8; x.strokeStyle='#3d2415'; x.lineCap='round'; x.lineJoin='round';
-    x.beginPath(); x.moveTo(76,158); x.quadraticCurveTo(128,152,180,158);
-    x.quadraticCurveTo(128,216,76,158); x.closePath(); x.stroke();
-    /* غمّازتان صغيرتان تُظهران أن الابتسامة صادقة */
-    x.fillStyle='rgba(120,60,40,.35)';
-    x.beginPath(); x.arc(68,164,5,0,7); x.fill();
-    x.beginPath(); x.arc(188,164,5,0,7); x.fill();
-  }
-  x.fillStyle='rgba(240,120,140,.45)';
-  x.beginPath(); x.arc(60,140,19,0,7);  x.fill();
-  x.beginPath(); x.arc(196,140,19,0,7); x.fill();
-  FACE_CACHE[mood]=new THREE.CanvasTexture(c);
-  return FACE_CACHE[mood];
-}
+/* نفس شخصية «بطل الشمس»: رأس شمس بأشعة مموّجة، نظارة دائرية كبيرة،
+   قميص أصفر بأزرار، معطف أزرق مفتوح، ساقان نحيلتان، وحذاء رياضي.
+   منقولة بمقاس هذا العالم مع الحفاظ على نفس واجهة التحريك. */
 function buildShamoosa(){
   var g=new THREE.Group(),s,i;
-  /* لبس عُماني: ثوب طويل بتطريز ذهبي، سروال بحواشٍ مطرّزة، لحاف خفيف على الشعر */
-  var skin =new THREE.MeshStandardMaterial({color:0xf7d8ae,roughness:0.8,emissive:0x4a2a16,emissiveIntensity:0.42});
-  var dress=new THREE.MeshStandardMaterial({color:0xc8465f,roughness:0.66});      /* الثوب: عنّابي */
-  var gold =new THREE.MeshStandardMaterial({color:0xf0c04e,roughness:0.42,metalness:0.35,
-                                            emissive:0x6a4a06,emissiveIntensity:0.35}); /* التطريز */
-  var sirwal=new THREE.MeshStandardMaterial({color:0xfdf1dd,roughness:0.75});     /* السروال */
-  var shawl=new THREE.MeshStandardMaterial({color:0x2fa38f,roughness:0.7});       /* اللحاف */
-  var hairM=new THREE.MeshStandardMaterial({color:0x2a1a13,roughness:0.72});
-  var shoeM=new THREE.MeshStandardMaterial({color:0x8a5a2a,roughness:0.62});
+  var TAU=Math.PI*2;
+  function M(c,r,m){ return new THREE.MeshStandardMaterial({color:c,roughness:(r===undefined?0.8:r),metalness:m||0}); }
+  var matHead =M(0xe7c35c,0.75), matRay=M(0xcf9c44,0.9),
+      matEye  =M(0xdf7a1e,0.55), matPupil=M(0x200a04,0.35),
+      matRim  =M(0xd6d6cf,0.35,0.7),
+      matShirt=M(0xe2bd57,0.8),  matButton=M(0x7a4218,0.5),
+      matCoat =M(0x6f8f9d,1),    matLeg=M(0xd8a94e,0.8),
+      matShoe =M(0xe07a20,0.6),  matWhite=M(0xefe8d8,0.7);
+  matCoat.side=THREE.DoubleSide;
+  var matLens=new THREE.MeshPhysicalMaterial({color:0xd97c2a,transparent:true,opacity:0.28,
+                                              roughness:0.15,metalness:0,side:THREE.DoubleSide});
 
-  /* الثوب: صدر مستدير ثم تنّورة تتّسع للأسفل */
-  var body=mesh(new THREE.SphereGeometry(0.36,16,14),dress,true,false);
-  body.scale.set(1,1.02,0.9); body.position.y=0.86; g.add(body);
-  var skirt=mesh(new THREE.CylinderGeometry(0.3,0.46,0.62,18,1,true),dress,true,false);
-  skirt.position.y=0.5; skirt.material.side=THREE.DoubleSide; g.add(skirt);
-  var hem=mesh(new THREE.TorusGeometry(0.455,0.035,8,22),gold,false,false);
-  hem.rotation.x=Math.PI/2; hem.position.y=0.2; g.add(hem);
-  /* الصدرية المطرّزة (الكشيدة) */
-  var yoke=mesh(new THREE.SphereGeometry(0.368,16,14,0,Math.PI,0,Math.PI*0.62),gold,false,false);
-  yoke.scale.set(0.62,1.0,0.93); yoke.position.set(0,0.86,0.02); yoke.rotation.y=Math.PI/2; g.add(yoke);
-  var collar=mesh(new THREE.TorusGeometry(0.16,0.03,8,18),gold,false,false);
-  collar.rotation.x=Math.PI/2; collar.position.y=1.18; g.add(collar);
-  var sash=mesh(new THREE.TorusGeometry(0.31,0.05,8,20),gold,false,false);
-  sash.rotation.x=Math.PI/2; sash.position.y=0.72; g.add(sash);
+  /* ===== الجذع: القميص الأصفر، ومعه المعطف والياقة ليتحرّكوا معًا ===== */
+  var body=mesh(new THREE.CylinderGeometry(0.235,0.30,0.66,20),matShirt,true,false);
+  body.position.y=0.84; g.add(body);
+  for(i=0;i<5;i++){
+    var btn=mesh(new THREE.SphereGeometry(0.024,8,8),matButton,false,false);
+    btn.position.set(0,-0.22+i*0.11,0.245-i*0.008); body.add(btn);
+  }
+  var collar=mesh(new THREE.CylinderGeometry(0.115,0.14,0.09,12),matShirt,false,false);
+  collar.position.y=0.35; body.add(collar);
+  var neck=mesh(new THREE.CylinderGeometry(0.062,0.07,0.2,10),matHead,false,false);
+  neck.position.y=0.4; body.add(neck);
 
+  /* المعطف: الظهر والطرفان بنفس الطول وأعلاهما واحد */
+  var coatH=0.95, coatTop=0.30;              /* بالنسبة لمركز الجذع */
+  var coatBack=mesh(new THREE.CylinderGeometry(0.30,0.47,coatH,20,1,true,1.3,TAU-2.6),matCoat,true,false);
+  coatBack.position.y=coatTop-coatH/2; body.add(coatBack);
+  function flap(theta){
+    var geo=new THREE.CylinderGeometry(0.30,0.47,coatH,12,1,true,theta,0.6);
+    geo.translate(0,-coatH/2,0);
+    var m=mesh(geo,matCoat,true,false); m.position.y=coatTop; body.add(m); return m;
+  }
+  flap(0.7); flap(TAU-1.3);
+
+  /* ===== الرأس ===== */
   var headG=new THREE.Group(); headG.position.y=1.6; g.add(headG);
-  var head=mesh(new THREE.SphereGeometry(0.42,20,16),skin,true,false);
-  head.scale.set(1,0.96,0.92); headG.add(head);
-  var face=new THREE.Mesh(new THREE.PlaneGeometry(0.62,0.62),
-    new THREE.MeshBasicMaterial({map:shamoosaFace('smile'),transparent:true,depthWrite:false,toneMapped:false}));
-  face.position.set(0,-0.02,0.405); face.renderOrder=3; headG.add(face);
-  /* خصلة أمامية تظهر من تحت اللحاف */
-  var hair=mesh(new THREE.SphereGeometry(0.435,18,14,0,Math.PI*2,0,Math.PI*0.40),hairM,false,false);
-  hair.scale.set(1,0.96,0.99); hair.position.y=0.05; headG.add(hair);
-  /* اللحاف: يغطّي أعلى الرأس ويسدل خلفه */
-  var veil=mesh(new THREE.SphereGeometry(0.462,18,14,0,Math.PI*2,0,Math.PI*0.40),shawl,false,false);
-  veil.scale.set(1.03,0.84,1.03); veil.position.set(0,0.10,-0.05); veil.material.side=THREE.DoubleSide; headG.add(veil);
-  var drape=mesh(new THREE.SphereGeometry(0.4,14,12,0,Math.PI*2,0,Math.PI*0.62),shawl,false,false);
-  drape.scale.set(0.94,1.3,0.58); drape.position.set(0,-0.1,-0.26);
-  drape.rotation.x=-0.16; drape.material.side=THREE.DoubleSide; headG.add(drape);
-  var veilEdge=mesh(new THREE.TorusGeometry(0.436,0.03,8,24),gold,false,false);
-  veilEdge.rotation.x=Math.PI/2; veilEdge.position.y=0.245; veilEdge.scale.set(1,1,0.62); headG.add(veilEdge);
-  /* ضفيرتان تخرجان من جانبَي اللحاف */
+  var head=mesh(new THREE.SphereGeometry(0.5,28,20),matHead,true,false);
+  head.scale.set(1,1.06,0.96); headG.add(head);
+
+  /* الأشعة المموّجة */
+  var raysG=new THREE.Group(); raysG.position.z=-0.07; headG.add(raysG);
+  function ray(angle,len,phase,z,rad){
+    var pts=[];
+    for(var k=0;k<=8;k++){
+      var u=k/8, r=0.44+u*len;
+      var wob=Math.sin(u*4+phase)*0.11*u+Math.sin(u*9+phase*2)*0.045*u;
+      pts.push(new THREE.Vector3(r,wob,0));
+    }
+    var m=mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),10,rad,5,false),matRay,true,false);
+    m.rotation.z=angle; m.position.z=z; raysG.add(m);
+  }
+  for(i=0;i<16;i++) ray(i/16*TAU, 0.45+((i*7)%5)*0.08, i*1.7,     0, 0.038);
+  for(i=0;i<12;i++) ray((i+0.5)/12*TAU, 0.36+((i*3)%4)*0.055, i*2.3, -0.13, 0.032);
+
+  /* العينان: بيضتان مسطّحتان في مركز كلّ عدسة */
+  function eye(x){
+    var e=new THREE.Group(); e.position.set(x,0.05,0.22);
+    var ball=mesh(new THREE.SphereGeometry(0.27,24,18),matEye,false,false);
+    ball.scale.set(0.94,1.14,0.62); e.add(ball);
+    var pup=mesh(new THREE.SphereGeometry(0.047,12,12),matPupil,false,false);
+    pup.position.set(x>0?-0.09:0.09,-0.03,0.155); pup.scale.set(1,1,0.75); e.add(pup);
+    headG.add(e); return e;
+  }
+  var eyeL=eye(0.43), eyeR=eye(-0.43);
+
+  /* النظارة */
   for(i=0;i<2;i++){
     s=i?1:-1;
-    var side=mesh(new THREE.SphereGeometry(0.15,10,8),hairM,false,false);
-    side.scale.set(0.66,1.7,0.76); side.position.set(s*0.375,-0.14,-0.05); headG.add(side);
-    var tie=mesh(new THREE.TorusGeometry(0.055,0.018,6,12),gold,false,false);
-    tie.rotation.y=Math.PI/2; tie.position.set(s*0.375,-0.4,-0.05); headG.add(tie);
+    var rim=mesh(new THREE.TorusGeometry(0.38,0.032,12,36),matRim,true,false);
+    rim.position.set(s*0.43,0.05,0.45); headG.add(rim);
+    var lens=new THREE.Mesh(new THREE.CylinderGeometry(0.36,0.36,0.018,28),matLens);
+    lens.rotation.x=Math.PI/2; lens.position.set(s*0.43,0.05,0.44); headG.add(lens);
+    var temple=mesh(new THREE.CylinderGeometry(0.021,0.021,0.5,8),matRim,false,false);
+    temple.rotation.x=Math.PI/2; temple.rotation.y=-s*0.3;
+    temple.position.set(s*0.8,0.05,0.16); headG.add(temple);
   }
-  /* زينة ذهبية صغيرة على الجبين */
-  var jewel=mesh(new THREE.SphereGeometry(0.05,10,8),gold,false,false);
-  jewel.scale.set(1,0.7,0.5); jewel.position.set(0,0.205,0.345); headG.add(jewel);
+  var bridge=mesh(new THREE.CylinderGeometry(0.026,0.026,0.2,8),matRim,false,false);
+  bridge.rotation.z=Math.PI/2; bridge.position.set(0,0.14,0.47); headG.add(bridge);
 
+  /* ===== الكمّان ===== */
   var armPivots=[],legPivots=[];
   for(i=0;i<2;i++){
     s=i?1:-1;
-    var piv=new THREE.Group(); piv.position.set(s*0.31,1.02,0); g.add(piv);
-    var arm=mesh(new THREE.CylinderGeometry(0.06,0.055,0.36,8),dress,false,false);
-    arm.position.y=-0.2; piv.add(arm);
-    var cuff=mesh(new THREE.TorusGeometry(0.058,0.022,6,14),gold,false,false);
-    cuff.rotation.x=Math.PI/2; cuff.position.y=-0.36; piv.add(cuff);
-    var hand=mesh(new THREE.SphereGeometry(0.085,10,8),skin,false,false);
-    hand.position.y=-0.44; piv.add(hand);
-    piv.rotation.z=s*0.26; armPivots.push({piv:piv,side:s});
-    /* السروال: يظهر تحت التنّورة بحاشية مطرّزة */
-    var lp=new THREE.Group(); lp.position.set(s*0.14,0.55,0); g.add(lp);
-    var leg=mesh(new THREE.CylinderGeometry(0.072,0.062,0.32,8),sirwal,false,false);
-    leg.position.y=-0.19; lp.add(leg);
-    var band=mesh(new THREE.TorusGeometry(0.064,0.022,6,14),gold,false,false);
-    band.rotation.x=Math.PI/2; band.position.y=-0.34; lp.add(band);
-    var sh=mesh(new THREE.SphereGeometry(0.105,10,8),shoeM,false,false);
-    sh.scale.set(0.9,0.7,1.5); sh.position.set(0,-0.4,0.05); lp.add(sh);
+    var piv=new THREE.Group(); piv.position.set(s*0.355,1.10,0.01); g.add(piv);
+    var sleeve=mesh(new THREE.CylinderGeometry(0.082,0.09,0.6,12),matCoat,true,false);
+    sleeve.position.y=-0.3; piv.add(sleeve);
+    var cuff=mesh(new THREE.SphereGeometry(0.085,12,12),matCoat,false,false);
+    cuff.position.y=-0.62; piv.add(cuff);
+    piv.rotation.z=s*0.05; armPivots.push({piv:piv,side:s});
+  }
+
+  /* ===== الساقان والحذاء ===== */
+  function shoe(){
+    var sg=new THREE.Group();
+    var sole=mesh(new THREE.BoxGeometry(0.19,0.05,0.36),matWhite,true,false);
+    sole.position.set(0,0.025,0.03); sg.add(sole);
+    var upper=mesh(new THREE.CylinderGeometry(0.08,0.088,0.2,12),matShoe,true,false);
+    upper.position.set(0,0.15,-0.03); sg.add(upper);
+    var toe=mesh(new THREE.SphereGeometry(0.088,12,10),matWhite,true,false);
+    toe.scale.set(1.05,0.6,1.25); toe.position.set(0,0.058,0.13); sg.add(toe);
+    var tongue=mesh(new THREE.BoxGeometry(0.115,0.045,0.1),matShoe,false,false);
+    tongue.position.set(0,0.13,0.086); tongue.rotation.x=-0.4; sg.add(tongue);
+    for(var k=0;k<3;k++){
+      var lace=mesh(new THREE.CylinderGeometry(0.01,0.01,0.145,6),matWhite,false,false);
+      lace.rotation.z=Math.PI/2; lace.rotation.x=0.2;
+      lace.position.set(0,0.115+k*0.04,0.072-k*0.007); sg.add(lace);
+    }
+    var heel=mesh(new THREE.BoxGeometry(0.13,0.1,0.045),matShoe,false,false);
+    heel.position.set(0,0.086,-0.115); sg.add(heel);
+    return sg;
+  }
+  for(i=0;i<2;i++){
+    s=i?1:-1;
+    var lp=new THREE.Group(); lp.position.set(s*0.1,0.62,0); g.add(lp);
+    var leg=mesh(new THREE.CylinderGeometry(0.028,0.033,0.6,10),matLeg,true,false);
+    leg.position.y=-0.3; lp.add(leg);
+    var sh=shoe(); sh.position.y=-0.62; sh.rotation.y=s*0.2; lp.add(sh);
     legPivots.push({piv:lp,side:s});
   }
+
   var halo=glowSprite(1.9,0.22); halo.position.y=1.0; g.add(halo);
-  g.userData={body:body,headG:headG,face:face,armPivots:armPivots,legPivots:legPivots};
-  g.userData.setMood=function(m){ face.material.map=shamoosaFace(m); face.material.needsUpdate=true; };
+  g.userData={body:body,headG:headG,face:null,armPivots:armPivots,legPivots:legPivots};
+  /* «wow» تُوسّع العينين وتُشعل الأشعة لحظةً بدل تبديل وجه مرسوم */
+  g.userData.setMood=function(m){
+    var k=(m==='wow')?1.2:1;
+    eyeL.scale.setScalar(k); eyeR.scale.setScalar(k);
+    raysG.scale.setScalar(m==='wow'?1.14:1);
+  };
   return g;
 }
 var shamoosa=buildShamoosa();
 /* سهم إرشادي يدور نحو أقرب كلمة */
 var guide=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.42,5),
   new THREE.MeshBasicMaterial({color:0xffd79a,transparent:true,opacity:0.9,toneMapped:false}));
-guide.rotation.z=-Math.PI/2; guide.position.y=2.35;
+guide.rotation.z=-Math.PI/2; guide.position.y=2.95;
 /* لافتة الاسم فوق رأسها */
 (function(){
   var c=document.createElement('canvas'); c.width=512; c.height=160;
@@ -1360,7 +1362,7 @@ guide.rotation.z=-Math.PI/2; guide.position.y=2.35;
   x.fillStyle=grd; x.fillText('شموسة',256,84);
   var nameSp=new THREE.Sprite(new THREE.SpriteMaterial({
     map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false,toneMapped:false}));
-  nameSp.scale.set(1.5,0.47,1); nameSp.position.y=2.62;
+  nameSp.scale.set(1.5,0.47,1); nameSp.position.y=3.32;
   shamoosa.add(nameSp);
 })();
 shamoosa.position.set(0.6,0.05,5.4); shamoosa.rotation.y=0;

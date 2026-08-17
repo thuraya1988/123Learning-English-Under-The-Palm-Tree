@@ -279,8 +279,59 @@ const groundTex = canvasTex(2048, (cx,s)=>{
 groundTex.anisotropy = 8;
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(560, 460), new THREE.MeshStandardMaterial({ map:groundTex, roughness:1 }));
 ground.rotation.x = -Math.PI/2;
+
 ground.receiveShadow = true;
 scene.add(ground);
+
+
+/* ============================================================
+   جزيرة عائمة تحت كلّ عالم — على مثال جزيرة النغمات
+   ============================================================ */
+function makeIsle(x, z, r, topHex, sideHex, y){
+  const depth = Math.max(8, y - 3);
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  scene.add(g);
+  /* السطح: قرص متموّج الحافة */
+  const top = new THREE.CylinderGeometry(r, r*0.94, 3.2, 56, 2);
+  { const pos = top.attributes.position;
+    for(let i=0;i<pos.count;i++){
+      const px = pos.getX(i), py = pos.getY(i), pz = pos.getZ(i);
+      const n = Math.sin(px*0.09) + Math.cos(pz*0.085);
+      pos.setX(i, px*(1+n*0.018)); pos.setZ(i, pz*(1+n*0.018));
+      if(py > 0) pos.setY(i, py + Math.sin(px*0.13+pz*0.11)*0.5);
+    }
+    top.computeVertexNormals(); }
+  const tm = new THREE.Mesh(top, new THREE.MeshStandardMaterial({ color:topHex, roughness:0.95 }));
+  tm.position.y = -1.6; tm.receiveShadow = true; g.add(tm);
+  /* الأسفل الصخري */
+  const bot = new THREE.CylinderGeometry(r*0.93, r*0.16, depth||34, 30, 6);
+  { const pos = bot.attributes.position;
+    for(let i=0;i<pos.count;i++){
+      const px = pos.getX(i), py = pos.getY(i), pz = pos.getZ(i);
+      const n = Math.sin(px*0.13+py*0.16) + Math.cos(pz*0.12-py*0.14);
+      pos.setX(i, px*(1+n*0.045)); pos.setZ(i, pz*(1+n*0.045));
+    }
+    bot.computeVertexNormals(); }
+  const bm = new THREE.Mesh(bot, new THREE.MeshStandardMaterial({ color:sideHex, roughness:1, flatShading:true }));
+  bm.position.y = -3.2 - (depth||34)/2; bm.castShadow = true; g.add(bm);
+  /* نتوءات صخرية */
+  for(let i=0;i<3;i++){
+    const sp = new THREE.Mesh(new THREE.ConeGeometry(r*0.16, r*0.5, 7),
+      new THREE.MeshStandardMaterial({ color:sideHex, roughness:1, flatShading:true }));
+    sp.position.set((Math.random()-0.5)*r*0.5, -3.2-(depth||34)-r*0.18, (Math.random()-0.5)*r*0.5);
+    sp.rotation.z = (Math.random()-0.5)*0.35; sp.castShadow = true; g.add(sp);
+  }
+  return g;
+}
+makeIsle(   0,    0,  58, '#8fb56a', '#7f9a80', 20);   /* مدينة شموسة */
+makeIsle(-108,  76,  42, '#a9c07c', '#8a9a72', 17);   /* ليمبو */
+makeIsle(-118, -78,  46, '#b4b077', '#96906a', 19);   /* زومبينيس */
+makeIsle(   0, -152, 34, '#cbbfa4', '#8f8878', 22);   /* قلعة الشطرنج */
+makeIsle( 112,   84, 34, '#b8d66b', '#8fae7a', 15);   /* وادي الكب كيك */
+makeIsle(   0,  205, 32, '#2e2733', '#3a3140', 18);   /* قرية الفطر */
+makeIsle( 150,    0, 26, '#7cb35f', '#8a9a72', 14);   /* بوّابة عالم أليس */
+
 
 /* ================= البوابة ================= */
 const portal = new THREE.Group();
@@ -329,7 +380,7 @@ scene.add(portal);
 
 /* ================= عالم ليمبو ================= */
 const limbo = new THREE.Group();
-limbo.position.set(-108, 0, 76);
+limbo.position.set(-108, 17, 76);
 scene.add(limbo);
 
 function gableRoof(w, d, h, stripeMat, solidColor){
@@ -640,7 +691,7 @@ for(let i=0;i<9;i++){
 
 /* ================= عالم زومبينيس ================= */
 const zoomb = new THREE.Group();
-zoomb.position.set(-118, 0, -78);
+zoomb.position.set(-118, 19, -78);
 scene.add(zoomb);
 
 function domeHouse(r, color, doorColor, glowWin){
@@ -1111,7 +1162,7 @@ let figBird = null, figWingL = null, figWingR = null;
 /* ============================================================
    قلعة الشطرنج والقلوب — عالم رابع خلف البوابة
    ============================================================ */
-const CHESS_BASE = new THREE.Vector3(0, 0, -152);
+const CHESS_BASE = new THREE.Vector3(0, 22, -152);
 const chessGroup = new THREE.Group();
 chessGroup.position.copy(CHESS_BASE);
 scene.add(chessGroup);
@@ -1455,7 +1506,7 @@ let chPulseOn = true;
    وادي الكب كيك — عالم خامس في الجانب النهاري
    ============================================================ */
 const cupWorld = new THREE.Group();
-cupWorld.position.set(112, 0, 84);
+cupWorld.position.set(112, 15, 84);
 cupWorld.scale.setScalar(0.9);
 scene.add(cupWorld);
 const cupSway = [], cupHearts = [], cupClouds = [], cupDots = [], cupRainArr = [];
@@ -1706,7 +1757,7 @@ const PLAZA_R = 52;
   }
 
   /* ---- مدينة أليس العائمة: نُقلت من عالم شموسة كما هي ---- */
-  const CITY = new THREE.Group(); CITY.position.y = 2.0; CITY.scale.setScalar(2.55); palmCity.add(CITY);
+  const CITY = new THREE.Group(); CITY.position.y = 20.0; CITY.scale.setScalar(2.55); palmCity.add(CITY);
   const cityTick = (function(){
   var seed=987654321;
   function rand(){ seed^=seed<<13; seed^=seed>>>17; seed^=seed<<5; return ((seed>>>0)/4294967296); }
@@ -2189,13 +2240,13 @@ const PLAZA_R = 52;
 
   /* ============ الجسور ============ */
   const BRIDGES = [
-    { key:'limbo',  name:'ليمبو',          sub:'Limbo',          target:new THREE.Vector3(-108, 0,  76), reach:0.80, deck:'#c9a06b' },
-    { key:'zoomb',  name:'زومبينيس',       sub:'Zoombinis',      target:new THREE.Vector3(-118, 0, -78), reach:0.80, deck:'#b08a5a' },
-    { key:'chess',  name:'قلعة الشطرنج',   sub:'Chess Castle',   target:new THREE.Vector3(   0, 0,-152), reach:0.82, deck:'#cbb48c' },
-    { key:'island', name:'جزيرة النغمات',  sub:'Figment Isle',   target:new THREE.Vector3( 112,40, -78), reach:0.86, deck:'#d9c08b' },
-    { key:'cup',    name:'وادي الكب كيك',  sub:'Cupcake Valley', target:new THREE.Vector3( 112, 0,  84), reach:0.80, deck:'#e6d9a8' },
-    { key:'shroom', name:'قرية الفطر',      sub:'Mushroom Village',target:new THREE.Vector3(  0, 0, 205), reach:0.86, deck:'#8a7a9a' },
-    { key:'alice',  name:'عالم أليس',       sub:"Alice's World",   target:new THREE.Vector3(150, 0,   0), reach:0.84, deck:'#d9bd90' }
+    { key:'limbo', tint:'#e85aa0',  name:'ليمبو',          sub:'Limbo',          target:new THREE.Vector3(-108, -3,  76), reach:0.80, deck:'#c9a06b' },
+    { key:'zoomb', tint:'#4fd6c8',  name:'زومبينيس',       sub:'Zoombinis',      target:new THREE.Vector3(-118, -1, -78), reach:0.80, deck:'#b08a5a' },
+    { key:'chess', tint:'#f6cf54',  name:'قلعة الشطرنج',   sub:'Chess Castle',   target:new THREE.Vector3(   0, 2,-152), reach:0.82, deck:'#cbb48c' },
+    { key:'island', tint:'#7cc46a', name:'جزيرة النغمات',  sub:'Figment Isle',   target:new THREE.Vector3( 112,26, -78), reach:0.86, deck:'#d9c08b' },
+    { key:'cup', tint:'#f48fb1',    name:'وادي الكب كيك',  sub:'Cupcake Valley', target:new THREE.Vector3( 112,-5,  84), reach:0.80, deck:'#e6d9a8' },
+    { key:'shroom', tint:'#8a63d8', name:'قرية الفطر',      sub:'Mushroom Village',target:new THREE.Vector3(  0,-2, 205), reach:0.86, deck:'#8a7a9a' },
+    { key:'alice', tint:'#f0c04e',  name:'عالم أليس',       sub:"Alice's World",   target:new THREE.Vector3(150,-6,   0), reach:0.84, deck:'#d9bd90' }
   ];
   const railM = M('#7a5233', 0.9);
   BRIDGES.forEach(br=>{
@@ -2207,8 +2258,15 @@ const PLAZA_R = 52;
     palmCity.add(g);
 
     const x0 = PLAZA_R - 1.5, x1 = dist * br.reach;
-    const y0 = 1.4, y1 = 1.4 + br.target.y;
-    const N = 16, deckM = M(br.deck, 0.92);
+    const y0 = 20.4, y1 = 20.4 + br.target.y;
+    /* بلاط الجسر: صفّان في كلّ خطوة بلونين متبادلين مثل رقعة الشطرنج،
+       فيصير الجسر شبكة خطوات جاهزة لمنطق المشي عليه */
+    const N = 16;
+    const TILE_A = M(br.deck, 0.9);
+    const TILE_B = M('#2b3038', 0.62);
+    const TILE_C = new THREE.MeshStandardMaterial({ color:new THREE.Color(br.tint||'#e8a33a'),
+      roughness:0.5, emissive:new THREE.Color(br.tint||'#e8a33a'), emissiveIntensity:0.18 });
+    const tiles = [];
     const P = [];
     for(let i=0;i<=N;i++){
       const t = i/N;
@@ -2220,8 +2278,18 @@ const PLAZA_R = 52;
       const len = Math.hypot(b.x-a.x, b.y-a.y);
       const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
       const rot = Math.atan2(b.y-a.y, b.x-a.x);
-      const deck = pcAdd(new THREE.BoxGeometry(len+0.3, 0.55, 7.6), deckM, mx, my, 0, g);
-      deck.rotation.z = rot;
+      /* بلاطتان لكلّ صفّ: يسار ويمين */
+      [[-1.9, 0], [1.9, 1]].forEach(lane=>{
+        const dark = ((i + lane[1]) % 2) === 0;
+        const mat = dark ? TILE_B : (i % 4 === 0 ? TILE_C : TILE_A);
+        const tile = pcAdd(new THREE.BoxGeometry(len+0.3, 0.55, 3.7), mat, mx, my, lane[0], g);
+        tile.rotation.z = rot;
+        tile.userData = { row:i, lane:lane[1] };
+        tiles.push(tile);
+      });
+      /* فاصل رفيع بين اللوحين */
+      const seam = pcAdd(new THREE.BoxGeometry(len+0.3, 0.58, 0.16), M('#3a2c1e', 0.9), mx, my, 0, g);
+      seam.rotation.z = rot;
       [-3.6, 3.6].forEach(zz=>{
         const rail = pcAdd(new THREE.BoxGeometry(len+0.3, 0.35, 0.35), railM, mx, my+1.25, zz, g);
         rail.rotation.z = rot;
@@ -2232,7 +2300,7 @@ const PLAZA_R = 52;
         });
       }
       /* دعامات إلى الأرض عند كل رابع مقطع */
-      if(i % 4 === 0 && a.y > 2.5 && br.target.y < 5){
+      if(false){
         pcAdd(new THREE.CylinderGeometry(0.5, 0.75, a.y, 8), M('#b08a5a', 0.95), a.x, a.y/2, 0, g);
       }
     }
@@ -2258,7 +2326,7 @@ const PLAZA_R = 52;
     const bar = pcAdd(new THREE.BoxGeometry(0.7, 0.7, 9.4),
       new THREE.MeshStandardMaterial({ color:0xc94a3a, roughness:0.6, emissive:0x4a1008 }),
       x0 - 1.2, 3.2, 0, g);
-    BRIDGE_INFO.push({ key:br.key, name:br.name, sub:br.sub, ang, P, bar, barY:3.2, sign });
+    BRIDGE_INFO.push({ key:br.key, name:br.name, sub:br.sub, ang, P, bar, barY:3.2, sign, tiles, rows:N });
   });
 }
 
@@ -2266,7 +2334,7 @@ const PLAZA_R = 52;
 /* ============================================================
    قرية الفطر المتوهّج — عالم سادس (نُقل كما هو)
    ============================================================ */
-const SHROOM_BASE = new THREE.Vector3(0, 0, 205);
+const SHROOM_BASE = new THREE.Vector3(0, 18, 205);
 const SHROOM = new THREE.Group();
 SHROOM.position.copy(SHROOM_BASE);
 SHROOM.scale.setScalar(1.35);
@@ -2508,7 +2576,7 @@ const shroomTick = (function(){
 /* ============================================================
    بوّابة عالم أليس — نهاية الجسر السابع، تفتح اللعبة نفسها
    ============================================================ */
-const ALICE_BASE = new THREE.Vector3(150, 0, 0);
+const ALICE_BASE = new THREE.Vector3(150, 14, 0);
 const aliceGate = new THREE.Group();
 aliceGate.position.copy(ALICE_BASE);
 scene.add(aliceGate);
@@ -2557,7 +2625,7 @@ function updateDayNight(dt){
   hemiLight.color.setHex(n > 0.5 ? 0x6a7ab0 : 0xeaf6ff);
   nightLight.intensity = 0.35 + 0.95*n;
   scene.fog.color.lerpColors(DAY_FOG, NIGHT_FOG, n);
-  scene.fog.near = 130 - 40*n; scene.fog.far = 290 - 70*n;
+  scene.fog.near = 210 - 60*n; scene.fog.far = 560 - 140*n;
   renderer.toneMappingExposure = 1.08 + 0.34*n;
   if(aliceGate.userData.veilM){
     aliceGate.userData.veilM.opacity = 0.26 + 0.34*n;

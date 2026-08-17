@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🌳 شجرة الأصدقاء المرحون — عالم ثلاثي الأبعاد</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@latest/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@latest/700.css">
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;
+    font-family:'Cairo',system-ui,sans-serif;background:#57a09a;}
+  #webgl{position:fixed;inset:0;display:block;touch-action:none;cursor:grab;}
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:2;
+    background:radial-gradient(ellipse at 50% 45%, transparent 58%, rgba(20,70,66,.22) 100%);}
+  .ui{position:fixed;left:0;right:0;display:flex;justify-content:center;z-index:5;pointer-events:none;}
+  .ui.top{top:16px;flex-direction:column;align-items:center;gap:6px;}
+  .ui.bottom{bottom:18px;flex-direction:column;align-items:center;gap:10px;}
+  .title{pointer-events:auto;display:flex;align-items:center;gap:10px;
+    background:rgba(255,255,255,.5);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.8);border-radius:999px;padding:9px 26px;
+    box-shadow:0 10px 30px rgba(15,70,66,.25);}
+  .title h1{margin:0;font-size:clamp(15px,2.6vw,22px);font-weight:700;color:#1f5a54;}
+  .title .emoji{font-size:clamp(20px,3vw,26px);}
+  .subtitle{font-size:12.5px;color:rgba(20,75,70,.9);background:rgba(255,255,255,.35);
+    backdrop-filter:blur(8px);border-radius:999px;padding:4px 16px;border:1px solid rgba(255,255,255,.55);}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;pointer-events:auto;}
+  .controls button{font-family:inherit;font-weight:700;font-size:13px;color:#1f5a54;
+    background:rgba(255,255,255,.55);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.8);
+    border-radius:999px;padding:10px 18px;cursor:pointer;
+    transition:transform .18s ease, background .18s ease, box-shadow .18s ease;
+    box-shadow:0 6px 18px rgba(15,70,66,.2);}
+  .controls button:hover{transform:translateY(-2px);background:rgba(255,255,255,.85);}
+  .controls button.active{background:#bfe8d9;border-color:#8fd4bd;color:#176a58;}
+  .hint{font-size:11.5px;color:rgba(15,70,66,.85);background:rgba(255,255,255,.4);
+    border-radius:999px;padding:5px 16px;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.5);}
+  #loader{position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:#57a09a;
+    transition:opacity .8s ease;}
+  #loader.hidden{opacity:0;pointer-events:none;}
+  #loader .box{display:flex;flex-direction:column;align-items:center;gap:14px;}
+  #loader .tree{font-size:58px;animation:bounce 1.2s ease infinite;}
+  #loader p{margin:0;font-weight:700;color:#eafaf4;}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+<script src="public/js/palm-games-fab.js" defer></script>
+</head>
+<body>
+<div id="vignette"></div>
+
+<div class="ui top">
+  <div class="title"><span class="emoji">🌳</span><h1>شجرة الأصدقاء المرحون</h1></div>
+  <div class="subtitle">عالم ثلاثي الأبعاد عالي الجودة بأسلوب الصلصال — انقر على الحيوانات!</div>
+</div>
+
+<div class="ui bottom">
+  <div class="controls">
+    <button id="btnRotate" class="active">🔄 الدوران التلقائي</button>
+    <button id="btnMotion">⏸️ إيقاف الحركة</button>
+    <button id="btnJump">🎉 اقفزوا جميعًا</button>
+    <button id="btnReset">🎯 إعادة الكاميرا</button>
+  </div>
+  <div class="hint">اسحب للتدوير • العجلة للتقريب والإبعاد • انقر على أي حيوان ليقفز • نقرة مزدوجة لإعادة الكاميرا</div>
+</div>
+
+<div id="loader"><div class="box"><div class="tree">🌳</div><p>جارٍ تشكيل عالم الصلصال…</p></div></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+/* ================= الأساسيات ================= */
+const BG = 0x57a09a;
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.08;
+renderer.domElement.id = 'webgl';
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(BG);
+scene.fog = new THREE.Fog(BG, 26, 60);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 220);
+camera.position.set(0, 5.4, 15.8);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 4.8, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 5;
+controls.maxDistance = 28;
+controls.maxPolarAngle = Math.PI * 0.55;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.8;
+
+/* ================= الإضاءة ================= */
+scene.add(new THREE.HemisphereLight(0xd8fff6, 0x2f6b64, 0.75));
+const sunLight = new THREE.DirectionalLight(0xfff4e0, 1.5);
+sunLight.position.set(6, 14, 8);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.left = -13; sunLight.shadow.camera.right = 13;
+sunLight.shadow.camera.top = 14;   sunLight.shadow.camera.bottom = -6;
+sunLight.shadow.camera.near = 1;   sunLight.shadow.camera.far = 45;
+sunLight.shadow.bias = -0.0005;
+scene.add(sunLight);
+const fillLight = new THREE.DirectionalLight(0xbfeee6, 0.45);
+fillLight.position.set(-8, 6, -6);
+scene.add(fillLight);
+
+/* ================= أدوات ================= */
+const rand = (a,b)=> a + Math.random()*(b-a);
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+const clay = c => new THREE.MeshStandardMaterial({ color:c, roughness:0.72 });
+
+const whiteMat = clay(0xffffff);
+const blackMat = clay(0x202020);
+const pinkMat  = clay(0xf7a8c4);
+const barkMat  = clay(0x8f6142); barkMat.roughness = 1;
+const leafMat  = clay(0x6db356); leafMat.roughness = 1;
+
+const world = new THREE.Group();
+scene.add(world);
+const clickables = [];
+const clickableSet = new Set();
+
+function addEyes(group, y, z, spacing, eyeR){
+  [-1,1].forEach(s=>{
+    const w = new THREE.Mesh(new THREE.SphereGeometry(eyeR,16,12), whiteMat);
+    w.position.set(s*spacing, y, z);
+    const p = new THREE.Mesh(new THREE.SphereGeometry(eyeR*0.45,12,10), blackMat);
+    p.position.set(s*spacing, y, z + eyeR*0.75);
+    w.castShadow = p.castShadow = true;
+    group.add(w,p);
+  });
+}
+function shadowAll(g){ g.traverse(o=>{ if(o.isMesh) o.castShadow = true; }); }
+
+/* ================= الأرضية ================= */
+const groundMesh = new THREE.Mesh(
+  new THREE.CircleGeometry(45, 48),
+  new THREE.MeshStandardMaterial({ color:0x4f948d, roughness:1 }));
+groundMesh.rotation.x = -Math.PI/2;
+groundMesh.receiveShadow = true;
+world.add(groundMesh);
+
+/* ================= الشجرة ================= */
+const treeGroup = new THREE.Group();
+world.add(treeGroup);
+
+const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.7, 7.2, 28), barkMat);
+trunk.position.y = 3.6;
+trunk.castShadow = trunk.receiveShadow = true;
+treeGroup.add(trunk);
+
+const topTrunk = new THREE.Mesh(new THREE.TubeGeometry(
+  new THREE.CatmullRomCurve3([new THREE.Vector3(0,6.6,0), new THREE.Vector3(0,7.6,0), new THREE.Vector3(0,8.5,0)]),
+  10, 0.5, 12), barkMat);
+topTrunk.castShadow = true;
+treeGroup.add(topTrunk);
+
+function addBranch(a, b, r){
+  const mid = new THREE.Vector3().lerpVectors(a, b, 0.5); mid.y += 0.35;
+  const curve = new THREE.CatmullRomCurve3([a, mid, b]);
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 14, r, 10), barkMat);
+  m.castShadow = m.receiveShadow = true;
+  treeGroup.add(m);
+}
+/* جذور */
+for(let i=0;i<6;i++){
+  const a = (i/6)*Math.PI*2 + 0.4;
+  const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+  addBranchNoLift(
+    new THREE.Vector3(dir.x*0.8, 1.1, dir.z*0.8),
+    new THREE.Vector3(dir.x*1.4, 0.45, dir.z*1.4),
+    new THREE.Vector3(dir.x*2.7, 0.06, dir.z*2.7), 0.32);
+}
+function addBranchNoLift(a, m, b, r){
+  const curve = new THREE.CatmullRomCurve3([a,m,b]);
+  const meshR = new THREE.Mesh(new THREE.TubeGeometry(curve, 12, r, 10), barkMat);
+  meshR.castShadow = meshR.receiveShadow = true;
+  treeGroup.add(meshR);
+}
+/* أغصان */
+addBranch(new THREE.Vector3(-0.5,5.6,0),  new THREE.Vector3(-4.2,6.4,0.1), 0.3);
+addBranch(new THREE.Vector3( 0.5,5.7,0),  new THREE.Vector3( 4.1,6.7,0.1), 0.3);
+addBranch(new THREE.Vector3(-0.6,4.4,0.1),new THREE.Vector3(-5.3,4.6,0.3), 0.26);
+addBranch(new THREE.Vector3( 0.6,4.5,0.1),new THREE.Vector3( 5.3,4.6,0.3), 0.26);
+addBranch(new THREE.Vector3(-0.7,4.1,0.2),new THREE.Vector3(-4.2,4.25,0.5),0.24);
+addBranch(new THREE.Vector3( 0.7,4.2,0.2),new THREE.Vector3( 3.8,4.35,0.5),0.24);
+
+/* وجه الشجرة */
+const treeEyes = new THREE.Group();
+treeEyes.position.set(0, 3.7, 1.12);
+treeGroup.add(treeEyes);
+[-1,1].forEach(s=>{
+  const w = new THREE.Mesh(new THREE.SphereGeometry(0.3,20,14), whiteMat);
+  w.position.set(s*0.5, 0, 0.05);
+  const p = new THREE.Mesh(new THREE.SphereGeometry(0.13,14,10), blackMat);
+  p.position.set(s*0.5, 0, 0.28);
+  w.castShadow = p.castShadow = true;
+  treeEyes.add(w,p);
+});
+const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.62,24,18), clay(0x2a1a12));
+mouth.scale.set(0.95, 1.05, 0.55);
+mouth.position.set(0, 2.65, 1.25);
+treeGroup.add(mouth);
+const tongue = new THREE.Mesh(new THREE.SphereGeometry(0.3,16,12), clay(0xe26d6d));
+tongue.scale.set(1, 0.45, 0.6);
+tongue.position.set(0, 2.35, 1.42);
+treeGroup.add(tongue);
+
+/* أوراق كثيفة (كتل صلصال) */
+function randomInSphere(r){
+  const v = new THREE.Vector3(rand(-1,1), rand(-1,1), rand(-1,1));
+  if(v.lengthSq() > 1) v.normalize().multiplyScalar(Math.random());
+  return v.multiplyScalar(r);
+}
+function makeFoliage(R, bigCount, bigR, bumpCount, bumpR){
+  const parts = [];
+  for(let i=0;i<bigCount;i++){
+    const v = randomInSphere(R*0.72);
+    const g = new THREE.IcosahedronGeometry(bigR*rand(0.8,1.2), 2);
+    g.translate(v.x, v.y*0.9, v.z); parts.push(g);
+  }
+  for(let i=0;i<bumpCount;i++){
+    const v = randomInSphere(R);
+    const g = new THREE.IcosahedronGeometry(bumpR*rand(0.7,1.3), 1);
+    g.translate(v.x, v.y*0.92, v.z); parts.push(g);
+  }
+  const mesh = new THREE.Mesh(mergeGeometries(parts), leafMat);
+  mesh.castShadow = mesh.receiveShadow = true;
+  return mesh;
+}
+const foliageSpots = [
+  { x:0,    y:8.9,  z:0,   R:2.2, b:9,  br:1.15, t:150, tr:0.34 },
+  { x:-4.6, y:6.7,  z:0.1, R:1.4, b:6,  br:0.8,  t:90,  tr:0.26 },
+  { x: 4.5, y:7.1,  z:0.1, R:1.4, b:6,  br:0.8,  t:90,  tr:0.26 },
+  { x:-5.6, y:4.8,  z:0.3, R:1.1, b:5,  br:0.65, t:70,  tr:0.22 },
+  { x: 5.6, y:4.8,  z:0.3, R:1.1, b:5,  br:0.65, t:70,  tr:0.22 }
+];
+foliageSpots.forEach(fs=>{
+  const f = makeFoliage(fs.R, fs.b, fs.br, fs.t, fs.tr);
+  f.position.set(fs.x, fs.y, fs.z);
+  treeGroup.add(f);
+});
+
+/* ================= بناة الحيوانات ================= */
+function buildBunny(color, inner){
+  inner = inner===undefined ? 0xf7a8c4 : inner;
+  const g = new THREE.Group();
+  const m = clay(color);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.5,24,18), m);
+  body.scale.set(0.95,1.05,0.9); body.position.y = 0.48;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.4,24,18), m);
+  head.position.y = 1.12;
+  const muz = new THREE.Mesh(new THREE.SphereGeometry(0.17,16,12), whiteMat);
+  muz.scale.set(1.25,0.85,0.7); muz.position.set(0,1.04,0.32);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.05,10,8), pinkMat);
+  nose.position.set(0,1.12,0.45);
+  g.add(body,head,muz,nose);
+  addEyes(g, 1.2, 0.33, 0.16, 0.085);
+  [-1,1].forEach(s=>{
+    const ear = new THREE.Group();
+    const outer = new THREE.Mesh(new THREE.CapsuleGeometry(0.1,0.4,4,10), m);
+    outer.scale.set(1,1,0.55);
+    const inn = new THREE.Mesh(new THREE.CapsuleGeometry(0.05,0.28,4,8), clay(inner));
+    inn.position.z = 0.055; inn.scale.set(1,1,0.4);
+    ear.add(outer,inn);
+    ear.position.set(s*0.18, 1.62, 0);
+    ear.rotation.z = -s*0.18;
+    g.add(ear);
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(0.14,12,10), m);
+    foot.scale.set(1,0.7,1.4); foot.position.set(s*0.22,0.1,0.25);
+    g.add(foot);
+  });
+  const tail = new THREE.Mesh(new THREE.SphereGeometry(0.12,12,10), whiteMat);
+  tail.position.set(0,0.4,-0.45);
+  g.add(tail);
+  shadowAll(g);
+  return g;
+}
+function buildBird(){
+  const g = new THREE.Group();
+  const m = clay(0xf4c531);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.5,24,18), m);
+  body.scale.set(0.9,1.15,0.9); body.position.y = 0.55;
+  g.add(body);
+  [-1,1].forEach(s=>{
+    const wing = new THREE.Mesh(new THREE.SphereGeometry(0.3,16,12), clay(0xd94040));
+    wing.scale.set(0.35,1.2,0.7); wing.position.set(s*0.42,0.6,0.05); wing.rotation.z = s*0.25;
+    g.add(wing);
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.09,0.28,8), m);
+    tuft.position.set(s*0.22,1.16,0); tuft.rotation.z = -s*0.3;
+    g.add(tuft);
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(0.1,10,8), clay(0xf28c28));
+    foot.scale.set(1,0.6,1.4); foot.position.set(s*0.18,0.05,0.15);
+    g.add(foot);
+  });
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.09,0.2,8), clay(0xf28c28));
+  beak.rotation.x = Math.PI/2; beak.position.set(0,0.72,0.46);
+  g.add(beak);
+  addEyes(g, 0.85, 0.38, 0.17, 0.1);
+  shadowAll(g);
+  return g;
+}
+function buildMonkey(){
+  const g = new THREE.Group();
+  const m = clay(0x2b2b2b);
+  const tan = clay(0xd9a066);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.45,24,18), m);
+  body.scale.set(0.95,1.1,0.9); body.position.y = 0.5;
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.28,16,12), tan);
+  belly.scale.set(0.9,1.1,0.5); belly.position.set(0,0.52,0.3);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.38,24,18), m);
+  head.position.y = 1.15;
+  const face = new THREE.Mesh(new THREE.SphereGeometry(0.26,16,12), tan);
+  face.scale.set(1.1,0.9,0.6); face.position.set(0,1.1,0.22);
+  g.add(body,belly,head,face);
+  [-1,1].forEach(s=>{
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.14,12,10), m);
+    ear.position.set(s*0.4,1.18,0);
+    const ein = new THREE.Mesh(new THREE.SphereGeometry(0.07,10,8), tan);
+    ein.position.set(s*0.42,1.18,0.08);
+    g.add(ear,ein);
+  });
+  addEyes(g, 1.22, 0.3, 0.14, 0.075);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.045,10,8), blackMat);
+  nose.position.set(0,1.1,0.42);
+  g.add(nose);
+  shadowAll(g);
+  return g;
+}
+function buildBear(){
+  const g = new THREE.Group();
+  const m = clay(0xe8963c);
+  const tan = clay(0xf4c07a);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.45,24,18), m);
+  body.scale.set(0.95,1.05,0.9); body.position.y = 0.45;
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.26,16,12), tan);
+  belly.scale.set(0.9,1,0.5); belly.position.set(0,0.45,0.28);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.36,24,18), m);
+  head.position.y = 1.05;
+  const muz = new THREE.Mesh(new THREE.SphereGeometry(0.15,16,12), tan);
+  muz.scale.set(1.15,0.8,0.7); muz.position.set(0,0.98,0.3);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.05,10,8), blackMat);
+  nose.position.set(0,1.04,0.42);
+  g.add(body,belly,head,muz,nose);
+  [-1,1].forEach(s=>{
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.12,12,10), m);
+    ear.position.set(s*0.24,1.34,0);
+    g.add(ear);
+  });
+  addEyes(g, 1.12, 0.28, 0.14, 0.07);
+  shadowAll(g);
+  return g;
+}
+function buildBlobBird(color){
+  const g = new THREE.Group();
+  const m = clay(color);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.35,20,16), m);
+  body.scale.set(0.95,1.1,0.95); body.position.y = 0.35;
+  g.add(body);
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.06,0.14,8), clay(0xf28c28));
+  beak.rotation.x = Math.PI/2; beak.position.set(0,0.42,0.33);
+  g.add(beak);
+  addEyes(g, 0.5, 0.27, 0.12, 0.07);
+  shadowAll(g);
+  return g;
+}
+function buildBee(withLegs){
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16,0.3,4,14), clay(0xf4c531));
+  body.rotation.z = Math.PI/2; body.position.y = 0;
+  g.add(body);
+  [-0.08, 0.12].forEach(x=>{
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.16,0.05,8,18), blackMat);
+    band.rotation.y = Math.PI/2;
+    band.position.x = x;
+    g.add(band);
+  });
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.05,10,8), blackMat);
+  eyeL.position.set(0.16,0.08,0.14);
+  const eyeR = eyeL.clone(); eyeR.position.set(0.16,0.08,-0.14);
+  g.add(eyeL,eyeR);
+  g.userData.wings = [];
+  [-1,1].forEach(s=>{
+    const wing = new THREE.Mesh(new THREE.SphereGeometry(0.14,12,10),
+      new THREE.MeshStandardMaterial({ color:0xffffff, transparent:true, opacity:0.65, roughness:0.3 }));
+    wing.scale.set(0.5,0.15,1);
+    wing.position.set(-0.05, 0.2, s*0.16);
+    g.add(wing);
+    g.userData.wings.push(wing);
+  });
+  if(withLegs){
+    for(let i=0;i<6;i++){
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,0.32,6), blackMat);
+      const a = (i/6)*Math.PI*2;
+      leg.position.set(Math.cos(a)*0.12, -0.18, Math.sin(a)*0.12);
+      leg.rotation.z = Math.cos(a)*0.9;
+      leg.rotation.x = -Math.sin(a)*0.9;
+      g.add(leg);
+    }
+  }
+  shadowAll(g);
+  return g;
+}
+
+/* ================= وضع الحيوانات ================= */
+function put(animal, x, y, z, ry, s){
+  animal.position.set(x,y,z);
+  animal.rotation.y = ry||0;
+  animal.scale.setScalar(s||1);
+  animal.userData.baseY = y;
+  animal.userData.baseRotY = ry||0;
+  animal.userData.baseScale = s||1;
+  animal.userData.phase = rand(0,6.28);
+  animal.userData.bounce = 0;
+  world.add(animal);
+  clickables.push(animal);
+  clickableSet.add(animal);
+  return animal;
+}
+/* على الشجرة */
+put(buildBunny(0xf2a9c4), -1.15, 7.15, 1.0,  0.35, 0.8);
+put(buildMonkey(),          1.25, 7.15, 0.95, -0.2, 0.85);
+put(buildBird(),            2.45, 7.0,  0.85, -0.5, 0.8);
+put(buildBunny(0x3fbdb0), -3.6, 4.3, 0.5,  0.55, 0.85);
+put(buildBunny(0xf4c531), -2.7, 4.3, 0.55, 0.25, 0.85);
+put(buildBunny(0xd94040), -1.8, 4.3, 0.5,  0.1,  0.8);
+put(buildBunny(0xffffff),  2.0, 4.4, 0.5, -0.3, 0.85);
+put(buildBear(),           3.0, 4.4, 0.5, -0.55, 0.8);
+put(buildBlobBird(0x8fd0c8), 0.85, 4.35, 1.0, -0.3, 0.6);
+put(buildBunny(0xffffff), -4.7, 7.75, 0.4, 0.3, 0.75);
+put(buildBunny(0xf2a9c4),  4.5, 8.1, 0.4, -0.4, 0.7);
+put(buildBlobBird(0x9aa7d6), 3.6, 2.75, 0.35, -0.6, 0.6);
+/* على الأرض */
+put(buildBunny(0x2b2b2b, 0x6b6b6b), -3.0, 0, 2.0,  0.7,  1.15);
+put(buildBunny(0x9aa0a6),  2.6, 0, 2.2, -0.6, 1.0);
+put(buildBunny(0x8a9096),  3.9, 0, 1.3, -1.0, 0.9);
+put(buildBunny(0xffffff),  1.1, 0, 3.0, -0.15, 0.6);
+put(buildBlobBird(0x7ec8e3), -0.7, 0, 2.9, 0.2, 0.55);
+put(buildBear(), -1.7, 0, 1.9, 0.35, 0.75);
+
+/* نحلة معلّقة بخيط */
+const hangPivot = new THREE.Group();
+hangPivot.position.set(-2.6, 4.15, 0.6);
+world.add(hangPivot);
+const thread = new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,1.3,6), blackMat);
+thread.position.y = -0.65;
+hangPivot.add(thread);
+const hangBee = buildBee(true);
+hangBee.position.y = -1.35;
+hangPivot.add(hangBee);
+
+/* نحلة طائرة */
+const flyBee = buildBee(false);
+world.add(flyBee);
+const flyCenter = new THREE.Vector3(-5.4, 5.8, 1.4);
+
+/* ================= غيوم ================= */
+const clouds = [];
+function makeCloud(s){
+  const parts = [];
+  const n = 5 + Math.floor(Math.random()*3);
+  for(let i=0;i<n;i++){
+    const g = new THREE.IcosahedronGeometry(rand(0.5,0.9)*s, 2);
+    g.translate(i*rand(0.6,0.9)*s - n*0.35*s, rand(-0.15,0.25)*s, rand(-0.3,0.3)*s);
+    parts.push(g);
+  }
+  const mesh = new THREE.Mesh(mergeGeometries(parts),
+    new THREE.MeshStandardMaterial({ color:0xffffff, roughness:0.9 }));
+  mesh.castShadow = false;
+  world.add(mesh);
+  return mesh;
+}
+[[-9,10.6,-4,1.1],[7.5,11.2,-5,1.3],[-11,8.6,-2,0.8],[10.5,8.2,-3,0.9],[0,12.6,-6,1.0],[4,9.4,-7,0.7]]
+.forEach(cd=>{
+  const c = makeCloud(cd[3]);
+  c.position.set(cd[0], cd[1], cd[2]);
+  clouds.push({ mesh:c, speed: rand(0.15,0.4) });
+});
+
+/* ================= حصى ملونة ================= */
+const pebbleColors = [0xf7a8c4,0x8fd06e,0xf4c531,0x7ec8e3,0xffffff,0xf26d6d,0xb197fc];
+for(let i=0;i<22;i++){
+  const a = rand(0, Math.PI*2);
+  const r = rand(2.6, 7.5);
+  const p = new THREE.Mesh(new THREE.SphereGeometry(rand(0.09,0.2),10,8), clay(pick(pebbleColors)));
+  p.scale.set(1, 0.6, 1);
+  p.position.set(Math.cos(a)*r, 0.06, Math.sin(a)*r);
+  p.castShadow = true;
+  world.add(p);
+}
+
+/* ضبط الانعكاس البيئي */
+scene.traverse(ob=>{
+  if(ob.isMesh && ob.material && ob.material.isMeshStandardMaterial){
+    ob.material.envMapIntensity = 0.45;
+  }
+});
+
+/* ================= التفاعل ================= */
+const raycaster = new THREE.Raycaster();
+const pointerNdc = new THREE.Vector2();
+let downX = 0, downY = 0;
+
+function findRoot(obj){
+  let o = obj;
+  while(o){
+    if(clickableSet.has(o)) return o;
+    o = o.parent;
+  }
+  return null;
+}
+function castAt(cx, cy){
+  pointerNdc.x = (cx/innerWidth)*2 - 1;
+  pointerNdc.y = -(cy/innerHeight)*2 + 1;
+  raycaster.setFromCamera(pointerNdc, camera);
+  const hits = raycaster.intersectObjects(clickables, true);
+  return hits.length ? findRoot(hits[0].object) : null;
+}
+renderer.domElement.addEventListener('pointerdown', e=>{ downX = e.clientX; downY = e.clientY; });
+renderer.domElement.addEventListener('pointerup', e=>{
+  if(Math.hypot(e.clientX-downX, e.clientY-downY) > 6) return;
+  const root = castAt(e.clientX, e.clientY);
+  if(root) root.userData.bounce = 0.0001;
+});
+let hoverPending = null;
+renderer.domElement.addEventListener('pointermove', e=>{ hoverPending = e; });
+
+function jumpAll(){
+  clickables.forEach((c,i)=> setTimeout(()=>{ c.userData.bounce = 0.0001; }, i*70));
+}
+
+/* ================= الأزرار ================= */
+const btnRotate = document.getElementById('btnRotate');
+const btnMotion = document.getElementById('btnMotion');
+const btnJump   = document.getElementById('btnJump');
+const btnReset  = document.getElementById('btnReset');
+btnRotate.addEventListener('click', ()=>{
+  controls.autoRotate = !controls.autoRotate;
+  btnRotate.classList.toggle('active', controls.autoRotate);
+});
+let motionOn = true;
+btnMotion.addEventListener('click', ()=>{
+  motionOn = !motionOn;
+  btnMotion.textContent = motionOn ? '⏸️ إيقاف الحركة' : '▶️ تشغيل الحركة';
+  btnMotion.classList.toggle('active', !motionOn);
+});
+btnJump.addEventListener('click', jumpAll);
+function resetCamera(){
+  camera.position.set(0, 5.4, 15.8);
+  controls.target.set(0, 4.8, 0);
+  controls.update();
+}
+btnReset.addEventListener('click', resetCamera);
+renderer.domElement.addEventListener('dblclick', resetCamera);
+window.addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ================= حلقة التحريك ================= */
+const clock = new THREE.Clock();
+let animTime = 0;
+let nextBlink = 2.5, blinking = false, blinkStart = 0;
+let loaderHidden = false;
+
+function tick(){
+  requestAnimationFrame(tick);
+  const delta = Math.min(clock.getDelta(), 0.05);
+  if(motionOn) animTime += delta;
+  const t = animTime;
+
+  /* رمشة الشجرة */
+  if(!blinking && t > nextBlink){ blinking = true; blinkStart = t; }
+  if(blinking){
+    const p = (t - blinkStart)/0.28;
+    if(p >= 1){ blinking = false; nextBlink = t + rand(2,5); treeEyes.scale.y = 1; }
+    else treeEyes.scale.y = 1 - Math.sin(Math.min(p,1)*Math.PI)*0.88;
+  }
+
+  /* الحيوانات: تنفّس + قفز */
+  clickables.forEach(an=>{
+    const ud = an.userData;
+    if(ud.bounce > 0) ud.bounce += delta*1.5;
+    const bk = ud.bounce > 0 ? Math.sin(Math.min(ud.bounce,1)*Math.PI) : 0;
+    if(ud.bounce >= 1) ud.bounce = 0;
+    const breath = 1 + Math.sin(t*2 + ud.phase)*0.02;
+    an.scale.setScalar(ud.baseScale * breath * (1 + bk*0.14));
+    an.position.y = ud.baseY + bk*0.9;
+    an.rotation.y = ud.baseRotY + bk*2.6;
+  });
+
+  /* النحلة المعلّقة */
+  hangPivot.rotation.z = Math.sin(t*1.2)*0.25;
+  hangPivot.rotation.x = Math.cos(t*0.9)*0.12;
+
+  /* النحلة الطائرة */
+  const fa = t*0.55;
+  const fx = flyCenter.x + Math.cos(fa)*1.7;
+  const fz = flyCenter.z + Math.sin(fa)*1.7;
+  flyBee.position.set(fx, flyCenter.y + Math.sin(t*1.7)*0.3, fz);
+  flyBee.rotation.y = Math.atan2(-Math.sin(fa), Math.cos(fa));
+  const flap = Math.sin(t*26)*0.5;
+  flyBee.userData.wings[0].rotation.x =  flap;
+  flyBee.userData.wings[1].rotation.x = -flap;
+  hangBee.userData.wings.forEach((w,i)=>{ w.rotation.x = Math.sin(t*20 + i*Math.PI)*0.4; });
+
+  /* الغيوم */
+  clouds.forEach(c=>{
+    c.mesh.position.x += c.speed*delta;
+    if(c.mesh.position.x > 22) c.mesh.position.x = -22;
+  });
+
+  /* مؤشر الفأرة */
+  if(hoverPending){
+    const root = castAt(hoverPending.clientX, hoverPending.clientY);
+    renderer.domElement.style.cursor = root ? 'pointer' : 'grab';
+    hoverPending = null;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+
+  if(!loaderHidden){
+    loaderHidden = true;
+    document.getElementById('loader').classList.add('hidden');
+  }
+}
+tick();
+</script>
+</body>
+</html>

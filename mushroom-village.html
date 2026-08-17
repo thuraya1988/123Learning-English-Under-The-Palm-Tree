@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>🍄 قرية الفطر المتوهّج — عالم ثلاثي الأبعاد</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/cairo@latest/index.css"/>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0d0a14;font-family:'Cairo',sans-serif}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .vignette{position:fixed;inset:0;pointer-events:none;z-index:2;
+    background:radial-gradient(ellipse at 50% 42%, transparent 50%, rgba(5,3,12,.55) 100%)}
+  .hud{position:fixed;z-index:5;pointer-events:none}
+  #title{bottom:18px;right:18px;background:rgba(20,14,32,.65);backdrop-filter:blur(12px);color:#ffe9c0;
+    padding:12px 20px;border-radius:18px;border:1px solid rgba(255,200,120,.3);box-shadow:0 8px 30px rgba(0,0,0,.5)}
+  #title h1{margin:0;font-size:17px;font-weight:800}
+  #title p{margin:3px 0 0;font-size:11px;opacity:.75;color:#b8a8d8}
+  #hint{top:16px;right:50%;transform:translateX(50%);background:rgba(20,14,32,.55);backdrop-filter:blur(8px);
+    color:#ffe9c0;padding:8px 18px;border-radius:999px;font-size:12px;border:1px solid rgba(255,200,120,.25);transition:opacity 1s;white-space:nowrap}
+  #hint.hide{opacity:0}
+  #btns{top:16px;left:16px;display:flex;gap:8px;flex-wrap:wrap}
+  .btn{pointer-events:auto;cursor:pointer;border:1px solid rgba(255,200,120,.35);background:rgba(30,22,44,.8);
+    color:#ffe9c0;border-radius:999px;padding:8px 16px;font-size:12px;font-family:'Cairo',sans-serif;font-weight:700;
+    backdrop-filter:blur(8px);transition:.2s;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+  .btn:hover{background:rgba(60,44,80,.9);transform:translateY(-1px)}
+  .btn.active{background:linear-gradient(135deg,#e8a33a,#d05a3a);color:#fff;border-color:rgba(255,220,150,.6)}
+  .btn.glow{background:linear-gradient(135deg,#8a63d8,#4a90d9);color:#fff;border-color:rgba(255,255,255,.4)}
+  #loader{position:fixed;inset:0;background:#0d0a14;display:flex;flex-direction:column;gap:14px;align-items:center;
+    justify-content:center;z-index:10;transition:opacity .9s;color:#ffe9c0;font-size:14px;font-weight:700}
+  #loader.done{opacity:0;pointer-events:none}
+  .spin{width:52px;height:52px;border-radius:50%;border:5px solid rgba(255,200,120,.2);border-top-color:#e8a33a;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+<script type="importmap">
+{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/examples/jsm/"}}
+</script>
+<script src="public/js/palm-games-fab.js" defer></script>
+</head>
+<body>
+<div id="app"></div>
+<div class="vignette"></div>
+<div id="loader"><div class="spin"></div><div>جارٍ إيقاظ الفطر المتوهّج… 🍄</div></div>
+<div class="hud" id="hint">اسحب للاستدارة • العجلة للتقريب • فعّل «تعزيز التوهّج» ✨ لمزيد من السحر</div>
+<div class="hud" id="btns">
+  <button class="btn glow" id="btnGlow">✨ تعزيز التوهّج</button>
+  <button class="btn active" id="btnFog">🌫️ الضباب</button>
+  <button class="btn active" id="btnRotate">🔄 تدوير تلقائي</button>
+  <button class="btn" id="btnReset">🎯 إعادة الكاميرا</button>
+</div>
+<div class="hud" id="title">
+  <h1>🍄 قرية الفطر المتوهّج</h1>
+  <p>عالم ليلي ثلاثي الأبعاد عالي الجودة — بيوت الفطر المضيئة وجسيمات الأبواغ الساحرة</p>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ================= الأساسيات ================= */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x0d0a14, 20, 80);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 400);
+camera.position.set(0, 7.5, 25);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 7, -1);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.6;
+controls.minDistance = 6;
+controls.maxDistance = 60;
+controls.maxPolarAngle = 1.52;
+
+/* ================= السماء المرقّطة ================= */
+const skyUniforms = { uTime:{ value:0 } };
+scene.add(new THREE.Mesh(
+  new THREE.SphereGeometry(200, 32, 20),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite:false, uniforms: skyUniforms,
+    vertexShader:'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+    fragmentShader:[
+      'varying vec3 vP; uniform float uTime;',
+      'void main(){',
+      '  vec3 d = normalize(vP);',
+      '  float h = clamp(d.y*0.5+0.5, 0.0, 1.0);',
+      '  vec3 top = vec3(0.05,0.10,0.13);',
+      '  vec3 bot = vec3(0.10,0.06,0.14);',
+      '  vec3 col = mix(bot, top, pow(h,0.65));',
+      '  float n1 = sin(d.x*4.0+uTime*0.06)*sin(d.y*5.0+uTime*0.04)*sin(d.z*4.5);',
+      '  float n2 = sin(d.x*7.0-uTime*0.05)*sin(d.y*8.0)*sin(d.z*6.0+uTime*0.03);',
+      '  col += vec3(0.06,0.16,0.16)*smoothstep(0.25,0.9,n1);',
+      '  col += vec3(0.13,0.06,0.17)*smoothstep(0.30,0.9,n2);',
+      '  gl_FragColor = vec4(col,1.0);',
+      '}'
+    ].join('\n')
+  })
+));
+
+/* ================= الإضاءة ================= */
+scene.add(new THREE.HemisphereLight(0x3a4a6a, 0x1a1016, 0.5));
+const moon = new THREE.DirectionalLight(0x7fb8ff, 0.55);
+moon.position.set(-14, 26, 12);
+moon.castShadow = true;
+moon.shadow.mapSize.set(2048, 2048);
+moon.shadow.camera.left = -24; moon.shadow.camera.right = 24;
+moon.shadow.camera.top = 26; moon.shadow.camera.bottom = -10;
+moon.shadow.camera.near = 2; moon.shadow.camera.far = 80;
+moon.shadow.bias = -0.0004;
+scene.add(moon);
+
+/* ================= أدوات وخامات ================= */
+const winGlows = [], gillMats = [], warmLights = [];
+let glowBoost = 1.0;
+function M(color, rough, extra){
+  return new THREE.MeshStandardMaterial(Object.assign({ color, roughness: rough===undefined?0.8:rough, metalness:0 }, extra||{}));
+}
+function addM(geo, mtrl, parent, x=0, y=0, z=0){
+  const m = new THREE.Mesh(geo, mtrl);
+  m.position.set(x,y,z);
+  m.castShadow = true; m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+function canvasTex(size, fn){
+  const cv = document.createElement('canvas'); cv.width = cv.height = size;
+  const cx = cv.getContext('2d'); fn(cx, size);
+  const tx = new THREE.CanvasTexture(cv);
+  tx.colorSpace = THREE.SRGBColorSpace;
+  return tx;
+}
+function makeCapTex(base, cols){
+  return canvasTex(512, (g,s)=>{
+    const grd = g.createLinearGradient(0,0,0,s);
+    grd.addColorStop(0, base); grd.addColorStop(1, '#0a0a12');
+    g.fillStyle = grd; g.fillRect(0,0,s,s);
+    for(let i=0;i<650;i++){
+      const c = cols[Math.floor(Math.random()*cols.length)];
+      g.globalAlpha = 0.35+Math.random()*0.65;
+      g.fillStyle = c;
+      const r = 0.6+Math.random()*2.6;
+      g.beginPath(); g.arc(Math.random()*s, Math.random()*s*0.85, r, 0, 7); g.fill();
+      if(Math.random()<0.12){ g.shadowColor = c; g.shadowBlur = 8; g.beginPath(); g.arc(Math.random()*s, Math.random()*s*0.8, r+1, 0, 7); g.fill(); g.shadowBlur = 0; }
+    }
+    g.globalAlpha = 1;
+  });
+}
+function makeStemTex(c1, c2){
+  return canvasTex(256, (g,s)=>{
+    const grd = g.createLinearGradient(0,s,0,0);
+    grd.addColorStop(0, c1); grd.addColorStop(0.55, c2); grd.addColorStop(1, c2);
+    g.fillStyle = grd; g.fillRect(0,0,s,s);
+    g.globalAlpha = 0.12;
+    for(let i=0;i<60;i++){
+      g.fillStyle = Math.random()<0.5 ? '#000000' : '#ffffff';
+      g.beginPath(); g.ellipse(Math.random()*s, Math.random()*s, 2+Math.random()*10, 6+Math.random()*22, 0, 0, 7); g.fill();
+    }
+    g.globalAlpha = 1;
+  });
+}
+function makeGillTex(){
+  return canvasTex(256, (g,s)=>{
+    const c = s/2;
+    const grd = g.createRadialGradient(c,c,4,c,c,c);
+    grd.addColorStop(0,'#ffe9a8'); grd.addColorStop(0.5,'#ffb54a'); grd.addColorStop(1,'#c86a1a');
+    g.fillStyle = grd; g.fillRect(0,0,s,s);
+    for(let i=0;i<72;i++){
+      const a = i/72*Math.PI*2;
+      g.strokeStyle = i%2 ? 'rgba(200,90,20,0.55)' : 'rgba(255,230,160,0.5)';
+      g.lineWidth = 2;
+      g.beginPath(); g.moveTo(c,c);
+      g.lineTo(c+Math.cos(a)*c, c+Math.sin(a)*c); g.stroke();
+    }
+  });
+}
+const gillTex = makeGillTex();
+
+/* ================= هندسة الفطر ================= */
+function stemRadius(t, rB){
+  let r = rB*(1.15*Math.exp(-t*6) + 0.55 + 0.25*Math.sin(t*2.2) - 0.15*t);
+  if(t>0.92) r = Math.max(r*(1-(t-0.92)*6), 0.12);
+  return Math.max(r, 0.12);
+}
+function bendX(bend, H, t){ return bend*t*t*H*0.12; }
+function stemGeometry(H, rB, bend){
+  const pts=[]; const N=28;
+  for(let i=0;i<=N;i++){
+    const t=i/N;
+    pts.push(new THREE.Vector2(stemRadius(t, rB), t*H));
+  }
+  const geo = new THREE.LatheGeometry(pts, 28);
+  const pos = geo.attributes.position;
+  for(let i=0;i<pos.count;i++){
+    const t = pos.getY(i)/H;
+    pos.setX(i, pos.getX(i) + bendX(bend, H, t));
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+function capGeometry(R){
+  const pts = [ [0.001,1.0],[0.35,0.98],[0.62,0.88],[0.85,0.68],[1.0,0.42],[1.06,0.2],[1.02,0.06],[0.92,0.0],[0.8,-0.04],[0.4,-0.08],[0.001,-0.1] ]
+    .map(p=>new THREE.Vector2(p[0]*R, p[1]*R));
+  return new THREE.LatheGeometry(pts, 40);
+}
+function archWindow(w, h){
+  const g = new THREE.Group();
+  const shape = new THREE.Shape();
+  shape.moveTo(-w/2, 0); shape.lineTo(-w/2, h-w/2);
+  shape.absarc(0, h-w/2, w/2, Math.PI, 0, true);
+  shape.lineTo(w/2, 0); shape.closePath();
+  const glowM = new THREE.MeshStandardMaterial({ color:0xffc06a, emissive:0xff9a30, emissiveIntensity:2.2, roughness:0.4 });
+  winGlows.push(glowM);
+  const frame = new THREE.Mesh(new THREE.ShapeGeometry(shape, 16), M('#241a10', 0.9));
+  frame.scale.setScalar(1.18); frame.position.z = -0.03;
+  g.add(frame);
+  g.add(new THREE.Mesh(new THREE.ShapeGeometry(shape, 16), glowM));
+  const barM = M('#241a10', 0.9);
+  const b1 = new THREE.Mesh(new THREE.BoxGeometry(w*0.09, h*0.95, 0.06), barM); b1.position.set(0, h*0.5, 0.04); g.add(b1);
+  const b2 = new THREE.Mesh(new THREE.BoxGeometry(w*0.95, w*0.09, 0.06), barM); b2.position.set(0, h*0.52, 0.04); g.add(b2);
+  return g;
+}
+function doorGroup(){
+  const g = new THREE.Group();
+  const frame = new THREE.Mesh(new THREE.CircleGeometry(1.1, 24), M('#3a6a8a', 0.7));
+  frame.scale.set(0.92, 1.55, 1); frame.position.set(0, 1.55, -0.02);
+  g.add(frame);
+  const door = new THREE.Mesh(new THREE.CircleGeometry(1.0, 24), M('#1e3a5f', 0.55));
+  door.scale.set(0.82, 1.42, 1); door.position.set(0, 1.45, 0);
+  g.add(door);
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), M('#d4a437', 0.4));
+  knob.position.set(0.28, 1.4, 0.06); g.add(knob);
+  for(let i=0;i<5;i++){
+    const st = new THREE.Mesh(new THREE.BoxGeometry(2.2 - i*0.2, 0.16, 0.6), M('#4a3a2e', 0.95));
+    st.position.set(0, 0.08 + i*0.15, 0.9 + (4-i)*0.42);
+    st.receiveShadow = true;
+    g.add(st);
+  }
+  return g;
+}
+
+/* ================= بناء القرية ================= */
+const village = new THREE.Group();
+scene.add(village);
+const shroomCfg = [
+  { x:1.2,  z:-2.5, H:16, rB:1.6, capR:5.6, cap:'#26397c', dotCols:['#9ffbe8','#e85aa0','#f6cf54','#ffffff','#4a90d9'], s1:'#d85a28', s2:'#b8a0d0', bend:0.9,  wins:[[0.5,11.5,1.0,2.1],[-0.4,8.0,0.8,1.7],[0.15,13.5,0.7,1.5]] },
+  { x:6.0,  z:-3.0, H:11, rB:1.3, capR:4.2, cap:'#6a4018', dotCols:['#f6cf54','#ffffff','#e8a33a','#9ffbe8'], s1:'#c8b090', s2:'#e8dcc0', bend:-0.6, wins:[[0.4,7.0,0.9,1.9],[-0.5,4.5,0.7,1.4]] },
+  { x:-2.6, z:-1.0, H:12, rB:1.4, capR:3.4, cap:'#3a55a0', dotCols:['#9ffbe8','#ffffff','#f6cf54','#e85aa0'], s1:'#7088a0', s2:'#d0c0a0', bend:-1.1, wins:[[0.25,6.5,1.1,2.3],[-0.7,3.6,0.7,1.5]], door:true },
+  { x:-4.8, z:-4.5, H:9,  rB:1.0, capR:2.4, cap:'#3a55a0', dotCols:['#ffffff','#9ffbe8','#f6cf54'], s1:'#b8a888', s2:'#e0d4b8', bend:-0.8, wins:[[0.4,5.0,0.6,1.2]] },
+  { x:-6.8, z:-2.5, H:7,  rB:1.1, capR:2.7, cap:'#3f6b4f', dotCols:['#f6cf54','#9ffbe8','#ffffff'], s1:'#c8b898', s2:'#e0d4b8', bend:0.5, wins:[[0.4,3.8,0.7,1.4]] },
+  { x:-9.5, z:0.5,  H:3.6,rB:0.8, capR:1.8, cap:'#b03050', dotCols:['#ffffff','#f6cf54'], s1:'#d0b898', s2:'#e8dcc0', bend:0.3, wins:[] },
+  { x:9.0,  z:0.5,  H:4.6,rB:0.9, capR:2.2, cap:'#c05020', dotCols:['#ffffff','#f6cf54','#e8a33a'], s1:'#d8c8ac', s2:'#efe4cc', bend:-0.3, wins:[[0.3,2.4,0.6,1.2]] },
+];
+shroomCfg.forEach(cfg=>{
+  const g = new THREE.Group();
+  g.position.set(cfg.x, 0, cfg.z);
+  g.rotation.y = (Math.random()-0.5)*0.5;
+  village.add(g);
+
+  const stem = addM(stemGeometry(cfg.H, cfg.rB, cfg.bend),
+    new THREE.MeshStandardMaterial({ map:makeStemTex(cfg.s1, cfg.s2), roughness:0.85 }), g);
+
+  const capTopX = bendX(cfg.bend, cfg.H, 1);
+  const cap = addM(capGeometry(cfg.capR),
+    new THREE.MeshStandardMaterial({ map:makeCapTex(cfg.cap, cfg.dotCols), roughness:0.55 }), g, capTopX, cfg.H, 0);
+
+  const gillM = new THREE.MeshBasicMaterial({ map:gillTex, side:THREE.DoubleSide });
+  gillMats.push(gillM);
+  const gill = new THREE.Mesh(new THREE.CircleGeometry(cfg.capR*0.92, 32), gillM);
+  gill.rotation.x = Math.PI/2;
+  gill.position.set(capTopX, cfg.H - 0.02*cfg.capR, 0);
+  g.add(gill);
+
+  const capLight = new THREE.PointLight(0xff9a3a, 1.3, cfg.capR*4.5, 1.8);
+  capLight.position.set(capTopX, cfg.H - 0.4*cfg.capR, 0);
+  capLight.userData.base = 1.3;
+  g.add(capLight);
+  warmLights.push(capLight);
+
+  cfg.wins.forEach(w=>{
+    const t = w[1]/cfg.H;
+    const r = stemRadius(t, cfg.rB);
+    const win = archWindow(w[2], w[3]);
+    win.position.set(bendX(cfg.bend, cfg.H, t) + Math.sin(w[0])*r*0.92, w[1], Math.cos(w[0])*r*0.92);
+    win.rotation.y = w[0];
+    g.add(win);
+  });
+
+  if(cfg.door){
+    const d = doorGroup();
+    d.position.set(bendX(cfg.bend, cfg.H, 0.08), 0, stemRadius(0.08, cfg.rB)*0.85);
+    g.add(d);
+    const doorLight = new THREE.PointLight(0xffb54a, 0.9, 8, 2);
+    doorLight.position.set(0, 2.4, 2.2);
+    doorLight.userData.base = 0.9;
+    g.add(doorLight);
+    warmLights.push(doorLight);
+  }
+});
+
+/* ================= الأرض والمسار ================= */
+const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 40), M('#171216', 1));
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+scene.add(ground);
+{
+  const shape = new THREE.Shape();
+  shape.moveTo(-1.6, 0); shape.lineTo(1.6, 0); shape.lineTo(2.8, 13); shape.lineTo(-2.8, 13); shape.closePath();
+  const path = new THREE.Mesh(new THREE.ShapeGeometry(shape), M('#584838', 1));
+  path.rotation.x = -Math.PI/2;
+  path.position.set(-2.4, 0.03, 2.2);
+  path.receiveShadow = true;
+  scene.add(path);
+}
+
+/* ================= شجيرات متلألئة ================= */
+const sparklePts = [];
+const palette = ['#4fd6c8','#e8a33a','#8a63d8','#4a90d9','#e85aa0','#f6cf54','#ffffff'];
+function sparkleBush(x, z, s){
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  scene.add(g);
+  const bm = M('#141018', 1);
+  const b1 = addM(new THREE.SphereGeometry(1.1*s, 12, 10), bm, g, 0, 0.5*s, 0); b1.scale.y = 0.6;
+  const b2 = addM(new THREE.SphereGeometry(0.8*s, 12, 10), bm, g, 0.9*s, 0.4*s, 0.3*s); b2.scale.y = 0.6;
+  const N = 150;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(N*3); const col = new Float32Array(N*3);
+  const c = new THREE.Color();
+  for(let i=0;i<N;i++){
+    const a = Math.random()*Math.PI*2, r = Math.random()*1.7*s;
+    pos[i*3] = Math.cos(a)*r; pos[i*3+1] = 0.2+Math.random()*1.2*s; pos[i*3+2] = Math.sin(a)*r*0.7;
+    c.set(palette[Math.floor(Math.random()*palette.length)]);
+    col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const pm = new THREE.PointsMaterial({ size:0.09, vertexColors:true, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false });
+  const pts = new THREE.Points(geo, pm);
+  g.add(pts);
+  sparklePts.push({ obj:pts, phase:Math.random()*6.28 });
+}
+[[-7,4,1.3],[6.5,5,1.4],[-3,6.5,1.1],[9,3,1.0],[-10,2,0.9],[2,7,1.0]].forEach(p=>sparkleBush(p[0], p[1], p[2]));
+
+/* ================= جسيمات الأبواغ (بوكيه) ================= */
+const bokehLayers = [];
+function makeBokeh(count, size, opacity){
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(count*3); const col = new Float32Array(count*3);
+  const speeds = new Float32Array(count);
+  const c = new THREE.Color();
+  for(let i=0;i<count;i++){
+    pos[i*3] = (Math.random()-0.5)*80;
+    pos[i*3+1] = 0.5 + Math.random()*28;
+    pos[i*3+2] = -35 + Math.random()*47;
+    c.set(palette[Math.floor(Math.random()*palette.length)]);
+    col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
+    speeds[i] = 0.25 + Math.random()*0.7;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const m = new THREE.PointsMaterial({ size, vertexColors:true, transparent:true, opacity, blending:THREE.AdditiveBlending, depthWrite:false });
+  const pts = new THREE.Points(geo, m);
+  scene.add(pts);
+  bokehLayers.push({ pts, speeds, count });
+}
+makeBokeh(280, 0.35, 0.85);
+makeBokeh(90, 1.1, 0.3);
+
+/* ================= جر مضيء يمين ================= */
+{
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.35, 14, 12), new THREE.MeshBasicMaterial({ color:0xffd78a }));
+  orb.position.set(12, 2.4, 4);
+  scene.add(orb);
+  const orbLight = new THREE.PointLight(0xffb54a, 1.4, 16, 2);
+  orbLight.position.copy(orb.position);
+  orbLight.userData.base = 1.4;
+  scene.add(orbLight);
+  warmLights.push(orbLight);
+}
+
+/* ================= الأزرار ================= */
+let fogOn = true;
+const btnGlow = document.getElementById('btnGlow');
+const btnFog = document.getElementById('btnFog');
+const btnRotate = document.getElementById('btnRotate');
+btnGlow.addEventListener('click', ()=>{
+  glowBoost = glowBoost > 1.2 ? 1.0 : 1.9;
+  btnGlow.classList.toggle('active', glowBoost > 1.2);
+});
+btnFog.addEventListener('click', ()=>{
+  fogOn = !fogOn;
+  btnFog.classList.toggle('active', fogOn);
+  scene.fog = fogOn ? new THREE.Fog(0x0d0a14, 20, 80) : new THREE.Fog(0x0d0a14, 60, 190);
+});
+btnRotate.addEventListener('click', ()=>{
+  controls.autoRotate = !controls.autoRotate;
+  btnRotate.classList.toggle('active', controls.autoRotate);
+});
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  camera.position.set(0, 7.5, 25);
+  controls.target.set(0, 7, -1);
+});
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+setTimeout(()=>document.getElementById('hint').classList.add('hide'), 8000);
+
+/* ================= الحلقة ================= */
+const clock = new THREE.Clock();
+let firstFrame = true;
+function tick(){
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+  skyUniforms.uTime.value = t;
+
+  /* وميض دافئ */
+  const flick = 0.92 + 0.08*Math.sin(t*6.3) * Math.sin(t*2.1);
+  warmLights.forEach((L,i)=>{ L.intensity = L.userData.base * glowBoost * (0.9 + 0.1*Math.sin(t*7 + i*1.7)); });
+  winGlows.forEach(m=>{ m.emissiveIntensity = 2.2 * glowBoost * flick; });
+  gillMats.forEach((m,i)=>{ const s = glowBoost * (0.95 + 0.05*Math.sin(t*5 + i)); m.color.setRGB(s, s*0.92, s*0.8); });
+  sparklePts.forEach(s=>{ s.obj.material.opacity = 0.65 + 0.3*Math.sin(t*2.2 + s.phase); });
+
+  /* انجراف الأبواغ */
+  bokehLayers.forEach(layer=>{
+    const pos = layer.pts.geometry.attributes.position;
+    for(let i=0;i<layer.count;i++){
+      let y = pos.getY(i) + layer.speeds[i]*dt;
+      if(y > 29) y = 0.5;
+      pos.setY(i, y);
+      pos.setX(i, pos.getX(i) + Math.sin(t*0.4 + i)*dt*0.3);
+    }
+    pos.needsUpdate = true;
+  });
+
+  controls.update();
+  renderer.render(scene, camera);
+  if(firstFrame){ firstFrame = false; document.getElementById('loader').classList.add('done'); }
+  requestAnimationFrame(tick);
+}
+tick();
+</script>
+</body>
+</html>

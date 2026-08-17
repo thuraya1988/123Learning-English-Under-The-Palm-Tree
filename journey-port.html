@@ -1,0 +1,1769 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تحت شجرة النخيل · ميناء عماني متكامل</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/700.css">
+<link rel="icon" type="image/png" href="public/favicon.png">
+<style>
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; overflow:hidden; background:#0d3f66;
+    font-family:'Cairo','Segoe UI',sans-serif; }
+  #app{ position:fixed; inset:0; }
+  #app canvas{ display:block; }
+  .vignette{ position:fixed; inset:0; pointer-events:none; z-index:5;
+    background:radial-gradient(ellipse at center, transparent 62%, rgba(10,44,72,.30) 100%); }
+  .panel{ position:fixed; z-index:10; background:rgba(24,16,8,.72);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(226,178,110,.28); border-radius:12px;
+    box-shadow:0 10px 34px rgba(0,0,0,.45); color:#efe3cd; }
+  #info{ top:18px; right:18px; padding:14px 18px 12px; max-width:370px; text-align:right; }
+  #info h1{ margin:0; font-size:24px; font-weight:700; color:#f4e8d0; line-height:1.3; }
+  #info h1 em{ font-style:normal; color:#e0a35c; }
+  #info .latin{ font-size:10px; letter-spacing:.3em; color:#a98d5f; font-weight:600; margin-top:2px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .chip{ font-size:11px; color:#e2d3b4; border:1px solid rgba(226,178,110,.32);
+    border-radius:20px; padding:2px 10px; background:rgba(226,178,110,.08); }
+  #back{ position:fixed; top:18px; left:18px; z-index:11; padding:9px 15px; border-radius:999px;
+    background:rgba(24,16,8,.8); border:1px solid rgba(226,178,110,.4); color:#f0e4c8;
+    font-family:inherit; font-size:12px; font-weight:700; text-decoration:none;
+    backdrop-filter:blur(8px); }
+  #back:hover{ background:rgba(96,68,34,.95); }
+  #controls{ bottom:18px; left:50%; transform:translateX(-50%); padding:10px 16px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;
+    max-width:calc(100vw - 24px); }
+  .grp{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .grp > span{ font-size:11px; font-weight:700; color:#c99d5f; margin-left:4px; }
+  .sep{ width:1px; height:26px; background:rgba(226,178,110,.25); }
+  .btn{ font-family:inherit; font-size:12px; font-weight:600; color:#f0e4c8;
+    background:rgba(52,38,20,.8); border:1px solid rgba(226,178,110,.4);
+    border-radius:7px; padding:6px 12px; cursor:pointer; transition:all .18s ease; }
+  .btn:hover{ background:rgba(96,68,34,.95); border-color:rgba(240,200,140,.7); }
+  .btn.active{ background:#e0a35c; color:#241505; border-color:#e0a35c;
+    box-shadow:0 0 16px rgba(224,163,92,.4); }
+  .btn:focus-visible{ outline:2px solid #f0c987; outline-offset:2px; }
+  #hint{ position:fixed; bottom:20px; left:18px; z-index:10; font-size:11px;
+    color:rgba(240,227,200,.55); line-height:1.9; pointer-events:none; text-align:left; }
+  #loading{ position:fixed; inset:0; z-index:50; background:#1a120a;
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    transition:opacity .7s ease; }
+  #loading.done{ opacity:0; pointer-events:none; }
+  .ld-t{ font-size:30px; font-weight:700; color:#f4e8d0; }
+  .ld-t em{ font-style:normal; color:#e0a35c; }
+  .ld-s{ margin-top:10px; font-size:13px; color:#c99d5f; animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:.35; } 50%{ opacity:1; } }
+  @media (max-width:760px){
+    #info{ max-width:250px; padding:10px 14px; }
+    #info h1{ font-size:18px; }
+    #hint{ display:none; }
+    .sep{ display:none; }
+  }
+</style>
+<script src="public/js/palm-games-fab.js" defer></script>
+</head>
+<body>
+<div id="app"></div>
+<div class="vignette"></div>
+
+<a id="back" href="date-journey.html">→ رجوع للرحلة</a>
+
+<header id="info" class="panel">
+  <h1>تحت <em>شجرة النخيل</em></h1>
+  <div class="latin">HARBOR · OMANI DHOW FLEET</div>
+  <div class="chips">
+    <span class="chip">سفينة عملاقة موسعة</span>
+    <span class="chip">ميناء متكامل</span>
+    <span class="chip">سفن صغيرة متعددة</span>
+    <span class="chip">رصيف ومخازن ومنارة</span>
+    <span class="chip">شاطئ ونخيل</span>
+    <span class="chip">بحر وانعكاسات</span>
+  </div>
+</header>
+
+<div id="controls" class="panel">
+  <div class="grp"><span>التحكم</span>
+    <button id="btnRock" class="btn active" title="تمايل السفن على الأمواج">تمايل السفن</button>
+    <button id="btnOrbit" class="btn active" title="دوران الكاميرا">دوران الكاميرا</button>
+    <button id="btnWire" class="btn" title="عرض سلكي">شبكة سلكية</button>
+    <button id="btnSound" class="btn" title="أصوات البحر والنوارس">🔈 الأصوات</button>
+  </div>
+  <div class="sep"></div>
+  <div class="grp"><span>زوايا العرض</span>
+    <button class="btn view active" data-v="general">عامة</button>
+    <button class="btn view" data-v="port">الميناء</button>
+    <button class="btn view" data-v="ship">السفينة</button>
+    <button class="btn view" data-v="fleet">الأسطول</button>
+    <button class="btn view" data-v="lighthouse">المنارة</button>
+  </div>
+</div>
+
+<div id="hint">اسحب: تدوير &nbsp;·&nbsp; العجلة: تقريب &nbsp;·&nbsp; الزر الأيمن: تحريك</div>
+
+<div id="loading">
+  <div class="ld-t">تحت <em>شجرة النخيل</em></div>
+  <div class="ld-s">جارٍ بناء الميناء والأسطول…</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
+
+await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 1400))]);
+
+/* ================= أساسيات العرض ================= */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x9dcbe2, 200, 680);
+
+const camera = new THREE.PerspectiveCamera(44, innerWidth/innerHeight, 0.1, 800);
+camera.position.set(45, 20, 55);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 4, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 8;
+controls.maxDistance = 180;
+controls.maxPolarAngle = 1.50;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.3;
+
+/* ================= أدوات الرسم الإجرائي ================= */
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+function makeTex(w, h, painter){
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  painter(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = maxAniso;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function drawPalm(g, cx, cy, s, dark){
+  g.strokeStyle = dark; g.lineCap = 'round';
+  g.lineWidth = s*0.09;
+  g.beginPath(); g.moveTo(cx - s*0.06, cy + s*0.5);
+  g.quadraticCurveTo(cx + s*0.10, cy + s*0.1, cx + s*0.02, cy - s*0.25); g.stroke();
+  g.lineWidth = s*0.055;
+  const tx = cx + s*0.02, ty = cy - s*0.25;
+  for (let i=0;i<7;i++){
+    const a = -Math.PI*0.95 + i*(Math.PI*0.9/6);
+    g.beginPath(); g.moveTo(tx, ty);
+    g.quadraticCurveTo(tx + Math.cos(a)*s*0.32, ty + Math.sin(a)*s*0.32 - s*0.08,
+      tx + Math.cos(a)*s*0.5, ty + Math.sin(a)*s*0.42 + s*0.1);
+    g.stroke();
+  }
+}
+
+/* --- خامة الخشب --- */
+function paintWood(g, w, h, o){
+  o = Object.assign({ rows:14, vertical:false, gray:false, nails:true, salt:false, cols:null }, o||{});
+  const pal = o.cols || (o.gray
+    ? ['#7f7f7f','#747474','#8a8a8a','#6b6b6b','#808080','#8f8f8f']
+    : ['#8f6f4a','#7c5c3a','#9a7a52','#6f5234','#846242','#a08055']);
+  g.fillStyle = o.gray ? '#787878' : '#82623e';
+  g.fillRect(0,0,w,h);
+  const rows = o.rows, step = (o.vertical ? w : h)/rows;
+  for (let i=0;i<rows;i++){
+    g.fillStyle = pal[i % pal.length];
+    if (o.vertical) g.fillRect(i*step, 0, step, h); else g.fillRect(0, i*step, w, step);
+    g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+    if (o.vertical) g.fillRect(i*step,0,step,h); else g.fillRect(0,i*step,w,step);
+    for (let k=0;k<7;k++){
+      g.strokeStyle = o.gray ? 'rgba(40,40,40,0.25)'
+        : (Math.random()<0.75 ? 'rgba(58,38,20,0.20)' : 'rgba(214,186,142,0.12)');
+      g.lineWidth = 0.8 + Math.random()*1.4;
+      g.beginPath();
+      if (o.vertical){
+        const x = i*step + 3 + Math.random()*(step-6);
+        g.moveTo(x, -5);
+        for (let y=0;y<=h;y+=h/6) g.lineTo(x + Math.sin(y*0.02+k)*2.2 + Math.random()*1.2, y);
+      } else {
+        const y = i*step + 3 + Math.random()*(step-6);
+        g.moveTo(-5, y);
+        for (let x=0;x<=w;x+=w/6) g.lineTo(x, y + Math.sin(x*0.02+k)*2.2 + Math.random()*1.2);
+      }
+      g.stroke();
+    }
+    g.fillStyle = o.gray ? 'rgba(30,30,30,0.25)' : 'rgba(45,30,16,0.28)';
+    for (let p=0;p<55;p++){
+      if (o.vertical) g.fillRect(i*step+Math.random()*step, Math.random()*h, 1, 2+Math.random()*3);
+      else g.fillRect(Math.random()*w, i*step+Math.random()*step, 2+Math.random()*3, 1);
+    }
+    g.fillStyle = o.gray ? 'rgba(20,20,20,0.8)' : 'rgba(30,20,12,0.85)';
+    if (o.vertical) g.fillRect(i*step-1, 0, 2.4, h); else g.fillRect(0, i*step-1, w, 2.4);
+    g.fillStyle = 'rgba(255,240,210,0.10)';
+    if (o.vertical) g.fillRect(i*step+2, 0, 1.2, h); else g.fillRect(0, i*step+2, w, 1.2);
+    const joints = 2 + (i % 2);
+    for (let jj=0;jj<joints;jj++){
+      const pos = ((i*53 + jj*197) % 100)/100;
+      g.fillStyle = o.gray ? 'rgba(20,20,20,0.7)' : 'rgba(30,20,12,0.7)';
+      if (o.vertical) g.fillRect(i*step, pos*h, step, 2);
+      else g.fillRect(pos*w, i*step, 2, step);
+    }
+    if (o.nails){
+      g.fillStyle = o.gray ? '#d0d0d0' : '#2e241a';
+      if (o.vertical){
+        for (let y=14;y<h-8;y+=46){
+          g.beginPath(); g.arc(i*step+5, y, 1.8, 0, 6.283); g.fill();
+          g.beginPath(); g.arc((i+1)*step-5, y+20, 1.8, 0, 6.283); g.fill();
+        }
+      } else {
+        for (let x=14;x<w-8;x+=46){
+          g.beginPath(); g.arc(x + (i%2)*22, i*step+5, 1.8, 0, 6.283); g.fill();
+          g.beginPath(); g.arc(x + (i%2)*22, (i+1)*step-5, 1.8, 0, 6.283); g.fill();
+        }
+      }
+    }
+  }
+  if (o.salt && !o.gray){
+    const wy = h*0.545;
+    g.fillStyle = 'rgba(30,45,42,0.42)'; g.fillRect(0, wy, w, h-wy);
+    g.fillStyle = 'rgba(58,82,58,0.16)'; g.fillRect(0, wy+10, w, h-wy-10);
+    for (let i=0;i<900;i++){
+      g.fillStyle = 'rgba(235,238,230,' + (0.06+Math.random()*0.2) + ')';
+      g.fillRect(Math.random()*w, wy-26+Math.random()*34, 1.6, 1.6);
+    }
+    g.fillStyle = 'rgba(240,242,235,0.12)';
+    for (let i=0;i<14;i++){
+      const x = Math.random()*w;
+      g.fillRect(x, wy-40-Math.random()*70, 3, 40+Math.random()*70);
+    }
+  }
+}
+function paintRope(g, w, h){
+  g.fillStyle = '#b3935f'; g.fillRect(0,0,w,h);
+  for (let y=-h; y<h*2; y+=11){
+    g.strokeStyle = 'rgba(84,62,34,0.55)'; g.lineWidth = 4.5;
+    g.beginPath(); g.moveTo(0, y); g.lineTo(w, y+w); g.stroke();
+    g.strokeStyle = 'rgba(226,200,150,0.30)'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(0, y+5); g.lineTo(w, y+w+5); g.stroke();
+  }
+  for (let i=0;i<800;i++){
+    g.fillStyle = Math.random()<0.5 ? 'rgba(60,44,24,0.15)' : 'rgba(230,205,160,0.12)';
+    g.fillRect(Math.random()*w, Math.random()*h, 1.4, 1.4);
+  }
+}
+function paintCloth(g, w, h){
+  g.fillStyle = '#e8dfc8'; g.fillRect(0,0,w,h);
+  for (let y=0;y<h;y+=3){ g.fillStyle = y%6 ? 'rgba(120,105,80,0.05)' : 'rgba(255,255,255,0.05)'; g.fillRect(0,y,w,1); }
+  for (let x=0;x<w;x+=3){ g.fillStyle = x%6 ? 'rgba(120,105,80,0.04)' : 'rgba(255,255,255,0.04)'; g.fillRect(x,0,1,h); }
+  g.strokeStyle = 'rgba(140,120,90,0.5)'; g.lineWidth = 2;
+  for (let y=h*0.14; y<h; y+=h/6){
+    g.beginPath(); g.moveTo(0,y); g.lineTo(w,y); g.stroke();
+    g.strokeStyle = 'rgba(110,90,64,0.4)'; g.setLineDash([4,4]); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0,y+5); g.lineTo(w,y+5); g.stroke();
+    g.setLineDash([]); g.lineWidth = 2; g.strokeStyle = 'rgba(140,120,90,0.5)';
+  }
+  for (let i=0;i<3;i++){
+    const x = Math.random()*w*0.7, y = Math.random()*h*0.7, pw = 40+Math.random()*50, ph = 30+Math.random()*40;
+    g.fillStyle = 'rgba(190,178,150,0.35)'; g.fillRect(x,y,pw,ph);
+    g.strokeStyle = 'rgba(110,90,64,0.5)'; g.setLineDash([3,3]); g.lineWidth = 1;
+    g.strokeRect(x+3,y+3,pw-6,ph-6); g.setLineDash([]);
+  }
+  for (let i=0;i<40;i++){
+    g.fillStyle = 'rgba(120,104,78,' + (0.05+Math.random()*0.1) + ')';
+    g.fillRect(Math.random()*w, Math.random()*h, 3+Math.random()*8, 2+Math.random()*5);
+  }
+}
+function paintLogo(g, w, h, mode){
+  g.fillStyle = '#7a5a38'; g.fillRect(0,0,w,h);
+  const bp = ['#7d5d3b','#745433','#826242'];
+  for (let i=0;i<3;i++){ g.fillStyle = bp[i]; g.fillRect(0, i*h/3, w, h/3); }
+  g.strokeStyle = 'rgba(58,38,20,0.4)'; g.lineWidth = 1;
+  for (let i=0;i<24;i++){
+    const y = Math.random()*h;
+    g.beginPath(); g.moveTo(0,y);
+    for (let x=0;x<=w;x+=w/5) g.lineTo(x, y + Math.sin(x*0.03+i)*2);
+    g.stroke();
+  }
+  g.strokeStyle = '#3a2712'; g.lineWidth = Math.max(4, w*0.012);
+  g.strokeRect(w*0.03, h*0.06, w*0.94, h*0.88);
+  g.strokeStyle = '#c8a06a'; g.lineWidth = 1.5;
+  g.strokeRect(w*0.045, h*0.085, w*0.91, h*0.83);
+  const cx = w/2, cy = h*0.33, r = Math.min(w,h)*0.16;
+  g.strokeStyle = '#3a2712'; g.lineWidth = r*0.14;
+  g.beginPath(); g.arc(cx, cy, r, 0, 6.283); g.stroke();
+  drawPalm(g, cx, cy, r*1.5, '#3a2712');
+  const txt = (s, y, size, ls) => {
+    g.font = `700 ${size}px Cairo, sans-serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    try { g.letterSpacing = ls; } catch(e){}
+    g.fillStyle = 'rgba(224,192,142,0.55)';
+    g.fillText(s, cx + size*0.045, y + size*0.045);
+    g.fillStyle = '#2e1e0e';
+    g.fillText(s, cx, y);
+  };
+  if (mode === 'hull'){
+    txt('UNDER THE', h*0.62, h*0.115, '6px');
+    txt('PALM TREE', h*0.80, h*0.165, '8px');
+  } else {
+    txt('UNDER THE PALM TREE', h*0.70, h*0.115, '2px');
+  }
+}
+function paintFlag(g, w, h){
+  g.fillStyle = '#e9dfc6'; g.fillRect(0,0,w,h);
+  for (let y=0;y<h;y+=3){ g.fillStyle = 'rgba(120,105,80,0.06)'; g.fillRect(0,y,w,1); }
+  g.strokeStyle = '#3a2712'; g.lineWidth = 4; g.strokeRect(4,4,w-8,h-8);
+  const r = h*0.3;
+  g.strokeStyle = '#3a2712'; g.lineWidth = r*0.16;
+  g.beginPath(); g.arc(w*0.17, h/2, r, 0, 6.283); g.stroke();
+  drawPalm(g, w*0.17, h/2, r*1.5, '#3a2712');
+  g.font = `700 ${h*0.19}px Cairo, sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  try { g.letterSpacing = '1px'; } catch(e){}
+  g.fillStyle = '#2e1e0e';
+  g.fillText('UNDER THE PALM TREE', w*0.60, h*0.5);
+}
+/* سماء نهارية زرقاء صافية مع غيوم بيضاء */
+function paintSky(g, w, h){
+  const gr = g.createLinearGradient(0,0,0,h);
+  gr.addColorStop(0.00,'#0b4a9c');   // قمة السماء — أزرق عميق
+  gr.addColorStop(0.16,'#1c68bd');
+  gr.addColorStop(0.30,'#3f8ad4');
+  gr.addColorStop(0.44,'#63a5de');
+  gr.addColorStop(0.483,'#a9d6ee');  // ضباب الأفق الرفيع
+  gr.addColorStop(0.502,'#8ec0d6');
+  gr.addColorStop(0.62,'#4e9cb2');
+  gr.addColorStop(0.82,'#26707f');
+  gr.addColorStop(1.00,'#134c5c');   // البحر البعيد
+  g.fillStyle = gr; g.fillRect(0,0,w,h);
+
+  /* الشمس عالية وبيضاء */
+  const sun = g.createRadialGradient(w*0.30, h*0.16, 6, w*0.30, h*0.16, 190);
+  sun.addColorStop(0,'rgba(255,255,250,1)');
+  sun.addColorStop(0.16,'rgba(255,252,225,0.55)');
+  sun.addColorStop(1,'rgba(255,250,220,0)');
+  g.fillStyle = sun; g.fillRect(0,0,w,h);
+
+  /* غيوم ركامية بيضاء منفوشة */
+  function puffCloud(cx, cy, sc, alpha){
+    const puffs = 9 + Math.floor(Math.random()*6);
+    for (let p=0; p<puffs; p++){
+      const px = cx + (Math.random()-0.5)*150*sc;
+      const py = cy + (Math.random()-0.5)*26*sc;
+      const pr = (18 + Math.random()*30)*sc;
+      const cg = g.createRadialGradient(px, py-pr*0.25, pr*0.15, px, py, pr);
+      cg.addColorStop(0,   'rgba(255,255,255,'+alpha+')');
+      cg.addColorStop(0.55,'rgba(248,252,255,'+(alpha*0.72)+')');
+      cg.addColorStop(1,   'rgba(214,232,244,0)');
+      g.fillStyle = cg;
+      g.beginPath(); g.ellipse(px, py, pr*1.35, pr, 0, 0, 6.283); g.fill();
+    }
+    /* قاعدة رمادية خفيفة تحت الغيمة */
+    g.fillStyle = 'rgba(176,198,216,'+(alpha*0.30)+')';
+    g.beginPath(); g.ellipse(cx, cy+16*sc, 78*sc, 10*sc, 0, 0, 6.283); g.fill();
+  }
+  for (let i=0;i<18;i++) puffCloud(Math.random()*w, h*(0.05+Math.random()*0.24), 0.7+Math.random()*0.9, 0.95);
+  for (let i=0;i<14;i++) puffCloud(Math.random()*w, h*(0.30+Math.random()*0.14), 0.35+Math.random()*0.45, 0.75);
+
+  /* شرائط سمحاقية رفيعة عالية */
+  g.strokeStyle = 'rgba(255,255,255,0.30)'; g.lineWidth = 3;
+  for (let i=0;i<14;i++){
+    const y = h*(0.03+Math.random()*0.16), x = Math.random()*w, len = 60+Math.random()*180;
+    g.beginPath(); g.moveTo(x, y); g.bezierCurveTo(x+len*0.3, y-6, x+len*0.7, y+6, x+len, y); g.stroke();
+  }
+}
+function paintSand(g, w, h){
+  g.fillStyle = '#c9a978'; g.fillRect(0,0,w,h);
+  for (let i=0;i<3000;i++){
+    g.fillStyle = Math.random()<0.5 ? 'rgba(230,200,150,' + (0.2+Math.random()*0.4) + ')' : 'rgba(120,90,60,' + (0.1+Math.random()*0.3) + ')';
+    g.fillRect(Math.random()*w, Math.random()*h, 1+Math.random(), 1+Math.random());
+  }
+}
+function paintStone(g, w, h){
+  g.fillStyle = '#9a8872'; g.fillRect(0,0,w,h);
+  const cols = ['#8a7862','#a89678','#7a6852','#b5a288','#9a8872','#6a5842'];
+  const bw = w/6, bh = h/8;
+  for (let j=0;j<8;j++){
+    for (let i=0;i<6;i++){
+      const ox = (j%2)*bw*0.5;
+      g.fillStyle = cols[(i+j)%cols.length];
+      g.fillRect(i*bw+ox+2, j*bh+2, bw-4, bh-4);
+      g.strokeStyle = 'rgba(30,20,12,0.6)'; g.lineWidth = 2;
+      g.strokeRect(i*bw+ox+2, j*bh+2, bw-4, bh-4);
+    }
+  }
+}
+
+/* ================= الإكساء ================= */
+const texHull    = makeTex(1024, 1024, (g,w,h)=>paintWood(g,w,h,{rows:16, salt:true}));
+const texHullB   = makeTex(1024, 1024, (g,w,h)=>paintWood(g,w,h,{rows:16, gray:true}));
+const texDeck    = makeTex(512, 512, (g,w,h)=>paintWood(g,w,h,{rows:12, vertical:true}));
+texDeck.repeat.set(0.35, 0.35);
+const texDeckB   = makeTex(512, 512, (g,w,h)=>paintWood(g,w,h,{rows:12, vertical:true, gray:true}));
+texDeckB.repeat.set(0.35, 0.35);
+const texDarkW   = makeTex(512, 512, (g,w,h)=>paintWood(g,w,h,{rows:6, cols:['#5c4126','#523a22','#65482c','#4a3420','#5f4429','#6b4d30']}));
+const texDarkB   = makeTex(512, 512, (g,w,h)=>paintWood(g,w,h,{rows:6, gray:true}));
+const texSpar    = makeTex(256, 512, (g,w,h)=>paintWood(g,w,h,{rows:3, vertical:true, cols:['#9a7a52','#8f7048','#a5855c'], nails:false}));
+const texBarrel  = makeTex(512, 512, (g,w,h)=>paintWood(g,w,h,{rows:12, vertical:true, cols:['#8a6742','#7b5a38','#94714a','#705232'], nails:false}));
+const texCrate   = makeTex(512, 512, (g,w,h)=>{
+  paintWood(g,w,h,{rows:5, cols:['#96754e','#886844','#a07e56','#7d5e3c']});
+  g.fillStyle = '#5c4126';
+  g.fillRect(0,0,w,h*0.09); g.fillRect(0,h*0.91,w,h*0.09);
+  g.fillRect(0,0,w*0.09,h); g.fillRect(w*0.91,0,w*0.09,h);
+  g.strokeStyle = 'rgba(30,20,12,0.8)'; g.lineWidth = 3;
+  g.strokeRect(w*0.045,h*0.045,w*0.91,h*0.91);
+  g.fillStyle = '#2e241a';
+  for (const p of [[0.06,0.06],[0.94,0.06],[0.06,0.94],[0.94,0.94]]){
+    g.beginPath(); g.arc(w*p[0], h*p[1], 5, 0, 6.283); g.fill();
+  }
+});
+const texRope  = makeTex(128, 128, paintRope);
+texRope.repeat.set(1, 20);
+const texCloth = makeTex(512, 512, paintCloth);
+const texLogoH = makeTex(1024, 384, (g,w,h)=>paintLogo(g,w,h,'hull'));
+const texLogoC = makeTex(512, 192, (g,w,h)=>paintLogo(g,w,h,'crate'));
+const texFlag  = makeTex(512, 200, paintFlag);
+const texSky   = makeTex(1024, 512, paintSky);
+texSky.mapping = THREE.EquirectangularReflectionMapping;
+const texSand  = makeTex(512, 512, paintSand);
+texSand.repeat.set(8, 8);
+const texStone = makeTex(512, 512, paintStone);
+texStone.repeat.set(2, 4);
+scene.background = texSky;
+
+const mats = [];
+const std = o => { const m = new THREE.MeshStandardMaterial(o); m.envMapIntensity = 0.85; mats.push(m); return m; };
+const matHull   = std({ map:texHull, bumpMap:texHullB, bumpScale:0.06, roughness:0.78, metalness:0.02, side:THREE.DoubleSide });
+const matDeck   = std({ map:texDeck, bumpMap:texDeckB, bumpScale:0.05, roughness:0.82, metalness:0.02 });
+const matDarkW  = std({ map:texDarkW, bumpMap:texDarkB, bumpScale:0.05, roughness:0.8, metalness:0.02 });
+const matSpar   = std({ map:texSpar, bumpMap:texSpar, bumpScale:0.03, roughness:0.75, metalness:0.02 });
+const matBarrel = std({ map:texBarrel, bumpMap:texBarrel, bumpScale:0.04, roughness:0.8 });
+const matCrate  = std({ map:texCrate, bumpMap:texCrate, bumpScale:0.04, roughness:0.85 });
+const matRope   = std({ map:texRope, bumpMap:texRope, bumpScale:0.04, roughness:0.95, metalness:0 });
+const matCloth  = std({ map:texCloth, bumpMap:texCloth, bumpScale:0.02, roughness:0.92, metalness:0, side:THREE.DoubleSide });
+const matLogoH  = std({ map:texLogoH, bumpMap:texLogoH, bumpScale:0.05, roughness:0.7 });
+const matFlag   = std({ map:texFlag, roughness:0.9, side:THREE.DoubleSide });
+const matMetal  = std({ color:0x3a362f, roughness:0.45, metalness:0.85 });
+const matIron   = std({ color:0x4a3a2a, roughness:0.75, metalness:0.55 });
+const matGlassD = std({ color:0x182226, roughness:0.15, metalness:0.6 });
+const matSand   = std({ map:texSand, roughness:0.95, metalness:0 });
+const matStone  = std({ map:texStone, roughness:0.9, metalness:0 });
+const matWhite  = std({ color:0xe8dcc4, roughness:0.85, metalness:0 });
+const matLighthouse = std({ color:0xf0e4cc, roughness:0.7, metalness:0.05 });
+const matBand   = std({ color:0x8a6a44, roughness:0.75, metalness:0.05 });
+
+/* بيئة الانعكاسات الدافئة */
+const pm = new THREE.PMREMGenerator(renderer);
+const envS = new THREE.Scene();
+envS.add(new THREE.Mesh(new THREE.SphereGeometry(60,24,12),
+  new THREE.MeshBasicMaterial({ map:texSky, side:THREE.BackSide })));
+const envG = new THREE.Mesh(new THREE.CircleGeometry(55,24),
+  new THREE.MeshBasicMaterial({ color:0x4a92a6 }));
+envG.rotation.x = -Math.PI/2; envS.add(envG);
+scene.environment = pm.fromScene(envS, 0.08).texture;
+
+/* ================= إضاءة النهار ================= */
+scene.add(new THREE.HemisphereLight(0xbfe0f5, 0x2f6b74, 0.85));
+const sun = new THREE.DirectionalLight(0xfff6e2, 3.0);
+sun.position.set(-30, 42, 30);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -50; sun.shadow.camera.right = 50;
+sun.shadow.camera.top = 50; sun.shadow.camera.bottom = -50;
+sun.shadow.camera.near = 2; sun.shadow.camera.far = 150;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
+sun.target.position.set(0, 2, 0);
+scene.add(sun, sun.target);
+const fillL = new THREE.DirectionalLight(0x9ecbe4, 0.7);
+fillL.position.set(14, 12, -18);
+scene.add(fillL);
+
+/* ================= البحر ================= */
+const mirror = new Reflector(new THREE.CircleGeometry(280, 64), {
+  clipBias: 0.003, textureWidth: 1024, textureHeight: 1024, color: 0x8fa0a0
+});
+mirror.rotation.x = -Math.PI/2;
+mirror.position.y = -0.06;
+scene.add(mirror);
+
+const deepSea = new THREE.Mesh(new THREE.CircleGeometry(500, 48),
+  new THREE.MeshStandardMaterial({ color:0x16606e, roughness:1 }));
+deepSea.rotation.x = -Math.PI/2; deepSea.position.y = -2.2;
+scene.add(deepSea);
+
+/* ماء البحر — نفس خامة الماء المستخدمة في مصنع التمور
+   (تركوازي فاتح لامع) مع موج متحرّك على شبكة السطح. */
+const matWater = std({ color:0x6ab8cc, roughness:0.1, metalness:0.5,
+                       transparent:true, opacity:0.65 });
+const waterGeo = new THREE.PlaneGeometry(500, 500, 120, 120);
+const water = new THREE.Mesh(waterGeo, matWater);
+water.rotation.x = -Math.PI/2;
+water.position.y = 0;
+water.renderOrder = 2;
+water.receiveShadow = true;
+scene.add(water);
+
+/* أساس الموج: نحفظ إحداثيات كل نقطة قبل التحريك */
+const wPos = waterGeo.attributes.position;
+const wBaseX = new Float32Array(wPos.count), wBaseY = new Float32Array(wPos.count);
+for (let i=0; i<wPos.count; i++){ wBaseX[i] = wPos.getX(i); wBaseY[i] = wPos.getY(i); }
+function updateWater(t){
+  for (let i=0; i<wPos.count; i++){
+    const x = wBaseX[i], y = wBaseY[i];
+    const h = Math.sin(x*0.055 + t*0.9)*0.22
+            + Math.cos(y*0.043 + t*0.62)*0.15
+            + Math.sin((x+y)*0.11 + t*1.5)*0.06;
+    wPos.setZ(i, h);
+  }
+  wPos.needsUpdate = true;
+  waterGeo.computeVertexNormals();
+}
+
+/* ================= بناء السفينة الرئيسية (مضخمة) ================= */
+const ship = new THREE.Group();
+scene.add(ship);
+
+function M(geo, mtl, x=0, y=0, z=0, rx=0, ry=0, rz=0, parent=ship){
+  const m = new THREE.Mesh(geo, mtl);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  m.castShadow = true; m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+function tubeBetween(a, b, r, mtl, parent){
+  const d = new THREE.Vector3().subVectors(b, a);
+  const len = d.length();
+  const m = M(new THREE.CylinderGeometry(r, r, len, 10), mtl, 0,0,0, 0,0,0, parent);
+  m.position.copy(a).addScaledVector(d, 0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d.normalize());
+  return m;
+}
+function coneBetween(a, b, ra, rb, mtl, parent){
+  const d = new THREE.Vector3().subVectors(b, a);
+  const len = d.length();
+  const m = M(new THREE.CylinderGeometry(rb, ra, len, 12), mtl, 0,0,0, 0,0,0, parent);
+  m.position.copy(a).addScaledVector(d, 0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), d.normalize());
+  return m;
+}
+function ropeBetween(a, b, sag, r, parent=ship){
+  const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+  mid.y -= sag;
+  const curve = new THREE.QuadraticBezierCurve3(a.clone(), mid, b.clone());
+  return M(new THREE.TubeGeometry(curve, 26, r, 6), matRope, 0,0,0, 0,0,0, parent);
+}
+
+/* --- الهيكل: ألواح خشبية منحوتة --- */
+const SEC = [
+  [-10.6, 1.35, 2.25, -0.90], [-9.6, 2.05, 2.05, -1.00], [-8.0, 2.60, 1.85, -1.05],
+  [-5.5, 2.95, 1.70, -1.10], [-2.5, 3.05, 1.62, -1.12], [0.5, 3.05, 1.60, -1.12],
+  [3.5, 2.95, 1.65, -1.10], [6.0, 2.70, 1.75, -1.05], [8.2, 2.25, 1.95, -0.95],
+  [9.8, 1.60, 2.20, -0.80], [11.0, 0.80, 2.50, -0.55], [11.9, 0.06, 2.75, -0.25]
+];
+{
+  const MP = 22, cnt = SEC.length;
+  const pos = [], uv = [], idx = [];
+  for (let i=0;i<cnt;i++){
+    const [z, hb, dy, ky] = SEC[i];
+    const full = Math.min(1, hb/3.05);
+    const pw = 0.70 + 0.55*(1-full), pr = 1.05 + 0.60*full;
+    for (let j=0;j<=MP;j++){
+      const t = j/MP, a = t*2-1, aa = Math.abs(a);
+      pos.push(Math.sign(a)*hb*Math.pow(aa, pw), ky + (dy-ky)*Math.pow(aa, pr), z);
+      uv.push(i/(cnt-1), t);
+    }
+  }
+  for (let i=0;i<cnt-1;i++) for (let j=0;j<MP;j++){
+    const a = i*(MP+1)+j, b = a+MP+1;
+    idx.push(a, b, a+1, b, b+1, a+1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  M(geo, matHull);
+}
+/* السطح العلوي */
+{
+  const shp = new THREE.Shape();
+  shp.moveTo(0, -12.0);
+  for (let i=SEC.length-1; i>=0; i--){
+    const [z, hb] = SEC[i];
+    shp.lineTo(hb*0.985, -z);
+  }
+  for (let i=0; i<SEC.length; i++){
+    const [z, hb] = SEC[i];
+    shp.lineTo(-hb*0.985, -z);
+  }
+  shp.closePath();
+  const deckM = M(new THREE.ShapeGeometry(shp, 12), matDeck, 0, 1.60, 0, -Math.PI/2, 0, 0);
+  deckM.castShadow = false;
+}
+/* درابزين السطح (حافة خشبية) */
+{
+  const pts = [];
+  for (let i=SEC.length-1; i>=1; i--){
+    const [z, hb, dy] = SEC[i];
+    pts.push(new THREE.Vector3(hb, dy+0.06, z));
+  }
+  pts.push(new THREE.Vector3(0, SEC[0][2]+0.10, -SEC[0][0]));
+  for (let i=1; i<SEC.length; i++){
+    const [z, hb, dy] = SEC[i];
+    pts.push(new THREE.Vector3(-hb, dy+0.06, z));
+  }
+  const rail = new THREE.CatmullRomCurve3(pts, true);
+  M(new THREE.TubeGeometry(rail, 220, 0.09, 8), matDarkW);
+}
+/* عارضة القاع وجذع المقدمة */
+{
+  const kp = SEC.map(s => new THREE.Vector3(0, s[3]-0.04, s[0]));
+  M(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(kp), 80, 0.13, 8), matDarkW);
+  const sp = [
+    new THREE.Vector3(0, -0.30, 11.7), new THREE.Vector3(0, 1.30, 12.2),
+    new THREE.Vector3(0, 2.70, 12.25), new THREE.Vector3(0, 3.70, 12.0)
+  ];
+  M(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(sp), 30, 0.15, 10), matDarkW);
+  M(new THREE.SphereGeometry(0.18, 12, 10), matDarkW, 0, 3.78, 12.0);
+}
+/* لوحة المؤخرة + الدفة */
+{
+  const [z0, hb0, dy0, ky0] = SEC[0];
+  const shp = new THREE.Shape();
+  shp.moveTo(-hb0, dy0);
+  const pw = 0.70 + 0.55*(1-Math.min(1, hb0/3.05));
+  const pr = 1.05 + 0.60*Math.min(1, hb0/3.05);
+  for (let j=0;j<=20;j++){
+    const t = j/20, a = t*2-1, aa = Math.abs(a);
+    shp.lineTo(Math.sign(a)*hb0*Math.pow(aa, pw), ky0 + (dy0-ky0)*Math.pow(aa, pr));
+  }
+  shp.closePath();
+  M(new THREE.ShapeGeometry(shp, 10), matDarkW, 0, 0, z0-0.01);
+  const rud = M(new THREE.BoxGeometry(0.14, 1.7, 0.85), matDarkW, 0, -0.55, -10.95);
+  rud.rotation.x = 0.06;
+  M(new THREE.BoxGeometry(0.18, 0.1, 0.9), matIron, 0, 0.1, -10.9);
+}
+
+/* --- شعار الهوية على جانبي الهيكل --- */
+for (const s of [-1, 1]){
+  M(new THREE.BoxGeometry(0.06, 1.25, 3.4), matDarkW, s*2.92, 1.05, -6.4);
+  M(new THREE.PlaneGeometry(3.2, 1.15), matLogoH, s*2.965, 1.05, -6.4, 0, s*Math.PI/2, 0);
+}
+
+/* --- سطح المؤخرة المرتفع والمقصورة --- */
+M(new THREE.BoxGeometry(5.0, 0.78, 3.9), matDarkW, 0, 2.0, -8.05);
+const poopTop = M(new THREE.PlaneGeometry(5.0, 3.9), matDeck, 0, 2.40, -8.05, -Math.PI/2, 0, 0);
+poopTop.castShadow = false;
+M(new THREE.BoxGeometry(4.6, 0.12, 0.12), matDarkW, 0, 2.42, -6.12);
+/* درج صغير */
+M(new THREE.BoxGeometry(1.2, 0.26, 0.4), matDarkW, 0, 1.74, -5.95);
+M(new THREE.BoxGeometry(1.2, 0.26, 0.4), matDarkW, 0, 2.06, -6.2);
+/* المقصورة */
+M(new THREE.BoxGeometry(3.4, 1.25, 2.5), matCrate, 0, 3.05, -8.65);
+M(new THREE.BoxGeometry(3.7, 0.09, 2.85), matDarkW, 0, 3.72, -8.65);
+const door = M(new THREE.BoxGeometry(0.62, 1.02, 0.06), matDarkW, 0.45, 2.98, -7.38);
+M(new THREE.CylinderGeometry(0.02, 0.02, 0.09, 8), matMetal, 0.74, 3.25, -7.36, 0, 0, Math.PI/2);
+M(new THREE.CylinderGeometry(0.02, 0.02, 0.09, 8), matMetal, 0.74, 2.72, -7.36, 0, 0, Math.PI/2);
+M(new THREE.TorusGeometry(0.045, 0.012, 6, 14), matMetal, 0.22, 2.98, -7.33);
+for (const sx of [-0.85]){
+  M(new THREE.PlaneGeometry(0.34, 0.3), matGlassD, sx, 3.15, -7.385, 0, 0, 0);
+  M(new THREE.PlaneGeometry(0.42, 0.38), matDarkW, sx, 3.15, -7.395, 0, 0, 0);
+}
+/* قفل على باب المقصورة */
+M(new THREE.BoxGeometry(0.07, 0.1, 0.03), matIron, 0.68, 2.98, -7.34);
+
+/* --- عجلة القيادة --- */
+{
+  M(new THREE.BoxGeometry(0.32, 0.8, 0.32), matDarkW, 0, 2.8, -6.5);
+  M(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 10), matMetal, 0, 3.28, -6.5, Math.PI/2, 0, 0);
+  const wheel = new THREE.Group();
+  wheel.position.set(0, 3.28, -6.28);
+  ship.add(wheel);
+  M(new THREE.TorusGeometry(0.52, 0.05, 10, 30), matDarkW, 0,0,0, 0,0,0, wheel);
+  for (let i=0;i<8;i++){
+    const a = i*Math.PI/4;
+    M(new THREE.CylinderGeometry(0.028, 0.028, 1.04, 8), matDarkW, 0,0,0, 0,0,a, wheel);
+    M(new THREE.CylinderGeometry(0.03, 0.03, 0.24, 8), matDarkW,
+      Math.cos(a)*0.63, Math.sin(a)*0.63, 0, 0, 0, a - Math.PI/2, wheel);
+  }
+  M(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 12), matMetal, 0, 0, 0, Math.PI/2, 0, 0, wheel);
+}
+
+/* --- فتحات السطح --- */
+function hatch(x, z, w, d, open){
+  const y = 1.60;
+  M(new THREE.BoxGeometry(w+0.2, 0.2, 0.1), matDarkW, x, y+0.1, z-d/2);
+  M(new THREE.BoxGeometry(w+0.2, 0.2, 0.1), matDarkW, x, y+0.1, z+d/2);
+  M(new THREE.BoxGeometry(0.1, 0.2, d), matDarkW, x-w/2, y+0.1, z);
+  M(new THREE.BoxGeometry(0.1, 0.2, d), matDarkW, x+w/2, y+0.1, z);
+  M(new THREE.PlaneGeometry(w, d), std({ color:0x0c0a08, roughness:1 }), x, y+0.06, z, -Math.PI/2, 0, 0);
+  if (open){
+    const lid = M(new THREE.BoxGeometry(w*0.95, 0.07, d*0.95), matCrate, x+w*0.5, y+0.42, z-d*0.42, -1.0, 0, 0);
+    M(new THREE.TorusGeometry(0.05, 0.014, 6, 12), matMetal, x+w*0.3, y+0.55, z-d*0.55);
+  } else {
+    M(new THREE.BoxGeometry(w*0.98, 0.07, d*0.98), matCrate, x, y+0.22, z);
+    M(new THREE.BoxGeometry(0.3, 0.05, 0.06), matMetal, x, y+0.28, z);
+    for (const p of [[-1,-1],[1,-1],[-1,1],[1,1]])
+      M(new THREE.BoxGeometry(0.09, 0.09, 0.02), matIron, x+p[0]*w*0.42, y+0.24, z+p[1]*d*0.42, -Math.PI/2, 0, 0);
+  }
+}
+hatch(0, 0.3, 2.0, 1.4, true);
+hatch(0, 5.7, 1.2, 1.0, false);
+
+/* --- البراميل --- */
+function barrel(x, y, z, lying){
+  const grp = new THREE.Group();
+  grp.position.set(x, y, z);
+  if (lying) grp.rotation.x = Math.PI/2;
+  ship.add(grp);
+  const pts = [
+    new THREE.Vector2(0.0, 0.0), new THREE.Vector2(0.30, 0.02), new THREE.Vector2(0.36, 0.25),
+    new THREE.Vector2(0.38, 0.45), new THREE.Vector2(0.36, 0.65), new THREE.Vector2(0.30, 0.88),
+    new THREE.Vector2(0.0, 0.90)
+  ];
+  M(new THREE.LatheGeometry(pts, 18), matBarrel, 0,0,0, 0,0,0, grp);
+  for (const hy of [0.12, 0.36, 0.54, 0.78])
+    M(new THREE.TorusGeometry(0.345 + (hy>0.2&&hy<0.7?0.035:0), 0.016, 6, 22), matIron, 0, hy, 0, Math.PI/2, 0, 0, grp);
+}
+barrel(1.75, 1.60, -2.2, false);
+barrel(2.15, 1.60, -1.55, false);
+barrel(-1.45, 2.02, 6.5, true);
+M(new THREE.BoxGeometry(0.5, 0.12, 0.14), matDarkW, -1.45, 1.66, 6.15);
+M(new THREE.BoxGeometry(0.5, 0.12, 0.14), matDarkW, -1.45, 1.66, 6.85);
+
+/* --- الصناديق الخشبية --- */
+function crate(x, y, z, w, h, d, ry, withLogo){
+  const c = M(new THREE.BoxGeometry(w, h, d), matCrate, x, y+h/2, z, 0, ry, 0);
+  M(new THREE.BoxGeometry(w+0.02, 0.05, 0.06), matDarkW, x, y+h-0.02, z, 0, ry, 0);
+  if (withLogo){
+    const side = new THREE.Vector3(Math.sin(ry), 0, Math.cos(ry));
+    const lp = M(new THREE.PlaneGeometry(w*0.86, h*0.55),
+      std({ map:texLogoC, bumpMap:texLogoC, bumpScale:0.04, roughness:0.75 }),
+      x + side.x*(w/2+0.012), y+h*0.52, z + side.z*(d/2+0.012), 0, ry, 0);
+    M(new THREE.BoxGeometry(0.06, 0.09, 0.03), matIron, x + side.x*(w/2+0.02), y+h*0.85, z + side.z*(d/2+0.02), 0, ry, 0);
+  }
+  return c;
+}
+crate(-1.85, 1.60, 4.1, 0.95, 0.72, 0.72, 0.12, false);
+crate(-1.75, 2.32, 4.0, 0.58, 0.5, 0.55, 0.55, false);
+crate(-2.05, 1.60, 0.9, 0.75, 0.65, 0.7, -0.2, false);
+crate(1.95, 1.60, -0.7, 1.0, 0.75, 0.75, Math.PI/2, true);
+
+/* --- حبال ملفوفة --- */
+function coiledRope(x, y, z, s){
+  const grp = new THREE.Group();
+  grp.position.set(x, y, z);
+  ship.add(grp);
+  M(new THREE.TorusGeometry(0.30*s, 0.055*s, 8, 24), matRope, 0, 0.05*s, 0, Math.PI/2, 0, 0, grp);
+  M(new THREE.TorusGeometry(0.23*s, 0.05*s, 8, 22), matRope, 0, 0.13*s, 0, Math.PI/2, 0, 0, grp);
+  M(new THREE.TorusGeometry(0.15*s, 0.045*s, 8, 18), matRope, 0, 0.20*s, 0, Math.PI/2, 0, 0, grp);
+  M(new THREE.SphereGeometry(0.07*s, 10, 8), matRope, 0.1*s, 0.24*s, 0.12*s, 0,0,0, grp);
+}
+coiledRope(1.35, 1.60, 6.8, 1);
+coiledRope(-1.9, 1.60, 2.9, 0.85);
+coiledRope(1.55, 2.40, -7.1, 0.7);
+
+/* --- بكرات خشبية --- */
+function block(x, y, z, parent=ship){
+  const grp = new THREE.Group();
+  grp.position.set(x, y, z);
+  parent.add(grp);
+  M(new THREE.CylinderGeometry(0.075, 0.075, 0.05, 14), matDarkW, 0, 0, 0, Math.PI/2, 0, 0, grp);
+  M(new THREE.BoxGeometry(0.05, 0.26, 0.1), matDarkW, 0, -0.02, 0, 0,0,0, grp);
+  M(new THREE.TorusGeometry(0.05, 0.013, 6, 12), matRope, 0, 0.17, 0);
+  return grp;
+}
+block(1.9, 1.95, 4.55);
+block(-1.55, 1.95, -3.1);
+
+/* --- أعمدة الربط وحلقات معدنية --- */
+for (const p of [[0.55, 1.60, 9.2], [-0.55, 1.60, 9.2], [1.05, 2.40, -6.4], [-1.05, 2.40, -6.4]]){
+  M(new THREE.CylinderGeometry(0.09, 0.11, 0.55, 12), matDarkW, p[0], p[1]+0.27, p[2]);
+  M(new THREE.SphereGeometry(0.1, 10, 8), matDarkW, p[0], p[1]+0.56, p[2]);
+}
+for (const p of [[2.2,1.62,2.6],[-2.2,1.62,2.2],[1.6,1.62,-3.2],[-1.8,1.62,-2.4],[0.9,2.42,-7.6],[-0.9,2.42,-7.6]])
+  M(new THREE.TorusGeometry(0.08, 0.017, 6, 16), matIron, p[0], p[1]+0.02, p[2], Math.PI/2, 0, 0);
+for (const p of [[2.45,1.62,4.8],[-2.45,1.62,4.8],[2.3,1.62,-0.8],[-2.3,1.62,-0.8]])
+  M(new THREE.BoxGeometry(0.09, 0.06, 0.3), matDarkW, p[0], p[1]+0.04, p[2]);
+
+/* --- الرافعة العمودية (كابستان) --- */
+{
+  const cx = 1.75, cz = 1.85;
+  M(new THREE.CylinderGeometry(0.22, 0.31, 0.9, 14), matDarkW, cx, 2.05, cz);
+  M(new THREE.CylinderGeometry(0.26, 0.22, 0.16, 14), matDarkW, cx, 2.56, cz);
+  for (let i=0;i<4;i++){
+    const a = i*Math.PI/2;
+    M(new THREE.CylinderGeometry(0.032, 0.04, 1.5, 8), matSpar,
+      cx + Math.cos(a)*0.75, 2.42, cz + Math.sin(a)*0.75, 0, -a, Math.PI/2);
+  }
+  M(new THREE.TorusGeometry(0.24, 0.02, 6, 18), matIron, cx, 1.72, cz, Math.PI/2, 0, 0);
+}
+
+/* --- الصواري --- */
+function mast(x, y, z, h, rb, rt, rake){
+  const grp = new THREE.Group();
+  grp.position.set(x, y, z);
+  grp.rotation.x = rake;
+  ship.add(grp);
+  M(new THREE.BoxGeometry(0.95, 0.24, 0.95), matDarkW, 0, 0.12, 0, 0,0,0, grp);
+  M(new THREE.CylinderGeometry(rt, rb, h, 14), matSpar, 0, h/2, 0, 0,0,0, grp);
+  M(new THREE.CylinderGeometry(rt+0.03, rt+0.05, 0.18, 12), matDarkW, 0, h-0.05, 0, 0,0,0, grp);
+  M(new THREE.SphereGeometry(rt+0.04, 10, 8), matDarkW, 0, h+0.08, 0, 0,0,0, grp);
+  return grp;
+}
+const mainMast = mast(0, 1.60, 2.3, 15.4, 0.26, 0.11, -0.035);
+M(new THREE.BoxGeometry(2.7, 0.13, 0.13), matSpar, 0, 11.6, 2.0, 0, 0, 0.0);
+const mizMast = mast(0, 1.60, -4.55, 8.9, 0.15, 0.07, -0.03);
+
+/* --- الأشرعة المثلثة (لاتين) --- */
+function lateenSail(H, T, C, bulge, mat){
+  const rows = 26, cols = 22;
+  const pos = [], uv = [], idx = [];
+  const nrm = new THREE.Vector3(1, 0, 0);
+  for (let i=0;i<=rows;i++){
+    const t = i/rows;
+    const L = new THREE.Vector3().lerpVectors(H, T, t);
+    const R = new THREE.Vector3().lerpVectors(H, C, t);
+    for (let j=0;j<=cols;j++){
+      const s = j/cols;
+      const p = new THREE.Vector3().lerpVectors(L, R, s);
+      const b = bulge * Math.sin(Math.min(1, t*1.15)*Math.PI*0.85) * Math.sin(s*Math.PI);
+      p.addScaledVector(nrm, b);
+      if (t > 0.85) p.y -= Math.sin(s*Math.PI)*0.22*(t-0.85)/0.15;
+      pos.push(p.x, p.y, p.z);
+      uv.push(s, t);
+    }
+  }
+  for (let i=0;i<rows;i++) for (let j=0;j<cols;j++){
+    const a = i*(cols+1)+j, b = a+cols+1;
+    idx.push(a, b, a+1, b, b+1, a+1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return M(geo, mat);
+}
+const yardA = new THREE.Vector3(0, 3.0, -2.2);
+const yardB = new THREE.Vector3(0, 16.6, 8.2);
+coneBetween(yardA, yardB, 0.13, 0.06, matSpar);
+const mainH = new THREE.Vector3().lerpVectors(yardA, yardB, 0.97);
+lateenSail(mainH, new THREE.Vector3(0, 2.4, 3.1), new THREE.Vector3(0, 3.1, -1.6), 1.0, matCloth);
+
+const yardA2 = new THREE.Vector3(0, 3.4, -7.2);
+const yardB2 = new THREE.Vector3(0, 10.0, -1.6);
+coneBetween(yardA2, yardB2, 0.08, 0.04, matSpar);
+lateenSail(new THREE.Vector3().lerpVectors(yardA2, yardB2, 0.96),
+  new THREE.Vector3(0, 2.6, -3.4), new THREE.Vector3(0, 3.3, -6.6), 0.55, matCloth);
+
+/* --- الحبال الثابتة والمتحركة --- */
+const mastTop = new THREE.Vector3(0, 17.0, 1.8);
+ropeBetween(mastTop, new THREE.Vector3(0, 3.4, 11.8), 0.25, 0.022);
+ropeBetween(mastTop, new THREE.Vector3(1.15, 2.4, -10.1), 0.45, 0.02);
+ropeBetween(mastTop, new THREE.Vector3(-1.15, 2.4, -10.1), 0.45, 0.02);
+for (const s of [-1, 1]){
+  ropeBetween(new THREE.Vector3(0, 15.6, 2.1), new THREE.Vector3(s*2.7, 1.72, 0.6), 0.35, 0.02);
+  ropeBetween(new THREE.Vector3(0, 15.6, 2.1), new THREE.Vector3(s*2.6, 1.72, 3.7), 0.35, 0.02);
+  M(new THREE.TorusGeometry(0.09, 0.025, 8, 16), matDarkW, s*2.68, 1.82, 0.6, 0, 0, 0);
+}
+const yardMid = new THREE.Vector3().lerpVectors(yardA, yardB, 0.55);
+ropeBetween(new THREE.Vector3(0, 16.8, 1.9), yardMid, 0.15, 0.02);
+ropeBetween(yardMid, new THREE.Vector3(1.9, 2.0, 4.55), 0.3, 0.024);
+ropeBetween(new THREE.Vector3(0, 3.1, -1.6), new THREE.Vector3(-1.55, 2.0, -3.1), 0.25, 0.024);
+ropeBetween(new THREE.Vector3(-1.55, 1.9, -3.1), new THREE.Vector3(-2.2, 1.75, -3.6), 0.06, 0.02);
+ropeBetween(new THREE.Vector3(0, 2.4, 3.1), new THREE.Vector3(1.2, 1.75, 3.6), 0.12, 0.022);
+const mizTop = new THREE.Vector3(0, 10.4, -4.8);
+ropeBetween(mizTop, new THREE.Vector3(0, 2.6, -9.9), 0.3, 0.016);
+ropeBetween(mizTop, new THREE.Vector3(0, 3.3, -0.5), 0.25, 0.016);
+/* عقد حبال */
+for (const p of [[-2.2,1.8,-3.6],[1.2,1.8,3.6],[1.9,2.05,4.55]])
+  M(new THREE.SphereGeometry(0.055, 10, 8), matRope, p[0], p[1], p[2]);
+
+/* --- قطعة القماش الصغيرة (الشعار) على الصاري --- */
+const pennant = new THREE.Group();
+pennant.position.set(0.05, 16.6, 1.6);
+ship.add(pennant);
+{
+  const fg = new THREE.PlaneGeometry(1.15, 0.5, 10, 4);
+  const fp = fg.attributes.position;
+  for (let i=0;i<fp.count;i++){
+    const u = (fp.getX(i)+0.575)/1.15;
+    fp.setZ(i, Math.sin(u*Math.PI)*0.09*u);
+  }
+  fg.computeVertexNormals();
+  const fm = M(fg, matFlag, 0.58, -0.25, 0, 0, 0, 0, pennant);
+  fm.castShadow = false;
+  ropeBetween(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.02, -0.02, 0), 0.01, 0.012, pennant);
+}
+
+/* --- المرساة والسلسلة --- */
+{
+  const anc = new THREE.Group();
+  anc.position.set(2.55, 0.85, 8.8);
+  anc.rotation.z = 0.12;
+  ship.add(anc);
+  M(new THREE.CylinderGeometry(0.05, 0.055, 1.7, 10), matIron, 0, 0, 0, 0,0,0, anc);
+  M(new THREE.TorusGeometry(0.11, 0.03, 8, 16), matIron, 0, 0.95, 0, 0,0,0, anc);
+  M(new THREE.CylinderGeometry(0.045, 0.045, 0.95, 8), matDarkW, 0, 0.55, 0, Math.PI/2, 0, 0, anc);
+  for (const s of [-1, 1]){
+    const arc = M(new THREE.TorusGeometry(0.5, 0.048, 8, 18, Math.PI*0.62), matIron,
+      0, -0.85, 0, Math.PI/2, 0, s>0 ? 0 : Math.PI, anc);
+    arc.rotation.y = s*Math.PI/2;
+    M(new THREE.ConeGeometry(0.1, 0.3, 8), matIron, s*0.42, -0.62, 0.18, 0, 0, s*1.2);
+  }
+  const chCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(1.0, 1.68, 10.3), new THREE.Vector3(2.1, 1.45, 10.1),
+    new THREE.Vector3(2.62, 1.5, 9.4), new THREE.Vector3(2.55, 1.82, 8.85)
+  ]);
+  const linkGeo = new THREE.TorusGeometry(0.055, 0.016, 6, 12);
+  const chain = new THREE.InstancedMesh(linkGeo, matIron, 16);
+  const dObj = new THREE.Object3D();
+  const xAxis = new THREE.Vector3(1,0,0);
+  for (let i=0;i<16;i++){
+    const u = i/15;
+    const p = chCurve.getPointAt(u);
+    const tanV = chCurve.getTangentAt(u).normalize();
+    dObj.position.copy(p);
+    dObj.quaternion.setFromUnitVectors(xAxis, tanV);
+    const spin = new THREE.Quaternion().setFromAxisAngle(tanV, (i%2)*Math.PI/2);
+    dObj.quaternion.premultiply(spin);
+    dObj.updateMatrix();
+    chain.setMatrixAt(i, dObj.matrix);
+  }
+  chain.castShadow = true;
+  ship.add(chain);
+  M(new THREE.CylinderGeometry(0.1, 0.1, 0.3, 10), matIron, 2.3, 1.5, 9.85, 0, 0, Math.PI/2.4);
+}
+
+/* ================= تضخيم السفينة الرئيسية ================= */
+ship.scale.set(1.6, 1.6, 1.6);
+ship.position.set(-8, 0, 8);
+ship.rotation.y = Math.PI * 0.15;
+
+/* ================= الميناء ================= */
+const port = new THREE.Group();
+scene.add(port);
+
+function addM(geo, mtl, x=0, y=0, z=0, rx=0, ry=0, rz=0, parent=port){
+  const m = new THREE.Mesh(geo, mtl);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  m.castShadow = true; m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+
+/* --- رصيف الميناء الرئيسي --- */
+const pier = new THREE.Group();
+port.add(pier);
+addM(new THREE.BoxGeometry(50, 3, 8), matStone, 0, -0.5, -25, 0, 0, 0, pier);
+addM(new THREE.BoxGeometry(48, 0.4, 7.5), matDeck, 0, 1.2, -25, 0, 0, 0, pier);
+for (let i=-24; i<=24; i+=1){
+  addM(new THREE.BoxGeometry(0.95, 0.05, 7.5), matDarkW, i, 1.42, -25, 0, 0, 0, pier);
+}
+for (let i=-24; i<=24; i+=4){
+  addM(new THREE.CylinderGeometry(0.3, 0.35, 4, 10), matDarkW, i, -0.5, -21.2, 0,0,0, pier);
+  addM(new THREE.CylinderGeometry(0.3, 0.35, 4, 10), matDarkW, i, -0.5, -28.8, 0,0,0, pier);
+  addM(new THREE.CylinderGeometry(0.15, 0.18, 0.8, 10), matIron, i+2, 1.8, -21.4, 0,0,0, pier);
+  addM(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 10), matIron, i+2, 2.25, -21.4, 0,0,0, pier);
+}
+for (let i=-20; i<=20; i+=8){
+  const grp = new THREE.Group();
+  grp.position.set(i+2, 1.85, -21.4);
+  pier.add(grp);
+  addM(new THREE.TorusGeometry(0.3, 0.05, 8, 20), matRope, 0, 0.3, 0, Math.PI/2, 0, 0, grp);
+  addM(new THREE.TorusGeometry(0.2, 0.04, 8, 18), matRope, 0, 0.45, 0, Math.PI/2, 0, 0, grp);
+}
+
+/* --- رصيف جانبي --- */
+const pierSide = new THREE.Group();
+port.add(pierSide);
+addM(new THREE.BoxGeometry(8, 3, 25), matStone, 22, -0.5, -10, 0, 0, 0, pierSide);
+addM(new THREE.BoxGeometry(7.5, 0.4, 23), matDeck, 22, 1.2, -10, 0, 0, 0, pierSide);
+
+/* --- الشاطئ الرملي --- */
+const beach = new THREE.Mesh(
+  new THREE.CircleGeometry(35, 32, 0, Math.PI),
+  matSand
+);
+beach.rotation.x = -Math.PI/2;
+beach.rotation.z = -Math.PI/2;
+beach.position.set(-25, 0.1, -25);
+beach.receiveShadow = true;
+port.add(beach);
+
+/* --- النخيل على الشاطئ --- */
+function palmTree(x, y, z, scale=1){
+  const grp = new THREE.Group();
+  grp.position.set(x, y, z);
+  grp.scale.set(scale, scale, scale);
+  port.add(grp);
+  const trunk = new THREE.CylinderGeometry(0.3, 0.4, 8, 8);
+  const trunkMesh = new THREE.Mesh(trunk, matDarkW);
+  trunkMesh.position.y = 4;
+  trunkMesh.rotation.z = (Math.random()-0.5)*0.15;
+  trunkMesh.castShadow = true;
+  grp.add(trunkMesh);
+  for (let i=0; i<8; i++){
+    const leaf = new THREE.PlaneGeometry(3, 0.6);
+    const leafMesh = new THREE.Mesh(leaf, new THREE.MeshStandardMaterial({
+      color: 0x4a6b3a, roughness: 0.8, side: THREE.DoubleSide
+    }));
+    leafMesh.position.y = 8.2;
+    leafMesh.rotation.y = (i/8) * Math.PI * 2;
+    leafMesh.rotation.z = -0.6;
+    leafMesh.castShadow = true;
+    grp.add(leafMesh);
+  }
+  for (let i=0; i<3; i++){
+    const coconut = new THREE.Mesh(
+      new THREE.SphereGeometry(0.15, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0x5a4020, roughness: 0.8 })
+    );
+    coconut.position.y = 7.8;
+    coconut.position.x = Math.cos(i*2.1)*0.4;
+    coconut.position.z = Math.sin(i*2.1)*0.4;
+    grp.add(coconut);
+  }
+}
+palmTree(-30, 0, -18, 1.1);
+palmTree(-33, 0, -22, 0.9);
+palmTree(-28, 0, -28, 1.0);
+palmTree(-25, 0, -15, 0.85);
+
+/* --- مباني الميناء: عمارة عمانية بسطح مسطّح وشُرفات مسننة --- */
+function portBuilding(x, z, w, d, h){
+  const grp = new THREE.Group();
+  grp.position.set(x, 0, z);
+  port.add(grp);
+  const wallMat = new THREE.MeshStandardMaterial({ map: texStone, roughness: 0.9 });
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+  walls.position.y = h/2;
+  walls.castShadow = true;
+  walls.receiveShadow = true;
+  grp.add(walls);
+  /* سطح مسطّح بدل السقف المثلث */
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(w + 0.5, 0.35, d + 0.5), matBand);
+  slab.position.y = h + 0.17;
+  slab.castShadow = true; slab.receiveShadow = true;
+  grp.add(slab);
+  /* شُرفات مسننة على الأطراف الأربعة */
+  const step = 1.0, mw = 0.5, mh = 0.6;
+  for (let mx = -w/2; mx <= w/2; mx += step){
+    for (const mz of [d/2 + 0.12, -d/2 - 0.12]){
+      const m = new THREE.Mesh(new THREE.BoxGeometry(mw, mh, 0.34), wallMat);
+      m.position.set(mx, h + 0.62, mz); m.castShadow = true; grp.add(m);
+    }
+  }
+  for (let mz = -d/2; mz <= d/2; mz += step){
+    for (const mx of [w/2 + 0.12, -w/2 - 0.12]){
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.34, mh, mw), wallMat);
+      m.position.set(mx, h + 0.62, mz); m.castShadow = true; grp.add(m);
+    }
+  }
+  /* باب بعقد نصف دائري */
+  const door = new THREE.Mesh(
+    new THREE.BoxGeometry(w*0.25, h*0.5, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0x3a2a18, roughness: 0.9 })
+  );
+  door.position.set(0, h*0.25, d/2 + 0.05);
+  grp.add(door);
+  const arch = new THREE.Mesh(
+    new THREE.CylinderGeometry(w*0.125, w*0.125, 0.1, 16, 1, false, 0, Math.PI),
+    new THREE.MeshStandardMaterial({ color: 0x3a2a18, roughness: 0.9 })
+  );
+  arch.rotation.x = Math.PI/2; arch.rotation.z = Math.PI;
+  arch.position.set(0, h*0.5, d/2 + 0.05);
+  grp.add(arch);
+  /* نوافذ صغيرة غائرة */
+  for (const sx of [-1, 1]){
+    const win = new THREE.Mesh(new THREE.BoxGeometry(w*0.15, h*0.2, 0.1), matGlassD);
+    win.position.set(sx*w*0.3, h*0.6, d/2 + 0.05);
+    grp.add(win);
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(w*0.18, h*0.23, 0.06), matBand);
+    frame.position.set(sx*w*0.3, h*0.6, d/2 + 0.02);
+    grp.add(frame);
+  }
+  return grp;
+}
+portBuilding(0, -32, 8, 6, 5);
+portBuilding(-12, -33, 7, 5, 4.5);
+portBuilding(12, -33, 6, 5, 4);
+portBuilding(20, -34, 8, 6, 5.5);
+
+/* --- المنارة: برج حجري بسطح مسطّح وشُرفات (بدون سقف مخروطي) --- */
+const lighthouse = new THREE.Group();
+lighthouse.position.set(28, 0, -40);
+port.add(lighthouse);
+addM(new THREE.CylinderGeometry(2.5, 3.5, 3, 12), matStone, 0, 1.5, 0, 0,0,0, lighthouse);
+addM(new THREE.CylinderGeometry(1.5, 2, 10, 12), matLighthouse, 0, 8, 0, 0,0,0, lighthouse);
+/* أحزمة بلون التراب بدل الأحمر */
+for (let i=0; i<3; i++){
+  addM(new THREE.CylinderGeometry(1.52, 1.58, 0.8, 12), matBand, 0, 4.5+i*3, 0, 0,0,0, lighthouse);
+}
+addM(new THREE.CylinderGeometry(1.2, 1.5, 2, 12), matStone, 0, 14, 0, 0,0,0, lighthouse);
+addM(new THREE.CylinderGeometry(1.1, 1.1, 2, 12), new THREE.MeshStandardMaterial({
+  color: 0xffffaa, emissive: 0xffaa44, emissiveIntensity: 0.5, transparent: true, opacity: 0.7
+}), 0, 16, 0, 0,0,0, lighthouse);
+/* شرفة علوية مسطّحة + أسنان */
+addM(new THREE.CylinderGeometry(1.55, 1.55, 0.3, 12), matBand, 0, 17.15, 0, 0,0,0, lighthouse);
+for (let i=0;i<12;i++){
+  const a = i/12*Math.PI*2;
+  addM(new THREE.BoxGeometry(0.42, 0.55, 0.3), matLighthouse,
+    Math.cos(a)*1.45, 17.6, Math.sin(a)*1.45, 0, -a, 0, lighthouse);
+}
+const lightBeacon = new THREE.PointLight(0xffaa44, 2, 50);
+lightBeacon.position.set(0, 16, 0);
+lighthouse.add(lightBeacon);
+
+/* --- رافعة الميناء (كرين) --- */
+function crane(x, z, rotation=0){
+  const grp = new THREE.Group();
+  grp.position.set(x, 1.2, z);
+  grp.rotation.y = rotation;
+  port.add(grp);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 1.5, 10), matStone);
+  base.position.y = 0.75;
+  base.castShadow = true;
+  grp.add(base);
+  const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.6, 8, 0.6), matDarkW);
+  pillar.position.y = 5.5;
+  pillar.castShadow = true;
+  grp.add(pillar);
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(10, 0.4, 0.4), matDarkW);
+  arm.position.set(3, 9.5, 0);
+  arm.rotation.z = -0.1;
+  arm.castShadow = true;
+  grp.add(arm);
+  const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 6, 6), matRope);
+  rope.position.set(7, 6.5, 0);
+  grp.add(rope);
+  const hook = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.08, 6, 12, Math.PI), matIron);
+  hook.position.set(7, 3.5, 0);
+  hook.rotation.x = Math.PI;
+  grp.add(hook);
+  const weight = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), matIron);
+  weight.position.set(-3, 9, 0);
+  weight.castShadow = true;
+  grp.add(weight);
+}
+crane(-5, -21, -Math.PI/2);
+crane(10, -21, -Math.PI/2);
+
+/* --- صناديق وبراميل على الرصيف --- */
+for (let i=-18; i<=18; i+=3){
+  if (Math.random() > 0.4){
+    const cx = i + (Math.random()-0.5)*0.5;
+    const cz = -21.5 + (Math.random()-0.5)*0.8;
+    if (Math.random() > 0.5){
+      const w = 0.8 + Math.random()*0.5;
+      const h = 0.6 + Math.random()*0.5;
+      const d = 0.8 + Math.random()*0.5;
+      const c = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matCrate);
+      c.position.set(cx, 1.2 + h/2, cz);
+      c.rotation.y = Math.random()*Math.PI;
+      c.castShadow = true;
+      port.add(c);
+    } else {
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.9, 10), matBarrel);
+      b.position.set(cx, 1.2 + 0.45, cz);
+      b.castShadow = true;
+      port.add(b);
+    }
+  }
+}
+
+/* --- شبكات صيد --- */
+function fishingNet(x, z){
+  const grp = new THREE.Group();
+  grp.position.set(x, 1.2, z);
+  port.add(grp);
+  for (let i=-1; i<=1; i+=2){
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3, 6), matDarkW);
+    pole.position.set(i*1.5, 1.5, 0);
+    pole.castShadow = true;
+    grp.add(pole);
+  }
+  const netMat = new THREE.MeshStandardMaterial({
+    color: 0x8a7a5a, transparent: true, opacity: 0.7, side: THREE.DoubleSide
+  });
+  const net = new THREE.Mesh(new THREE.PlaneGeometry(3, 2, 8, 6), netMat);
+  net.position.y = 1.5;
+  net.rotation.x = -Math.PI/6;
+  grp.add(net);
+}
+fishingNet(15, -22);
+fishingNet(-15, -22);
+
+/* --- مصابيح الميناء --- */
+function lampPost(x, z){
+  const grp = new THREE.Group();
+  grp.position.set(x, 1.2, z);
+  port.add(grp);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 4, 8), matIron);
+  pole.position.y = 2;
+  pole.castShadow = true;
+  grp.add(pole);
+  const lantern = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.4),
+    new THREE.MeshStandardMaterial({
+      color: 0xffffcc, emissive: 0xffaa44, emissiveIntensity: 0.8, transparent: true, opacity: 0.8
+    }));
+  lantern.position.y = 4.3;
+  grp.add(lantern);
+  /* غطاء مسطّح بدل المخروط */
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.1, 0.55), matIron);
+  cap.position.y = 4.68;
+  grp.add(cap);
+  const light = new THREE.PointLight(0xffaa44, 0.8, 15);
+  light.position.y = 4.3;
+  grp.add(light);
+}
+for (let i=-18; i<=18; i+=6){
+  lampPost(i, -21.5);
+}
+
+/* ================= السفن الصغيرة (أسطول) ================= */
+const smallShips = [];
+
+function buildSmallDhow(scale=1, withSail=true, color='#c9a978'){
+  const grp = new THREE.Group();
+
+  const hullShape = new THREE.Shape();
+  hullShape.moveTo(0, -3);
+  hullShape.quadraticCurveTo(1.5, -2.5, 1.8, 0);
+  hullShape.quadraticCurveTo(1.5, 2.5, 0, 3);
+  hullShape.quadraticCurveTo(-1.5, 2.5, -1.8, 0);
+  hullShape.quadraticCurveTo(-1.5, -2.5, 0, -3);
+
+  const hullMat = new THREE.MeshStandardMaterial({
+    map: texHull, roughness: 0.8, color: new THREE.Color(color)
+  });
+
+  const hull = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(hullShape, { depth: 1.2, bevelEnabled: false }),
+    hullMat
+  );
+  hull.rotation.x = -Math.PI/2;
+  hull.position.y = 0.6;
+  hull.castShadow = true;
+  hull.receiveShadow = true;
+  grp.add(hull);
+
+  const deck = new THREE.Mesh(
+    new THREE.ShapeGeometry(hullShape),
+    matDeck
+  );
+  deck.rotation.x = -Math.PI/2;
+  deck.position.y = 1.2;
+  grp.add(deck);
+
+  if (withSail){
+    const mast = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.12, 7, 8),
+      matSpar
+    );
+    mast.position.y = 4.7;
+    mast.castShadow = true;
+    grp.add(mast);
+
+    const sailGeo = new THREE.PlaneGeometry(3, 4, 6, 6);
+    const sailPos = sailGeo.attributes.position;
+    for (let i=0; i<sailPos.count; i++){
+      const x = sailPos.getX(i);
+      sailPos.setZ(i, Math.sin((x/3+0.5)*Math.PI)*0.3);
+    }
+    sailGeo.computeVertexNormals();
+    const sail = new THREE.Mesh(sailGeo, matCloth);
+    sail.position.y = 4;
+    sail.castShadow = true;
+    grp.add(sail);
+
+    const yard = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.04, 5, 6),
+      matSpar
+    );
+    yard.position.set(1.5, 4, 0);
+    yard.rotation.z = -0.3;
+    grp.add(yard);
+
+    const rope1 = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.02, 3, 4),
+      matRope
+    );
+    rope1.position.set(0.5, 6, 0.5);
+    grp.add(rope1);
+  }
+
+  grp.scale.set(scale, scale, scale);
+  return grp;
+}
+
+const shipConfigs = [
+  { pos: [10, 0, -18], rot: 0.3, scale: 0.8, sail: true },
+  { pos: [-10, 0, -19], rot: -0.4, scale: 0.7, sail: true },
+  { pos: [15, 0, -15], rot: 0.8, scale: 0.9, sail: true },
+  { pos: [-15, 0, -16], rot: -0.7, scale: 0.75, sail: true },
+  { pos: [25, 0, -12], rot: 0.2, scale: 0.65, sail: true },
+  { pos: [-25, 0, -14], rot: -0.3, scale: 0.85, sail: false },
+  { pos: [20, 0, -8], rot: 0.5, scale: 0.7, sail: true },
+  { pos: [-20, 0, -10], rot: -0.5, scale: 0.8, sail: true },
+];
+
+for (const cfg of shipConfigs){
+  const s = buildSmallDhow(cfg.scale, cfg.sail, cfg.sail ? '#c9a978' : '#8a7860');
+  s.position.set(...cfg.pos);
+  s.rotation.y = cfg.rot;
+  port.add(s);
+  smallShips.push(s);
+}
+
+/* ================= الواجهة والحركة ================= */
+const VIEWS = {
+  general:    { pos:[45, 20, 55],   tgt:[0, 4, 0]   },
+  port:       { pos:[0, 25, 10],    tgt:[0, 3, -20] },
+  ship:       { pos:[-25, 12, 30],  tgt:[-8, 8, 8]  },
+  fleet:      { pos:[20, 15, 5],    tgt:[15, 3, -12]},
+  lighthouse: { pos:[40, 20, -30],  tgt:[28, 8, -40]}
+};
+let camTween = null;
+function flyTo(v){
+  camTween = {
+    p0: camera.position.clone(), p1: new THREE.Vector3(...v.pos),
+    t0: controls.target.clone(), t1: new THREE.Vector3(...v.tgt), k: 0
+  };
+}
+const viewBtns = document.querySelectorAll('.view');
+viewBtns.forEach(b => b.addEventListener('click', () => {
+  viewBtns.forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  flyTo(VIEWS[b.dataset.v]);
+}));
+
+const btnRock  = document.getElementById('btnRock');
+const btnOrbit = document.getElementById('btnOrbit');
+const btnWire  = document.getElementById('btnWire');
+let rockOn = true, wireOn = false;
+
+btnRock.addEventListener('click', () => {
+  rockOn = !rockOn;
+  btnRock.classList.toggle('active', rockOn);
+});
+btnOrbit.addEventListener('click', () => {
+  controls.autoRotate = !controls.autoRotate;
+  btnOrbit.classList.toggle('active', controls.autoRotate);
+});
+btnWire.addEventListener('click', () => {
+  wireOn = !wireOn;
+  mats.forEach(m => m.wireframe = wireOn);
+  btnWire.classList.toggle('active', wireOn);
+});
+controls.addEventListener('start', () => {
+  camTween = null;
+  if (controls.autoRotate){ controls.autoRotate = false; btnOrbit.classList.remove('active'); }
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ==========================================================
+   الغيوم — سُحُب ركامية تسبح في السماء الزرقاء
+========================================================== */
+const cloudTex = makeTex(256, 256, (g,w,h)=>{
+  g.clearRect(0,0,w,h);
+  for (let p=0; p<14; p++){
+    const px = w*0.5 + (Math.random()-0.5)*w*0.62;
+    const py = h*0.55 + (Math.random()-0.5)*h*0.30;
+    const pr = w*(0.10 + Math.random()*0.17);
+    const cg = g.createRadialGradient(px, py-pr*0.3, pr*0.10, px, py, pr);
+    cg.addColorStop(0,   'rgba(255,255,255,0.95)');
+    cg.addColorStop(0.5, 'rgba(250,253,255,0.62)');
+    cg.addColorStop(1,   'rgba(220,236,248,0)');
+    g.fillStyle = cg;
+    g.beginPath(); g.ellipse(px, py, pr*1.3, pr, 0, 0, 6.283); g.fill();
+  }
+});
+const matCloud = new THREE.SpriteMaterial({
+  map:cloudTex, transparent:true, opacity:0.92, depthWrite:false, fog:false
+});
+const clouds = [];
+/* طبقتان: ركامية قريبة منخفضة، وأخرى بعيدة عالية */
+function addCloud(radMin, radSpan, yMin, ySpan, scMin, scSpan, op){
+  const s = new THREE.Sprite(matCloud.clone());
+  const ang = Math.random()*Math.PI*2;
+  const rad = radMin + Math.random()*radSpan;
+  const sc  = scMin + Math.random()*scSpan;
+  s.position.set(Math.cos(ang)*rad, yMin + Math.random()*ySpan, Math.sin(ang)*rad);
+  s.scale.set(sc*1.9, sc*0.78, 1);
+  s.material.opacity = op*(0.7 + Math.random()*0.3);
+  s.renderOrder = 1;
+  scene.add(s);
+  clouds.push({ s, spd: 0.5 + Math.random()*1.2, rad });
+}
+for (let i=0; i<18; i++) addCloud(110, 130, 30,  30, 26, 30, 0.95); // قريبة منخفضة
+for (let i=0; i<16; i++) addCloud(230, 210, 58,  60, 55, 60, 0.80); // بعيدة عالية
+
+/* ==========================================================
+   النوارس — أسراب طيور تحلّق فوق الميناء
+========================================================== */
+const matGull     = std({ color:0xf6f8fa, roughness:0.85, metalness:0 });
+const matGullTip  = std({ color:0x3a4650, roughness:0.9,  metalness:0 });
+const matGullBeak = std({ color:0xf0a63c, roughness:0.7,  metalness:0 });
+const gullBodyGeo = new THREE.SphereGeometry(0.34, 12, 9);
+const gullHeadGeo = new THREE.SphereGeometry(0.19, 10, 8);
+const gullBeakGeo = new THREE.ConeGeometry(0.055, 0.28, 7);
+const gullTailGeo = new THREE.ConeGeometry(0.17, 0.55, 5);
+const gullWingGeo = new THREE.BoxGeometry(1.55, 0.045, 0.42);
+const gullTipGeo  = new THREE.BoxGeometry(0.42, 0.045, 0.34);
+
+function makeGull(){
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(gullBodyGeo, matGull);
+  body.scale.set(0.72, 0.66, 1.7); g.add(body);
+  const head = new THREE.Mesh(gullHeadGeo, matGull);
+  head.position.set(0, 0.14, 0.52); g.add(head);
+  const beak = new THREE.Mesh(gullBeakGeo, matGullBeak);
+  beak.position.set(0, 0.10, 0.75); beak.rotation.x = Math.PI/2; g.add(beak);
+  const tail = new THREE.Mesh(gullTailGeo, matGull);
+  tail.position.set(0, 0.04, -0.72); tail.rotation.x = -Math.PI/2;
+  tail.scale.set(1, 1, 0.35); g.add(tail);
+
+  const wings = [];
+  for (const side of [-1, 1]){
+    const pivot = new THREE.Group();
+    pivot.position.set(side*0.16, 0.10, 0.05);
+    const wing = new THREE.Mesh(gullWingGeo, matGull);
+    wing.position.set(side*0.78, 0, -0.05);
+    pivot.add(wing);
+    const tip = new THREE.Mesh(gullTipGeo, matGullTip);
+    tip.position.set(side*1.72, 0, -0.16);
+    pivot.add(tip);
+    g.add(pivot);
+    wings.push({ pivot, side });
+  }
+  g.userData.wings = wings;
+  return g;
+}
+
+const gulls = [];
+for (let i=0; i<14; i++){
+  const g = makeGull();
+  const sc = 0.75 + Math.random()*0.8;
+  g.scale.setScalar(sc);
+  scene.add(g);
+  gulls.push({
+    g,
+    r1: 26 + Math.random()*70,          // نصف قطر المسار
+    r2: 18 + Math.random()*55,
+    cy: 16 + Math.random()*26,          // الارتفاع
+    cx: (Math.random()-0.5)*40,
+    cz: (Math.random()-0.5)*40,
+    spd: 0.10 + Math.random()*0.16,
+    ph:  Math.random()*Math.PI*2,
+    flap: 3.4 + Math.random()*2.6,
+    bob: 1.2 + Math.random()*2.4,
+    glide: Math.random()                 // متى ينزلق بلا رفرفة
+  });
+}
+
+/* ==========================================================
+   السمك القافز — يقفز من الماء ويرجع مع رذاذ ودوائر
+========================================================== */
+const matFish    = std({ color:0x9fc9d8, roughness:0.28, metalness:0.55 });
+const matFishBel = std({ color:0xeef7fa, roughness:0.35, metalness:0.35 });
+const fishBodyGeo = new THREE.SphereGeometry(0.30, 12, 9);
+const fishTailGeo = new THREE.ConeGeometry(0.22, 0.46, 4);
+const fishFinGeo  = new THREE.ConeGeometry(0.10, 0.26, 4);
+
+function makeFish(){
+  const g = new THREE.Group();
+  const b = new THREE.Mesh(fishBodyGeo, matFish);
+  b.scale.set(0.62, 0.86, 1.75); g.add(b);
+  const bel = new THREE.Mesh(fishBodyGeo, matFishBel);
+  bel.scale.set(0.50, 0.42, 1.55); bel.position.y = -0.11; g.add(bel);
+  const tailPiv = new THREE.Group(); tailPiv.position.z = -0.50;
+  const tail = new THREE.Mesh(fishTailGeo, matFish);
+  tail.rotation.x = Math.PI/2; tail.scale.set(1, 1, 0.22);
+  tail.position.z = -0.20; tailPiv.add(tail); g.add(tailPiv);
+  const dors = new THREE.Mesh(fishFinGeo, matFish);
+  dors.position.set(0, 0.24, 0.02); dors.scale.set(1, 1, 0.3); g.add(dors);
+  g.userData.tailPiv = tailPiv;
+  return g;
+}
+
+/* دوائر الرذاذ على سطح الماء */
+const ringGeo = new THREE.RingGeometry(0.22, 0.34, 28);
+const splashes = [];
+function splashAt(x, z){
+  const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({
+    color:0xffffff, transparent:true, opacity:0.85, side:THREE.DoubleSide, depthWrite:false
+  }));
+  m.rotation.x = -Math.PI/2; m.position.set(x, 0.09, z);
+  m.renderOrder = 3; scene.add(m);
+  splashes.push({ m, k:0 });
+  Audio2.splash();
+}
+
+const fishes = [];
+for (let i=0; i<7; i++){
+  const g = makeFish();
+  g.visible = false;
+  g.scale.setScalar(0.8 + Math.random()*0.7);
+  scene.add(g);
+  fishes.push({ g, t:-1, dur:0, x0:0, z0:0, dx:0, dz:0, hgt:0, wait: Math.random()*7 });
+}
+
+/* ==========================================================
+   الأصوات — موج ونوارس ورذاذ (مولّدة بالكامل، بلا ملفات)
+========================================================== */
+const Audio2 = (function(){
+  let ctx = null, master = null, on = false, waveTimer = 0, gullTimer = 3;
+
+  function ensure(){
+    if (ctx) return true;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    ctx = new AC();
+    master = ctx.createGain();
+    master.gain.value = 0.0;
+    master.connect(ctx.destination);
+
+    /* همهمة بحر مستمرة: ضجيج وردي عبر مرشح تمرير منخفض */
+    const len = ctx.sampleRate * 4;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let b0=0,b1=0,b2=0;
+    for (let i=0;i<len;i++){
+      const w = Math.random()*2-1;
+      b0 = 0.99765*b0 + w*0.0990460;
+      b1 = 0.96300*b1 + w*0.2965164;
+      b2 = 0.57000*b2 + w*1.0526913;
+      d[i] = (b0+b1+b2+w*0.1848)*0.16;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf; src.loop = true;
+    const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 620; lp.Q.value = 0.6;
+    const seaG = ctx.createGain(); seaG.gain.value = 0.55;
+    src.connect(lp); lp.connect(seaG); seaG.connect(master);
+    src.start();
+
+    /* تنفّس الموج: مذبذب بطيء يفتح ويغلق المرشح */
+    const lfo = ctx.createOscillator(); lfo.type='sine'; lfo.frequency.value = 0.09;
+    const lfoG = ctx.createGain(); lfoG.gain.value = 300;
+    lfo.connect(lfoG); lfoG.connect(lp.frequency); lfo.start();
+    return true;
+  }
+
+  /* صيحة نورس: انزلاق ترددي هابط مع اهتزاز */
+  function gull(){
+    if (!on || !ctx) return;
+    const t0 = ctx.currentTime;
+    const o = ctx.createOscillator(); o.type = 'sawtooth';
+    const bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1500; bp.Q.value=5;
+    const g = ctx.createGain();
+    const f0 = 900 + Math.random()*450;
+    o.frequency.setValueAtTime(f0, t0);
+    o.frequency.exponentialRampToValueAtTime(f0*0.55, t0+0.34);
+    /* اهتزاز الصيحة */
+    const vib = ctx.createOscillator(); vib.type='sine'; vib.frequency.value = 22;
+    const vibG = ctx.createGain(); vibG.gain.value = 60;
+    vib.connect(vibG); vibG.connect(o.frequency); vib.start(t0); vib.stop(t0+0.4);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(0.085, t0+0.03);
+    g.gain.exponentialRampToValueAtTime(0.0008, t0+0.38);
+    o.connect(bp); bp.connect(g); g.connect(master);
+    o.start(t0); o.stop(t0+0.42);
+  }
+
+  /* رذاذ السمكة: ضجيج قصير عبر مرشح تمرير عالٍ هابط */
+  function splash(){
+    if (!on || !ctx) return;
+    const t0 = ctx.currentTime;
+    const n = ctx.sampleRate * 0.32;
+    const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i=0;i<n;i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/n, 2.2);
+    const s = ctx.createBufferSource(); s.buffer = buf;
+    const hp = ctx.createBiquadFilter(); hp.type='highpass';
+    hp.frequency.setValueAtTime(2600, t0);
+    hp.frequency.exponentialRampToValueAtTime(600, t0+0.30);
+    const g = ctx.createGain(); g.gain.value = 0.16;
+    s.connect(hp); hp.connect(g); g.connect(master);
+    s.start(t0);
+  }
+
+  function toggle(){
+    if (!ensure()) return false;
+    if (ctx.state === 'suspended') ctx.resume();
+    on = !on;
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    master.gain.linearRampToValueAtTime(on ? 0.85 : 0.0, ctx.currentTime + 0.5);
+    return on;
+  }
+
+  /* صيحات النوارس تتكرّر عشوائياً */
+  function tick(dt){
+    if (!on) return;
+    gullTimer -= dt;
+    if (gullTimer <= 0){
+      gull();
+      if (Math.random() < 0.45) setTimeout(gull, 260 + Math.random()*220);
+      gullTimer = 2.6 + Math.random()*5.5;
+    }
+  }
+  return { toggle, splash, tick, isOn: () => on };
+})();
+
+const btnSound = document.getElementById('btnSound');
+btnSound.addEventListener('click', () => {
+  const state = Audio2.toggle();
+  btnSound.classList.toggle('active', state);
+  btnSound.textContent = state ? '🔊 الأصوات' : '🔈 الأصوات';
+});
+
+/* تحديث الغيوم والنوارس والسمك */
+function updateSky(t, dt){
+  for (const c of clouds){
+    c.s.position.x += c.spd * dt * 2.2;
+    if (c.s.position.x > c.rad + 320) c.s.position.x = -(c.rad + 320);
+  }
+
+  for (const b of gulls){
+    const a = t*b.spd + b.ph;
+    const x = b.cx + Math.cos(a)*b.r1;
+    const z = b.cz + Math.sin(a*1.13)*b.r2;
+    const y = b.cy + Math.sin(a*1.7 + b.ph)*b.bob;
+    const na = a + 0.02;
+    const nx = b.cx + Math.cos(na)*b.r1;
+    const nz = b.cz + Math.sin(na*1.13)*b.r2;
+    b.g.position.set(x, y, z);
+    b.g.lookAt(nx, y, nz);
+    /* ينزلق أحياناً بأجنحة مفرودة، ويرفرف أحياناً */
+    const gl = 0.5 + 0.5*Math.sin(t*0.35 + b.glide*6.28);
+    const amp = 0.10 + 0.62*Math.max(0, gl - 0.25);
+    const f = Math.sin(t*b.flap + b.ph)*amp;
+    for (const wg of b.g.userData.wings) wg.pivot.rotation.z = -wg.side * (f + 0.10);
+    b.g.rotation.z += Math.sin(a)*0.10;
+  }
+
+  for (const f of fishes){
+    if (f.t < 0){
+      f.wait -= dt;
+      if (f.wait <= 0){
+        /* اختر نقطة انطلاق بعيدة عن الأرصفة */
+        const ang = Math.random()*Math.PI*2;
+        const rad = 34 + Math.random()*90;
+        f.x0 = Math.cos(ang)*rad; f.z0 = Math.sin(ang)*rad;
+        const dir = Math.random()*Math.PI*2;
+        const dist = 2.6 + Math.random()*3.4;
+        f.dx = Math.cos(dir)*dist; f.dz = Math.sin(dir)*dist;
+        f.hgt = 1.5 + Math.random()*2.2;
+        f.dur = 1.0 + Math.random()*0.6;
+        f.t = 0;
+        f.g.visible = true;
+        splashAt(f.x0, f.z0);
+      }
+      continue;
+    }
+    f.t += dt;
+    const k = f.t / f.dur;
+    if (k >= 1){
+      f.g.visible = false; f.t = -1;
+      f.wait = 2.5 + Math.random()*8;
+      splashAt(f.x0 + f.dx, f.z0 + f.dz);
+      continue;
+    }
+    const px = f.x0 + f.dx*k;
+    const pz = f.z0 + f.dz*k;
+    const py = 4*f.hgt*k*(1-k);            // قوس القفزة
+    f.g.position.set(px, py + 0.05, pz);
+    /* ميلان الجسم حسب اتجاه الحركة الرأسية */
+    const vy = 4*f.hgt*(1-2*k);
+    const vh = Math.hypot(f.dx, f.dz);
+    f.g.rotation.set(0, Math.atan2(f.dx, f.dz), 0);
+    f.g.rotateX(-Math.atan2(vy, vh || 0.001));
+    f.g.userData.tailPiv.rotation.y = Math.sin(f.t*26)*0.55;
+  }
+
+  for (let i=splashes.length-1; i>=0; i--){
+    const s = splashes[i];
+    s.k += dt*1.6;
+    if (s.k >= 1){ scene.remove(s.m); s.m.material.dispose(); splashes.splice(i,1); continue; }
+    const sc = 0.6 + s.k*5.5;
+    s.m.scale.set(sc, sc, 1);
+    s.m.material.opacity = 0.85*(1 - s.k);
+  }
+
+  Audio2.tick(dt);
+}
+
+const clock = new THREE.Clock();
+const loading = document.getElementById('loading');
+let shown = false;
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+  updateWater(t);
+  updateSky(t, dt);
+
+  if (rockOn){
+    ship.position.y = 0.15*Math.sin(t*0.5);
+    ship.rotation.z = 0.014*Math.sin(t*0.43 + 0.8);
+    ship.rotation.x = 0.009*Math.sin(t*0.36);
+
+    for (let i=0; i<smallShips.length; i++){
+      const s = smallShips[i];
+      const offset = i * 0.7;
+      s.position.y = 0.08*Math.sin(t*0.6 + offset);
+      s.rotation.z = 0.02*Math.sin(t*0.5 + offset);
+      s.rotation.x = 0.015*Math.sin(t*0.4 + offset);
+    }
+  } else {
+    ship.position.y += (0 - ship.position.y)*0.05;
+    ship.rotation.z += (0 - ship.rotation.z)*0.05;
+    ship.rotation.x += (0 - ship.rotation.x)*0.05;
+  }
+
+  pennant.rotation.y = 0.25*Math.sin(t*1.7);
+  pennant.rotation.z = 0.08*Math.sin(t*2.3 + 1);
+
+  if (lightBeacon){
+    lightBeacon.intensity = 1.5 + 0.8 * Math.sin(t * 2);
+  }
+
+  if (camTween){
+    camTween.k += dt / 1.5;
+    const k = Math.min(camTween.k, 1);
+    const e = k < 0.5 ? 4*k*k*k : 1 - Math.pow(-2*k + 2, 3) / 2;
+    camera.position.lerpVectors(camTween.p0, camTween.p1, e);
+    controls.target.lerpVectors(camTween.t0, camTween.t1, e);
+    if (k >= 1) camTween = null;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+  if (!shown){ shown = true; loading.classList.add('done'); }
+}
+animate();
+</script>
+</body>
+</html>

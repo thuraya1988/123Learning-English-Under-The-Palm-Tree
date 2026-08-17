@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🎪 عالم السيرك السحري — ثلاثي الأبعاد</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@latest/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@latest/700.css">
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;
+    font-family:'Cairo',system-ui,sans-serif;
+    background:linear-gradient(118deg,#a8dff0 0%,#c6ecf5 38%,#f6dede 72%,#f2cfd6 100%);}
+  #webgl{position:fixed;inset:0;display:block;touch-action:none;}
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:2;
+    background:radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(173,120,147,.20) 100%);}
+  .ui{position:fixed;left:0;right:0;display:flex;justify-content:center;z-index:5;pointer-events:none;}
+  .ui.top{top:18px;flex-direction:column;align-items:center;gap:6px;}
+  .ui.bottom{bottom:20px;flex-direction:column;align-items:center;gap:10px;}
+  .title{pointer-events:auto;display:flex;align-items:center;gap:10px;
+    background:rgba(255,255,255,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.85);border-radius:999px;padding:10px 26px;
+    box-shadow:0 10px 30px rgba(146,90,120,.18);}
+  .title h1{margin:0;font-size:clamp(16px,2.6vw,22px);font-weight:700;color:#8a4a63;}
+  .title .emoji{font-size:clamp(20px,3vw,26px);}
+  .subtitle{font-size:12.5px;color:rgba(122,74,94,.85);background:rgba(255,255,255,.4);
+    backdrop-filter:blur(8px);border-radius:999px;padding:4px 16px;border:1px solid rgba(255,255,255,.6);}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;pointer-events:auto;}
+  .controls button{font-family:inherit;font-weight:700;font-size:13.5px;color:#7a4a5e;
+    background:rgba(255,255,255,.6);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.85);
+    border-radius:999px;padding:10px 20px;cursor:pointer;
+    transition:transform .18s ease, background .18s ease, box-shadow .18s ease;
+    box-shadow:0 6px 18px rgba(146,90,120,.15);}
+  .controls button:hover{transform:translateY(-2px);background:rgba(255,255,255,.88);}
+  .controls button.active{background:#ffd9e4;border-color:#ffb9cd;color:#a03a5e;}
+  .hint{font-size:11.5px;color:rgba(122,74,94,.78);background:rgba(255,255,255,.42);
+    border-radius:999px;padding:5px 16px;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.55);}
+  #loader{position:fixed;inset:0;z-index:10;display:grid;place-items:center;
+    background:linear-gradient(118deg,#a8dff0,#c6ecf5 40%,#f2cfd6);transition:opacity .8s ease;}
+  #loader.hidden{opacity:0;pointer-events:none;}
+  #loader .box{display:flex;flex-direction:column;align-items:center;gap:14px;}
+  #loader .tent{font-size:58px;animation:bounce 1.2s ease infinite;}
+  #loader p{margin:0;font-weight:700;color:#8a4a63;}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+<script src="public/js/palm-games-fab.js" defer></script>
+</head>
+<body>
+<div id="vignette"></div>
+
+
+<div class="ui top">
+  <div class="title"><span class="emoji">🎪</span><h1>عالم السيرك السحري</h1></div>
+  <div class="subtitle">عالم ثلاثي الأبعاد عالي الجودة — جزيرة السيرك فوق الغيوم</div>
+</div>
+
+
+<div class="ui bottom">
+  <div class="controls">
+    <button id="btnRotate" class="active">🔄 الدوران التلقائي</button>
+    <button id="btnMotion">⏸️ إيقاف الحركة</button>
+    <button id="btnReset">🎯 إعادة الكاميرا</button>
+  </div>
+  <div class="hint">اسحب للتدوير • عجلة الفأرة للتقريب والإبعاد • نقرة مزدوجة لإعادة الكاميرا</div>
+</div>
+
+
+<div id="loader"><div class="box"><div class="tent">🎪</div><p>جارٍ بناء عالم السيرك…</p></div></div>
+
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+
+/* ================= الأساسيات ================= */
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.domElement.id = 'webgl';
+document.body.appendChild(renderer.domElement);
+
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 220);
+camera.position.set(0, 4.4, 17.5);
+
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.7, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 6;
+controls.maxDistance = 32;
+controls.maxPolarAngle = Math.PI * 0.62;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.9;
+
+
+/* ================= الإضاءة ================= */
+scene.add(new THREE.HemisphereLight(0xcfe8ff, 0xffd9c9, 0.85));
+const sunLight = new THREE.DirectionalLight(0xfff2df, 1.6);
+sunLight.position.set(7, 12, 6);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.left = -14; sunLight.shadow.camera.right = 14;
+sunLight.shadow.camera.top = 14;  sunLight.shadow.camera.bottom = -10;
+sunLight.shadow.camera.near = 1;  sunLight.shadow.camera.far = 40;
+sunLight.shadow.bias = -0.0005;
+scene.add(sunLight);
+const pinkFill = new THREE.DirectionalLight(0xffc9d8, 0.5);
+pinkFill.position.set(-8, 4, -6);
+scene.add(pinkFill);
+
+
+/* ================= أدوات مساعدة ================= */
+const rand = (a,b)=> a + Math.random()*(b-a);
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+
+
+function stripeTexture(colA, colB, count){
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 256;
+  const cx = cv.getContext('2d');
+  const w = 256 / count;
+  for(let i=0;i<count;i++){
+    cx.fillStyle = (i%2===0) ? colA : colB;
+    cx.fillRect(Math.floor(i*w), 0, Math.ceil(w)+1, 256);
+  }
+  const tx = new THREE.CanvasTexture(cv);
+  tx.colorSpace = THREE.SRGBColorSpace;
+  tx.anisotropy = 4;
+  return tx;
+}
+function stripeMaterial(colA, colB, count){
+  return new THREE.MeshStandardMaterial({ map: stripeTexture(colA,colB,count), roughness:0.85, side:THREE.DoubleSide });
+}
+
+
+/* خامات مشتركة */
+const cloudMat  = new THREE.MeshStandardMaterial({ color:0xffffff, roughness:1 });
+const goldMat   = new THREE.MeshStandardMaterial({ color:0xd9a441, metalness:1, roughness:0.28 });
+const skinMat   = new THREE.MeshStandardMaterial({ color:0xffd9c0, roughness:0.7 });
+const stringMat = new THREE.MeshStandardMaterial({ color:0xc9a86a, metalness:0.6, roughness:0.4 });
+const starMat   = new THREE.MeshStandardMaterial({ color:0xffd76a, emissive:0xffb830, emissiveIntensity:0.9, metalness:0.4, roughness:0.3 });
+const flagMat   = new THREE.MeshStandardMaterial({ color:0xe63946, side:THREE.DoubleSide, roughness:0.7 });
+
+
+const cloudGeo = new THREE.SphereGeometry(1, 24, 18);
+
+
+const flagShape = new THREE.Shape();
+flagShape.moveTo(0,0); flagShape.lineTo(0.45,0.11); flagShape.lineTo(0,0.24); flagShape.closePath();
+const flagGeo = new THREE.ShapeGeometry(flagShape);
+
+
+const starShape = new THREE.Shape();
+for(let i=0;i<10;i++){
+  const rr = (i%2===0) ? 0.22 : 0.1;
+  const aa = (i/10)*Math.PI*2 - Math.PI/2;
+  const sx = Math.cos(aa)*rr, sy = Math.sin(aa)*rr;
+  if(i===0) starShape.moveTo(sx,sy); else starShape.lineTo(sx,sy);
+}
+starShape.closePath();
+const starGeo = new THREE.ExtrudeGeometry(starShape, { depth:0.07, bevelEnabled:false });
+
+
+/* ================= الجزيرة ================= */
+const islandGroup = new THREE.Group();
+scene.add(islandGroup);
+const Y_BASE = 1.0;
+
+
+function addPuff(x,y,z,s,sy){
+  const m = new THREE.Mesh(cloudGeo, cloudMat);
+  m.position.set(x,y,z);
+  m.scale.set(s, (sy!==undefined? sy : s*0.78), s);
+  m.castShadow = true; m.receiveShadow = true;
+  islandGroup.add(m);
+  return m;
+}
+/* الطبقة العلوية */
+for(let i=0;i<75;i++){
+  const ang = Math.random()*Math.PI*2;
+  const rad = Math.sqrt(Math.random())*6.6;
+  const px = Math.cos(ang)*rad*1.12;
+  const pz = Math.sin(ang)*rad*0.85;
+  const py = rand(-0.75,0.3)*(1.05 - rad/10);
+  const sc = Math.max(0.5, (1.55 - rad*0.13))*rand(0.75,1.25);
+  addPuff(px,py,pz,sc);
+}
+/* المخروط السفلي */
+for(let i=0;i<28;i++){
+  const tt = i/28;
+  const py = -1.1 - tt*2.5 + rand(-0.25,0.25);
+  const spread = 4.6*(1 - tt*0.82);
+  const ang = Math.random()*Math.PI*2;
+  const rad = Math.sqrt(Math.random())*spread;
+  addPuff(Math.cos(ang)*rad, py, Math.sin(ang)*rad*0.8, rand(0.55,1.25)*(1-tt*0.45));
+}
+
+
+/* أرضية السيرك الرملية */
+const groundMesh = new THREE.Mesh(
+  new THREE.CylinderGeometry(4.6, 4.9, 0.45, 48),
+  new THREE.MeshStandardMaterial({ color:0xeac79c, roughness:1 })
+);
+groundMesh.position.y = 0.78;
+groundMesh.receiveShadow = true;
+islandGroup.add(groundMesh);
+
+
+/* ================= قوس قزح ================= */
+const RAINBOW = ['#ff5b5b','#ff9e3d','#ffe066','#5fd068','#4dabf7','#8468e8'];
+const rainbowGroup = new THREE.Group();
+RAINBOW.forEach((col, idx)=>{
+  const band = new THREE.Mesh(
+    new THREE.TorusGeometry(7 - idx*0.34, 0.18, 14, 140, Math.PI),
+    new THREE.MeshStandardMaterial({ color:col, roughness:0.55 })
+  );
+  rainbowGroup.add(band);
+});
+rainbowGroup.position.set(0, 1.1, -3.4);
+islandGroup.add(rainbowGroup);
+addPuff( 7, 1.1, -3.4, 1.25, 1.0);
+addPuff(-7, 1.1, -3.4, 1.25, 1.0);
+addPuff( 7.7, 1.6, -3.4, 0.8, 0.7);
+addPuff(-7.7, 1.6, -3.4, 0.8, 0.7);
+
+
+/* ================= الخيام ================= */
+function buildTent(radius, wallH, roofH, stripeCount){
+  const grp = new THREE.Group();
+  const wall = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius*1.07, wallH, 36, 1, true),
+    stripeMaterial('#ffffff','#ef4444', stripeCount));
+  wall.position.y = wallH/2;
+  wall.castShadow = wall.receiveShadow = true;
+  const roof = new THREE.Mesh(
+    new THREE.ConeGeometry(radius*1.14, roofH, 36),
+    stripeMaterial('#ffffff','#e5383b', stripeCount));
+  roof.position.y = wallH + roofH/2 - 0.02;
+  roof.castShadow = true;
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.55,8), goldMat);
+  pole.position.y = wallH + roofH + 0.24;
+  const flag = new THREE.Mesh(flagGeo, flagMat);
+  flag.position.y = wallH + roofH + 0.32;
+  grp.add(wall, roof, pole, flag);
+  return grp;
+}
+const mainTent = buildTent(2.1, 1.35, 1.75, 12);
+mainTent.position.set(0, Y_BASE, -0.2);
+islandGroup.add(mainTent);
+const doorMesh = new THREE.Mesh(
+  new THREE.BoxGeometry(1.15, 1.05, 0.12),
+  new THREE.MeshStandardMaterial({ color:0x7f1d2b, roughness:0.95 }));
+doorMesh.position.set(0, 0.55, 2.3);
+mainTent.add(doorMesh);
+
+
+const tentLeft = buildTent(1.05, 0.95, 1.05, 8);
+tentLeft.position.set(-3.5, Y_BASE, -0.4);
+islandGroup.add(tentLeft);
+const tentRight = buildTent(0.9, 0.85, 0.95, 8);
+tentRight.position.set(3.4, Y_BASE, -0.7);
+islandGroup.add(tentRight);
+const tentFront = buildTent(0.7, 0.7, 0.8, 8);
+tentFront.position.set(2.9, Y_BASE, 1.7);
+islandGroup.add(tentFront);
+
+
+/* ================= المؤدّون ================= */
+const COSTUMES = [0xff5d5d,0xffb703,0x4cc9f0,0xf72585,0x80ed99,0xb197fc,0xff8fab];
+function buildPerformer(costume, hatCol){
+  const grp = new THREE.Group();
+  const matBody = new THREE.MeshStandardMaterial({ color:costume, roughness:0.6 });
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.14,0.3,4,10), matBody);
+  body.position.y = 0.33; body.castShadow = true;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12,16,12), skinMat);
+  head.position.y = 0.64; head.castShadow = true;
+  const hat = new THREE.Mesh(new THREE.ConeGeometry(0.08,0.17,8),
+    new THREE.MeshStandardMaterial({ color:hatCol, roughness:0.6 }));
+  hat.position.y = 0.78;
+  const armGeo = new THREE.CapsuleGeometry(0.04,0.26,4,8);
+  const armL = new THREE.Mesh(armGeo, matBody);
+  armL.position.set(-0.19,0.52,0); armL.rotation.z = 2.3;
+  const armR = new THREE.Mesh(armGeo, matBody);
+  armR.position.set(0.19,0.52,0); armR.rotation.z = -2.3;
+  grp.add(body,head,hat,armL,armR);
+  return grp;
+}
+const dancers = [];
+for(let i=0;i<9;i++){
+  const ang = (i/9)*Math.PI*2 + rand(-0.2,0.2);
+  const rad = rand(2.9,4.1);
+  const perf = buildPerformer(pick(COSTUMES), pick(COSTUMES));
+  perf.position.set(Math.cos(ang)*rad, Y_BASE, Math.sin(ang)*rad);
+  perf.rotation.y = rand(0,Math.PI*2);
+  islandGroup.add(perf);
+  dancers.push({ obj:perf, phase:rand(0,6.28), baseY:Y_BASE });
+}
+
+
+/* ================= الفيلة ================= */
+function buildElephant(){
+  const grp = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color:0xefe8f4, roughness:0.9 });
+  const matEar = new THREE.MeshStandardMaterial({ color:0xf6d9e3, roughness:0.9 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.55,22,16), mat);
+  body.scale.set(1.25,0.95,0.95); body.position.y = 0.62; body.castShadow = true;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34,20,14), mat);
+  head.position.set(0.68,0.82,0); head.castShadow = true;
+  const earGeo = new THREE.SphereGeometry(0.22,14,10);
+  const earL = new THREE.Mesh(earGeo, matEar); earL.scale.set(0.3,1,0.85); earL.position.set(0.55,0.88,0.3);
+  const earR = new THREE.Mesh(earGeo, matEar); earR.scale.set(0.3,1,0.85); earR.position.set(0.55,0.88,-0.3);
+  const trunkCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.95,0.75,0), new THREE.Vector3(1.12,0.5,0),
+    new THREE.Vector3(1.0,0.25,0),  new THREE.Vector3(1.12,0.08,0)
+  ]);
+  const trunk = new THREE.Mesh(new THREE.TubeGeometry(trunkCurve,14,0.08,8), mat);
+  trunk.castShadow = true;
+  const legGeo = new THREE.CylinderGeometry(0.14,0.16,0.5,10);
+  [[0.35,0.25],[-0.35,0.25],[0.35,-0.25],[-0.35,-0.25]].forEach(pp=>{
+    const leg = new THREE.Mesh(legGeo, mat);
+    leg.position.set(pp[0],0.25,pp[1]);
+    leg.castShadow = true;
+    grp.add(leg);
+  });
+  grp.add(body,head,earL,earR,trunk);
+  return grp;
+}
+const elephantA = buildElephant();
+elephantA.position.set(-2.6, Y_BASE, 1.7);
+elephantA.rotation.y = -0.5;
+islandGroup.add(elephantA);
+const elephantB = buildElephant();
+elephantB.position.set(2.7, Y_BASE, 1.5);
+elephantB.rotation.y = Math.PI + 0.5;
+islandGroup.add(elephantB);
+
+
+/* ================= بهلوانات معلّقة بقوس قزح ================= */
+const swingers = [];
+function buildTrapeze(angleDeg){
+  const aa = angleDeg*Math.PI/180;
+  const pivot = new THREE.Group();
+  pivot.position.set(Math.cos(aa)*6.6, 1.1 + Math.sin(aa)*6.6, -3.4);
+  const line = new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,1.5,6), stringMat);
+  line.position.y = -0.75;
+  const artist = buildPerformer(pick(COSTUMES), pick(COSTUMES));
+  artist.position.y = -1.62;
+  pivot.add(line, artist);
+  islandGroup.add(pivot);
+  swingers.push({ obj:pivot, phase:rand(0,6.28), speed:rand(0.7,1.1) });
+}
+buildTrapeze(62);
+buildTrapeze(118);
+
+
+/* ================= زينة متدلية تحت الغيمة ================= */
+const swayingOrnaments = [];
+const ornMats = [
+  goldMat,
+  new THREE.MeshStandardMaterial({ color:0xe5383b, metalness:0.7, roughness:0.3 }),
+  new THREE.MeshStandardMaterial({ color:0x2ec4b6, metalness:0.7, roughness:0.3 }),
+  new THREE.MeshStandardMaterial({ color:0xff8fab, metalness:0.7, roughness:0.3 })
+];
+for(let i=0;i<46;i++){
+  const tt = Math.random();
+  const py = -0.9 - tt*2.6;
+  const spread = 5.6*(1 - tt*0.68);
+  const ang = Math.random()*Math.PI*2;
+  const rad = Math.sqrt(Math.random())*spread;
+  const len = rand(0.7, 2.6);
+  const pivot = new THREE.Group();
+  pivot.position.set(Math.cos(ang)*rad*1.1, py, Math.sin(ang)*rad*0.85);
+  const line = new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,len,6), stringMat);
+  line.position.y = -len/2;
+  let orn;
+  if(Math.random() < 0.35){
+    orn = new THREE.Mesh(starGeo, starMat);
+    orn.rotation.y = rand(0,3.14);
+    orn.position.y = -len - 0.15;
+  } else {
+    orn = new THREE.Mesh(new THREE.SphereGeometry(rand(0.09,0.2),16,12), pick(ornMats));
+    orn.position.y = -len - 0.1;
+  }
+  pivot.add(line, orn);
+  islandGroup.add(pivot);
+  swayingOrnaments.push({ obj:pivot, phase:rand(0,6.28), speed:rand(0.5,1.0) });
+}
+
+
+/* ================= بالونات عائمة ================= */
+const floaters = [];
+const BALLOON_COLORS = [0xe5383b, 0xffd60a, 0xffffff, 0xef476f, 0xf4a261];
+function buildBalloon(scale, color){
+  const grp = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color, roughness:0.35 });
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(scale,20,16), mat);
+  ball.scale.y = 1.12; ball.castShadow = true;
+  const knot = new THREE.Mesh(new THREE.ConeGeometry(scale*0.16, scale*0.22, 8), mat);
+  knot.rotation.x = Math.PI;
+  knot.position.y = -scale*1.15;
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,scale*2.2,4), stringMat);
+  tail.position.y = -scale*2.3;
+  grp.add(ball,knot,tail);
+  return grp;
+}
+for(let i=0;i<14;i++){
+  const bal = buildBalloon(rand(0.28,0.6), pick(BALLOON_COLORS));
+  const px = rand(-9,9), py = rand(2.5,7.5), pz = rand(-6,3);
+  bal.position.set(px,py,pz);
+  scene.add(bal);
+  floaters.push({ obj:bal, baseX:px, baseY:py, phase:rand(0,6.28), speed:rand(0.5,1.1), amp:rand(0.2,0.5), driftX:0 });
+}
+function buildHotAir(scale, colA, colB){
+  const grp = new THREE.Group();
+  const env = new THREE.Mesh(new THREE.SphereGeometry(scale,24,18), stripeMaterial(colA,colB,8));
+  env.scale.y = 1.2; env.castShadow = true;
+  const skirt = new THREE.Mesh(new THREE.ConeGeometry(scale*0.45, scale*0.5, 12), stripeMaterial(colA,colB,8));
+  skirt.rotation.x = Math.PI;
+  skirt.position.y = -scale*1.25;
+  const basket = new THREE.Mesh(new THREE.BoxGeometry(scale*0.4, scale*0.32, scale*0.4),
+    new THREE.MeshStandardMaterial({ color:0x9c6644, roughness:0.9 }));
+  basket.position.y = -scale*1.65;
+  grp.add(env, skirt, basket);
+  return grp;
+}
+[
+  { x:-6.8, y:4.6, z:-2.2, s:0.75, b:'#ef476f' },
+  { x: 6.4, y:5.4, z:-3.6, s:0.9,  b:'#f4a261' },
+  { x:-3.8, y:6.8, z:-6.5, s:0.6,  b:'#4cc9f0' },
+  { x: 8.2, y:3.2, z:-1.0, s:0.5,  b:'#ffd60a' }
+].forEach((hd, ix)=>{
+  const ha = buildHotAir(hd.s, '#ffffff', hd.b);
+  ha.position.set(hd.x, hd.y, hd.z);
+  scene.add(ha);
+  floaters.push({ obj:ha, baseX:hd.x, baseY:hd.y, phase:ix*1.7, speed:0.35, amp:0.35, driftX:0.5 });
+});
+
+
+/* ================= قصاصات متساقطة ================= */
+const CONF_COUNT = 280;
+const confettiMesh = new THREE.InstancedMesh(
+  new THREE.PlaneGeometry(0.13,0.19),
+  new THREE.MeshBasicMaterial({ side:THREE.DoubleSide }),
+  CONF_COUNT);
+confettiMesh.frustumCulled = false;
+const confData = [];
+const confPalette = [0xff5d5d,0xffb703,0x4cc9f0,0xf72585,0x80ed99,0xffffff,0xb197fc];
+const tmpColor = new THREE.Color();
+for(let i=0;i<CONF_COUNT;i++){
+  confData.push({
+    pos: new THREE.Vector3(rand(-11,11), rand(-4,9), rand(-6,5)),
+    rot: new THREE.Euler(rand(0,3), rand(0,3), rand(0,3)),
+    spin: new THREE.Vector3(rand(-2,2), rand(-2,2), rand(-2,2)),
+    fall: rand(0.4,1.2)
+  });
+  confettiMesh.setColorAt(i, tmpColor.setHex(pick(confPalette)));
+}
+confettiMesh.instanceColor.needsUpdate = true;
+scene.add(confettiMesh);
+const dummyObj = new THREE.Object3D();
+
+
+/* ================= بريق ================= */
+function makeSparkles(colorHex, count, size){
+  const posArr = new Float32Array(count*3);
+  for(let i=0;i<count;i++){
+    posArr[i*3]   = rand(-12,12);
+    posArr[i*3+1] = rand(-2,9);
+    posArr[i*3+2] = rand(-7,5);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(posArr,3));
+  const mat = new THREE.PointsMaterial({ color:colorHex, size, transparent:true, opacity:0.85,
+    blending:THREE.AdditiveBlending, depthWrite:false });
+  const pts = new THREE.Points(geo, mat);
+  pts.frustumCulled = false;
+  scene.add(pts);
+  return mat;
+}
+const sparkleMatA = makeSparkles(0xffffff, 140, 0.09);
+const sparkleMatB = makeSparkles(0xffd76a, 120, 0.08);
+
+
+/* ضبط شدة الانعكاس البيئي */
+scene.traverse(ob=>{
+  if(ob.isMesh && ob.material && ob.material.isMeshStandardMaterial){
+    ob.material.envMapIntensity = 0.55;
+  }
+});
+
+
+/* ================= واجهة التحكم ================= */
+const btnRotate = document.getElementById('btnRotate');
+const btnMotion = document.getElementById('btnMotion');
+const btnReset  = document.getElementById('btnReset');
+btnRotate.addEventListener('click', ()=>{
+  controls.autoRotate = !controls.autoRotate;
+  btnRotate.classList.toggle('active', controls.autoRotate);
+});
+let motionOn = true;
+btnMotion.addEventListener('click', ()=>{
+  motionOn = !motionOn;
+  btnMotion.textContent = motionOn ? '⏸️ إيقاف الحركة' : '▶️ تشغيل الحركة';
+  btnMotion.classList.toggle('active', !motionOn);
+});
+function resetCamera(){
+  camera.position.set(0, 4.4, 17.5);
+  controls.target.set(0, 1.7, 0);
+  controls.update();
+}
+btnReset.addEventListener('click', resetCamera);
+renderer.domElement.addEventListener('dblclick', resetCamera);
+
+
+window.addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+
+/* ================= حلقة التحريك ================= */
+const clock = new THREE.Clock();
+let animTime = 0;
+let loaderHidden = false;
+
+
+function tick(){
+  requestAnimationFrame(tick);
+  const delta = Math.min(clock.getDelta(), 0.05);
+  if(motionOn) animTime += delta;
+  const t = animTime;
+
+
+  islandGroup.position.y = Math.sin(t*0.6)*0.18;
+  islandGroup.rotation.y = Math.sin(t*0.12)*0.04;
+
+
+  floaters.forEach(fl=>{
+    fl.obj.position.y = fl.baseY + Math.sin(t*fl.speed + fl.phase)*fl.amp;
+    fl.obj.position.x = fl.baseX + Math.sin(t*0.2 + fl.phase)*(fl.driftX||0);
+    fl.obj.rotation.z = Math.sin(t*0.8 + fl.phase)*0.06;
+  });
+
+
+  dancers.forEach(dc=>{
+    dc.obj.position.y = dc.baseY + Math.abs(Math.sin(t*2.2 + dc.phase))*0.09;
+    if(motionOn) dc.obj.rotation.y += delta*0.4;
+  });
+
+
+  swayingOrnaments.forEach(sw=>{
+    sw.obj.rotation.x = Math.cos(t*sw.speed + sw.phase)*0.09;
+    sw.obj.rotation.z = Math.sin(t*sw.speed + sw.phase)*0.11;
+  });
+  swingers.forEach(sw=>{
+    sw.obj.rotation.z = Math.sin(t*sw.speed + sw.phase)*0.16;
+  });
+
+
+  if(motionOn){
+    for(let i=0;i<CONF_COUNT;i++){
+      const cd = confData[i];
+      cd.pos.y -= cd.fall*delta;
+      cd.rot.x += cd.spin.x*delta;
+      cd.rot.y += cd.spin.y*delta;
+      cd.rot.z += cd.spin.z*delta;
+      if(cd.pos.y < -5) cd.pos.y = 9.5;
+      dummyObj.position.copy(cd.pos);
+      dummyObj.rotation.copy(cd.rot);
+      dummyObj.updateMatrix();
+      confettiMesh.setMatrixAt(i, dummyObj.matrix);
+    }
+    confettiMesh.instanceMatrix.needsUpdate = true;
+  }
+
+
+  sparkleMatA.opacity = 0.55 + 0.35*Math.sin(t*2.4);
+  sparkleMatB.opacity = 0.55 + 0.35*Math.sin(t*2.4 + Math.PI);
+
+
+  controls.update();
+  renderer.render(scene, camera);
+
+
+  if(!loaderHidden){
+    loaderHidden = true;
+    document.getElementById('loader').classList.add('hidden');
+  }
+}
+tick();
+</script>
+</body>
+</html>

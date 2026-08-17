@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>🐟 بيت السمكة العائم — عالم ثلاثي الأبعاد</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/cairo@latest/index.css"/>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#9fc9cf;font-family:'Cairo',sans-serif}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .vignette{position:fixed;inset:0;pointer-events:none;z-index:2;
+    background:radial-gradient(ellipse at 50% 42%, transparent 55%, rgba(30,60,70,.35) 100%)}
+  .hud{position:fixed;z-index:5;pointer-events:none}
+  #title{bottom:18px;right:18px;background:rgba(255,252,244,.8);backdrop-filter:blur(12px);color:#b04a2a;
+    padding:12px 20px;border-radius:18px;border:1px solid rgba(255,255,255,.9);box-shadow:0 8px 30px rgba(30,80,90,.25)}
+  #title h1{margin:0;font-size:17px;font-weight:800}
+  #title p{margin:3px 0 0;font-size:11px;opacity:.75;color:#3a6a72}
+  #hint{top:16px;right:50%;transform:translateX(50%);background:rgba(255,252,244,.65);backdrop-filter:blur(8px);
+    color:#2a5a62;padding:8px 18px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,.8);transition:opacity 1s;white-space:nowrap}
+  #hint.hide{opacity:0}
+  #btns{top:16px;left:16px;display:flex;gap:8px;flex-wrap:wrap}
+  .btn{pointer-events:auto;cursor:pointer;border:1px solid rgba(255,255,255,.85);background:rgba(255,252,244,.9);
+    color:#b04a2a;border-radius:999px;padding:8px 16px;font-size:12px;font-family:'Cairo',sans-serif;font-weight:700;
+    backdrop-filter:blur(8px);transition:.2s;box-shadow:0 4px 14px rgba(30,80,90,.2)}
+  .btn:hover{background:#fff;transform:translateY(-1px)}
+  .btn.active{background:linear-gradient(135deg,#f6a03a,#e05a2a);color:#fff;border-color:rgba(255,255,255,.7)}
+  .btn.sea{background:linear-gradient(135deg,#7fc4c4,#3a8a9a);color:#fff;border-color:rgba(255,255,255,.6)}
+  #loader{position:fixed;inset:0;background:linear-gradient(180deg,#b8d8dc,#8fc4c8);display:flex;flex-direction:column;gap:14px;
+    align-items:center;justify-content:center;z-index:10;transition:opacity .9s;color:#2a5a62;font-size:14px;font-weight:700}
+  #loader.done{opacity:0;pointer-events:none}
+  .spin{width:52px;height:52px;border-radius:50%;border:5px solid rgba(255,255,255,.6);border-top-color:#e05a2a;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+<script type="importmap">
+{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/examples/jsm/"}}
+</script>
+<script src="public/js/palm-games-fab.js" defer></script>
+</head>
+<body>
+<div id="app"></div>
+<div class="vignette"></div>
+<div id="loader"><div class="spin"></div><div>جارٍ نفخ السمكة-البيت… 🐟</div></div>
+<div class="hud" id="hint">اسحب للاستدارة • العجلة للتقريب • بيت السمكة يتأرجح فوق الماء بهدوء</div>
+<div class="hud" id="btns">
+  <button class="btn sea active" id="btnBubbles">🫧 الفقاعات</button>
+  <button class="btn active" id="btnRotate">🔄 تدوير تلقائي</button>
+  <button class="btn" id="btnReset">🎯 إعادة الكاميرا</button>
+</div>
+<div class="hud" id="title">
+  <h1>🐟 بيت السمكة العائم</h1>
+  <p>عالم ثلاثي الأبعاد عالي الجودة مستوحى من اللوحة — سمكة-بيت فوق قارب وحديقة أزهار</p>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ================= الأساسيات ================= */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xbcd6da, 55, 140);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.1, 400);
+camera.position.set(0, 7.5, 21);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 6, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.6;
+controls.minDistance = 7;
+controls.maxDistance = 55;
+controls.maxPolarAngle = 1.52;
+
+/* ================= السماء ================= */
+scene.add(new THREE.Mesh(
+  new THREE.SphereGeometry(190, 32, 20),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite:false,
+    uniforms:{},
+    vertexShader:'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+    fragmentShader:[
+      'varying vec3 vP;',
+      'void main(){',
+      '  float h = clamp(normalize(vP).y*0.5+0.5, 0.0, 1.0);',
+      '  vec3 top = vec3(0.55,0.75,0.80);',
+      '  vec3 bot = vec3(0.85,0.90,0.86);',
+      '  vec3 col = mix(bot, top, pow(h,0.7));',
+      '  float m = sin(normalize(vP).x*5.0)*sin(normalize(vP).y*7.0)*sin(normalize(vP).z*5.0);',
+      '  col += vec3(0.10)*smoothstep(0.3,0.9,m);',
+      '  gl_FragColor = vec4(col,1.0);',
+      '}'
+    ].join('\n')
+  })
+));
+
+/* ================= الإضاءة ================= */
+scene.add(new THREE.HemisphereLight(0xd8f0f2, 0x3a6a62, 0.85));
+const sun = new THREE.DirectionalLight(0xfff0d0, 1.5);
+sun.position.set(10, 18, 9);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -22; sun.shadow.camera.right = 22;
+sun.shadow.camera.top = 24; sun.shadow.camera.bottom = -8;
+sun.shadow.camera.near = 2; sun.shadow.camera.far = 60;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+/* scene.add() يُعيد المشهد نفسه، فـ .position.set كانت تُزيح المشهد كلّه بدل الضوء */
+const fillSea = new THREE.DirectionalLight(0xbfe0e8, 0.35);
+fillSea.position.set(-10, 8, -6);
+scene.add(fillSea);
+
+/* ================= أدوات ================= */
+function M(color, rough, extra){
+  return new THREE.MeshStandardMaterial(Object.assign({ color, roughness: rough===undefined?0.8:rough, metalness:0 }, extra||{}));
+}
+function addM(geo, mtrl, parent, x=0, y=0, z=0){
+  const m = new THREE.Mesh(geo, mtrl);
+  m.position.set(x,y,z);
+  m.castShadow = true; m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+function canvasTex(size, fn, wrap){
+  const cv = document.createElement('canvas'); cv.width = cv.height = size;
+  const cx = cv.getContext('2d'); fn(cx, size);
+  const tx = new THREE.CanvasTexture(cv);
+  tx.colorSpace = THREE.SRGBColorSpace;
+  if(wrap){ tx.wrapS = tx.wrapT = THREE.RepeatWrapping; }
+  return tx;
+}
+const palette = ['#d04a5a','#e8842a','#f6c43a','#7a4fd0','#4a90d9','#4fa06a','#d97b93','#7fc4c4'];
+
+/* ================= خامات مرسومة ================= */
+const fishTex = canvasTex(512, (g,s)=>{
+  const grd = g.createLinearGradient(0,0,s,s);
+  grd.addColorStop(0,'#e06a20'); grd.addColorStop(0.5,'#f09030'); grd.addColorStop(1,'#f6b844');
+  g.fillStyle = grd; g.fillRect(0,0,s,s);
+  g.globalAlpha = 0.10;
+  for(let i=0;i<220;i++){
+    g.strokeStyle = Math.random()<0.5 ? '#a04a10' : '#ffd88a';
+    g.lineWidth = 1+Math.random()*2;
+    const x = Math.random()*s, y = Math.random()*s;
+    g.beginPath(); g.moveTo(x,y); g.lineTo(x+20+Math.random()*40, y+(Math.random()-0.5)*8); g.stroke();
+  }
+  g.globalAlpha = 0.25;
+  for(let i=0;i<8;i++){
+    g.strokeStyle = '#ffd88a'; g.lineWidth = 3;
+    const x = Math.random()*s, y = s*0.5+Math.random()*s*0.5;
+    g.beginPath(); g.arc(x, y, 8+Math.random()*14, 0, 7); g.stroke();
+    for(let p=0;p<6;p++){ const a=p/6*Math.PI*2; g.beginPath(); g.ellipse(x+Math.cos(a)*22, y+Math.sin(a)*22, 7, 3, a, 0, 7); g.stroke(); }
+  }
+  g.globalAlpha = 1;
+});
+const patchTex = canvasTex(256, (g,s)=>{
+  const n = 8, q = s/n;
+  for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+    g.fillStyle = palette[(i*3+j*5)%palette.length];
+    g.fillRect(i*q, j*q, q, q);
+    g.strokeStyle = 'rgba(40,30,20,0.5)'; g.lineWidth = 2;
+    g.strokeRect(i*q, j*q, q, q);
+  }
+});
+const roofTex = canvasTex(256, (g,s)=>{
+  const cols = ['#d04a5a','#e8842a','#f6c43a','#4a90d9','#7a4fd0','#4fa06a'];
+  const q = s/6;
+  for(let i=0;i<6;i++){ g.fillStyle = cols[i]; g.fillRect(i*q, 0, q, s); }
+  g.strokeStyle = 'rgba(40,30,20,0.4)'; g.lineWidth = 3;
+  for(let i=0;i<=6;i++){ g.beginPath(); g.moveTo(i*q,0); g.lineTo(i*q,s); g.stroke(); }
+});
+const waterTex = canvasTex(512, (g,s)=>{
+  g.fillStyle = '#7fc4c4'; g.fillRect(0,0,s,s);
+  for(let i=0;i<160;i++){
+    g.globalAlpha = 0.12+Math.random()*0.15;
+    g.strokeStyle = Math.random()<0.5 ? '#a8e0dc' : '#4a9a9a';
+    g.lineWidth = 2+Math.random()*3;
+    const y = Math.random()*s, x = Math.random()*s;
+    g.beginPath(); g.moveTo(x,y); g.quadraticCurveTo(x+30, y-6, x+60+Math.random()*40, y); g.stroke();
+  }
+  g.globalAlpha = 1;
+}, true);
+waterTex.repeat.set(5,5);
+const umbTex = canvasTex(256, (g,s)=>{
+  const c = s/2;
+  for(let i=0;i<8;i++){
+    g.fillStyle = i%2 ? '#7a4fd0' : '#d04a5a';
+    g.beginPath(); g.moveTo(c,c);
+    g.arc(c, c, c, i/8*Math.PI*2, (i+1)/8*Math.PI*2); g.closePath(); g.fill();
+  }
+});
+const boatTex = canvasTex(512, (g,s)=>{
+  g.fillStyle = '#c9b898'; g.fillRect(0,0,s,s);
+  g.strokeStyle = 'rgba(120,100,70,0.5)'; g.lineWidth = 3;
+  for(let y=0;y<s;y+=42){ g.beginPath(); g.moveTo(0,y); g.lineTo(s,y); g.stroke(); }
+  g.fillStyle = '#8a2a20'; g.fillRect(0, s*0.62, s, s*0.38);
+  for(let i=0;i<14;i++){
+    g.fillStyle = i%2 ? '#d04a3a' : '#e8842a';
+    g.beginPath(); g.arc(i*s/14+s/28, s*0.8, s*0.045, 0, 7); g.fill();
+    g.strokeStyle = '#f6c43a'; g.lineWidth = 2;
+    g.beginPath(); g.arc(i*s/14+s/28, s*0.8, s*0.065, 0, 7); g.stroke();
+  }
+});
+
+/* ================= الماء ================= */
+const water = new THREE.Mesh(new THREE.CircleGeometry(80, 48), new THREE.MeshStandardMaterial({ map:waterTex, roughness:0.35 }));
+water.rotation.x = -Math.PI/2;
+water.position.y = 0;
+water.receiveShadow = true;
+scene.add(water);
+
+/* ================= مجموعة السمكة-البيت ================= */
+const floatGroup = new THREE.Group();
+floatGroup.position.set(0, 6.2, 0);
+scene.add(floatGroup);
+
+/* الجسم */
+const body = addM(new THREE.SphereGeometry(4, 48, 32), new THREE.MeshStandardMaterial({ map:fishTex, roughness:0.7 }), floatGroup);
+body.scale.set(1.3, 1.05, 0.8);
+
+/* الذيل */
+const tailM = M('#e04a20', 0.6);
+const lobe1 = addM(new THREE.SphereGeometry(1.6, 20, 14), tailM, floatGroup, -6.2, 1.2, 0);
+lobe1.scale.set(1.6, 0.7, 0.35); lobe1.rotation.z = 0.55;
+const lobe2 = addM(new THREE.SphereGeometry(1.5, 20, 14), tailM, floatGroup, -6.2, -1.2, 0);
+lobe2.scale.set(1.6, 0.7, 0.35); lobe2.rotation.z = -0.55;
+addM(new THREE.CylinderGeometry(0.5, 0.8, 1.4, 10), tailM, floatGroup, -5.0, 0, 0).rotation.z = Math.PI/2;
+
+/* العين */
+const eyeG = new THREE.Group(); eyeG.position.set(2.1, 0.9, 2.9); floatGroup.add(eyeG);
+addM(new THREE.SphereGeometry(0.85, 20, 16), M('#f6f2e8', 0.4), eyeG);
+addM(new THREE.SphereGeometry(0.32, 14, 12), M('#1a1410', 0.3), eyeG, 0, 0, 0.68);
+const eyeRing = addM(new THREE.TorusGeometry(0.88, 0.1, 10, 28), M('#2a2018', 0.6), eyeG);
+for(let i=0;i<10;i++){
+  const a = i/10*Math.PI*2;
+  const lash = addM(new THREE.BoxGeometry(0.05, 0.22, 0.05), M('#2a2018', 0.6), eyeG, Math.sin(a)*0.95, Math.cos(a)*0.95, 0.1);
+  lash.rotation.z = -a;
+}
+
+/* الفم والخد */
+const mouth = addM(new THREE.TorusGeometry(0.5, 0.07, 8, 16, Math.PI*0.9), M('#5a2a10', 0.6), floatGroup, 4.1, -0.7, 1.9);
+mouth.rotation.z = Math.PI*1.05; mouth.rotation.y = 0.5;
+const blush = addM(new THREE.SphereGeometry(0.5, 12, 10), M('#d05a3a', 0.8), floatGroup, 3.3, -1.0, 2.5);
+blush.scale.z = 0.3;
+
+/* هوائي العين الصغيرة */
+const ant = addM(new THREE.CylinderGeometry(0.05, 0.07, 1.4, 6), M('#2a2018', 0.7), floatGroup, 5.5, 0.2, 0);
+ant.rotation.z = -1.2;
+const antEye = addM(new THREE.SphereGeometry(0.3, 12, 10), M('#f6f2e8', 0.4), floatGroup, 6.1, 0.8, 0);
+addM(new THREE.SphereGeometry(0.12, 8, 6), M('#1a1410', 0.3), floatGroup, 6.3, 0.85, 0.12);
+
+/* الباب المقوّس */
+const doorG = new THREE.Group(); doorG.position.set(-0.7, -1.6, 3.0); floatGroup.add(doorG);
+{
+  const ds = new THREE.Shape();
+  ds.moveTo(-0.8, 0); ds.lineTo(-0.8, 1.7); ds.absarc(0, 1.7, 0.8, Math.PI, 0, true); ds.lineTo(0.8, 0); ds.closePath();
+  const frame = new THREE.Mesh(new THREE.ExtrudeGeometry(ds, { depth:0.1, bevelEnabled:false }), M('#5a4a3a', 0.8));
+  frame.scale.setScalar(1.15); frame.position.set(0, -0.1, -0.06);
+  frame.castShadow = true; doorG.add(frame);
+  const door = new THREE.Mesh(new THREE.ExtrudeGeometry(ds, { depth:0.12, bevelEnabled:false }), M('#6aa8a0', 0.7));
+  door.castShadow = true; doorG.add(door);
+  for(let i=0;i<4;i++){
+    const pl = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.4, 0.05), M('#4a8a82', 0.8));
+    pl.position.set(-0.55 + i*0.36, 1.2, 0.14); doorG.add(pl);
+  }
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), M('#d04a5a', 0.4));
+  knob.position.set(0.5, 1.2, 0.18); doorG.add(knob);
+}
+/* سلة الأزهار بجانب الباب */
+const basket = addM(new THREE.TorusGeometry(0.45, 0.12, 8, 18, Math.PI), M('#c9a06b', 0.8), floatGroup, -2.3, -0.9, 3.0);
+basket.rotation.z = Math.PI;
+[[-2.5,-0.6,3.1,'#d04a3a'],[-2.2,-0.5,3.15,'#e8842a'],[-2.35,-0.75,3.2,'#4fa06a'],[-2.1,-0.8,3.1,'#d04a5a']].forEach(p=>{
+  addM(new THREE.SphereGeometry(0.16, 8, 6), M(p[3], 0.6), floatGroup, p[0], p[1], p[2]);
+});
+
+/* النافذة بمصاريع */
+const winG = new THREE.Group(); winG.position.set(1.7, 0.6, 2.95); floatGroup.add(winG);
+{
+  const wf = addM(new THREE.BoxGeometry(1.5, 1.5, 0.12), M('#8a6a4a', 0.8), winG);
+  const curtain = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), M('#f6f2e8', 0.9));
+  curtain.position.z = 0.08; winG.add(curtain);
+  const bar1 = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.3, 0.06), M('#5a4a3a', 0.8)); bar1.position.z = 0.12; winG.add(bar1);
+  const bar2 = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.07, 0.06), M('#5a4a3a', 0.8)); bar2.position.z = 0.12; winG.add(bar2);
+  const shL = addM(new THREE.BoxGeometry(0.5, 1.5, 0.08), M('#a08860', 0.85), winG, -1.05, 0, 0.02);
+  const shR = addM(new THREE.BoxGeometry(0.5, 1.5, 0.08), M('#a08860', 0.85), winG, 1.05, 0, 0.02);
+}
+/* كوة دائرية */
+const porth = addM(new THREE.CylinderGeometry(0.55, 0.55, 0.1, 20), M('#6aa8a0', 0.5), floatGroup, 1.5, -1.2, 2.95);
+porth.rotation.x = Math.PI/2;
+const porthRim = addM(new THREE.TorusGeometry(0.55, 0.09, 8, 22), M('#8a6a4a', 0.8), floatGroup, 1.5, -1.2, 3.0);
+
+/* صندوق الترقيع والسقف */
+const patch = addM(new THREE.BoxGeometry(2.6, 2.2, 2.0), new THREE.MeshStandardMaterial({ map:patchTex, roughness:0.85 }), floatGroup, -2.6, 2.6, 0);
+const roof = addM(new THREE.BoxGeometry(3.2, 0.16, 2.5), new THREE.MeshStandardMaterial({ map:roofTex, roughness:0.8 }), floatGroup, -2.6, 3.8, 0);
+roof.rotation.z = 0.06;
+
+/* حديقة الأعلى */
+function daisy(head, petal, core, size){
+  const g = new THREE.Group();
+  addM(new THREE.SphereGeometry(size*0.3, 10, 8), M(core, 0.6), g);
+  for(let i=0;i<9;i++){
+    const a = i/9*Math.PI*2;
+    const p = new THREE.Mesh(new THREE.SphereGeometry(size*0.45, 8, 6), M(petal, 0.7));
+    p.scale.set(1, 0.5, 0.25);
+    p.position.set(Math.cos(a)*size*0.55, Math.sin(a)*size*0.55, 0);
+    p.rotation.z = a;
+    p.castShadow = true;
+    g.add(p);
+  }
+  head.add(g);
+  return g;
+}
+function topFlower(x, z, h, petal, core, size){
+  const g = new THREE.Group();
+  g.position.set(x, 3.4, z);
+  floatGroup.add(g);
+  const stem = addM(new THREE.CylinderGeometry(0.05, 0.07, h, 6), M('#4a7a3a', 0.8), g, 0, h/2, 0);
+  stem.rotation.z = (Math.random()-0.5)*0.3;
+  const head = new THREE.Group(); head.position.set(0, h+0.1, 0); g.add(head);
+  daisy(head, petal, core, size);
+  head.rotation.x = -0.4;
+  return g;
+}
+topFlower(-0.6, -0.6, 2.6, '#e8842a', '#8a4a10', 0.8);
+topFlower(0.6, 0.4, 2.2, '#7a4fd0', '#f6c43a', 0.7);
+topFlower(1.8, -0.5, 1.8, '#d04a5a', '#f6c43a', 0.6);
+topFlower(2.8, 0.3, 1.4, '#e8842a', '#5a2a10', 0.5);
+topFlower(-1.4, 0.6, 1.6, '#d97b93', '#f6c43a', 0.55);
+/* براعم صغيرة */
+[[3.4,-0.4,1.0,'#d04a3a'],[3.9,0.3,0.8,'#e8842a'],[2.4,0.8,0.9,'#c9d06a'],[4.3,-0.2,0.6,'#d04a5a'],[-0.2,0.9,1.1,'#d04a3a']].forEach(p=>{
+  const g = new THREE.Group(); g.position.set(p[0], 3.5, p[1]); floatGroup.add(g);
+  addM(new THREE.CylinderGeometry(0.03, 0.05, p[2], 5), M('#4a7a3a', 0.8), g, 0, p[2]/2, 0);
+  const bud = addM(new THREE.SphereGeometry(0.22, 10, 8), M(p[3], 0.55), g, 0, p[2]+0.15, 0);
+  bud.scale.y = 1.3;
+});
+/* الشمسية */
+{
+  const g = new THREE.Group(); g.position.set(2.2, 4.2, -0.6); floatGroup.add(g);
+  addM(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 6), M('#5a4a3a', 0.8), g, 0, 1.1, 0);
+  const umb = addM(new THREE.ConeGeometry(1.3, 0.8, 12), new THREE.MeshStandardMaterial({ map:umbTex, roughness:0.7, side:THREE.DoubleSide }), g, 0, 2.2, 0);
+  addM(new THREE.SphereGeometry(0.09, 8, 6), M('#f6c43a', 0.5), g, 0, 2.7, 0);
+}
+
+/* طائر الذيل */
+{
+  const g = new THREE.Group(); g.position.set(-7.6, 2.6, 0); floatGroup.add(g);
+  const bd = addM(new THREE.SphereGeometry(0.5, 14, 12), M('#e8a33a', 0.6), g);
+  bd.scale.y = 1.3;
+  const bk = addM(new THREE.ConeGeometry(0.12, 0.35, 6), M('#c96a2a', 0.6), g, 0, 0.55, 0);
+  addM(new THREE.SphereGeometry(0.07, 6, 6), M('#1a1410', 0.4), g, 0.18, 0.35, 0.18);
+  const wg = addM(new THREE.SphereGeometry(0.25, 8, 6), M('#d08a2a', 0.7), g, -0.3, 0, 0.2);
+  wg.scale.set(1, 0.5, 0.6);
+}
+
+/* ================= القارب والحبال والسلّم ================= */
+const boatGroup = new THREE.Group();
+boatGroup.position.set(0, 0.55, 2.6);
+scene.add(boatGroup);
+{
+  const hullGeo = new THREE.SphereGeometry(1, 28, 18, 0, Math.PI*2, Math.PI/2, Math.PI/2);
+  const hull = new THREE.Mesh(hullGeo, new THREE.MeshStandardMaterial({ map:boatTex, roughness:0.85, side:THREE.DoubleSide }));
+  hull.scale.set(3.4, 1.1, 1.15);
+  hull.castShadow = true; hull.receiveShadow = true;
+  boatGroup.add(hull);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(1, 0.09, 8, 32), M('#8a6a4a', 0.8));
+  rim.rotation.x = Math.PI/2;
+  rim.scale.set(3.4, 1.15, 1);
+  rim.position.y = 0.02;
+  rim.castShadow = true;
+  boatGroup.add(rim);
+  const mast = addM(new THREE.CylinderGeometry(0.05, 0.07, 1.6, 6), M('#5a4a3a', 0.8), boatGroup, -2.8, 0.6, 0);
+  mast.rotation.z = 0.5;
+  const coil = addM(new THREE.TorusGeometry(0.25, 0.05, 6, 14), M('#5a4a3a', 0.8), boatGroup, -2.2, 0.25, 0);
+}
+/* حبال التثبيت */
+const ropeM = M('#4a3a2a', 0.9);
+[[-2.2,-2.6],[-0.7,-2.9],[0.8,-2.9],[2.3,-2.6]].forEach(p=>{
+  const len = 4.4;
+  const rope = addM(new THREE.CylinderGeometry(0.045, 0.045, len, 6), ropeM, scene, p[0]*0.95, 3.4, 2.6 + (p[1]+2.8)*0.3);
+  rope.rotation.z = (Math.random()-0.5)*0.06;
+  const foot = addM(new THREE.SphereGeometry(0.14, 8, 6), M('#3a2a1a', 0.8), scene, p[0], 1.75, 2.6 + (p[1]+2.8)*0.3);
+});
+/* السلّم */
+{
+  const lad = new THREE.Group();
+  lad.position.set(-0.7, 0, 3.35);
+  lad.rotation.x = -0.12;
+  scene.add(lad);
+  const railM = M('#c9a06b', 0.8);
+  addM(new THREE.CylinderGeometry(0.04, 0.04, 4.6, 6), railM, lad, -0.45, 2.3, 0);
+  addM(new THREE.CylinderGeometry(0.04, 0.04, 4.6, 6), railM, lad, 0.45, 2.3, 0);
+  for(let i=0;i<11;i++){
+    addM(new THREE.BoxGeometry(0.9, 0.06, 0.06), railM, lad, 0, 0.4 + i*0.42, 0);
+  }
+}
+
+/* ================= سمكة صغيرة تسبح ================= */
+const swimFish = new THREE.Group();
+scene.add(swimFish);
+{
+  const bd = addM(new THREE.SphereGeometry(0.35, 12, 10), M('#e8842a', 0.5), swimFish);
+  bd.scale.set(1.4, 0.9, 0.7);
+  const tl = addM(new THREE.ConeGeometry(0.22, 0.4, 6), M('#d04a3a', 0.6), swimFish, -0.55, 0, 0);
+  tl.rotation.z = -Math.PI/2;
+  addM(new THREE.SphereGeometry(0.06, 6, 6), M('#1a1410', 0.4), swimFish, 0.35, 0.08, 0.2);
+}
+
+/* ================= قصب وأزهار الحافة ================= */
+function reed(x, z, h, col){
+  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  const st = addM(new THREE.CylinderGeometry(0.03, 0.06, h, 5), M(col, 0.85), g, 0, h/2, 0);
+  st.rotation.z = (Math.random()-0.5)*0.25;
+  if(Math.random()<0.6){
+    addM(new THREE.SphereGeometry(0.14+Math.random()*0.14, 8, 6), M(palette[Math.floor(Math.random()*palette.length)], 0.6), g, 0, h+0.1, 0);
+  }
+  return g;
+}
+for(let i=0;i<26;i++){
+  const side = i%2 ? 1 : -1;
+  reed(side*(9+Math.random()*7), -4+Math.random()*12, 1.5+Math.random()*2.2, i%3 ? '#4a7a3a' : '#a08850');
+}
+for(let i=0;i<10;i++){
+  const side = i%2 ? 1 : -1;
+  reed(side*(4+Math.random()*4), 6+Math.random()*5, 1.0+Math.random()*1.5, '#4a7a3a');
+}
+
+/* ================= عناصر معلّقة ================= */
+/* بيت طيور معلّق */
+{
+  const g = new THREE.Group(); g.position.set(-12, 4.6, -2); scene.add(g);
+  addM(new THREE.CylinderGeometry(0.02, 0.02, 6, 4), M('#4a3a2a', 0.9), g, 0, 3, 0);
+  addM(new THREE.BoxGeometry(0.9, 0.8, 0.7), M('#7fc4c4', 0.8), g, 0, 0, 0);
+  addM(new THREE.ConeGeometry(0.75, 0.6, 4), M('#d04a5a', 0.7), g, 0, 0.65, 0).rotation.y = Math.PI/4;
+  addM(new THREE.CircleGeometry(0.18, 10), M('#1a1410', 0.9), g, 0, 0.05, 0.36);
+}
+/* عوّامة زجاجية */
+{
+  const g = new THREE.Group(); g.position.set(12, 0, -1); scene.add(g);
+  addM(new THREE.CylinderGeometry(0.05, 0.07, 2.6, 6), M('#5a4a3a', 0.8), g, 0, 1.3, 0);
+  const gl = addM(new THREE.SphereGeometry(0.55, 14, 12), new THREE.MeshStandardMaterial({ color:0x7ac48a, roughness:0.2, transparent:true, opacity:0.8 }), g, 0, 2.6, 0);
+  addM(new THREE.ConeGeometry(0.3, 0.4, 8), M('#d4a437', 0.5), g, 0, 3.2, 0);
+}
+/* خيط خرز */
+{
+  const g = new THREE.Group(); g.position.set(8, 0, 1.5); scene.add(g);
+  addM(new THREE.CylinderGeometry(0.02, 0.02, 4, 4), M('#f6f2e8', 0.8), g, 0, 2, 0);
+  ['#d97b93','#8a8a8a','#d97b93','#f6f2e8','#d04a5a'].forEach((c,i)=>{
+    addM(new THREE.SphereGeometry(0.16, 8, 6), M(c, 0.5), g, 0, 3.4 - i*0.5, 0);
+  });
+}
+
+/* ================= طيور محلّقة ================= */
+const flyBirds = [];
+for(let i=0;i<3;i++){
+  const g = new THREE.Group();
+  scene.add(g);
+  const bd = addM(new THREE.ConeGeometry(0.16, 0.6, 8), M(i%2 ? '#f6f2e8' : '#c9a06b', 0.7), g);
+  bd.rotation.x = Math.PI/2;
+  const wingMat = M('#e8dcc0', 0.7, { side:THREE.DoubleSide });
+  const wlG = new THREE.PlaneGeometry(0.7, 0.3); wlG.translate(-0.35, 0, 0);
+  const wrG = new THREE.PlaneGeometry(0.7, 0.3); wrG.translate(0.35, 0, 0);
+  const wl = new THREE.Mesh(wlG, wingMat); g.add(wl);
+  const wr = new THREE.Mesh(wrG, wingMat); g.add(wr);
+  flyBirds.push({ g, wl, wr, r: 13+i*3, h: 12+i*1.6, sp: 0.25+i*0.08, ph: i*2.1 });
+}
+
+/* ================= غيوم ================= */
+const cloudArr = [];
+function puff(x, y, z, s){
+  const g = new THREE.Group(); g.position.set(x, y, z); scene.add(g);
+  const m = M('#ffffff', 1);
+  for(let i=0;i<6;i++){
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.8+Math.random()*1.0, 12, 10), m);
+    b.position.set((Math.random()-0.5)*4, (Math.random()-0.5)*1, (Math.random()-0.5)*1.6);
+    b.castShadow = false;
+    g.add(b);
+  }
+  g.scale.setScalar(s); g.scale.y *= 0.6;
+  cloudArr.push({ g, sp: 0.3+Math.random()*0.4 });
+}
+[[-16,13,-14,1.5],[14,15,-18,1.8],[-8,17,-22,1.3],[18,11,-8,1.1],[0,19,-26,2.0]].forEach(p=>puff(p[0],p[1],p[2],p[3]));
+
+/* ================= فقاعات ================= */
+let bubblesOn = true;
+const bubGeo = new THREE.BufferGeometry();
+const bubN = 50;
+const bubPos = new Float32Array(bubN*3);
+const bubSp = new Float32Array(bubN);
+for(let i=0;i<bubN;i++){
+  bubPos[i*3] = (Math.random()-0.5)*8;
+  bubPos[i*3+1] = Math.random()*1.5;
+  bubPos[i*3+2] = 2.6 + (Math.random()-0.5)*4;
+  bubSp[i] = 0.4+Math.random()*0.8;
+}
+bubGeo.setAttribute('position', new THREE.BufferAttribute(bubPos, 3));
+const bubbles = new THREE.Points(bubGeo, new THREE.PointsMaterial({ color:0xd8f6f6, size:0.14, transparent:true, opacity:0.7, depthWrite:false }));
+scene.add(bubbles);
+
+/* ================= الأزرار ================= */
+const btnBubbles = document.getElementById('btnBubbles');
+const btnRotate = document.getElementById('btnRotate');
+btnBubbles.addEventListener('click', ()=>{
+  bubblesOn = !bubblesOn;
+  bubbles.visible = bubblesOn;
+  btnBubbles.classList.toggle('active', bubblesOn);
+});
+btnRotate.addEventListener('click', ()=>{
+  controls.autoRotate = !controls.autoRotate;
+  btnRotate.classList.toggle('active', controls.autoRotate);
+});
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  camera.position.set(0, 7.5, 21);
+  controls.target.set(0, 6, 0);
+});
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+setTimeout(()=>document.getElementById('hint').classList.add('hide'), 8000);
+
+/* ================= الحلقة ================= */
+const clock = new THREE.Clock();
+let firstFrame = true;
+function tick(){
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  /* تأرجح متزامن */
+  const bob = Math.sin(t*0.7)*0.25;
+  floatGroup.position.y = 6.2 + bob;
+  floatGroup.rotation.z = Math.sin(t*0.5)*0.02;
+  floatGroup.rotation.x = Math.sin(t*0.6+1)*0.015;
+  boatGroup.position.y = 0.55 + bob*0.8;
+  boatGroup.rotation.z = Math.sin(t*0.8+2)*0.03;
+
+  waterTex.offset.x = t*0.01;
+  waterTex.offset.y = Math.sin(t*0.3)*0.02;
+
+  /* السمكة الصغيرة */
+  const sa = t*0.5;
+  swimFish.position.set(Math.cos(sa)*6, 0.12 + Math.sin(t*2)*0.05, 2.6 + Math.sin(sa)*3.5);
+  swimFish.rotation.y = -sa - Math.PI/2;
+
+  /* الطيور */
+  flyBirds.forEach(b=>{
+    const a = t*b.sp + b.ph;
+    b.g.position.set(Math.cos(a)*b.r, b.h + Math.sin(t*1.4+b.ph)*0.6, Math.sin(a)*b.r*0.6 - 6);
+    b.g.lookAt(Math.cos(a+0.1)*b.r, b.g.position.y, Math.sin(a+0.1)*b.r*0.6 - 6);
+    const fl = Math.sin(t*9 + b.ph)*0.7;
+    b.wl.rotation.y = fl; b.wr.rotation.y = -fl;
+  });
+
+  cloudArr.forEach(c=>{
+    c.g.position.x += dt*c.sp;
+    if(c.g.position.x > 40) c.g.position.x = -40;
+  });
+
+  if(bubblesOn){
+    const pos = bubGeo.attributes.position;
+    for(let i=0;i<bubN;i++){
+      let y = pos.getY(i) + bubSp[i]*dt;
+      if(y > 2) y = 0;
+      pos.setY(i, y);
+    }
+    pos.needsUpdate = true;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+  if(firstFrame){ firstFrame = false; document.getElementById('loader').classList.add('done'); }
+  requestAnimationFrame(tick);
+}
+tick();
+</script>
+</body>
+</html>

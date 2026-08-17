@@ -158,8 +158,8 @@ for (let i = 0; i < 5; i++) {
 }
 const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 0.1, 12), matShirt);
 collar.position.y = 0.78; torsoG.add(collar);
-const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.2, 10), matHead);
-neck.position.y = 0.8; torsoG.add(neck);
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.125, 0.32, 14), matHead);
+neck.position.y = 0.85; neck.castShadow = true; torsoG.add(neck);
 
 /* المعطف — الظهر والجانبان بنفس الطول والقطر حتى لا ينفصل عن الطرفين */
 const coatBack = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.55, 1.25, 20, 1, true, 1.3, TAU - 2.6), matCoat);
@@ -189,7 +189,7 @@ for (const s of [-1, 1]) {
 }
 
 /* الرأس */
-const headG = new THREE.Group(); headG.name = 'Head'; headG.position.y = 1.1;
+const headG = new THREE.Group(); headG.name = 'Head'; headG.position.y = 1.52;
 torsoG.add(headG);
 const head = new THREE.Mesh(new THREE.SphereGeometry(0.55, 32, 24), matHead);
 head.scale.set(1, 1.06, 0.96); headG.add(head);
@@ -213,21 +213,45 @@ function makeRay(angle, len, phase, z, radius) {
 for (let i = 0; i < 16; i++) makeRay(i / 16 * TAU, 0.5 + ((i * 7) % 5) * 0.09, i * 1.7, 0, 0.042);
 for (let i = 0; i < 12; i++) makeRay((i + 0.5) / 12 * TAU, 0.4 + ((i * 3) % 4) * 0.06, i * 2.3, -0.14, 0.035);
 
-/* العينان — بيضتان مسطّحتان تلتصقان بالوجه داخل عدستَي النظارة،
-   بدل كرتين بارزتين كانتا خارج إطار النظارة تمامًا */
+/* العينان — بيضتان مسطّحتان داخل عدستَي النظارة: ضيّقتان من الأعلى
+   واسعتان من الأسفل مثل الصورة، والبؤبؤ نقطة صغيرة داكنة أسفل الوسط */
+function eggGeo(r, seg) {
+  const g = new THREE.SphereGeometry(r, seg, Math.round(seg * 0.8));
+  const pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const u = (pos.getY(i) / r + 1) / 2;          // ٠ أسفل · ١ أعلى
+    const k = 0.64 + 0.5 * (1 - u);
+    pos.setX(i, pos.getX(i) * k); pos.setZ(i, pos.getZ(i) * k);
+  }
+  g.computeVertexNormals(); return g;
+}
 function makeEye(name, x) {
   const g = new THREE.Group(); g.name = name; g.position.set(x, 0.06, 0.24);
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.3, 26, 20), matEye);
-  ball.scale.set(0.94, 1.14, 0.62);
+  const ball = new THREE.Mesh(eggGeo(0.35, 26), matEye);
+  ball.scale.set(1, 1.08, 0.58); ball.position.y = 0.01;
   g.add(ball);
-  const p = new THREE.Mesh(new THREE.SphereGeometry(0.052, 12, 12), matPupil);
-  p.position.set(x > 0 ? -0.1 : 0.1, -0.03, 0.17);
-  p.scale.set(1, 1, 0.75);
+  const p = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 12), matPupil);
+  p.position.set(x > 0 ? -0.07 : 0.07, -0.12, 0.2);
+  p.scale.set(1, 1, 0.7);
   g.add(p);
   headG.add(g); return g;
 }
 const eyeL = makeEye('EyeL', 0.47);
 const eyeR = makeEye('EyeR', -0.47);
+
+/* الرموش — على الحافة العليا الخارجية لكل عين، خارج مجموعة العين
+   حتى لا يسحقها الرمشُ حين تُصغَّر العين */
+function lashes(x, sign) {
+  [[0.62, 0.2], [0.95, 0.23], [1.28, 0.19]].forEach(function (a) {
+    const c = new THREE.Mesh(new THREE.ConeGeometry(0.03, a[1], 7), matPupil);
+    c.position.set(x + sign * 0.33 * Math.sin(a[0]), 0.09 + 0.38 * Math.cos(a[0]), 0.5);
+    c.rotation.z = -sign * a[0];
+    c.translateY(a[1] * 0.45);
+    c.castShadow = true;
+    headG.add(c);
+  });
+}
+lashes(0.47, 1); lashes(-0.47, -1);
 
 /* النظارة */
 const glasses = new THREE.Group(); headG.add(glasses);

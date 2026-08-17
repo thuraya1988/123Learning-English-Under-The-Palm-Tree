@@ -1235,8 +1235,8 @@ function buildShamoosa(){
   }
   var collar=mesh(new THREE.CylinderGeometry(0.115,0.14,0.09,12),matShirt,false,false);
   collar.position.y=0.35; body.add(collar);
-  var neck=mesh(new THREE.CylinderGeometry(0.062,0.07,0.2,10),matHead,false,false);
-  neck.position.y=0.4; body.add(neck);
+  var neck=mesh(new THREE.CylinderGeometry(0.095,0.115,0.30,14),matHead,true,false);
+  neck.position.y=0.40; body.add(neck);
 
   /* المعطف: الظهر والطرفان بنفس الطول وأعلاهما واحد */
   var coatH=0.95, coatTop=0.30;              /* بالنسبة لمركز الجذع */
@@ -1250,7 +1250,7 @@ function buildShamoosa(){
   flap(0.7); flap(TAU-1.3);
 
   /* ===== الرأس ===== */
-  var headG=new THREE.Group(); headG.position.y=1.6; g.add(headG);
+  var headG=new THREE.Group(); headG.position.y=1.88; g.add(headG);
   var head=mesh(new THREE.SphereGeometry(0.5,28,20),matHead,true,false);
   head.scale.set(1,1.06,0.96); headG.add(head);
 
@@ -1269,16 +1269,35 @@ function buildShamoosa(){
   for(i=0;i<16;i++) ray(i/16*TAU, 0.45+((i*7)%5)*0.08, i*1.7,     0, 0.038);
   for(i=0;i<12;i++) ray((i+0.5)/12*TAU, 0.36+((i*3)%4)*0.055, i*2.3, -0.13, 0.032);
 
-  /* العينان: بيضتان مسطّحتان في مركز كلّ عدسة */
+  /* العينان: بيضتان ضيّقتان من الأعلى واسعتان من الأسفل مثل الصورة */
+  function eggGeo(r,seg){
+    var eg=new THREE.SphereGeometry(r,seg,Math.round(seg*0.8)), ps=eg.attributes.position;
+    for(var q=0;q<ps.count;q++){
+      var u=(ps.getY(q)/r+1)/2, k=0.64+0.5*(1-u);
+      ps.setX(q,ps.getX(q)*k); ps.setZ(q,ps.getZ(q)*k);
+    }
+    eg.computeVertexNormals(); return eg;
+  }
   function eye(x){
-    var e=new THREE.Group(); e.position.set(x,0.05,0.22);
-    var ball=mesh(new THREE.SphereGeometry(0.27,24,18),matEye,false,false);
-    ball.scale.set(0.94,1.14,0.62); e.add(ball);
-    var pup=mesh(new THREE.SphereGeometry(0.047,12,12),matPupil,false,false);
-    pup.position.set(x>0?-0.09:0.09,-0.03,0.155); pup.scale.set(1,1,0.75); e.add(pup);
+    var e=new THREE.Group(); e.position.set(x,0.05,0.21);
+    var ball=mesh(eggGeo(0.318,24),matEye,false,false);
+    ball.scale.set(1,1.08,0.58); e.add(ball);
+    var pup=mesh(new THREE.SphereGeometry(0.045,12,12),matPupil,false,false);
+    pup.position.set(x>0?-0.064:0.064,-0.11,0.185); pup.scale.set(1,1,0.7); e.add(pup);
     headG.add(e); return e;
   }
   var eyeL=eye(0.43), eyeR=eye(-0.43);
+  /* الرموش على الحافة العليا الخارجية — خارج مجموعة العين حتى لا تُسحق مع «wow» */
+  function lashes(x,sign){
+    [[0.62,0.18],[0.95,0.21],[1.28,0.17]].forEach(function(a){
+      var c=mesh(new THREE.ConeGeometry(0.027,a[1],7),matPupil,true,false);
+      c.position.set(x+sign*0.30*Math.sin(a[0]),0.08+0.345*Math.cos(a[0]),0.46);
+      c.rotation.z=-sign*a[0];
+      c.translateY(a[1]*0.45);
+      headG.add(c);
+    });
+  }
+  lashes(0.43,1); lashes(-0.43,-1);
 
   /* النظارة */
   for(i=0;i<2;i++){
@@ -1530,13 +1549,13 @@ updates.push(function(t,dt){
   var step=Math.sin(t*10);
   if(moving&&P.onGround){
     A.body.position.y=0.84+Math.abs(step)*0.08;
-    A.headG.position.y=1.6+Math.abs(step)*0.06;
+    A.headG.position.y=1.88+Math.abs(step)*0.06;
     A.headG.rotation.z=step*0.05;
     for(i=0;i<2;i++) A.armPivots[i].piv.rotation.x=step*A.armPivots[i].side*0.8;
     for(i=0;i<2;i++) A.legPivots[i].piv.rotation.x=-step*A.legPivots[i].side*0.7;
   }else{
     A.body.position.y=lerp(A.body.position.y,0.84+Math.sin(t*1.6)*0.012,0.2);
-    A.headG.position.y=lerp(A.headG.position.y,1.6+Math.sin(t*1.6)*0.016,0.2);
+    A.headG.position.y=lerp(A.headG.position.y,1.88+Math.sin(t*1.6)*0.016,0.2);
     A.headG.rotation.z=lerp(A.headG.rotation.z,Math.sin(t*0.8)*0.04,0.1);
     for(i=0;i<2;i++) A.armPivots[i].piv.rotation.x=lerp(A.armPivots[i].piv.rotation.x,Math.sin(t*1.6)*0.06,0.14);
     for(i=0;i<2;i++) A.legPivots[i].piv.rotation.x=lerp(A.legPivots[i].piv.rotation.x,0,0.16);

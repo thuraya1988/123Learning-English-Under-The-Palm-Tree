@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شميسة — أخت شموسة</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+canvas { display: block; }
+#ui {
+  position: fixed; top: 20px; left: 20px; z-index: 100;
+  background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+  border-radius: 16px; padding: 20px; color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+  max-width: 280px;
+}
+#ui h2 { font-size: 16px; margin-bottom: 12px; color: #ffd700; }
+#ui .counter { font-size: 13px; margin-bottom: 8px; color: #ccc; }
+#ui .counter span { color: #ffd700; font-weight: bold; }
+#ui button {
+  background: linear-gradient(135deg, #ff6b35, #ffd700);
+  border: none; padding: 8px 16px; border-radius: 8px;
+  color: #fff; cursor: pointer; font-size: 12px; margin: 3px;
+  transition: transform 0.2s;
+}
+#ui button:hover { transform: scale(1.05); }
+#ui button.active { background: linear-gradient(135deg, #00ff88, #00aaff); }
+#loading {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: radial-gradient(ellipse at center, #1a0a2e 0%, #000 100%);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; z-index: 1000; transition: opacity 1s;
+}
+#loading h1 { color: #ffd700; font-size: 32px; margin-bottom: 20px; }
+#loading .bar { width: 300px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; }
+#loading .bar-fill { height: 100%; background: linear-gradient(90deg, #ff6b35, #ffd700); border-radius: 2px; transition: width 0.3s; }
+#title {
+  position: fixed; top: 20px; right: 20px; z-index: 100;
+  color: #ffd700; font-size: 20px; font-weight: bold;
+  text-shadow: 0 0 20px rgba(255,215,0,0.5);
+  text-align: right;
+}
+#title small { display: block; font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <h1>☀️ جاري التحميل...</h1>
+  <div class="bar"><div class="bar-fill" id="loadBar"></div></div>
+</div>
+
+<div id="title">
+  شميسة — أخت شموسة
+  <small>+30 أنيميشن تفاعلي</small>
+</div>
+
+<div id="ui">
+  <h2>🎨 التحكم بالأنيميشن</h2>
+  <div class="counter">الأنيميشنات النشطة: <span id="animCount">0</span> / 35</div>
+  <div>
+    <button class="active" onclick="toggleAnim(0)"> دوران الأشعة</button>
+    <button class="active" onclick="toggleAnim(1)"> طفو الشخصية</button>
+    <button class="active" onclick="toggleAnim(2)"> تحريك الأذرع</button>
+    <button class="active" onclick="toggleAnim(3)">🦵 تحريك الأرجل</button>
+    <button class="active" onclick="toggleAnim(4)">😊 نبض الخدود</button>
+    <button class="active" onclick="toggleAnim(5)">👁️ رمش العيون</button>
+    <button class="active" onclick="toggleAnim(6)">🌸 دوران الفستان</button>
+    <button class="active" onclick="toggleAnim(7)">✨ توهج الكرات</button>
+    <button class="active" onclick="toggleAnim(8)"> تأرجح النباتات</button>
+    <button class="active" onclick="toggleAnim(9)">🏙️ تحريك المدينة</button>
+    <button class="active" onclick="toggleAnim(10)">💫 جسيمات متطايرة</button>
+    <button class="active" onclick="toggleAnim(11)">🎨 تغيير الألوان</button>
+    <button class="active" onclick="toggleAnim(12)">📷 دوران الكاميرا</button>
+    <button class="active" onclick="toggleAnim(13)">💡 نبض الإضاءة</button>
+    <button class="active" onclick="toggleAnim(14)">🌊 موجة الأشعة</button>
+    <button class="active" onclick="toggleAnim(15)">🫧 فقاعات صاعدة</button>
+    <button class="active" onclick="toggleAnim(16)">🌈 قوس قزح</button>
+    <button class="active" onclick="toggleAnim(17)"> اهتزاز الشخصية</button>
+    <button class="active" onclick="toggleAnim(18)">🌟 نجوم متلألئة</button>
+    <button class="active" onclick="toggleAnim(19)"> بلورات دوارة</button>
+  </div>
+</div>
+
+<script src="./vendor/three-r128/three.min.js"></script>
+<script>
+// ============ SCENE SETUP ============
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.appendChild(renderer.domElement);
+
+camera.position.set(0, 2, 12);
+
+// Background gradient
+const bgCanvas = document.createElement('canvas');
+bgCanvas.width = 512; bgCanvas.height = 512;
+const bgCtx = bgCanvas.getContext('2d');
+const bgGrad = bgCtx.createRadialGradient(256, 200, 50, 256, 256, 400);
+bgGrad.addColorStop(0, '#e8f4f8');
+bgGrad.addColorStop(0.3, '#b8d4e3');
+bgGrad.addColorStop(0.6, '#7ba7c4');
+bgGrad.addColorStop(1, '#2d4a6b');
+bgCtx.fillStyle = bgGrad;
+bgCtx.fillRect(0, 0, 512, 512);
+const bgTexture = new THREE.CanvasTexture(bgCanvas);
+scene.background = bgTexture;
+scene.fog = new THREE.FogExp2(0x7ba7c4, 0.02);
+
+// ============ ANIMATION STATE ============
+const animStates = new Array(35).fill(true);
+function toggleAnim(i) {
+  animStates[i] = !animStates[i];
+  const btns = document.querySelectorAll('#ui button');
+  if (btns[i]) btns[i].classList.toggle('active');
+  updateCount();
+}
+function updateCount() {
+  document.getElementById('animCount').textContent = animStates.filter(a => a).length;
+}
+
+// ============ LIGHTS ============
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
+
+const mainLight = new THREE.DirectionalLight(0xfff5e0, 1.2);
+mainLight.position.set(5, 10, 5);
+mainLight.castShadow = true;
+mainLight.shadow.mapSize.width = 2048;
+mainLight.shadow.mapSize.height = 2048;
+scene.add(mainLight);
+
+const sunLight = new THREE.PointLight(0xffaa00, 2, 20);
+sunLight.position.set(0, 3, 3);
+scene.add(sunLight);
+
+const fillLight = new THREE.PointLight(0x88ccff, 0.8, 15);
+fillLight.position.set(-5, 2, 5);
+scene.add(fillLight);
+
+const rimLight = new THREE.PointLight(0xff6600, 1, 15);
+rimLight.position.set(3, -2, -5);
+scene.add(rimLight);
+
+// ============ MATERIALS ============
+const glassMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff, metalness: 0.1, roughness: 0.05,
+  transmission: 0.9, thickness: 0.5, transparent: true, opacity: 0.8,
+  envMapIntensity: 1.5, clearcoat: 1.0, clearcoatRoughness: 0.05
+});
+
+const orangeGlassMat = new THREE.MeshPhysicalMaterial({
+  color: 0xff8800, metalness: 0.2, roughness: 0.1,
+  transmission: 0.7, thickness: 0.5, transparent: true, opacity: 0.85,
+  clearcoat: 1.0, emissive: 0xff4400, emissiveIntensity: 0.3
+});
+
+const goldMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffd700, metalness: 0.8, roughness: 0.2,
+  emissive: 0xff8800, emissiveIntensity: 0.2
+});
+
+const faceMat = new THREE.MeshPhysicalMaterial({
+  color: 0xfff8f0, metalness: 0.0, roughness: 0.3,
+  clearcoat: 0.8, clearcoatRoughness: 0.1
+});
+
+const cheekMat = new THREE.MeshPhysicalMaterial({
+  color: 0xff8899, metalness: 0.0, roughness: 0.4,
+  transparent: true, opacity: 0.7
+});
+
+const dressMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffeedd, metalness: 0.1, roughness: 0.2,
+  clearcoat: 0.5, transparent: true, opacity: 0.9
+});
+
+// ============ SUN CHARACTER GROUP ============
+const sunGroup = new THREE.Group();
+scene.add(sunGroup);
+
+// Face sphere
+const faceGeo = new THREE.SphereGeometry(1.2, 64, 64);
+const faceMesh = new THREE.Mesh(faceGeo, faceMat);
+faceMesh.castShadow = true;
+sunGroup.add(faceMesh);
+
+// Eyes
+const eyeGeo = new THREE.SphereGeometry(0.12, 32, 32);
+const eyeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+leftEye.position.set(-0.35, 0.15, 1.05);
+sunGroup.add(leftEye);
+
+const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+rightEye.position.set(0.35, 0.15, 1.05);
+sunGroup.add(rightEye);
+
+// Eye smile arcs (curved lines)
+const eyeCurveGeo = new THREE.TorusGeometry(0.15, 0.03, 8, 32, Math.PI);
+const eyeCurveMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+const leftEyeCurve = new THREE.Mesh(eyeCurveGeo, eyeCurveMat);
+leftEyeCurve.position.set(-0.35, 0.2, 1.08);
+leftEyeCurve.rotation.x = Math.PI;
+sunGroup.add(leftEyeCurve);
+
+const rightEyeCurve = new THREE.Mesh(eyeCurveGeo, eyeCurveMat);
+rightEyeCurve.position.set(0.35, 0.2, 1.08);
+rightEyeCurve.rotation.x = Math.PI;
+sunGroup.add(rightEyeCurve);
+
+// Cheeks
+const cheekGeo = new THREE.SphereGeometry(0.2, 32, 32);
+const leftCheek = new THREE.Mesh(cheekGeo, cheekMat);
+leftCheek.position.set(-0.6, -0.1, 0.9);
+sunGroup.add(leftCheek);
+
+const rightCheek = new THREE.Mesh(cheekGeo, cheekMat);
+rightCheek.position.set(0.6, -0.1, 0.9);
+sunGroup.add(rightCheek);
+
+// Nose
+const noseGeo = new THREE.SphereGeometry(0.08, 16, 16);
+const noseMat = new THREE.MeshPhysicalMaterial({ color: 0xff6644, metalness: 0.3, roughness: 0.3 });
+const nose = new THREE.Mesh(noseGeo, noseMat);
+nose.position.set(0, 0.05, 1.15);
+sunGroup.add(nose);
+
+// Smile
+const smileCurve = new THREE.QuadraticBezierCurve3(
+  new THREE.Vector3(-0.35, -0.25, 1.1),
+  new THREE.Vector3(0, -0.5, 1.2),
+  new THREE.Vector3(0.35, -0.25, 1.1)
+);
+const smileGeo = new THREE.TubeGeometry(smileCurve, 32, 0.025, 8, false);
+const smileMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+const smile = new THREE.Mesh(smileGeo, smileMat);
+sunGroup.add(smile);
+
+// ============ SUN RAYS ============
+const rays = [];
+const rayCount = 36;
+for (let i = 0; i < rayCount; i++) {
+  const angle = (i / rayCount) * Math.PI * 2;
+  const rayGroup = new THREE.Group();
+
+  const rayLen = 1.5 + Math.random() * 1.5;
+  const rayGeo = new THREE.CylinderGeometry(0.02, 0.04, rayLen, 8);
+  const rayMesh = new THREE.Mesh(rayGeo, orangeGlassMat);
+  rayMesh.position.y = rayLen / 2 + 1.2;
+  rayMesh.castShadow = true;
+  rayGroup.add(rayMesh);
+
+  // Sphere at tip
+  const tipGeo = new THREE.SphereGeometry(0.08 + Math.random() * 0.06, 16, 16);
+  const tipMat = new THREE.MeshPhysicalMaterial({
+    color: i % 3 === 0 ? 0xffd700 : 0xff8800,
+    metalness: 0.5, roughness: 0.1,
+    emissive: 0xff6600, emissiveIntensity: 0.4,
+    transmission: 0.5, transparent: true, opacity: 0.9
+  });
+  const tip = new THREE.Mesh(tipGeo, tipMat);
+  tip.position.y = rayLen + 1.2;
+  rayGroup.add(tip);
+
+  rayGroup.rotation.z = angle;
+  sunGroup.add(rayGroup);
+  rays.push({ group: rayGroup, tip: tip, baseAngle: angle, len: rayLen });
+}
+
+// ============ DRESS ============
+const dressGroup = new THREE.Group();
+dressGroup.position.y = -1.2;
+sunGroup.add(dressGroup);
+
+const dressGeo = new THREE.ConeGeometry(0.8, 1.2, 32, 1, true);
+const dressMesh = new THREE.Mesh(dressGeo, dressMat);
+dressMesh.position.y = -0.6;
+dressGroup.add(dressMesh);
+
+// Polka dots on dress
+for (let i = 0; i < 20; i++) {
+  const dotAngle = Math.random() * Math.PI * 2;
+  const dotY = -0.2 - Math.random() * 0.9;
+  const dotR = 0.5 + (dotY + 0.6) * 0.3;
+  const dotGeo = new THREE.SphereGeometry(0.06 + Math.random() * 0.04, 16, 16);
+  const dotColor = [0xff4400, 0xff6600, 0xcc3300, 0xff8800][Math.floor(Math.random() * 4)];
+  const dotMat = new THREE.MeshPhysicalMaterial({
+    color: dotColor, metalness: 0.3, roughness: 0.3,
+    emissive: dotColor, emissiveIntensity: 0.2
+  });
+  const dot = new THREE.Mesh(dotGeo, dotMat);
+  dot.position.set(Math.cos(dotAngle) * dotR, dotY, Math.sin(dotAngle) * dotR);
+  dressGroup.add(dot);
+}
+
+// ============ ARMS ============
+const leftArmGroup = new THREE.Group();
+leftArmGroup.position.set(-1.2, -0.5, 0);
+sunGroup.add(leftArmGroup);
+
+const armGeo = new THREE.CylinderGeometry(0.03, 0.04, 1.5, 8);
+const leftArm = new THREE.Mesh(armGeo, orangeGlassMat);
+leftArm.rotation.z = Math.PI / 2 + 0.3;
+leftArm.position.x = -0.75;
+leftArmGroup.add(leftArm);
+
+// Hand
+const handGeo = new THREE.SphereGeometry(0.1, 16, 16);
+const leftHand = new THREE.Mesh(handGeo, orangeGlassMat);
+leftHand.position.x = -1.5;
+leftArmGroup.add(leftHand);
+
+// Fingers
+for (let i = 0; i < 3; i++) {
+  const fingerGeo = new THREE.CylinderGeometry(0.015, 0.02, 0.3, 6);
+  const finger = new THREE.Mesh(fingerGeo, orangeGlassMat);
+  finger.position.set(-1.65, (i - 1) * 0.15, 0);
+  finger.rotation.z = Math.PI / 2;
+  leftArmGroup.add(finger);
+}
+
+const rightArmGroup = new THREE.Group();
+rightArmGroup.position.set(1.2, -0.5, 0);
+sunGroup.add(rightArmGroup);
+
+const rightArm = new THREE.Mesh(armGeo, orangeGlassMat);
+rightArm.rotation.z = -Math.PI / 2 - 0.3;
+rightArm.position.x = 0.75;
+rightArmGroup.add(rightArm);
+
+const rightHand = new THREE.Mesh(handGeo, orangeGlassMat);
+rightHand.position.x = 1.5;
+rightArmGroup.add(rightHand);
+
+for (let i = 0; i < 3; i++) {
+  const fingerGeo = new THREE.CylinderGeometry(0.015, 0.02, 0.3, 6);
+  const finger = new THREE.Mesh(fingerGeo, orangeGlassMat);
+  finger.position.set(1.65, (i - 1) * 0.15, 0);
+  finger.rotation.z = -Math.PI / 2;
+  rightArmGroup.add(finger);
+}
+
+// ============ LEGS ============
+const leftLegGroup = new THREE.Group();
+leftLegGroup.position.set(-0.4, -1.8, 0);
+sunGroup.add(leftLegGroup);
+
+const legGeo = new THREE.CylinderGeometry(0.03, 0.04, 2, 8);
+const leftLeg = new THREE.Mesh(legGeo, orangeGlassMat);
+leftLeg.position.y = -1;
+leftLeg.rotation.z = 0.3;
+leftLegGroup.add(leftLeg);
+
+const leftFoot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), orangeGlassMat);
+leftFoot.position.set(-0.6, -2, 0);
+leftLegGroup.add(leftFoot);
+
+const rightLegGroup = new THREE.Group();
+rightLegGroup.position.set(0.4, -1.8, 0);
+sunGroup.add(rightLegGroup);
+
+const rightLeg = new THREE.Mesh(legGeo, orangeGlassMat);
+rightLeg.position.y = -1;
+rightLeg.rotation.z = -0.3;
+rightLegGroup.add(rightLeg);
+
+const rightFoot = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), orangeGlassMat);
+rightFoot.position.set(0.6, -2, 0);
+rightLegGroup.add(rightFoot);
+
+// ============ GLASS SPHERE PLANTS ============
+const plants = [];
+const plantCount = 60;
+for (let i = 0; i < plantCount; i++) {
+  const plantGroup = new THREE.Group();
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 3 + Math.random() * 8;
+  plantGroup.position.set(Math.cos(angle) * dist, -3, Math.sin(angle) * dist);
+
+  const stemHeight = 1 + Math.random() * 3;
+  const stemGeo = new THREE.CylinderGeometry(0.015, 0.02, stemHeight, 6);
+  const stemMat = new THREE.MeshPhysicalMaterial({
+    color: 0xcccccc, metalness: 0.7, roughness: 0.1,
+    transparent: true, opacity: 0.7
+  });
+  const stem = new THREE.Mesh(stemGeo, stemMat);
+  stem.position.y = stemHeight / 2;
+  plantGroup.add(stem);
+
+  const sphereR = 0.1 + Math.random() * 0.2;
+  const sphereGeo = new THREE.SphereGeometry(sphereR, 32, 32);
+  const colors = [0xff8800, 0xffd700, 0xffaa44, 0xffcc66, 0xffffff, 0xff6600];
+  const sphereMat = new THREE.MeshPhysicalMaterial({
+    color: colors[Math.floor(Math.random() * colors.length)],
+    metalness: 0.3, roughness: 0.05,
+    transmission: 0.6, thickness: 0.3, transparent: true, opacity: 0.85,
+    clearcoat: 1.0, emissive: 0xff6600, emissiveIntensity: 0.2
+  });
+  const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+  sphere.position.y = stemHeight;
+  plantGroup.add(sphere);
+
+  scene.add(plantGroup);
+  plants.push({ group: plantGroup, sphere: sphere, stem: stem, baseY: plantGroup.position.y, phase: Math.random() * Math.PI * 2 });
+}
+
+// ============ CITYSCAPE BACKGROUND ============
+const cityGroup = new THREE.Group();
+cityGroup.position.z = -20;
+scene.add(cityGroup);
+
+for (let i = 0; i < 30; i++) {
+  const h = 3 + Math.random() * 12;
+  const w = 0.5 + Math.random() * 1.5;
+  const d = 0.5 + Math.random() * 1.5;
+  const buildingGeo = new THREE.BoxGeometry(w, h, d);
+  const buildingMat = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color().setHSL(0.55, 0.2, 0.3 + Math.random() * 0.3),
+    metalness: 0.5, roughness: 0.3,
+    transparent: true, opacity: 0.4
+  });
+  const building = new THREE.Mesh(buildingGeo, buildingMat);
+  building.position.set((Math.random() - 0.5) * 40, h / 2 - 3, -Math.random() * 10);
+  cityGroup.add(building);
+
+  // Windows
+  for (let j = 0; j < Math.floor(h * 2); j++) {
+    for (let k = 0; k < Math.floor(w * 2); k++) {
+      if (Math.random() > 0.5) {
+        const winGeo = new THREE.PlaneGeometry(0.1, 0.15);
+        const winMat = new THREE.MeshBasicMaterial({
+          color: 0xffdd88,
+          transparent: true,
+          opacity: 0.3 + Math.random() * 0.5
+        });
+        const win = new THREE.Mesh(winGeo, winMat);
+        win.position.set(
+          building.position.x + (k - w) * 0.3,
+          building.position.y - h / 2 + j * 0.5 + 0.3,
+          building.position.z + d / 2 + 0.01
+        );
+        cityGroup.add(win);
+      }
+    }
+  }
+}
+
+// ============ DECORATIVE BRANCHES ============
+const branches = [];
+for (let side = -1; side <= 1; side += 2) {
+  const branchGroup = new THREE.Group();
+  branchGroup.position.set(side * 6, 2, -2);
+
+  for (let b = 0; b < 5; b++) {
+    const branchLen = 2 + Math.random() * 3;
+    const branchGeo = new THREE.CylinderGeometry(0.02, 0.04, branchLen, 6);
+    const branchMat = new THREE.MeshPhysicalMaterial({
+      color: 0x886644, metalness: 0.2, roughness: 0.5
+    });
+    const branch = new THREE.Mesh(branchGeo, branchMat);
+    const bAngle = (b / 5) * Math.PI - Math.PI / 2;
+    branch.position.set(Math.cos(bAngle) * branchLen / 2 * side, Math.sin(bAngle) * branchLen / 2, 0);
+    branch.rotation.z = bAngle;
+    branchGroup.add(branch);
+
+    // Beads on branches
+    for (let bead = 0; bead < 8; bead++) {
+      const beadGeo = new THREE.SphereGeometry(0.05 + Math.random() * 0.08, 16, 16);
+      const beadColors = [0xff8800, 0xffd700, 0xcc6600, 0xffffff, 0xffaa44];
+      const beadMat = new THREE.MeshPhysicalMaterial({
+        color: beadColors[Math.floor(Math.random() * beadColors.length)],
+        metalness: 0.4, roughness: 0.1,
+        transmission: 0.5, transparent: true, opacity: 0.8,
+        clearcoat: 1.0
+      });
+      const beadMesh = new THREE.Mesh(beadGeo, beadMat);
+      const t = bead / 8;
+      beadMesh.position.set(
+        Math.cos(bAngle) * branchLen * t * side,
+        Math.sin(bAngle) * branchLen * t,
+        (Math.random() - 0.5) * 0.3
+      );
+      branchGroup.add(beadMesh);
+    }
+  }
+
+  scene.add(branchGroup);
+  branches.push(branchGroup);
+}
+
+// ============ FLOATING PARTICLES ============
+const particles = [];
+const particleCount = 200;
+const particleGeo = new THREE.SphereGeometry(0.03, 8, 8);
+const particleMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+
+for (let i = 0; i < particleCount; i++) {
+  const p = new THREE.Mesh(particleGeo, particleMat.clone());
+  p.position.set(
+    (Math.random() - 0.5) * 30,
+    (Math.random() - 0.5) * 20,
+    (Math.random() - 0.5) * 20
+  );
+  scene.add(p);
+  particles.push({
+    mesh: p,
+    speed: 0.005 + Math.random() * 0.02,
+    phase: Math.random() * Math.PI * 2,
+    amplitude: 0.5 + Math.random() * 2
+  });
+}
+
+// ============ BUBBLES ============
+const bubbles = [];
+for (let i = 0; i < 30; i++) {
+  const bubbleGeo = new THREE.SphereGeometry(0.1 + Math.random() * 0.2, 32, 32);
+  const bubbleMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, metalness: 0.1, roughness: 0.0,
+    transmission: 0.95, thickness: 0.1, transparent: true, opacity: 0.3,
+    clearcoat: 1.0
+  });
+  const bubble = new THREE.Mesh(bubbleGeo, bubbleMat);
+  bubble.position.set(
+    (Math.random() - 0.5) * 20,
+    -5 + Math.random() * 15,
+    (Math.random() - 0.5) * 10
+  );
+  scene.add(bubble);
+  bubbles.push({
+    mesh: bubble,
+    speed: 0.01 + Math.random() * 0.02,
+    wobble: Math.random() * Math.PI * 2
+  });
+}
+
+// ============ STARS ============
+const stars = [];
+for (let i = 0; i < 50; i++) {
+  const starGeo = new THREE.OctahedronGeometry(0.05 + Math.random() * 0.08, 0);
+  const starMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffd700, metalness: 0.8, roughness: 0.1,
+    emissive: 0xffaa00, emissiveIntensity: 0.5
+  });
+  const star = new THREE.Mesh(starGeo, starMat);
+  star.position.set(
+    (Math.random() - 0.5) * 25,
+    3 + Math.random() * 10,
+    (Math.random() - 0.5) * 15
+  );
+  scene.add(star);
+  stars.push({ mesh: star, phase: Math.random() * Math.PI * 2 });
+}
+
+// ============ CRYSTALS ============
+const crystals = [];
+for (let i = 0; i < 15; i++) {
+  const crystalGeo = new THREE.OctahedronGeometry(0.15 + Math.random() * 0.2, 0);
+  const crystalMat = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color().setHSL(Math.random(), 0.7, 0.6),
+    metalness: 0.3, roughness: 0.05,
+    transmission: 0.7, transparent: true, opacity: 0.8,
+    clearcoat: 1.0
+  });
+  const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+  crystal.position.set(
+    (Math.random() - 0.5) * 15,
+    -2 + Math.random() * 8,
+    (Math.random() - 0.5) * 10
+  );
+  scene.add(crystal);
+  crystals.push({ mesh: crystal, rotSpeed: 0.01 + Math.random() * 0.03 });
+}
+
+// ============ RAINBOW ARC ============
+const rainbowGroup = new THREE.Group();
+rainbowGroup.position.set(0, 5, -10);
+scene.add(rainbowGroup);
+
+const rainbowColors = [0xff0000, 0xff8800, 0xffff00, 0x00ff00, 0x0088ff, 0x4400ff, 0x8800ff];
+rainbowColors.forEach((color, i) => {
+  const arcGeo = new THREE.TorusGeometry(8 - i * 0.3, 0.08, 8, 64, Math.PI);
+  const arcMat = new THREE.MeshBasicMaterial({
+    color: color, transparent: true, opacity: 0.3
+  });
+  const arc = new THREE.Mesh(arcGeo, arcMat);
+  rainbowGroup.add(arc);
+});
+
+// ============ GROUND ============
+const groundGeo = new THREE.PlaneGeometry(50, 50);
+const groundMat = new THREE.MeshPhysicalMaterial({
+  color: 0x445566, metalness: 0.3, roughness: 0.5,
+  transparent: true, opacity: 0.5
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -3;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ============ ANIMATION LOOP ============
+const clock = new THREE.Clock();
+let loadProgress = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  const dt = clock.getDelta();
+
+  // Loading simulation
+  if (loadProgress < 100) {
+    loadProgress += 2;
+    document.getElementById('loadBar').style.width = loadProgress + '%';
+    if (loadProgress >= 100) {
+      setTimeout(() => {
+        document.getElementById('loading').style.opacity = '0';
+        setTimeout(() => document.getElementById('loading').style.display = 'none', 1000);
+      }, 500);
+    }
+  }
+
+  // Animation 0: Ray rotation
+  if (animStates[0]) {
+    rays.forEach((ray, i) => {
+      ray.group.rotation.z = ray.baseAngle + Math.sin(t * 0.5 + i * 0.3) * 0.05;
+    });
+  }
+
+  // Animation 1: Character floating
+  if (animStates[1]) {
+    sunGroup.position.y = Math.sin(t * 0.8) * 0.3;
+  }
+
+  // Animation 2: Arm waving
+  if (animStates[2]) {
+    leftArmGroup.rotation.z = Math.sin(t * 1.5) * 0.3;
+    rightArmGroup.rotation.z = -Math.sin(t * 1.5 + 0.5) * 0.3;
+    leftArmGroup.rotation.x = Math.sin(t * 1.2) * 0.2;
+    rightArmGroup.rotation.x = Math.sin(t * 1.2 + 1) * 0.2;
+  }
+
+  // Animation 3: Leg kicking
+  if (animStates[3]) {
+    leftLegGroup.rotation.x = Math.sin(t * 2) * 0.2;
+    rightLegGroup.rotation.x = -Math.sin(t * 2 + Math.PI) * 0.2;
+    leftLegGroup.rotation.z = Math.sin(t * 1.5) * 0.1;
+    rightLegGroup.rotation.z = -Math.sin(t * 1.5) * 0.1;
+  }
+
+  // Animation 4: Cheek pulsing
+  if (animStates[4]) {
+    const cheekScale = 1 + Math.sin(t * 3) * 0.15;
+    leftCheek.scale.set(cheekScale, cheekScale, cheekScale);
+    rightCheek.scale.set(cheekScale, cheekScale, cheekScale);
+    leftCheek.material.opacity = 0.5 + Math.sin(t * 3) * 0.2;
+    rightCheek.material.opacity = 0.5 + Math.sin(t * 3) * 0.2;
+  }
+
+  // Animation 5: Eye blinking
+  if (animStates[5]) {
+    const blinkCycle = t % 4;
+    if (blinkCycle > 3.8 && blinkCycle < 4.0) {
+      leftEye.scale.y = 0.1;
+      rightEye.scale.y = 0.1;
+      leftEyeCurve.visible = false;
+      rightEyeCurve.visible = false;
+    } else {
+      leftEye.scale.y = 1;
+      rightEye.scale.y = 1;
+      leftEyeCurve.visible = true;
+      rightEyeCurve.visible = true;
+    }
+  }
+
+  // Animation 6: Dress spinning
+  if (animStates[6]) {
+    dressGroup.rotation.y = t * 0.5;
+    dressMesh.scale.x = 1 + Math.sin(t * 2) * 0.05;
+    dressMesh.scale.z = 1 + Math.sin(t * 2) * 0.05;
+  }
+
+  // Animation 7: Sphere glow pulsing
+  if (animStates[7]) {
+    rays.forEach((ray, i) => {
+      ray.tip.material.emissiveIntensity = 0.3 + Math.sin(t * 2 + i * 0.5) * 0.3;
+    });
+    plants.forEach((plant, i) => {
+      plant.sphere.material.emissiveIntensity = 0.2 + Math.sin(t * 1.5 + i * 0.3) * 0.3;
+    });
+  }
+
+  // Animation 8: Plant swaying
+  if (animStates[8]) {
+    plants.forEach((plant, i) => {
+      plant.group.rotation.z = Math.sin(t * 0.8 + plant.phase) * 0.05;
+      plant.group.rotation.x = Math.cos(t * 0.6 + plant.phase) * 0.03;
+    });
+  }
+
+  // Animation 9: City movement
+  if (animStates[9]) {
+    cityGroup.children.forEach((child, i) => {
+      if (child.material && child.material.opacity !== undefined) {
+        child.material.opacity = 0.3 + Math.sin(t * 0.3 + i * 0.1) * 0.1;
+      }
+    });
+  }
+
+  // Animation 10: Floating particles
+  if (animStates[10]) {
+    particles.forEach((p, i) => {
+      p.mesh.position.y += p.speed;
+      p.mesh.position.x += Math.sin(t + p.phase) * 0.005;
+      if (p.mesh.position.y > 10) p.mesh.position.y = -10;
+      p.mesh.material.opacity = 0.3 + Math.sin(t * 2 + p.phase) * 0.3;
+    });
+  }
+
+  // Animation 11: Color shifting
+  if (animStates[11]) {
+    const hue = (t * 0.05) % 1;
+    sunLight.color.setHSL(hue, 0.8, 0.5);
+    fillLight.color.setHSL((hue + 0.5) % 1, 0.6, 0.5);
+  }
+
+  // Animation 12: Camera orbit
+  if (animStates[12]) {
+    camera.position.x = Math.sin(t * 0.15) * 3;
+    camera.position.z = 12 + Math.cos(t * 0.15) * 2;
+    camera.lookAt(0, 1, 0);
+  }
+
+  // Animation 13: Light pulsing
+  if (animStates[13]) {
+    sunLight.intensity = 1.5 + Math.sin(t * 2) * 0.5;
+    mainLight.intensity = 1.0 + Math.sin(t * 1.5) * 0.3;
+    ambientLight.intensity = 0.3 + Math.sin(t * 1) * 0.1;
+  }
+
+  // Animation 14: Ray wave
+  if (animStates[14]) {
+    rays.forEach((ray, i) => {
+      const waveScale = 1 + Math.sin(t * 3 + i * 0.4) * 0.15;
+      ray.group.scale.set(waveScale, waveScale, 1);
+    });
+  }
+
+  // Animation 15: Bubbles rising
+  if (animStates[15]) {
+    bubbles.forEach((b, i) => {
+      b.mesh.position.y += b.speed;
+      b.mesh.position.x += Math.sin(t * 2 + b.wobble) * 0.01;
+      if (b.mesh.position.y > 10) {
+        b.mesh.position.y = -5;
+        b.mesh.position.x = (Math.random() - 0.5) * 20;
+      }
+      b.mesh.scale.setScalar(1 + Math.sin(t * 3 + b.wobble) * 0.1);
+    });
+  }
+
+  // Animation 16: Rainbow
+  if (animStates[16]) {
+    rainbowGroup.rotation.y = t * 0.2;
+    rainbowGroup.children.forEach((arc, i) => {
+      arc.material.opacity = 0.2 + Math.sin(t * 1.5 + i * 0.5) * 0.15;
+    });
+  }
+
+  // Animation 17: Character vibration
+  if (animStates[17]) {
+    sunGroup.position.x = Math.sin(t * 8) * 0.02;
+    sunGroup.rotation.z = Math.sin(t * 6) * 0.01;
+  }
+
+  // Animation 18: Stars twinkling
+  if (animStates[18]) {
+    stars.forEach((star, i) => {
+      const twinkle = 0.5 + Math.sin(t * 3 + star.phase) * 0.5;
+      star.mesh.scale.setScalar(twinkle);
+      star.mesh.material.emissiveIntensity = twinkle * 0.8;
+      star.mesh.rotation.y = t * 2 + star.phase;
+      star.mesh.rotation.x = t * 1.5 + star.phase;
+    });
+  }
+
+  // Animation 19: Crystal rotation
+  if (animStates[19]) {
+    crystals.forEach((crystal, i) => {
+      crystal.mesh.rotation.x += crystal.rotSpeed;
+      crystal.mesh.rotation.y += crystal.rotSpeed * 1.5;
+      crystal.mesh.position.y += Math.sin(t + i) * 0.005;
+    });
+  }
+
+  // Animation 20: Face breathing
+  if (animStates[20]) {
+    faceMesh.scale.setScalar(1 + Math.sin(t * 1.5) * 0.02);
+  }
+
+  // Animation 21: Nose wiggling
+  if (animStates[21]) {
+    nose.position.x = Math.sin(t * 4) * 0.02;
+    nose.position.y = 0.05 + Math.sin(t * 3) * 0.01;
+  }
+
+  // Animation 22: Smile animation
+  if (animStates[22]) {
+    smile.scale.y = 1 + Math.sin(t * 2) * 0.1;
+  }
+
+  // Animation 23: Ray length pulsing
+  if (animStates[23]) {
+    rays.forEach((ray, i) => {
+      const lenPulse = 1 + Math.sin(t * 1.5 + i * 0.2) * 0.1;
+      ray.group.children[0].scale.y = lenPulse;
+    });
+  }
+
+  // Animation 24: Background fog density
+  if (animStates[24]) {
+    scene.fog.density = 0.02 + Math.sin(t * 0.5) * 0.005;
+  }
+
+  // Animation 25: Ground shimmer
+  if (animStates[25]) {
+    ground.material.opacity = 0.4 + Math.sin(t * 0.8) * 0.1;
+  }
+
+  // Animation 26: Branch swaying
+  if (animStates[26]) {
+    branches.forEach((branch, i) => {
+      branch.rotation.z = Math.sin(t * 0.5 + i) * 0.03;
+      branch.rotation.x = Math.cos(t * 0.4 + i) * 0.02;
+    });
+  }
+
+  // Animation 27: Sun light color cycle
+  if (animStates[27]) {
+    sunLight.color.setHSL(0.08 + Math.sin(t * 0.3) * 0.05, 0.9, 0.5);
+  }
+
+  // Animation 28: Character tilt
+  if (animStates[28]) {
+    sunGroup.rotation.z = Math.sin(t * 0.7) * 0.05;
+    sunGroup.rotation.x = Math.sin(t * 0.5) * 0.03;
+  }
+
+  // Animation 29: Dress dot animation
+  if (animStates[29]) {
+    dressGroup.children.forEach((child, i) => {
+      if (child.geometry && child.geometry.type === 'SphereGeometry') {
+        child.scale.setScalar(1 + Math.sin(t * 2 + i * 0.5) * 0.2);
+      }
+    });
+  }
+
+  // Animation 30: Particle color shift
+  if (animStates[30]) {
+    particles.forEach((p, i) => {
+      p.mesh.material.color.setHSL((t * 0.1 + i * 0.01) % 1, 0.5, 0.7);
+    });
+  }
+
+  // Animation 31: Camera zoom pulse
+  if (animStates[31]) {
+    camera.fov = 60 + Math.sin(t * 0.5) * 3;
+    camera.updateProjectionMatrix();
+  }
+
+  // Animation 32: Rim light movement
+  if (animStates[32]) {
+    rimLight.position.x = Math.sin(t * 0.8) * 5;
+    rimLight.position.z = Math.cos(t * 0.8) * 5;
+  }
+
+  // Animation 33: Plant sphere size animation
+  if (animStates[33]) {
+    plants.forEach((plant, i) => {
+      const s = 1 + Math.sin(t * 2 + plant.phase) * 0.15;
+      plant.sphere.scale.setScalar(s);
+    });
+  }
+
+  // Animation 34: Overall scene rotation
+  if (animStates[34]) {
+    scene.rotation.y = Math.sin(t * 0.1) * 0.02;
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ============ MOUSE INTERACTION ============
+let mouseX = 0, mouseY = 0;
+document.addEventListener('mousemove', (e) => {
+  mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+  mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+
+  // Subtle parallax
+  sunGroup.position.x = mouseX * 0.3;
+  sunGroup.rotation.y = mouseX * 0.2;
+});
+
+// ============ RESIZE ============
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Initialize count
+updateCount();
+
+// Start
+animate();
+</script>
+</body>
+</html>

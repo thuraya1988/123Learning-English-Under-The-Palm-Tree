@@ -5,12 +5,13 @@
 
 | اللعبة | الحالة |
 |---|---|
-| `souq-mutrah-palm.html` | لا تُحلَّل — خطأ صياغة |
 | `cartoon-megapolis.html` | تُحلَّل، لكن تتوقف وقت التشغيل |
-| `meno-dagoos-escape.html` | لا تُحلَّل — خطأ صياغة |
 
-> **أسرار جبل شمس خرجت من هنا.** أُعيد إرسالها كملف `.txt` فوصلت سليمة،
-> وهي الآن `jebel-shams-adventure.html` في جذر الموقع ومعتمدة في قائمة الألعاب.
+> **ثلاث ألعاب خرجت من هنا** بعد إعادة إرسالها خارج الوورد:
+> `jebel-shams-adventure.html` و `souq-mutrah-palm.html` و `meno-dagoos-escape.html`
+> — كلّها الآن في جذر الموقع ومعتمدة في قائمة الألعاب.
+>
+> بقيت `cartoon-megapolis.html` وحدها هنا.
 
 ## ما أتلفه Word
 

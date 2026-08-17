@@ -30,6 +30,39 @@
   #loader.done{opacity:0;pointer-events:none}
   .spin{width:46px;height:46px;border-radius:50%;border:4px solid rgba(255,255,255,.2);border-top-color:#e8a7b8;animation:sp 1s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
+
+#quizWrap{position:fixed;inset:0;z-index:9;display:none;align-items:flex-end;justify-content:center;
+  padding-bottom:26px;background:linear-gradient(180deg,transparent 40%,rgba(10,14,24,.55))}
+#quizWrap.on{display:flex}
+#quizCard{width:min(560px,94vw);background:rgba(20,26,40,.92);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.22);border-radius:22px;padding:18px 20px 16px;color:#fff;
+  box-shadow:0 18px 60px rgba(0,0,0,.55);text-align:right}
+#qHead{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;opacity:.9;font-weight:700}
+#qWorld{color:#ffd9a0}
+#qBar{height:6px;background:rgba(255,255,255,.14);border-radius:99px;margin:10px 0 14px;overflow:hidden}
+#qBarFill{display:block;height:100%;width:0;background:linear-gradient(90deg,#e8a33a,#f6cf54);transition:width .35s}
+#qPrompt{font-size:15px;font-weight:800;margin-bottom:6px;direction:ltr;text-align:left}
+#qSent{font-size:19px;font-weight:800;color:#9ffbe8;direction:ltr;text-align:left;margin:6px 0 12px;min-height:0}
+#qOpts{display:flex;flex-direction:column;gap:8px}
+#qOpts button,.qbtn{font-family:'Cairo',sans-serif;font-weight:700;font-size:14px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.10);color:#fff;
+  border-radius:14px;padding:11px 16px;transition:.15s;text-align:left;direction:ltr}
+#qOpts button:hover{background:rgba(255,255,255,.2)}
+#qOpts button.ok{background:#2f8f5a;border-color:#57d98a}
+#qOpts button.bad{background:#8f2f3a;border-color:#e07a86}
+.qbtn{width:100%;margin-top:10px;text-align:center;direction:rtl}
+.qbtn.ghost{background:transparent}
+#qWhy{margin-top:12px;font-size:13px;line-height:1.9;background:rgba(255,214,150,.14);
+  border:1px solid rgba(255,214,150,.3);border-radius:14px;padding:10px 14px;color:#ffe6bf;direction:ltr;text-align:left}
+#qWords,#qSlots{display:flex;flex-wrap:wrap;gap:6px;direction:ltr;margin-bottom:8px}
+#qSlots{min-height:44px;border:1px dashed rgba(255,255,255,.25);border-radius:12px;padding:6px}
+#qWords span,#qSlots span{cursor:pointer;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.24);
+  border-radius:10px;padding:7px 12px;font-size:14px;font-weight:700}
+.hidden{display:none!important}
+#lockNote{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9;pointer-events:none;
+  background:rgba(20,26,40,.8);color:#ffd9a0;border:1px solid rgba(255,255,255,.2);border-radius:999px;
+  padding:8px 18px;font-size:12.5px;opacity:0;transition:opacity .4s}
+#lockNote.on{opacity:1}
 </style>
 <script type="importmap">
 {"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/examples/jsm/"}}
@@ -39,7 +72,8 @@
 <div id="app"></div>
 <div id="loader"><div class="spin"></div><div>جارٍ بناء العوالم الخمسة…</div></div>
 <div id="flash"></div>
-<div class="hud" id="hint">مدينة النخيل في الوسط، ومنها تمتدّ خمسة جسور — كلّ جسر يأخذكم إلى عالم</div>
+<div id="lockNote"></div>
+<div class="hud" id="hint">مدينة النخيل في الوسط · لا يُفتح عالم إلا بعبور جسره: خمس جمل صحيحة وثلاثة قلوب</div>
 <div class="hud" id="btns">
   <button class="btn magic" id="btnCity">🌴 مدينة النخيل</button>
   <button class="btn magic" id="btnCross">✨ عبور البوابة</button>
@@ -50,6 +84,24 @@
   <button class="btn love active" id="btnPulse">💗 نبض القلوب</button>
   <button class="btn active" id="btnRotate">تدوير تلقائي</button>
   <button class="btn" id="btnReset">إعادة الكاميرا</button>
+</div>
+<div id="quizWrap">
+  <div id="quizCard">
+    <div id="qHead">
+      <span id="qHearts">❤️❤️❤️</span>
+      <span id="qWorld">—</span>
+      <span id="qStep">١ / ٥</span>
+    </div>
+    <div id="qBar"><i id="qBarFill"></i></div>
+    <div id="qPrompt">—</div>
+    <div id="qSent"></div>
+    <div id="qOpts"></div>
+    <div id="qRearr" class="hidden"><div id="qWords"></div><div id="qSlots"></div>
+      <button class="qbtn" id="qCheck">تحقّق</button></div>
+    <div id="qWhy" class="hidden"></div>
+    <button class="qbtn ghost hidden" id="qNext">تابع ◂</button>
+    <button class="qbtn ghost" id="qQuit">ارجعوا إلى المدينة</button>
+  </div>
 </div>
 <div class="hud" id="title">
   <h1>بوابة العوالم — مدينة النخيل وخمسة جسور</h1>
@@ -1625,7 +1677,7 @@ const CUP_TGT = cupWorld.localToWorld(new THREE.Vector3(0, 5, -8));
    ============================================================ */
 const palmCity = new THREE.Group();
 scene.add(palmCity);
-const pcSway = [], pcFlags = [];
+const pcSway = [], pcFlags = [], BRIDGE_INFO = [];
 const PLAZA_R = 30;
 {
   const sand   = M('#d9c49a', 0.95);
@@ -1795,11 +1847,11 @@ const PLAZA_R = 30;
 
   /* ============ الجسور ============ */
   const BRIDGES = [
-    { name:'ليمبو',          sub:'Limbo',          target:new THREE.Vector3(-108, 0,  76), reach:0.80, deck:'#c9a06b' },
-    { name:'زومبينيس',       sub:'Zoombinis',      target:new THREE.Vector3(-118, 0, -78), reach:0.80, deck:'#b08a5a' },
-    { name:'قلعة الشطرنج',   sub:'Chess Castle',   target:new THREE.Vector3(   0, 0,-152), reach:0.82, deck:'#cbb48c' },
-    { name:'جزيرة النغمات',  sub:'Figment Isle',   target:new THREE.Vector3( 112,40, -78), reach:0.86, deck:'#d9c08b' },
-    { name:'وادي الكب كيك',  sub:'Cupcake Valley', target:new THREE.Vector3( 112, 0,  84), reach:0.80, deck:'#e6d9a8' }
+    { key:'limbo',  name:'ليمبو',          sub:'Limbo',          target:new THREE.Vector3(-108, 0,  76), reach:0.80, deck:'#c9a06b' },
+    { key:'zoomb',  name:'زومبينيس',       sub:'Zoombinis',      target:new THREE.Vector3(-118, 0, -78), reach:0.80, deck:'#b08a5a' },
+    { key:'chess',  name:'قلعة الشطرنج',   sub:'Chess Castle',   target:new THREE.Vector3(   0, 0,-152), reach:0.82, deck:'#cbb48c' },
+    { key:'island', name:'جزيرة النغمات',  sub:'Figment Isle',   target:new THREE.Vector3( 112,40, -78), reach:0.86, deck:'#d9c08b' },
+    { key:'cup',    name:'وادي الكب كيك',  sub:'Cupcake Valley', target:new THREE.Vector3( 112, 0,  84), reach:0.80, deck:'#e6d9a8' }
   ];
   const railM = M('#7a5233', 0.9);
   BRIDGES.forEach(br=>{
@@ -1858,6 +1910,11 @@ const PLAZA_R = 30;
       fl.position.set(x0 - 0.2, 7.0, zz); fl.rotation.y = -Math.PI/2;
       g.add(fl); pcFlags.push({ obj:fl, phase:zz });
     });
+    /* الحاجز: يُرفع حين يُفتح الجسر */
+    const bar = pcAdd(new THREE.BoxGeometry(0.7, 0.7, 9.4),
+      new THREE.MeshStandardMaterial({ color:0xc94a3a, roughness:0.6, emissive:0x4a1008 }),
+      x0 - 1.2, 3.2, 0, g);
+    BRIDGE_INFO.push({ key:br.key, name:br.name, sub:br.sub, ang, P, bar, barY:3.2, sign });
   });
 }
 
@@ -1875,9 +1932,11 @@ const btnRain = document.getElementById('btnRain');
 const btnCity = document.getElementById('btnCity');
 
 function setFocusLabels(){
-  btnIsland.textContent = currentFocus==='island' ? '🔙 العودة للأرض' : '🎵 جزيرة النغمات';
-  btnChess.textContent  = currentFocus==='chess'  ? '🔙 العودة للأرض' : '♟ قلعة الشطرنج';
-  btnCup.textContent    = currentFocus==='cup'    ? '🔙 العودة للأرض' : '🧁 وادي الكب كيك';
+  const L = k => (typeof isOpen === 'function' || true) && !wgSave.open[k] ? ' 🔒' : '';
+  btnIsland.textContent = currentFocus==='island' ? '🔙 العودة للأرض' : '🎵 جزيرة النغمات' + L('island');
+  btnChess.textContent  = currentFocus==='chess'  ? '🔙 العودة للأرض' : '♟ قلعة الشطرنج' + L('chess');
+  btnCup.textContent    = currentFocus==='cup'    ? '🔙 العودة للأرض' : '🧁 وادي الكب كيك' + L('cup');
+  btnCross.textContent  = (!wgSave.open.limbo || !wgSave.open.zoomb) ? '✨ اعبروا جسرًا 🔒' : '✨ عبور البوابة';
 }
 function flyTo(endPos, endTgt, dur){
   if(tween) return;
@@ -1906,7 +1965,9 @@ function toggleFocus(name, endPos, endTgt){
   }
 }
 function crossPortal(){
-  if(tween) return;
+  if(tween || QZ.on) return;
+  if(!wgSave.open.limbo){ startCrossing('limbo'); return; }
+  if(!wgSave.open.zoomb){ startCrossing('zoomb'); return; }
   if(currentFocus){ currentFocus = null; setFocusLabels(); }
   const goingToZoomb = camera.position.z > -20;
   const endPos = goingToZoomb ? new THREE.Vector3(-96, 20, -44) : new THREE.Vector3(-86, 20, 106);
@@ -1919,13 +1980,13 @@ btnCity.addEventListener('click', ()=>{
   currentFocus = null; setFocusLabels(); savedPos = savedTgt = null;
   flyTo(new THREE.Vector3(0, 34, 74), new THREE.Vector3(0, 6, 0), 4200);
 });
-btnIsland.addEventListener('click', ()=> toggleFocus('island',
+btnIsland.addEventListener('click', ()=> gateOrFly('island', 'island',
   FIG_BASE.clone().add(new THREE.Vector3(22, 12, 26)),
   FIG_BASE.clone().add(new THREE.Vector3(0, 4, 0))));
-btnChess.addEventListener('click', ()=> toggleFocus('chess',
+btnChess.addEventListener('click', ()=> gateOrFly('chess', 'chess',
   CHESS_BASE.clone().add(new THREE.Vector3(4.5, 5.4, 18.5)),
   CHESS_BASE.clone().add(new THREE.Vector3(0, 4.6, -3))));
-btnCup.addEventListener('click', ()=> toggleFocus('cup', CUP_CAM.clone(), CUP_TGT.clone()));
+btnCup.addEventListener('click', ()=> gateOrFly('cup', 'cup', CUP_CAM.clone(), CUP_TGT.clone()));
 btnPulse.addEventListener('click', ()=>{ chPulseOn = !chPulseOn; btnPulse.classList.toggle('active', chPulseOn); });
 btnRain.addEventListener('click', ()=>{
   cupRainOn = !cupRainOn;
@@ -1949,6 +2010,203 @@ addEventListener('resize', ()=>{
   renderer.setSize(innerWidth, innerHeight);
 });
 setTimeout(()=>document.getElementById('hint').classList.add('hide'), 9000);
+
+
+/* ============================================================
+   منطق عبور الجسور — منقول من «جسر القواعد الغامض»:
+   لا يُفتح عالم إلا بعد خمس إجابات صحيحة على جسره، وثلاثة قلوب.
+   ============================================================ */
+function mulberry(s){return function(){s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function shuffle(a,r){const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+const Q=(type,prompt,sent,opts,en)=>({type,prompt,sent,opts:opts.map(o=>({t:o[0],ok:!!o[1]})),en});
+const QR=(prompt,ans,en)=>({type:'rearrange',prompt,ans,en});
+const GB={
+ beg:[Q('choose','Choose the correct sentence:',null,[['She go to school every day.',0],['She goes to school every day.',1]],'With "She", use "goes" in the present simple.'),
+ Q('fill','Fill in the blank:','I ___ a student.',[['am',1],['is',0],['are',0]],'With "I", use "am".'),
+ Q('fill','Fill in the blank:','They ___ my friends.',[['are',1],['is',0]],'With "they", use "are".'),
+ Q('fix','Fix the sentence:','He don\'t like apples.',[['He doesn\'t like apples.',1],['He don\'t likes apples.',0],['He doesn\'t likes apples.',0]],'With "He", use "doesn\'t" + base verb.'),
+ Q('choose','Choose the correct sentence:',null,[['My brother play football.',0],['My brother plays football.',1]],'He / She / It → verb + s.'),
+ Q('fill','Fill in the blank:','___ she like pizza?',[['Does',1],['Do',0]],'"She" takes "does" in questions.'),
+ Q('fill','Fill in the blank:','I ___ two brothers.',[['have',1],['has',0]],'I / you / we / they → have.'),
+ Q('choose','Choose the correct sentence:',null,[['This is mine book.',0],['This is my book.',1]],'Use "my" before a noun.'),
+ Q('fill','Fill in the blank:','One child, two ___.',[['children',1],['childs',0]],'Child → children (irregular).'),
+ QR('Arrange the words:',['She','is','a','teacher.'],'Subject + to-be + complement.'),
+ Q('fill','Fill in the blank:','It ___ a cat.',[['is',1],['are',0]],'"It" takes "is".'),
+ Q('choose','Choose the correct sentence:',null,[['We has a new car.',0],['We have a new car.',1]],'"We" takes "have".')],
+ mid:[Q('fill','Fill in the blank:','Yesterday I ___ to school.',[['went',1],['go',0],['gone',0]],'Past of "go" = "went".'),
+ Q('fix','Fix the sentence:','They was at home.',[['They were at home.',1],['They wased at home.',0]],'"They" takes "were".'),
+ Q('choose','Choose the correct sentence:',null,[['She is runing fast.',0],['She is running fast.',1]],'run → running (double the n).'),
+ Q('fill','Fill in the blank:','Look! It ___ raining.',[['is',1],['are',0]],'Present continuous: it is + -ing.'),
+ Q('fill','Choose the future:','Look at the clouds! It ___ rain.',[['is going to',1],['will',0]],'Evidence now → going to.'),
+ Q('fill','Fill in the blank:','An elephant is ___ than a mouse.',[['bigger',1],['biggest',0]],'Comparative: bigger.'),
+ Q('fix','Fix the sentence:','This is the most best film.',[['This is the best film.',1],['This is more best film.',0]],'"Best" is already superlative.'),
+ Q('fill','Fill in the blank:','The book is ___ the table.',[['on',1],['in',0]],'On a surface → on.'),
+ Q('fill','Fill in the blank:','How ___ water do you drink?',[['much',1],['many',0]],'Uncountable → much.'),
+ Q('mistake','Find the mistake:','Does she works here?',[['works',1],['Does',0],['here',0]],'After "does" use the base verb: work.'),
+ QR('Arrange the words:',['Where','does','she','live?'],'Question word + does + subject + verb.'),
+ Q('fill','Fill in the blank:','___ old are you?',[['How',1],['What',0]],'How old = age.')],
+ adv:[Q('mistake','Find the mistake:','If I will see him, I\'ll tell him.',[['will see',1],['I\'ll tell',0]],'First conditional: If I see him…'),
+ Q('fix','Fix the sentence:','She said me that she was tired.',[['She told me that she was tired.',1],['She said to me that she was tired.',0]],'said → told + someone.'),
+ Q('fill','Fill in the blank:','If I ___ rich, I would travel.',[['were',1],['am',0]],'Second conditional → were.'),
+ Q('choose','Choose the correct sentence:',null,[['I have lived here since 2019.',1],['I live here since 2019.',0]],'since + present perfect.'),
+ Q('fix','Fix the sentence:','I look forward to see you.',[['I look forward to seeing you.',1],['I look forward seeing you.',0]],'look forward to + -ing.'),
+ Q('fill','Fill in the blank:','You ___ stop at a red light.',[['must',1],['can',0]],'Obligation → must.'),
+ Q('choose','Choose the correct sentence:',null,[['She can speak three languages.',1],['She can speaks three languages.',0]],'can + base verb.'),
+ Q('fill','Fill in the blank:','By next year, I ___ finished my degree.',[['will have',1],['will',0]],'Future perfect: will have + p.p.'),
+ QR('Arrange the words:',['The','train','had','left','before','we','arrived.'],'Earlier past action → past perfect.'),
+ Q('mistake','Find the mistake:','He suggested to go out.',[['to go out',1],['suggested',0]],'suggest + -ing: going out.'),
+ Q('fix','Fix the sentence:','She must goes home.',[['She must go home.',1],['She must going home.',0]],'must + base verb.'),
+ Q('choose','Choose the correct sentence:',null,[['She enjoys reading books.',1],['She enjoys to read books.',0]],'enjoy + -ing.')],
+};
+function genQ(rng,tier){
+ if(tier===0){const S=[['She',1],['He',1],['They',0],['We',0],['I',0],['The cat',1]];const V=[['go','goes'],['play','plays'],['like','likes'],['watch','watches']];const s=S[Math.floor(rng()*S.length)],v=V[Math.floor(rng()*V.length)];const good=s[1]?v[1]:v[0],bad=s[1]?v[0]:v[0]+'s';return Q('choose','Choose the correct sentence:',null,[[s[0]+' '+good+' every day.',1],[s[0]+' '+bad+' every day.',0]],s[0]+' → '+good+' (present simple).');}
+ if(tier===1){const V=[['eat','ate','eated'],['run','ran','runned'],['buy','bought','buyed']];const v=V[Math.floor(rng()*V.length)];return Q('fill','Fill in the blank:','She ___ yesterday.',[[v[1],1],[v[0],0],[v[2],0]],'Past of '+v[0]+' = '+v[1]+'.');}
+ const M=[['can','swim'],['should','study'],['must','go']];const m=M[Math.floor(rng()*M.length)];return Q('fix','Fix the sentence:','She '+m[0]+' '+m[1]+'s today.',[['She '+m[0]+' '+m[1]+' today.',1],['She '+m[0]+' to '+m[1]+' today.',0]],m[0]+' + base verb.');
+}
+function pickQ(level){const rng=mulberry(Date.now()%999983+level+Math.floor(Math.random()*1000));const tier=level<=2?0:level<=4?1:2;const pool=GB[['beg','mid','adv'][tier]];if(rng()<.3)return genQ(rng,tier);return pool[Math.floor(rng()*pool.length)];}
+
+const AR_NUM = n => String(n).replace(/\d/g, d=>'٠١٢٣٤٥٦٧٨٩'[d]);
+const WG_KEY = 'palmWorldsGate.v1';
+let wgSave = { open:{} };
+try{ Object.assign(wgSave, JSON.parse(localStorage.getItem(WG_KEY)||'{}')); }catch(e){}
+function wgPersist(){ try{ localStorage.setItem(WG_KEY, JSON.stringify(wgSave)); }catch(e){} }
+const isOpen = k => !!wgSave.open[k];
+
+const QZ = { on:false, idx:-1, step:0, hearts:3, q:null, total:5 };
+const qWrap=document.getElementById('quizWrap'), qCard=document.getElementById('quizCard');
+const $q = id => document.getElementById(id);
+
+function lockNote(msg){
+  const n = $q('lockNote'); n.textContent = msg; n.classList.add('on');
+  clearTimeout(n._t); n._t = setTimeout(()=>n.classList.remove('on'), 2600);
+}
+/* موضع الكاميرا على الجسر عند نسبة t */
+function bridgeCam(info, t){
+  const P = info.P, n = P.length-1;
+  const f = Math.max(0, Math.min(1, t)) * n;
+  const i = Math.min(n-1, Math.floor(f)), k = f - i;
+  const x = P[i].x + (P[i+1].x - P[i].x)*k;
+  const y = P[i].y + (P[i+1].y - P[i].y)*k;
+  const c = Math.cos(info.ang), sN = -Math.sin(info.ang);
+  const at = new THREE.Vector3((x+10)*c, y+2.4, (x+10)*sN);
+  const eye = new THREE.Vector3((x-13)*c, y+9.5, (x-13)*sN);
+  return { eye, at };
+}
+function openBridge(info, instant){
+  info.bar.visible = false;
+  if(info.sign && info.sign.material) info.sign.material.emissive = new THREE.Color(0x3a2a08);
+}
+function refreshLocks(){
+  BRIDGE_INFO.forEach(info=>{ if(isOpen(info.key)) openBridge(info, true); });
+  setFocusLabels();
+}
+function startCrossing(key){
+  if(tween || QZ.on) return;
+  const idx = BRIDGE_INFO.findIndex(b=>b.key===key);
+  if(idx < 0) return;
+  QZ.on = true; QZ.idx = idx; QZ.step = 0; QZ.hearts = 3;
+  controls.enabled = false; controls.autoRotate = false;
+  btnRotate.classList.remove('active');
+  $q('qWorld').textContent = BRIDGE_INFO[idx].name;
+  qWrap.classList.add('on');
+  moveToStep();
+  nextQuestion();
+}
+function moveToStep(){
+  const info = BRIDGE_INFO[QZ.idx];
+  const c = bridgeCam(info, QZ.step / QZ.total);
+  camera.position.copy(c.eye);
+  controls.target.copy(c.at);
+  camera.lookAt(c.at);
+}
+function renderHearts(){
+  $q('qHearts').textContent = '❤️'.repeat(Math.max(0,QZ.hearts)) + '🖤'.repeat(Math.max(0,3-QZ.hearts));
+  $q('qStep').textContent = AR_NUM(Math.min(QZ.step+1, QZ.total)) + ' / ' + AR_NUM(QZ.total);
+  $q('qBarFill').style.width = (QZ.step/QZ.total*100) + '%';
+}
+function nextQuestion(){
+  renderHearts();
+  $q('qWhy').classList.add('hidden');
+  $q('qNext').classList.add('hidden');
+  const q = QZ.q = pickQ(QZ.step + 1 + QZ.idx*2);
+  $q('qPrompt').textContent = q.prompt;
+  $q('qSent').textContent = q.sent || '';
+  const opts = $q('qOpts'), rear = $q('qRearr');
+  opts.innerHTML = ''; rear.classList.add('hidden'); opts.classList.remove('hidden');
+  if(q.type === 'rearrange'){
+    opts.classList.add('hidden'); rear.classList.remove('hidden');
+    const words = $q('qWords'), slots = $q('qSlots');
+    words.innerHTML = ''; slots.innerHTML = '';
+    shuffle(q.ans, mulberry(QZ.step*97 + 13)).forEach(w=>{
+      const b = document.createElement('span'); b.textContent = w;
+      b.onclick = ()=>{ slots.appendChild(b); };
+      words.appendChild(b);
+    });
+    slots.onclick = e=>{ if(e.target.tagName==='SPAN') words.appendChild(e.target); };
+    $q('qCheck').onclick = ()=>{
+      const got = [...slots.children].map(c=>c.textContent);
+      if(got.length < q.ans.length){ lockNote('استعملوا كلّ الكلمات'); return; }
+      grade(got.join(' ') === q.ans.join(' '));
+    };
+    return;
+  }
+  shuffle(q.opts, mulberry(QZ.step*31 + QZ.idx*7 + 5)).forEach((o,i)=>{
+    const b = document.createElement('button');
+    b.textContent = String.fromCharCode(65+i) + '. ' + o.t;
+    b.onclick = ()=>{
+      if(opts.dataset.done) return;
+      opts.dataset.done = '1';
+      b.classList.add(o.ok ? 'ok' : 'bad');
+      grade(o.ok);
+    };
+    opts.appendChild(b);
+  });
+  opts.dataset.done = '';
+}
+function grade(ok){
+  const q = QZ.q;
+  $q('qWhy').textContent = (ok ? '✔ ' : '✘ ') + (q.en || '');
+  $q('qWhy').classList.remove('hidden');
+  if(ok){
+    QZ.step++;
+    renderHearts();
+    if(QZ.step >= QZ.total){ finishCrossing(true); return; }
+    moveToStep();
+  } else {
+    QZ.hearts--;
+    renderHearts();
+    if(QZ.hearts <= 0){ finishCrossing(false); return; }
+  }
+  $q('qNext').classList.remove('hidden');
+  $q('qNext').textContent = ok ? 'خطوة إلى الأمام ◂' : 'حاولوا مرّة أخرى ◂';
+}
+function finishCrossing(won){
+  const info = BRIDGE_INFO[QZ.idx];
+  qWrap.classList.remove('on');
+  QZ.on = false;
+  controls.enabled = true;
+  if(won){
+    wgSave.open[info.key] = 1; wgPersist();
+    openBridge(info);
+    lockNote('فُتح ' + info.name + ' 🎉 — اضغطوا زرّه للطيران إليه');
+    setFocusLabels();
+    const c = bridgeCam(info, 1);
+    flyTo(c.eye.clone(), c.at.clone(), 3000);
+  } else {
+    lockNote('انتهت القلوب — ارجعوا وحاولوا مرّة أخرى');
+    flyTo(new THREE.Vector3(0, 34, 74), new THREE.Vector3(0, 6, 0), 3000);
+  }
+}
+$q('qNext').onclick = ()=> nextQuestion();
+$q('qQuit').onclick = ()=>{ QZ.on = false; qWrap.classList.remove('on'); controls.enabled = true;
+  flyTo(new THREE.Vector3(0, 34, 74), new THREE.Vector3(0, 6, 0), 2600); };
+
+/* يوجّه أزرار العوالم: مقفل ⇦ اعبروا الجسر · مفتوح ⇦ طيران */
+function gateOrFly(key, name, endPos, endTgt){
+  if(!isOpen(key)){ startCrossing(key); return; }
+  toggleFocus(name, endPos, endTgt);
+}
+refreshLocks();
 
 /* ================= الحلقة ================= */
 const clockT = new THREE.Clock();

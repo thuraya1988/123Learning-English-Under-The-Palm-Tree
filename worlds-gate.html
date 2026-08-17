@@ -67,6 +67,7 @@
   padding:8px 18px;font-size:12.5px;opacity:0;transition:opacity .4s}
 #lockNote.on{opacity:1}
 </style>
+<script src="curriculum.js"></script>
 <script type="importmap">
 {"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/examples/jsm/"}}
 </script>
@@ -324,7 +325,7 @@ function makeIsle(x, z, r, topHex, sideHex, y){
   }
   return g;
 }
-makeIsle(   0,    0,  58, '#8fb56a', '#7f9a80', 20);   /* مدينة شموسة */
+
 makeIsle(-108,  76,  42, '#a9c07c', '#8a9a72', 17);   /* ليمبو */
 makeIsle(-118, -78,  46, '#b4b077', '#96906a', 19);   /* زومبينيس */
 makeIsle(   0, -152, 34, '#cbbfa4', '#8f8878', 22);   /* قلعة الشطرنج */
@@ -1757,7 +1758,7 @@ const PLAZA_R = 52;
   }
 
   /* ---- مدينة أليس العائمة: نُقلت من عالم شموسة كما هي ---- */
-  const CITY = new THREE.Group(); CITY.position.y = 20.0; CITY.scale.setScalar(2.55); palmCity.add(CITY);
+  const CITY = new THREE.Group(); CITY.position.y = 24; CITY.scale.setScalar(1.45); palmCity.add(CITY);
   const cityTick = (function(){
   var seed=987654321;
   function rand(){ seed^=seed<<13; seed^=seed>>>17; seed^=seed<<5; return ((seed>>>0)/4294967296); }
@@ -2174,53 +2175,207 @@ const PLAZA_R = 52;
   }
 
 
-  /* ============ قرية شموسة العائمة (مدينة أليس) — نُقلت كما هي ============ */
-  var CITY_ISL=[
-    {r:9.5, th:3.4, x:0,     y:0,    z:0},
-    {r:6.2, th:2.6, x:-14.5, y:0, z:-6},
-    {r:5.6, th:2.4, x:13.5,  y:0, z:-8},
-    {r:6.6, th:2.8, x:-11,   y:0, z:12},
-    {r:5.2, th:2.2, x:12,    y:0, z:13},
-    {r:4.4, th:2.0, x:0,     y:0, z:-18}
+  var waterVert='varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
+  var waterFrag=
+   'uniform float uTime,uSpeed,uScale;uniform vec3 uColor;varying vec2 vUv;'+
+   'float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}'+
+   'float noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);'+
+   'return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x),f.y);}'+
+   'float fbm(vec2 p){float v=0.;float a=.5;for(int i=0;i<4;i++){v+=a*noise(p);p*=2.03;a*=.5;}return v;}'+
+   'void main(){vec2 uv=vUv;uv.y*=uScale;uv.y-=uTime*uSpeed;'+
+   'float w1=fbm(vec2(uv.x*3.0,uv.y*2.0));float w2=fbm(vec2(uv.x*7.0+9.0,uv.y*4.5-uTime*0.25));'+
+   'float w=w1*0.65+w2*0.35;vec3 col=mix(uColor*0.7,uColor,w);'+
+   'float foam=smoothstep(0.60,0.86,w);col=mix(col,vec3(1.0),foam*0.9);'+
+   'float edge=smoothstep(0.0,0.14,vUv.x)*smoothstep(1.0,0.86,vUv.x);'+
+   'float alpha=(0.5+0.4*w)*(0.35+0.65*edge);gl_FragColor=vec4(col,alpha);}';
+  function makeWaterMat(speed,scale,col){
+    return new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,
+      uniforms:{uTime:uTime,uSpeed:{value:speed},uScale:{value:scale},uColor:{value:new THREE.Color(col)}},
+      vertexShader:waterVert,fragmentShader:waterFrag});
+  }
+  var matFall=makeWaterMat(2.4,3.0,0x55cfe0);
+  var matFall2=makeWaterMat(1.9,2.4,0x6fd8e6);
+  var matColumn=makeWaterMat(-1.6,2.0,0x55cfe0);
+  var matColDn=makeWaterMat(2.2,2.6,0x8ae6ef);
+
+
+  function buildWoodBridge(p1,p2,arch,width){
+    var woodParts=[],ropeParts=[],i;
+    var mid=p1.clone().lerp(p2,0.5); mid.y+=arch;
+    var curve=new THREE.QuadraticBezierCurve3(p1,mid,p2);
+    var N=18;
+    for(i=0;i<=N;i++){
+      var t=i/N,pos=curve.getPoint(t),tan=curve.getTangent(t);
+      var yaw=Math.atan2(tan.x,tan.z);
+      woodParts.push(put(new THREE.BoxGeometry(width,0.06,0.3),pos.x,pos.y,pos.z,0,yaw,0));
+      if(i%3===0&&i>0&&i<N){
+        var side=new THREE.Vector3().crossVectors(tan,new THREE.Vector3(0,1,0)).normalize();
+        var sds=[1,-1];
+        for(var k=0;k<2;k++){
+          var sd=sds[k];
+          var px=pos.x+side.x*sd*width/2,pz=pos.z+side.z*sd*width/2;
+          woodParts.push(put(new THREE.CylinderGeometry(0.045,0.05,1.05,5),px,pos.y+0.5,pz));
+        }
+      }
+    }
+    var topsL=[],topsR=[];
+    for(i=0;i<=6;i++){
+      var t2=i/6,pos2=curve.getPoint(t2),tan2=curve.getTangent(t2);
+      var side2=new THREE.Vector3().crossVectors(tan2,new THREE.Vector3(0,1,0)).normalize();
+      topsR.push(new THREE.Vector3(pos2.x+side2.x*width/2,pos2.y+1.02,pos2.z+side2.z*width/2));
+      topsL.push(new THREE.Vector3(pos2.x-side2.x*width/2,pos2.y+1.02,pos2.z-side2.z*width/2));
+    }
+    ropeParts.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(topsL),16,0.035,5));
+    ropeParts.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(topsR),16,0.035,5));
+    CITY.add(mesh(mergeGeos(woodParts),matWood,true));
+    CITY.add(mesh(mergeGeos(ropeParts),matRope,true));
+  }
+  function buildRopeBridge(p1,p2,sag,width){
+    var g=new THREE.Group();
+    var woodParts=[],ropeParts=[];
+    var mid=p1.clone().lerp(p2,0.5); mid.y-=sag;
+    var curve=new THREE.QuadraticBezierCurve3(p1,mid,p2);
+    var N=Math.floor(p1.distanceTo(p2)/0.55),i;
+    var ropeL=[],ropeR=[];
+    for(i=0;i<N;i++){
+      var t=(i+0.5)/N,pos=curve.getPoint(t),tan=curve.getTangent(t);
+      var yaw=Math.atan2(tan.x,tan.z);
+      woodParts.push(put(new THREE.BoxGeometry(width,0.05,0.22),pos.x,pos.y,pos.z,0,yaw,0));
+      var side=new THREE.Vector3().crossVectors(tan,new THREE.Vector3(0,1,0)).normalize();
+      ropeL.push(new THREE.Vector3(pos.x+side.x*width/2,pos.y+0.75,pos.z+side.z*width/2));
+      ropeR.push(new THREE.Vector3(pos.x-side.x*width/2,pos.y+0.75,pos.z-side.z*width/2));
+      if(i%3===0){
+        var sds=[1,-1];
+        for(var k=0;k<2;k++){
+          var sd=sds[k];
+          ropeParts.push(put(new THREE.CylinderGeometry(0.02,0.02,0.75,4),
+            pos.x+side.x*sd*width/2,pos.y+0.37,pos.z+side.z*sd*width/2));
+        }
+      }
+    }
+    ropeParts.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ropeL),24,0.04,5));
+    ropeParts.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ropeR),24,0.04,5));
+    g.add(mesh(mergeGeos(woodParts),matWoodDk,true));
+    g.add(mesh(mergeGeos(ropeParts),matRope,true));
+    CITY.add(g);
+    return g;
+  }
+  function hangRope(p1,p2,sagY,sagZ,radius){
+    var mid=p1.clone().lerp(p2,0.5); mid.y+=sagY; mid.z+=sagZ;
+    CITY.add(mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(p1,mid,p2),32,radius,6),matRope,true));
+  }
+
+
+  var falls=[];
+  function addWaterfall(x,y,z,width,rotY,mat){
+    var len=y+13.2;
+    var m=new THREE.Mesh(new THREE.PlaneGeometry(width,len,4,16),mat||matFall);
+    m.position.set(x,y-len/2+0.2,z); m.rotation.y=rotY;
+    CITY.add(m);
+    var n=60,posArr=new Float32Array(n*3),spd=new Float32Array(n);
+    for(var i=0;i<n;i++){
+      posArr[i*3]=R(-width/2,width/2); posArr[i*3+1]=R(-len,0); posArr[i*3+2]=R(0.05,0.3);
+      spd[i]=R(3,6);
+    }
+    var pg=new THREE.BufferGeometry();
+    pg.setAttribute('position',new THREE.BufferAttribute(posArr,3));
+    var pts=new THREE.Points(pg,new THREE.PointsMaterial({map:softTex,color:0xe8fbff,size:0.16,transparent:true,opacity:0.7,depthWrite:false,blending:THREE.AdditiveBlending}));
+    pts.position.set(x,y+0.2,z); pts.rotation.y=rotY; CITY.add(pts);
+    falls.push({posArr:posArr,spd:spd,len:len,geo:pg});
+    var mist=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:0xffffff,transparent:true,opacity:0.3,depthWrite:false}));
+    mist.position.set(x,-12.4,z); mist.scale.set(width*3.2,width*2.2,1); CITY.add(mist);
+  }
+  updates.push(function(t,dt){
+    for(var f=0;f<falls.length;f++){
+      var F=falls[f];
+      for(var i=0;i<F.spd.length;i++){
+        F.posArr[i*3+1]-=F.spd[i]*dt;
+        if(F.posArr[i*3+1]<-F.len) F.posArr[i*3+1]=0;
+      }
+      F.geo.attributes.position.needsUpdate=true;
+    }
+  });
+
+
+  /* ============ مدينة أليس: التوزيع الحقيقي لجزرها العائمة ============ */
+  var A_ISL = [
+    ['A',   0,   0, 8.0, 6.0,  0.05], ['B', -14.5, -1, 4.6, 4.0, 1.20],
+    ['C',  15,   2, 5.2, 4.5,  0.40], ['D',  -9, -17, 3.0, 3.0, 3.20],
+    ['E',   9.5,-19,3.2, 3.0,  4.00], ['F',  -1, -27, 2.4, 2.5, 6.00],
+    ['G', -11, 10.5,2.4, 2.4, -4.50], ['H',  12.5, 9.5,2.4, 2.4,-4.20],
+    ['I', -24,  -8, 3.5, 3.2,  2.00], ['J',  24, -10, 3.8, 3.4, 3.00],
+    ['K',   0, -38, 3.0, 2.8,  8.00], ['L', -18, -28, 3.0, 3.0, 5.00],
+    ['M',  20, -30, 3.2, 3.0,  6.00], ['N',  30,   6, 2.6, 2.6,-1.95],
+    ['O', -30,   4, 2.8, 2.8, -0.95]
   ];
-  CITY_ISL.forEach(function(o,i){
-    var g=createIsland(o.r,o.th,i*7+3);
-    g.position.set(o.x,o.y,o.z); CITY.add(g);
-    addFlora(g,o.r);
+  var A_FLORA = {A:7.2,B:4,C:4.5,D:2.6,E:2.8,F:2,G:2,H:2,I:3.1,J:3.4,K:2.6,L:2.6,M:2.8,N:2.2,O:2.4};
+  var aIsl = {};
+  A_ISL.forEach(function(o,i){
+    var g = createIsland(o[3], o[4], i*13+7);
+    g.position.set(o[1], o[5], o[2]);
+    CITY.add(g); aIsl[o[0]] = o;
+    addFlora(g, A_FLORA[o[0]]);
   });
-  /* البيوت ذات السقوف العُمانية */
-  var CITY_HOUSES=[
-    {x:-3.4,z:-2.6,ry:0.5,  scale:1.15, wall:matClay,  roof:'#b8452f'},
-    {x:4.2, z:1.8, ry:-0.9, scale:1.0,  wall:matClay2, roof:'#3f7f8f'},
-    {x:-14.2,z:-6.4,ry:1.9, scale:0.95, wall:matClay,  roof:'#c87a34'},
-    {x:13.2,z:-8.4,ry:-2.3, scale:0.9,  wall:matClay2, roof:'#8f5a9f'},
-    {x:-11.4,z:12.4,ry:2.6, scale:1.05, wall:matClay,  roof:'#3f7f8f'},
-    {x:12.3,z:13.2,ry:-0.4, scale:0.85, wall:matClay2, roof:'#b8452f'},
-    {x:0.4, z:-18.2,ry:3.1, scale:0.8,  wall:matClay,  roof:'#c87a34'}
+  var A_HOUSES = [
+    ['A',  -3.4, -2.6, 0.5,  1.25, matClay,  '#b8452f'],
+    ['A',   3.6,  2.0,-0.9,  1.05, matClay2, '#3f7f8f'],
+    ['B', -14.6, -1.4, 1.9,  1.00, matClay,  '#c87a34'],
+    ['C',  15.4,  2.4,-2.3,  1.05, matClay2, '#8f5a9f'],
+    ['D',  -9.0,-17.2, 2.6,  0.85, matClay,  '#3f7f8f'],
+    ['E',   9.6,-19.2,-0.4,  0.85, matClay2, '#b8452f'],
+    ['I', -24.0, -8.2, 1.2,  0.90, matClay,  '#c87a34'],
+    ['J',  24.2,-10.2,-1.5,  0.95, matClay2, '#3f7f8f'],
+    ['L', -18.0,-28.0, 0.8,  0.80, matClay,  '#b8452f'],
+    ['M',  20.0,-30.0,-0.6,  0.80, matClay2, '#c87a34'],
+    ['K',   0.2,-38.2, 3.1,  0.78, matClay,  '#8f5a9f']
   ];
-  CITY_HOUSES.forEach(function(h,i){
-    var yBase=CITY_ISL.reduce(function(a,o){
-      return (Math.hypot(h.x-o.x,h.z-o.z)<o.r-1.2)?o.y:a; },0);
-    var g=buildHouse({w:R(3.0,3.8),d:R(2.8,3.4),h:R(2.6,3.4),
-                      roofH:R(1.5,2.1),wallMat:h.wall,roofCol:h.roof,scale:h.scale});
-    g.position.set(h.x,yBase,h.z); g.rotation.y=h.ry; CITY.add(g);
+  A_HOUSES.forEach(function(h){
+    var o = aIsl[h[0]];
+    var g = buildHouse({ w:R(3.0,3.8), d:R(2.8,3.4), h:R(2.6,3.4),
+                         roofH:R(1.5,2.1), wallMat:h[5], roofCol:h[6], scale:h[4] });
+    g.position.set(h[1], o[5], h[2]); g.rotation.y = h[3];
+    CITY.add(g);
   });
-  /* النخيل */
-  [[-6.5,-6,0],[6.8,-4.5,0],[-8.5,4.5,0],[8.2,6.5,0],[-16,-9,-1.2],[15.5,-10,-0.8],
-   [-13,15,-1.6],[14.5,15.5,-1.4],[1.5,-20,-2.2],[-2,7.5,0],[3.5,-8.5,0]]
-   .forEach(function(p,i){
-    createPalm(new THREE.Vector3(p[0],p[2],p[1]),R(4.2,6.4),R(0.05,0.22),R(0,6.28),6);
+  [[-5.5,-5.5,'A'],[5.8,-4.0,'A'],[-6.5,3.5,'A'],[6.2,4.5,'A'],[0,6.0,'A'],
+   [-15.5,-3.5,'B'],[15.8,-1.0,'C'],[-9.5,-15.5,'D'],[10.5,-17.5,'E'],
+   [-24.5,-6.5,'I'],[24.5,-8.5,'J'],[-18.5,-26.5,'L'],[20.5,-28.5,'M'],[-1.5,-25.8,'F']]
+   .forEach(function(p){
+    var o = aIsl[p[2]];
+    createPalm(new THREE.Vector3(p[0], o[5], p[1]), R(4.0,6.2), R(0.05,0.22), R(0,6.28), 6);
   });
-  /* السعف مُنمذج دفعةً واحدة */
   (function(){
     if(!frondData.length) return;
-    var inst=new THREE.InstancedMesh(frondGeo,matFrond,frondData.length);
+    var inst = new THREE.InstancedMesh(frondGeo, matFrond, frondData.length);
     frondData.forEach(function(f,i){
       dummy.position.copy(f.p); dummy.quaternion.copy(f.q); dummy.scale.setScalar(f.s);
-      dummy.updateMatrix(); inst.setMatrixAt(i,dummy.matrix); inst.setColorAt(i,f.c);
+      dummy.updateMatrix(); inst.setMatrixAt(i, dummy.matrix); inst.setColorAt(i, f.c);
     });
-    inst.instanceColor.needsUpdate=true; inst.castShadow=true; CITY.add(inst);
+    inst.instanceColor.needsUpdate = true; inst.castShadow = true; CITY.add(inst);
   })();
+  /* الشلالات تنزل من حوافّ الجزر */
+  addWaterfall(  3.4, -0.6,  6.6, 1.9, 0.0,  matFall);
+  addWaterfall( -4.6, -0.6, -6.2, 1.6, 0.4,  matFall2);
+  addWaterfall(-14.0,  0.7,  3.2, 1.2, 0.9,  matFall2);
+  addWaterfall( 15.6,  0.0, -2.4, 1.3, 2.1,  matFall);
+  addWaterfall( -9.0,  2.8,-15.0, 1.0, 0.2,  matFall2);
+  addWaterfall(  9.6,  3.6,-17.2, 1.0, 2.6,  matFall);
+  addWaterfall(  0.0,  7.6,-36.4, 0.9, 0.0,  matFall2);
+  /* جسور المدينة بين جزرها */
+  var V3 = function(x,y,z){ return new THREE.Vector3(x,y,z); };
+  buildWoodBridge(V3( 7.0,0.10, 1.8), V3( 10.4,0.60, 2.2), 1.1, 1.7);
+  buildWoodBridge(V3(-7.0,0.05,-0.6), V3(-10.4,1.25,-1.2), 1.0, 1.6);
+  buildRopeBridge(V3(-7.6,3.10,-14.6),V3( -2.6,0.40,-6.4), 0.8, 1.3);
+  buildRopeBridge(V3( 8.6,3.90,-16.5),V3( 13.8,0.60,-0.8), 1.2, 1.3);
+  buildRopeBridge(V3(-16.5,5.10,-26), V3( -2.5,7.90,-36),  1.0, 1.2);
+  buildRopeBridge(V3( 17.5,6.10,-28), V3(  2.5,7.90,-37),  1.0, 1.2);
+  buildRopeBridge(V3(-7.5,0.50,-3),   V3(-21.0,2.20,-7),   1.6, 1.3);
+  buildRopeBridge(V3( 7.5,0.50,-3),   V3( 21.0,3.20,-9),   1.6, 1.3);
+  buildWoodBridge(V3(19.5,0.60, 3.5), V3( 27.6,-1.80,5.5), 1.2, 1.7);
+  buildWoodBridge(V3(-18.8,1.40,-0.5),V3(-27.4,-0.80,3.2), 1.2, 1.7);
+  buildRopeBridge(V3(-11.5,3.40,-19), V3(-16.0,4.80,-26),  0.9, 1.2);
+  buildRopeBridge(V3( 12.0,4.20,-21), V3( 17.5,5.80,-28),  0.9, 1.2);
+  buildRopeBridge(V3(-10.8,0.05, 8.6),V3(-11.0,-4.50,10.5),0.7, 1.2);
+  buildRopeBridge(V3( 11.8,0.05, 8.0),V3( 12.5,-4.20, 9.5),0.7, 1.2);
 
   return function(t){ uTime.value = t; updates.forEach(function(f){ f(t, 0.016); }); };
   })();
@@ -2240,13 +2395,13 @@ const PLAZA_R = 52;
 
   /* ============ الجسور ============ */
   const BRIDGES = [
-    { key:'limbo', tint:'#e85aa0',  name:'ليمبو',          sub:'Limbo',          target:new THREE.Vector3(-108, -3,  76), reach:0.80, deck:'#c9a06b' },
-    { key:'zoomb', tint:'#4fd6c8',  name:'زومبينيس',       sub:'Zoombinis',      target:new THREE.Vector3(-118, -1, -78), reach:0.80, deck:'#b08a5a' },
-    { key:'chess', tint:'#f6cf54',  name:'قلعة الشطرنج',   sub:'Chess Castle',   target:new THREE.Vector3(   0, 2,-152), reach:0.82, deck:'#cbb48c' },
-    { key:'island', tint:'#7cc46a', name:'جزيرة النغمات',  sub:'Figment Isle',   target:new THREE.Vector3( 112,26, -78), reach:0.86, deck:'#d9c08b' },
-    { key:'cup', tint:'#f48fb1',    name:'وادي الكب كيك',  sub:'Cupcake Valley', target:new THREE.Vector3( 112,-5,  84), reach:0.80, deck:'#e6d9a8' },
-    { key:'shroom', tint:'#8a63d8', name:'قرية الفطر',      sub:'Mushroom Village',target:new THREE.Vector3(  0,-2, 205), reach:0.86, deck:'#8a7a9a' },
-    { key:'alice', tint:'#f0c04e',  name:'عالم أليس',       sub:"Alice's World",   target:new THREE.Vector3(150,-6,   0), reach:0.84, deck:'#d9bd90' }
+    { key:'limbo', mode:'tiles', tint:'#e85aa0',  name:'ليمبو',          sub:'Limbo',          target:new THREE.Vector3(-108, -3,  76), reach:0.80, deck:'#c9a06b' },
+    { key:'zoomb', mode:'lies', tint:'#4fd6c8',  name:'زومبينيس',       sub:'Zoombinis',      target:new THREE.Vector3(-118, -1, -78), reach:0.80, deck:'#b08a5a' },
+    { key:'chess', mode:'tiles', tint:'#f6cf54',  name:'قلعة الشطرنج',   sub:'Chess Castle',   target:new THREE.Vector3(   0, 2,-152), reach:0.82, deck:'#cbb48c' },
+    { key:'island', mode:'alice', tint:'#7cc46a', name:'جزيرة النغمات',  sub:'Figment Isle',   target:new THREE.Vector3( 112,26, -78), reach:0.86, deck:'#d9c08b' },
+    { key:'cup', mode:'lies', tint:'#f48fb1',    name:'وادي الكب كيك',  sub:'Cupcake Valley', target:new THREE.Vector3( 112,-5,  84), reach:0.80, deck:'#e6d9a8' },
+    { key:'shroom', mode:'alice', tint:'#8a63d8', name:'قرية الفطر',      sub:'Mushroom Village',target:new THREE.Vector3(  0,-2, 205), reach:0.86, deck:'#8a7a9a' },
+    { key:'alice', mode:'tiles', tint:'#f0c04e',  name:'عالم أليس',       sub:"Alice's World",   target:new THREE.Vector3(150,-6,   0), reach:0.84, deck:'#d9bd90' }
   ];
   const railM = M('#7a5233', 0.9);
   BRIDGES.forEach(br=>{
@@ -2258,7 +2413,7 @@ const PLAZA_R = 52;
     palmCity.add(g);
 
     const x0 = PLAZA_R - 1.5, x1 = dist * br.reach;
-    const y0 = 20.4, y1 = 20.4 + br.target.y;
+    const y0 = 24.0, y1 = 24.0 + br.target.y;
     /* بلاط الجسر: صفّان في كلّ خطوة بلونين متبادلين مثل رقعة الشطرنج،
        فيصير الجسر شبكة خطوات جاهزة لمنطق المشي عليه */
     const N = 16;
@@ -2326,7 +2481,7 @@ const PLAZA_R = 52;
     const bar = pcAdd(new THREE.BoxGeometry(0.7, 0.7, 9.4),
       new THREE.MeshStandardMaterial({ color:0xc94a3a, roughness:0.6, emissive:0x4a1008 }),
       x0 - 1.2, 3.2, 0, g);
-    BRIDGE_INFO.push({ key:br.key, name:br.name, sub:br.sub, ang, P, bar, barY:3.2, sign, tiles, rows:N });
+    BRIDGE_INFO.push({ key:br.key, mode:br.mode, name:br.name, sub:br.sub, ang, P, bar, barY:3.2, sign, tiles, rows:N });
   });
 }
 
@@ -2818,8 +2973,8 @@ function bridgeCam(info, t){
   const x = P[i].x + (P[i+1].x - P[i].x)*k;
   const y = P[i].y + (P[i+1].y - P[i].y)*k;
   const c = Math.cos(info.ang), sN = -Math.sin(info.ang);
-  const at = new THREE.Vector3((x+10)*c, y+2.4, (x+10)*sN);
-  const eye = new THREE.Vector3((x-13)*c, y+9.5, (x-13)*sN);
+  const at  = new THREE.Vector3((x+18)*c, y+2.4, (x+18)*sN);
+  const eye = new THREE.Vector3((x-15)*c, y+8.2, (x-15)*sN);
   return { eye, at };
 }
 function openBridge(info, instant){
@@ -2835,19 +2990,48 @@ function startCrossing(key){
   const idx = BRIDGE_INFO.findIndex(b=>b.key===key);
   if(idx < 0) return;
   QZ.on = true; QZ.idx = idx; QZ.step = 0; QZ.hearts = 3;
+  QZ.mode = BRIDGE_INFO[idx].mode || 'tiles';
+  AVATAR.visible = true;
   controls.enabled = false; controls.autoRotate = false;
   btnRotate.classList.remove('active');
-  $q('qWorld').textContent = BRIDGE_INFO[idx].name;
+  $q('qWorld').textContent = BRIDGE_INFO[idx].name + ' · ' +
+    (QZ.mode==='tiles' ? 'بلاط الجسر' : QZ.mode==='lies' ? 'حقيقة أم افتراض؟' : 'كلمات أليس');
   qWrap.classList.add('on');
   moveToStep();
   nextQuestion();
 }
+function bridgePoint(info, t){
+  const P = info.P, n = P.length-1;
+  const f = Math.max(0, Math.min(1, t)) * n;
+  const i = Math.min(n-1, Math.floor(f)), k = f - i;
+  const x = P[i].x + (P[i+1].x - P[i].x)*k;
+  const y = P[i].y + (P[i+1].y - P[i].y)*k;
+  const c = Math.cos(info.ang), sN = -Math.sin(info.ang);
+  return { world:new THREE.Vector3(x*c, y, x*sN), x, y };
+}
 function moveToStep(){
   const info = BRIDGE_INFO[QZ.idx];
-  const c = bridgeCam(info, QZ.step / QZ.total);
+  const t = (QZ.step + 0.55) / (QZ.total + 0.55);
+  const c = bridgeCam(info, t);
   camera.position.copy(c.eye);
   controls.target.copy(c.at);
   camera.lookAt(c.at);
+  /* شموسة تقف على البلاطة الحالية */
+  const p = bridgePoint(info, t);
+  AVATAR.position.set(p.world.x, p.world.y + 0.3, p.world.z);
+  AVATAR.rotation.y = info.ang + Math.PI/2;
+  /* أضئ بلاطتَي الصفّ الحالي وأطفئ ما عداهما */
+  const row = Math.min(info.rows-1, Math.round(t*(info.rows-1)));
+  info.tiles.forEach(tl=>{
+    const on = tl.userData.row === row;
+    if(on !== tl.userData.lit){
+      tl.userData.lit = on;
+      tl.material = on ? (tl.userData.hi || (tl.userData.hi =
+        new THREE.MeshStandardMaterial({ color:0xffe6a8, roughness:0.5,
+          emissive:0xf0b03a, emissiveIntensity:0.5 }))) : (tl.userData.base || tl.material);
+    }
+    if(!tl.userData.base && !on) tl.userData.base = tl.material;
+  });
 }
 function renderHearts(){
   $q('qHearts').textContent = '❤️'.repeat(Math.max(0,QZ.hearts)) + '🖤'.repeat(Math.max(0,3-QZ.hearts));
@@ -2858,40 +3042,72 @@ function nextQuestion(){
   renderHearts();
   $q('qWhy').classList.add('hidden');
   $q('qNext').classList.add('hidden');
-  const q = QZ.q = pickQ(QZ.step + 1 + QZ.idx*2);
-  $q('qPrompt').textContent = q.prompt;
-  $q('qSent').textContent = q.sent || '';
   const opts = $q('qOpts'), rear = $q('qRearr');
   opts.innerHTML = ''; rear.classList.add('hidden'); opts.classList.remove('hidden');
-  if(q.type === 'rearrange'){
-    opts.classList.add('hidden'); rear.classList.remove('hidden');
-    const words = $q('qWords'), slots = $q('qSlots');
-    words.innerHTML = ''; slots.innerHTML = '';
-    shuffle(q.ans, mulberry(QZ.step*97 + 13)).forEach(w=>{
-      const b = document.createElement('span'); b.textContent = w;
-      b.onclick = ()=>{ slots.appendChild(b); };
-      words.appendChild(b);
-    });
-    slots.onclick = e=>{ if(e.target.tagName==='SPAN') words.appendChild(e.target); };
-    $q('qCheck').onclick = ()=>{
-      const got = [...slots.children].map(c=>c.textContent);
-      if(got.length < q.ans.length){ lockNote('استعملوا كلّ الكلمات'); return; }
-      grade(got.join(' ') === q.ans.join(' '));
-    };
-    return;
-  }
-  shuffle(q.opts, mulberry(QZ.step*31 + QZ.idx*7 + 5)).forEach((o,i)=>{
+  opts.dataset.done = '';
+  const addOpt = (label, ok, cls)=>{
     const b = document.createElement('button');
-    b.textContent = String.fromCharCode(65+i) + '. ' + o.t;
+    b.textContent = label;
+    if(cls) b.classList.add(cls);
     b.onclick = ()=>{
       if(opts.dataset.done) return;
       opts.dataset.done = '1';
-      b.classList.add(o.ok ? 'ok' : 'bad');
-      grade(o.ok);
+      b.classList.add(ok ? 'ok' : 'bad');
+      grade(ok);
     };
     opts.appendChild(b);
+  };
+
+  /* ---- ١) بلاط جسر القواعد ---- */
+  if(QZ.mode === 'tiles'){
+    const q = QZ.q = pickQ(QZ.step + 1 + QZ.idx*2);
+    $q('qPrompt').textContent = q.prompt;
+    $q('qSent').textContent = q.sent || '';
+    if(q.type === 'rearrange'){
+      opts.classList.add('hidden'); rear.classList.remove('hidden');
+      const words = $q('qWords'), slots = $q('qSlots');
+      words.innerHTML = ''; slots.innerHTML = '';
+      shuffle(q.ans, mulberry(QZ.step*97 + 13)).forEach(w=>{
+        const b = document.createElement('span'); b.textContent = w;
+        b.onclick = ()=>{ slots.appendChild(b); };
+        words.appendChild(b);
+      });
+      slots.onclick = e=>{ if(e.target.tagName==='SPAN') words.appendChild(e.target); };
+      $q('qCheck').onclick = ()=>{
+        const got = [...slots.children].map(c=>c.textContent);
+        if(got.length < q.ans.length){ lockNote('استعملوا كلّ الكلمات'); return; }
+        grade(got.join(' ') === q.ans.join(' '));
+      };
+      return;
+    }
+    shuffle(q.opts, mulberry(QZ.step*31 + QZ.idx*7 + 5)).forEach((o,i)=>{
+      addOpt(String.fromCharCode(65+i) + '. ' + o.t, o.ok);
+    });
+    return;
+  }
+
+  /* ---- ٢) القرية التي تكذب: حقيقة أم افتراض ---- */
+  if(QZ.mode === 'lies'){
+    const L = LIES[(QZ.step*5 + QZ.idx*3 + Math.floor(Math.random()*LIES.length)) % LIES.length];
+    QZ.q = { en:L[2] };
+    $q('qPrompt').textContent = 'Fact or assumption? — حقيقة أم افتراض؟';
+    $q('qSent').textContent = L[0];
+    const isFact = L[1] === 'fact';
+    const order = Math.random() < 0.5;
+    const A = ()=> addOpt('🔎  FACT — حقيقة، أراها بعينيّ', isFact);
+    const B = ()=> addOpt('🌫  ASSUMPTION — افتراض، ما زال يحتاج دليلًا', !isFact);
+    if(order){ A(); B(); } else { B(); A(); }
+    return;
+  }
+
+  /* ---- ٣) كلمات عالم أليس ---- */
+  const w = aliceWord(QZ.step + QZ.idx*3 + 1);
+  QZ.q = { en: w.en + ' = ' + w.ar };
+  $q('qPrompt').textContent = 'What does this word mean? — ما معنى الكلمة؟';
+  $q('qSent').textContent = '✦ ' + w.en;
+  shuffle(w.opts, mulberry(QZ.step*17 + QZ.idx*11 + 3)).forEach(o=>{
+    addOpt(o, o === w.ar);
   });
-  opts.dataset.done = '';
 }
 function grade(ok){
   const q = QZ.q;
@@ -2914,6 +3130,8 @@ function finishCrossing(won){
   const info = BRIDGE_INFO[QZ.idx];
   qWrap.classList.remove('on');
   QZ.on = false;
+  AVATAR.visible = false;
+  info.tiles.forEach(tl=>{ if(tl.userData.base){ tl.material = tl.userData.base; tl.userData.lit = false; } });
   controls.enabled = true;
   if(won){
     wgSave.open[info.key] = 1; wgPersist();
@@ -2928,8 +3146,124 @@ function finishCrossing(won){
   }
 }
 $q('qNext').onclick = ()=> nextQuestion();
-$q('qQuit').onclick = ()=>{ QZ.on = false; qWrap.classList.remove('on'); controls.enabled = true;
+$q('qQuit').onclick = ()=>{ QZ.on = false; AVATAR.visible = false; qWrap.classList.remove('on'); controls.enabled = true;
   flyTo(new THREE.Vector3(0, 34, 74), new THREE.Vector3(0, 6, 0), 2600); };
+
+
+/* ============================================================
+   شموسة تمشي على الجسر — دمج ثلاثة منطق في لعبة واحدة:
+   بلاط جسر القواعد · «القرية التي تكذب» · كلمات عالم أليس
+   ============================================================ */
+const AVATAR = (function(){
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const mk = (c,r,m)=> new THREE.MeshStandardMaterial({ color:c, roughness:r===undefined?0.8:r, metalness:m||0 });
+  const mHead = mk(0xe7c35c,0.75), mRay = mk(0xcf9c44,0.9), mEye = mk(0xdf7a1e,0.55),
+        mPup = mk(0x200a04,0.35), mRim = mk(0xd6d6cf,0.35,0.7), mShirt = mk(0xe2bd57,0.8),
+        mCoat = mk(0x6f8f9d,1), mLeg = mk(0xd8a94e,0.8), mShoe = mk(0xe07a20,0.6), mWhite = mk(0xefe8d8,0.7);
+  mCoat.side = THREE.DoubleSide;
+  const S = 1.9;                                   /* بمقياس المشهد */
+  const body = new THREE.Group(); body.scale.setScalar(S); g.add(body);
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.235,0.30,0.66,18), mShirt);
+  torso.position.y = 0.84; torso.castShadow = true; body.add(torso);
+  const coatBack = new THREE.Mesh(new THREE.CylinderGeometry(0.30,0.47,0.95,18,1,true,1.3,Math.PI*2-2.6), mCoat);
+  coatBack.position.y = 0.84 - 0.17; body.add(coatBack);
+  [0.7, Math.PI*2-1.3].forEach(th=>{
+    const geo = new THREE.CylinderGeometry(0.30,0.47,0.95,10,1,true,th,0.6); geo.translate(0,-0.475,0);
+    const m = new THREE.Mesh(geo, mCoat); m.position.y = 0.84+0.30; body.add(m);
+  });
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.095,0.115,0.30,12), mHead);
+  neck.position.y = 1.24; body.add(neck);
+  const head = new THREE.Group(); head.position.y = 1.88; body.add(head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.5,20,16), mHead);
+  skull.scale.set(1,1.06,0.96); skull.castShadow = true; head.add(skull);
+  for(let i=0;i<14;i++){
+    const a = i/14*Math.PI*2, len = 0.42 + (i%3)*0.08;
+    const r = new THREE.Mesh(new THREE.ConeGeometry(0.05, len, 5), mRay);
+    r.position.set(Math.cos(a)*(0.5+len/2), Math.sin(a)*(0.5+len/2), -0.05);
+    r.rotation.z = a - Math.PI/2; head.add(r);
+  }
+  function eggGeo(rr,seg){
+    const eg = new THREE.SphereGeometry(rr,seg,Math.round(seg*0.8)), ps = eg.attributes.position;
+    for(let q=0;q<ps.count;q++){ const u=(ps.getY(q)/rr+1)/2, k=0.64+0.5*(1-u);
+      ps.setX(q,ps.getX(q)*k); ps.setZ(q,ps.getZ(q)*k); }
+    eg.computeVertexNormals(); return eg;
+  }
+  [0.43,-0.43].forEach(x=>{
+    const e = new THREE.Group(); e.position.set(x,0.05,0.21);
+    const ball = new THREE.Mesh(eggGeo(0.318,18), mEye); ball.scale.set(1,1.08,0.58); e.add(ball);
+    const pup = new THREE.Mesh(new THREE.SphereGeometry(0.045,10,10), mPup);
+    pup.position.set(x>0?-0.064:0.064,-0.11,0.185); e.add(pup);
+    head.add(e);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.38,0.032,10,26), mRim);
+    rim.position.set(x,0.05,0.45); head.add(rim);
+    [[0.62,0.18],[0.95,0.21],[1.28,0.17]].forEach(a=>{
+      const c = new THREE.Mesh(new THREE.ConeGeometry(0.027,a[1],6), mPup);
+      const sgn = x>0?1:-1;
+      c.position.set(x+sgn*0.30*Math.sin(a[0]), 0.08+0.345*Math.cos(a[0]), 0.46);
+      c.rotation.z = -sgn*a[0]; c.translateY(a[1]*0.45); head.add(c);
+    });
+  });
+  const legs = [];
+  [-1,1].forEach(sd=>{
+    const lp = new THREE.Group(); lp.position.set(sd*0.1,0.62,0); body.add(lp);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.033,0.6,8), mLeg);
+    leg.position.y = -0.3; lp.add(leg);
+    const sh = new THREE.Mesh(new THREE.BoxGeometry(0.19,0.1,0.36), mShoe);
+    sh.position.set(0,-0.66,0.04); lp.add(sh);
+    const sole = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.05,0.38), mWhite);
+    sole.position.set(0,-0.72,0.05); lp.add(sole);
+    legs.push(lp);
+  });
+  const arms = [];
+  [-1,1].forEach(sd=>{
+    const piv = new THREE.Group(); piv.position.set(sd*0.355,1.10,0.01); body.add(piv);
+    const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.082,0.09,0.6,10), mCoat);
+    sl.position.y = -0.3; piv.add(sl); arms.push(piv);
+  });
+  g.userData = { legs, arms, body };
+  return g;
+})();
+
+/* ---- بنك «القرية التي تكذب»: حقيقة أم افتراض؟ ---- */
+const LIES = [
+  ["The bell is gone, so someone stole it.","assume","Something missing is a FACT; who took it is a GUESS."],
+  ["The clock shows 6:42.","fact","You can read it with your own eyes."],
+  ["Fen said the bell was missing yesterday.","fact","He said it — that he is right is another matter."],
+  ["Nine thousand followers, so the account is real.","assume","A crowd is weather, not proof."],
+  ["The work order is written in Bram's ink.","fact","The paper is here; you can check the writing."],
+  ["He runs fast, so he must be the thief.","assume","Running is not a confession."],
+  ["The cat's paw prints are in the flour.","fact","The prints are on the floor right now."],
+  ["Nobody answered, so nobody is home.","assume","Maybe they are asleep, or busy, or afraid."],
+  ["The photo was taken yesterday at noon.","fact","The shadows and the date both say so."],
+  ["She is new here, so she cannot be trusted.","assume","Being new is not being dishonest."],
+  ["The door lock was changed this morning.","fact","Bram changed it, and the new lock is there."],
+  ["The message says HURRY, so it must be urgent.","assume","Urgency is a costume. Evidence never hurries."],
+  ["The clapper is in the storage crate.","fact","You opened the crate and saw it."],
+  ["The tower is old, so it is dangerous.","assume","Old is not the same as unsafe."],
+  ["Mo fixed the ladder hinge last week.","fact","It is written in his own posts, two years deep."],
+  ["I don't know yet.","fact","Not knowing, said honestly, is always true."]
+];
+
+/* ---- كلمات عالم أليس من منهج الموقع ---- */
+function aliceWord(level){
+  const P = window.PALM;
+  if(P && P.LEVELS && P.LEVELS.length){
+    const lv = P.LEVELS[(level*7) % P.LEVELS.length];
+    const items = lv.items || lv.words || [];
+    if(items.length >= 3){
+      const pick = i => items[(i) % items.length];
+      const a = pick(Math.floor(Math.random()*items.length));
+      const b = pick(items.indexOf(a)+1), c = pick(items.indexOf(a)+2);
+      const en = a.en || a.word || a[0], ar = a.ar || a.meaning || a[1];
+      const wrong = [b,c].map(x=>x.ar || x.meaning || x[1]).filter(x=>x && x!==ar);
+      if(en && ar && wrong.length) return { en, ar, opts:[ar].concat(wrong).slice(0,3) };
+    }
+  }
+  const F = [["mother","أم","أب","أخت"],["water","ماء","نار","هواء"],["window","نافذة","باب","سقف"],
+             ["bridge","جسر","نهر","جبل"],["night","ليل","نهار","صباح"],["friend","صديق","غريب","جار"]];
+  const f = F[Math.floor(Math.random()*F.length)];
+  return { en:f[0], ar:f[1], opts:[f[1],f[2],f[3]] };
+}
 
 /* يوجّه أزرار العوالم: مقفل ⇦ اعبروا الجسر · مفتوح ⇦ طيران */
 function gateOrFly(key, name, endPos, endTgt){
@@ -2947,6 +3281,14 @@ function tick(){
   skyUniforms.uTime.value = t;
   discMat.uniforms.uTime.value = t;
   const nightNow = updateDayNight(dt);
+  if(AVATAR.visible){
+    const sw = Math.sin(t*7)*0.35;
+    AVATAR.userData.legs[0].rotation.x =  sw*0.25;
+    AVATAR.userData.legs[1].rotation.x = -sw*0.25;
+    AVATAR.userData.arms[0].rotation.x = -sw*0.2;
+    AVATAR.userData.arms[1].rotation.x =  sw*0.2;
+    AVATAR.userData.body.position.y = Math.abs(Math.sin(t*3.4))*0.06;
+  }
   shroomTick(t, nightNow);
   if(typeof cityTick === 'function') cityTick(t);
   floaters.forEach(f=>{

@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بطل الشمس — شخصية 3D جاهزة للمغامرات</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.2.6/arabic-400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.2.6/arabic-700.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+<style>
+  html,body{height:100%;margin:0;overflow:hidden;font-family:'Cairo',sans-serif}
+  #app canvas{display:block}
+  .glass{background:rgba(18,22,24,.58);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:18px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+  .mode-btn{transition:all .2s ease;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07)}
+  .mode-btn:hover{background:rgba(255,255,255,.16);transform:translateY(-1px)}
+  .mode-btn.active{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#1c1400;border-color:transparent;box-shadow:0 6px 18px rgba(245,158,11,.4);font-weight:700}
+  input[type=range]{accent-color:#f59e0b;width:100%}
+  #toast{position:fixed;bottom:24px;right:50%;transform:translate(50%,20px);opacity:0;transition:all .35s ease;pointer-events:none;z-index:50}
+  #toast.show{opacity:1;transform:translate(50%,0)}
+  .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:999px}
+</style>
+</head>
+<body>
+<div id="app" class="fixed inset-0"></div>
+
+<!-- العنوان -->
+<header class="fixed top-4 right-4 left-4 flex items-start justify-between pointer-events-none z-20">
+  <div class="glass px-5 py-3 pointer-events-auto">
+    <h1 class="text-amber-300 font-bold text-lg leading-tight">☀️ بطل الشمس — شخصية ثلاثية الأبعاد</h1>
+    <p class="text-white/70 text-xs mt-1">نموذج عالي الجودة مبني إجرائياً مع 5 حركات • جاهز للتصدير إلى محركات الألعاب</p>
+  </div>
+  <div class="glass px-4 py-2 pointer-events-auto flex gap-3 text-xs text-white/80 items-center">
+    <span class="chip px-3 py-1">FPS <b id="fpsCount" class="text-amber-300">60</b></span>
+    <span class="chip px-3 py-1">المضلعات <b id="triCount" class="text-amber-300">—</b></span>
+  </div>
+</header>
+
+<!-- لوحة التحكم -->
+<aside class="glass fixed right-4 top-28 w-64 p-4 z-20 space-y-4 max-h-[calc(100vh-140px)] overflow-y-auto">
+  <div>
+    <h2 class="text-white/90 font-bold text-sm mb-2">🎬 الحركات</h2>
+    <div class="grid grid-cols-2 gap-2 text-sm text-white/90">
+      <button data-mode="idle"  class="mode-btn active rounded-xl px-3 py-2">🧍 خامل</button>
+      <button data-mode="walk"  class="mode-btn rounded-xl px-3 py-2">🚶 مشي</button>
+      <button data-mode="run"   class="mode-btn rounded-xl px-3 py-2">🏃 ركض</button>
+      <button data-mode="jump"  class="mode-btn rounded-xl px-3 py-2">⬆️ قفز</button>
+      <button data-mode="dance" class="mode-btn rounded-xl px-3 py-2 col-span-2">🕺 رقص</button>
+    </div>
+  </div>
+  <div>
+    <h2 class="text-white/90 font-bold text-sm mb-2">⚙️ التحكم</h2>
+    <label class="text-white/70 text-xs flex justify-between"><span>سرعة الحركة</span><span id="speedVal" class="text-amber-300">1x</span></label>
+    <input id="speedRange" type="range" min="0.4" max="2" step="0.05" value="1" class="mt-1">
+    <label class="flex items-center gap-2 text-white/80 text-xs mt-3 cursor-pointer">
+      <input id="autoRot" type="checkbox" class="accent-amber-400 w-4 h-4">
+      تدوير تلقائي للكاميرا
+    </label>
+  </div>
+  <div>
+    <h2 class="text-white/90 font-bold text-sm mb-2">🎮 التصدير للعبة</h2>
+    <button id="exportBtn" class="w-full rounded-xl py-2.5 text-sm font-bold text-black bg-gradient-to-l from-amber-400 to-orange-400 hover:brightness-110 transition shadow-lg shadow-amber-500/30">⬇️ تصدير GLB مع الحركات</button>
+    <p class="text-white/60 text-[11px] leading-relaxed mt-2">يُصدَّر النموذج بصيغة GLB متوافقة مع Unity / Unreal / Godot مع 5 مقاطع حركة مدمجة: Idle, Walk, Run, Jump, Dance</p>
+  </div>
+</aside>
+
+<p class="fixed bottom-4 right-4 text-white/60 text-xs z-10 glass px-4 py-2">🖱️ اسحب للتدوير • العجلة للتقريب • اختر حركة من اللوحة</p>
+<div id="toast" class="glass px-5 py-3 text-amber-200 text-sm font-bold"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+const TAU = Math.PI * 2;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.getElementById('app').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9aa09e);
+scene.fog = new THREE.Fog(0x9aa09e, 9, 16);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 60);
+camera.position.set(0.8, 1.9, 5.6);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.5, 0);
+controls.enableDamping = true;
+controls.minDistance = 2.2;
+controls.maxDistance = 9;
+controls.maxPolarAngle = 1.65;
+
+/* ======= الإضاءة ======= */
+scene.add(new THREE.HemisphereLight(0xc4cbca, 0x6a6f6a, 0.5));
+const key = new THREE.DirectionalLight(0xfff2dc, 1.25);
+key.position.set(3, 5.5, 4);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -4; key.shadow.camera.right = 4;
+key.shadow.camera.top = 6; key.shadow.camera.bottom = -2;
+key.shadow.bias = -0.0005;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xffe2b0, 0.35);
+fill.position.set(-3, 2, 3);
+scene.add(fill);
+const rimL = new THREE.DirectionalLight(0xffffff, 0.5);
+rimL.position.set(0, 4, -4);
+scene.add(rimL);
+
+/* ======= الخامات ======= */
+function std(color, rough, metal) { return new THREE.MeshStandardMaterial({ color: color, roughness: rough === undefined ? 0.8 : rough, metalness: metal || 0 }); }
+const matHead = std(0xe7c35c, 0.75);
+const matRay = std(0xcf9c44, 0.9);
+const matEye = std(0xdf7a1e, 0.55);
+const matPupil = std(0x200a04, 0.35);
+const matRim = std(0xd6d6cf, 0.35, 0.7);
+const matLens = new THREE.MeshPhysicalMaterial({ color: 0xd97c2a, transparent: true, opacity: 0.28, roughness: 0.15, metalness: 0, side: THREE.DoubleSide });
+const matShirt = std(0xe2bd57, 0.8);
+const matButton = std(0x7a4218, 0.5);
+const matCoat = std(0x6f8f9d, 1); matCoat.side = THREE.DoubleSide;
+const matLeg = std(0xd8a94e, 0.8);
+const matShoe = std(0xe07a20, 0.6);
+const matWhite = std(0xefe8d8, 0.7);
+const matWood = std(0xa39381, 1);
+
+/* ======= بناء الشخصية ======= */
+const character = new THREE.Group(); character.name = 'SunHero';
+scene.add(character);
+
+const torsoG = new THREE.Group(); torsoG.name = 'Torso'; torsoG.position.y = 1.15;
+character.add(torsoG);
+
+const shirt = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.34, 0.78, 20), matShirt);
+shirt.position.y = 0.37; shirt.scale.z = 0.85; torsoG.add(shirt);
+for (let i = 0; i < 5; i++) {
+  const b = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 8), matButton);
+  b.position.set(0, 0.12 + i * 0.13, 0.28 - i * 0.01);
+  torsoG.add(b);
+}
+const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 0.1, 12), matShirt);
+collar.position.y = 0.78; torsoG.add(collar);
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.2, 10), matHead);
+neck.position.y = 0.8; torsoG.add(neck);
+
+/* المعطف — الظهر والجانبان بنفس الطول والقطر حتى لا ينفصل عن الطرفين */
+const coatBack = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.55, 1.25, 20, 1, true, 1.3, TAU - 2.6), matCoat);
+coatBack.position.y = 0.62 - 0.625; torsoG.add(coatBack);
+
+function makeFlap(name, thetaStart) {
+  const g = new THREE.Group(); g.name = name; g.position.y = 0.62;
+  const geo = new THREE.CylinderGeometry(0.34, 0.55, 1.25, 12, 1, true, thetaStart, 0.6);
+  geo.translate(0, -0.625, 0);
+  g.add(new THREE.Mesh(geo, matCoat));
+  torsoG.add(g);
+  return g;
+}
+const flapR = makeFlap('CoatR', 0.7);
+const flapL = makeFlap('CoatL', TAU - 1.3);
+
+for (const s of [-1, 1]) {
+  /* الكمّ يسدل بمحاذاة الجسم بدل أن ينفرج إلى الخارج */
+  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.105, 0.72, 12), matCoat);
+  sleeve.position.set(s * 0.42, 0.28, 0.02);
+  sleeve.rotation.z = s * 0.06; sleeve.rotation.x = 0.05;
+  torsoG.add(sleeve);
+  const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.125, 14, 14), matCoat);
+  shoulder.position.set(s * 0.4, 0.6, 0.01); torsoG.add(shoulder);
+  const cuff = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 12), matCoat);
+  cuff.position.set(s * 0.44, -0.09, 0.04); torsoG.add(cuff);
+}
+
+/* الرأس */
+const headG = new THREE.Group(); headG.name = 'Head'; headG.position.y = 1.1;
+torsoG.add(headG);
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.55, 32, 24), matHead);
+head.scale.set(1, 1.06, 0.96); headG.add(head);
+
+/* أشعة الشمس المموّجة */
+const raysG = new THREE.Group(); raysG.name = 'Rays'; raysG.position.z = -0.08;
+headG.add(raysG);
+function makeRay(angle, len, phase, z, radius) {
+  const pts = [];
+  for (let i = 0; i <= 8; i++) {
+    const s = i / 8;
+    const r = 0.48 + s * len;
+    const wob = Math.sin(s * 4 + phase) * 0.12 * s + Math.sin(s * 9 + phase * 2) * 0.05 * s;
+    pts.push(new THREE.Vector3(r, wob, 0));
+  }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 10, radius, 5, false), matRay);
+  m.rotation.z = angle; m.position.z = z;
+  raysG.add(m);
+}
+for (let i = 0; i < 16; i++) makeRay(i / 16 * TAU, 0.5 + ((i * 7) % 5) * 0.09, i * 1.7, 0, 0.042);
+for (let i = 0; i < 12; i++) makeRay((i + 0.5) / 12 * TAU, 0.4 + ((i * 3) % 4) * 0.06, i * 2.3, -0.14, 0.035);
+
+/* العينان — بيضتان مسطّحتان تلتصقان بالوجه داخل عدستَي النظارة،
+   بدل كرتين بارزتين كانتا خارج إطار النظارة تمامًا */
+function makeEye(name, x) {
+  const g = new THREE.Group(); g.name = name; g.position.set(x, 0.06, 0.24);
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.3, 26, 20), matEye);
+  ball.scale.set(0.94, 1.14, 0.62);
+  g.add(ball);
+  const p = new THREE.Mesh(new THREE.SphereGeometry(0.052, 12, 12), matPupil);
+  p.position.set(x > 0 ? -0.1 : 0.1, -0.03, 0.17);
+  p.scale.set(1, 1, 0.75);
+  g.add(p);
+  headG.add(g); return g;
+}
+const eyeL = makeEye('EyeL', 0.47);
+const eyeR = makeEye('EyeR', -0.47);
+
+/* النظارة */
+const glasses = new THREE.Group(); headG.add(glasses);
+for (const s of [-1, 1]) {
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.035, 12, 40), matRim);
+  rim.position.set(s * 0.47, 0.06, 0.5); glasses.add(rim);
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.02, 32), matLens);
+  lens.rotation.x = Math.PI / 2; lens.position.set(s * 0.47, 0.06, 0.49);
+  lens.name = 'lens'; glasses.add(lens);
+  const temple = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.55, 8), matRim);
+  temple.rotation.x = Math.PI / 2; temple.rotation.y = -s * 0.3;
+  temple.position.set(s * 0.88, 0.06, 0.18); glasses.add(temple);
+}
+const bridge = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.22, 8), matRim);
+bridge.rotation.z = Math.PI / 2; bridge.position.set(0, 0.16, 0.52); glasses.add(bridge);
+
+/* الأرجل والأحذية */
+function makeShoe() {
+  const g = new THREE.Group();
+  const sole = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.07, 0.5), matWhite);
+  sole.position.set(0, 0.035, 0.04); g.add(sole);
+  const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.28, 12), matShoe);
+  upper.position.set(0, 0.21, -0.04); g.add(upper);
+  const toe = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 12), matWhite);
+  toe.scale.set(1.05, 0.6, 1.25); toe.position.set(0, 0.08, 0.18); g.add(toe);
+  const tongue = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.14), matShoe);
+  tongue.position.set(0, 0.18, 0.12); tongue.rotation.x = -0.4; g.add(tongue);
+  for (let i = 0; i < 3; i++) {
+    const lace = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.2, 6), matWhite);
+    lace.rotation.z = Math.PI / 2; lace.rotation.x = 0.2;
+    lace.position.set(0, 0.16 + i * 0.055, 0.1 - i * 0.01); g.add(lace);
+  }
+  const heel = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.06), matShoe);
+  heel.position.set(0, 0.12, -0.16); g.add(heel);
+  g.scale.setScalar(1.12);
+  return g;
+}
+function makeLeg(name, x, outRot) {
+  const g = new THREE.Group(); g.name = name; g.position.set(x, 1.15, 0);
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.04, 1.15, 10), matLeg);
+  leg.position.y = -0.575; g.add(leg);
+  const shoe = makeShoe(); shoe.position.y = -1.15; shoe.rotation.y = outRot;
+  g.add(shoe);
+  character.add(g);
+  return g;
+}
+const legL = makeLeg('LegL', 0.12, 0.22);
+const legR = makeLeg('LegR', -0.12, -0.22);
+
+character.traverse(function (o) { if (o.isMesh && o.name !== 'lens') o.castShadow = true; });
+
+const bbox = new THREE.Box3().setFromObject(character);
+const baseY = -bbox.min.y;
+character.position.y = baseY;
+
+/* ======= المنصة الخشبية والأرضية والجدار ======= */
+const pallet = new THREE.Group(); scene.add(pallet);
+for (let i = -1; i <= 1; i++) {
+  const plank = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.06, 0.32), matWood);
+  plank.position.set(0, -0.03, i * 0.36); plank.castShadow = true; plank.receiveShadow = true;
+  pallet.add(plank);
+  const block = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 1.1), matWood);
+  block.position.set(i * 0.65, -0.11, 0); block.castShadow = true;
+  pallet.add(block);
+}
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), std(0x8e9494, 1));
+floor.rotation.x = -Math.PI / 2; floor.position.y = -0.16; floor.receiveShadow = true;
+scene.add(floor);
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(30, 14), std(0x9aa09e, 1));
+wall.position.set(0, 4, -2.6); wall.receiveShadow = true;
+scene.add(wall);
+
+/* غبار متوهج */
+const pCount = 120;
+const pPos = new Float32Array(pCount * 3);
+for (let i = 0; i < pCount; i++) {
+  pPos[i * 3] = (Math.random() - 0.5) * 6;
+  pPos[i * 3 + 1] = Math.random() * 4;
+  pPos[i * 3 + 2] = (Math.random() - 0.5) * 4;
+}
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+const dust = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xffe9a8, size: 0.025, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+scene.add(dust);
+
+/* ======= نظام الحركات الإجرائية ======= */
+const KEYS = ['rootY', 'rootRY', 'torsoRX', 'torsoRY', 'torsoRZ', 'headRX', 'headRY', 'headRZ', 'raysRZ', 'raysS', 'legL', 'legR', 'coatL', 'coatR', 'blink'];
+function osc(t, T, k, phase) { return Math.sin(TAU * (k || 1) * t / T + (phase || 0)); }
+function blinkFn(t, T) {
+  const c = T * 0.45, w = 0.12;
+  let d = Math.abs(((t - c) % T + T) % T); d = Math.min(d, T - d);
+  if (d < w) { const k = Math.cos(d / w * Math.PI / 2); return 1 - 0.92 * k * k; }
+  return 1;
+}
+const MODES = { idle: 4, walk: 1.1, run: 0.7, jump: 1.6, dance: 1.6 };
+function computePose(mode, t) {
+  const d = {}; for (const k of KEYS) d[k] = 0;
+  d.raysS = 1; d.blink = 1;
+  const T = MODES[mode];
+  if (mode === 'idle') {
+    d.rootY = 0.02 * osc(t, T, 2);
+    d.torsoRX = 0.02 * osc(t, T, 2, 1);
+    d.torsoRZ = 0.03 * osc(t, T, 1);
+    d.torsoRY = 0.05 * osc(t, T, 1);
+    d.headRY = 0.22 * osc(t, T, 1, 2);
+    d.headRZ = 0.06 * osc(t, T, 2);
+    d.headRX = 0.05 * osc(t, T, 1);
+    d.raysRZ = 0.12 * osc(t, T, 1);
+    d.raysS = 1 + 0.03 * osc(t, T, 2);
+    d.legL = 0.05 * osc(t, T, 1); d.legR = -0.05 * osc(t, T, 1);
+    d.coatL = 0.05 * osc(t, T, 1, 1); d.coatR = 0.05 * osc(t, T, 1, 2);
+    d.blink = blinkFn(t, T);
+  } else if (mode === 'walk') {
+    d.legL = 0.55 * osc(t, T, 1); d.legR = 0.55 * osc(t, T, 1, Math.PI);
+    d.rootY = 0.05 * Math.abs(Math.cos(TAU * t / T));
+    d.torsoRX = 0.1; d.torsoRY = 0.08 * osc(t, T, 1); d.torsoRZ = 0.04 * osc(t, T, 2);
+    d.headRZ = 0.05 * osc(t, T, 1, Math.PI); d.headRY = 0.06;
+    d.raysRZ = 0.06 * osc(t, T, 1, Math.PI);
+    d.coatL = 0.12 * osc(t, T, 1, Math.PI / 2); d.coatR = 0.12 * osc(t, T, 1, Math.PI * 1.5);
+  } else if (mode === 'run') {
+    d.legL = 0.9 * osc(t, T, 1); d.legR = 0.9 * osc(t, T, 1, Math.PI);
+    d.rootY = 0.1 * Math.abs(Math.cos(TAU * t / T));
+    d.torsoRX = 0.22; d.headRX = -0.08;
+    d.raysRZ = 0.1 * osc(t, T, 1);
+    d.coatL = -0.35 + 0.1 * osc(t, T, 1); d.coatR = -0.35 + 0.1 * osc(t, T, 1, Math.PI);
+    d.headRZ = 0.04 * osc(t, T, 2);
+  } else if (mode === 'jump') {
+    const ph = t / T;
+    let y = 0, tuck = 0, flap = 0, lean = 0;
+    if (ph < 0.18) { const c = Math.sin(ph / 0.18 * Math.PI); y = -0.1 * c; lean = 0.12 * c; tuck = 0.25 * c; }
+    else if (ph < 0.62) { const m = Math.sin((ph - 0.18) / 0.44 * Math.PI); y = 0.55 * m; tuck = 0.8 * m; flap = -0.5 * m; lean = 0.1 * m; }
+    else if (ph < 0.82) { const c = Math.sin((ph - 0.62) / 0.2 * Math.PI); y = -0.12 * c; lean = 0.15 * c; tuck = 0.3 * c; }
+    d.rootY = y; d.legL = tuck; d.legR = tuck; d.coatL = flap; d.coatR = flap;
+    d.torsoRX = lean; d.headRX = -0.08 * Math.max(0, y);
+    d.raysS = 1 + 0.12 * Math.max(0, y / 0.55);
+  } else if (mode === 'dance') {
+    d.rootY = 0.07 * Math.abs(Math.sin(TAU * t / T));
+    d.torsoRY = 0.35 * osc(t, T, 1); d.torsoRZ = 0.12 * osc(t, T, 2);
+    d.headRZ = 0.2 * osc(t, T, 2, Math.PI / 2); d.headRY = 0.2 * osc(t, T, 1);
+    d.legL = 0.15 * osc(t, T, 2); d.legR = 0.15 * osc(t, T, 2, Math.PI);
+    d.raysRZ = 0.15 * osc(t, T, 2); d.raysS = 1 + 0.06 * osc(t, T, 4);
+    d.coatL = 0.15 * osc(t, T, 2, Math.PI / 2); d.coatR = 0.15 * osc(t, T, 2, Math.PI * 1.5);
+    d.blink = blinkFn(t, T);
+  }
+  return d;
+}
+function applyPose(d) {
+  character.position.y = baseY + d.rootY;
+  character.rotation.y = d.rootRY;
+  torsoG.rotation.set(d.torsoRX, d.torsoRY, d.torsoRZ);
+  headG.rotation.set(d.headRX, d.headRY, d.headRZ);
+  raysG.rotation.z = d.raysRZ;
+  raysG.scale.setScalar(d.raysS);
+  legL.rotation.x = d.legL; legR.rotation.x = d.legR;
+  flapL.rotation.x = d.coatL; flapR.rotation.x = d.coatR;
+  eyeL.scale.y = d.blink; eyeR.scale.y = d.blink;
+}
+function lerpPose(a, b, u) {
+  const r = {};
+  for (const k of KEYS) r[k] = a[k] + (b[k] - a[k]) * u;
+  return r;
+}
+
+/* ======= خَبْز مقاطع الحركة لتصديرها ======= */
+const clips = [];
+(function bake() {
+  const fps = 30;
+  for (const mode of Object.keys(MODES)) {
+    const T = MODES[mode];
+    const frames = Math.round(T * fps);
+    const times = [];
+    const rec = { SunHeroP: [], SunHeroQ: [], TorsoQ: [], HeadQ: [], LegLQ: [], LegRQ: [], CoatLQ: [], CoatRQ: [], RaysQ: [], RaysS: [], EyeLS: [], EyeRS: [] };
+    for (let f = 0; f <= frames; f++) {
+      const t = f / fps;
+      times.push(t);
+      applyPose(computePose(mode, t));
+      rec.SunHeroP.push(character.position.x, character.position.y, character.position.z);
+      rec.SunHeroQ.push(character.quaternion.x, character.quaternion.y, character.quaternion.z, character.quaternion.w);
+      rec.TorsoQ.push(torsoG.quaternion.x, torsoG.quaternion.y, torsoG.quaternion.z, torsoG.quaternion.w);
+      rec.HeadQ.push(headG.quaternion.x, headG.quaternion.y, headG.quaternion.z, headG.quaternion.w);
+      rec.LegLQ.push(legL.quaternion.x, legL.quaternion.y, legL.quaternion.z, legL.quaternion.w);
+      rec.LegRQ.push(legR.quaternion.x, legR.quaternion.y, legR.quaternion.z, legR.quaternion.w);
+      rec.CoatLQ.push(flapL.quaternion.x, flapL.quaternion.y, flapL.quaternion.z, flapL.quaternion.w);
+      rec.CoatRQ.push(flapR.quaternion.x, flapR.quaternion.y, flapR.quaternion.z, flapR.quaternion.w);
+      rec.RaysQ.push(raysG.quaternion.x, raysG.quaternion.y, raysG.quaternion.z, raysG.quaternion.w);
+      rec.RaysS.push(raysG.scale.x, raysG.scale.y, raysG.scale.z);
+      rec.EyeLS.push(eyeL.scale.x, eyeL.scale.y, eyeL.scale.z);
+      rec.EyeRS.push(eyeR.scale.x, eyeR.scale.y, eyeR.scale.z);
+    }
+    const tracks = [];
+    tracks.push(new THREE.VectorKeyframeTrack('SunHero.position', times, rec.SunHeroP));
+    tracks.push(new THREE.QuaternionKeyframeTrack('SunHero.quaternion', times, rec.SunHeroQ));
+    tracks.push(new THREE.QuaternionKeyframeTrack('Torso.quaternion', times, rec.TorsoQ));
+    tracks.push(new THREE.QuaternionKeyframeTrack('Head.quaternion', times, rec.HeadQ));
+    tracks.push(new THREE.QuaternionKeyframeTrack('LegL.quaternion', times, rec.LegLQ));
+    tracks.push(new THREE.QuaternionKeyframeTrack('LegR.quaternion', times, rec.LegRQ));
+    tracks.push(new THREE.QuaternionKeyframeTrack('CoatL.quaternion', times, rec.CoatLQ));
+    tracks.push(new THREE.QuaternionKeyframeTrack('CoatR.quaternion', times, rec.CoatRQ));
+    tracks.push(new THREE.QuaternionKeyframeTrack('Rays.quaternion', times, rec.RaysQ));
+    tracks.push(new THREE.VectorKeyframeTrack('Rays.scale', times, rec.RaysS));
+    tracks.push(new THREE.VectorKeyframeTrack('EyeL.scale', times, rec.EyeLS));
+    tracks.push(new THREE.VectorKeyframeTrack('EyeR.scale', times, rec.EyeRS));
+    clips.push(new THREE.AnimationClip(mode, T, tracks));
+  }
+  applyPose(computePose('idle', 0));
+})();
+
+/* ======= واجهة التحكم ======= */
+let currentMode = 'idle', prevMode = 'idle', blendStart = -10, animTime = 0, speed = 1;
+const modeButtons = document.querySelectorAll('[data-mode]');
+modeButtons.forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    const m = btn.getAttribute('data-mode');
+    if (m === currentMode) return;
+    prevMode = currentMode; currentMode = m;
+    blendStart = performance.now() / 1000;
+    modeButtons.forEach(function (b) { b.classList.toggle('active', b === btn); });
+  });
+});
+const speedRange = document.getElementById('speedRange');
+speedRange.addEventListener('input', function () {
+  speed = parseFloat(speedRange.value);
+  document.getElementById('speedVal').textContent = speed.toFixed(2).replace(/\.?0+$/, '') + 'x';
+});
+document.getElementById('autoRot').addEventListener('change', function (e) {
+  controls.autoRotate = e.target.checked;
+  controls.autoRotateSpeed = 1.2;
+});
+
+const toast = document.getElementById('toast');
+let toastTimer = 0;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 3500);
+}
+
+document.getElementById('exportBtn').addEventListener('click', function () {
+  showToast('جارٍ تصدير ملف sun-hero.glb مع الحركات الخمس...');
+  const exporter = new GLTFExporter();
+  exporter.parse(character, function (result) {
+    const blob = new Blob([result], { type: 'model/gltf-binary' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'sun-hero.glb';
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    showToast('✅ تم التصدير! الملف جاهز للإضافة إلى Unity / Unreal / Godot');
+  }, function (err) { console.error(err); showToast('حدث خطأ أثناء التصدير'); }, { binary: true, animations: clips });
+});
+
+/* ======= حلقة العرض ======= */
+const clock = new THREE.Clock();
+let fFrames = 0, fTime = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  animTime += delta * speed;
+  const now = performance.now() / 1000;
+  const u = Math.min(1, (now - blendStart) / 0.35);
+  const dNew = computePose(currentMode, animTime);
+  applyPose(u < 1 ? lerpPose(computePose(prevMode, animTime), dNew, u) : dNew);
+
+  const pos = dust.geometry.attributes.position;
+  for (let i = 0; i < pCount; i++) {
+    let y = pos.getY(i) + delta * 0.12;
+    if (y > 4) y = 0;
+    pos.setY(i, y);
+  }
+  pos.needsUpdate = true;
+
+  controls.update();
+  renderer.render(scene, camera);
+
+  fFrames++; fTime += delta;
+  if (fTime >= 0.5) {
+    document.getElementById('fpsCount').textContent = Math.round(fFrames / fTime);
+    document.getElementById('triCount').textContent = (renderer.info.render.triangles / 1000).toFixed(1) + 'K';
+    fFrames = 0; fTime = 0;
+  }
+}
+animate();
+
+window.addEventListener('resize', function () {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

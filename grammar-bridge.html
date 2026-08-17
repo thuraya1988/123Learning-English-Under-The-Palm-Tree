@@ -1,0 +1,653 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Grammar Bridge — جسر القواعد</title>
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5/arabic-400-normal.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5/arabic-700-normal.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5/arabic-800-normal.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-2@5/latin-600-normal.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/baloo-2@5/latin-800-normal.css" rel="stylesheet">
+<script src="./vendor/three-r128/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;overflow:hidden;background:#150d2e;font-family:'Cairo',system-ui,sans-serif;touch-action:manipulation}
+#stage,#stage canvas{position:fixed;inset:0}
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:5;background:radial-gradient(ellipse at center,transparent 55%,rgba(20,5,50,.38) 100%)}
+.hidden{display:none!important}
+.glass{background:rgba(255,255,255,.13);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.25)}
+/* ---------- HUD ---------- */
+#hud{position:fixed;top:calc(8px + env(safe-area-inset-top));right:10px;left:10px;display:flex;align-items:center;gap:8px;z-index:20}
+.pill{display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;color:#fff;font-weight:800;font-size:.85rem;background:linear-gradient(135deg,rgba(122,72,255,.85),rgba(255,110,190,.85));box-shadow:0 4px 14px rgba(80,30,160,.35);border:1px solid rgba(255,255,255,.35);white-space:nowrap}
+.pill b{font-family:'Baloo 2','Cairo'}
+.iconbtn{cursor:pointer;font-size:1rem;padding:7px 11px}
+.iconbtn:active{transform:scale(.92)}
+#progWrap{flex:1;position:relative;height:16px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.3);overflow:hidden;min-width:60px}
+#progFill{height:100%;width:0%;background:linear-gradient(90deg,#ffd166,#ff7ab8,#8a5cff);transition:width .5s;border-radius:999px}
+#progText{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);font-family:'Baloo 2'}
+#bossWrap{position:fixed;top:calc(52px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:20;display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:999px;background:linear-gradient(135deg,rgba(120,20,60,.85),rgba(70,20,120,.85));border:1px solid rgba(255,120,180,.5);color:#fff;font-weight:800}
+#bossPips{display:flex;gap:4px;font-size:1.05rem}
+#bossPips span{transition:.3s}
+#bossPips span.hit{filter:grayscale(1);opacity:.25;transform:scale(.8)}
+/* ---------- powers ---------- */
+#powers{position:fixed;bottom:calc(10px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:20}
+.pbtn{position:relative;width:56px;height:56px;border-radius:18px;border:2px solid rgba(255,255,255,.4);background:linear-gradient(160deg,rgba(255,255,255,.22),rgba(255,255,255,.08));backdrop-filter:blur(8px);font-size:1.5rem;cursor:pointer;color:#fff;box-shadow:0 6px 16px rgba(20,5,60,.4);transition:.15s}
+.pbtn:active{transform:scale(.9)}
+.pbtn .cnt{position:absolute;top:-7px;right:-7px;min-width:22px;height:22px;padding:0 5px;border-radius:999px;background:linear-gradient(135deg,#ffd166,#ff9f43);color:#4a2b00;font-weight:800;font-size:.72rem;display:flex;align-items:center;justify-content:center;font-family:'Baloo 2';border:2px solid #fff}
+.pbtn.small{width:auto;height:auto;padding:8px 14px;font-size:.95rem;border-radius:999px;display:flex;gap:6px;align-items:center}
+/* ---------- screens ---------- */
+.screen{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(15,6,35,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:14px;overflow-y:auto}
+.screen.transparent{background:rgba(10,4,25,.35)}
+.card{width:min(94vw,600px);max-height:88vh;overflow-y:auto;padding:20px;border-radius:26px;background:linear-gradient(165deg,rgba(72,36,128,.94),rgba(32,15,66,.96));border:1.5px solid rgba(255,255,255,.3);color:#fff;box-shadow:0 20px 60px rgba(0,0,0,.5);text-align:center;animation:cardIn .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes cardIn{from{transform:translateY(40px) scale(.9);opacity:0}}
+.card h2{font-size:1.35rem;margin-bottom:12px;font-weight:800}
+.title{font-family:'Baloo 2';font-size:clamp(2rem,8vw,3rem);font-weight:800;background:linear-gradient(90deg,#ffd166,#ff7ab8,#8a5cff);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 3px 8px rgba(0,0,0,.4));line-height:1.1}
+.subtitle{font-size:1.2rem;font-weight:800;color:#ffd9ef;margin:2px 0 8px}
+.tag{font-size:.8rem;color:#cbb8ff;margin-bottom:16px;font-family:'Baloo 2','Cairo';direction:ltr}
+#charImg{width:min(46vw,190px);border-radius:24px;filter:drop-shadow(0 10px 24px rgba(255,110,190,.45));animation:floaty 3s ease-in-out infinite;margin-bottom:6px}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.btn{display:inline-block;margin:6px 5px 0;padding:14px 30px;border:none;border-radius:999px;background:linear-gradient(135deg,#ff7ab8,#8a5cff);color:#fff;font-family:'Cairo';font-weight:800;font-size:1.05rem;cursor:pointer;box-shadow:0 8px 22px rgba(140,70,255,.45);transition:.15s}
+.btn:active{transform:scale(.94)}
+.btn.gold{background:linear-gradient(135deg,#ffd166,#ff9f43);color:#4a2b00;box-shadow:0 8px 22px rgba(255,170,60,.45)}
+.btn.ghost{background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.35)}
+.btn.small{padding:9px 18px;font-size:.9rem;margin:4px}
+/* ---------- question card ---------- */
+.qtop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.chip{padding:5px 14px;border-radius:999px;background:linear-gradient(135deg,#ffd166,#ff9f43);color:#4a2b00;font-weight:800;font-size:.8rem}
+#qTimerWrap{flex:1;height:9px;border-radius:99px;background:rgba(0,0,0,.35);overflow:hidden}
+#qTimerFill{height:100%;width:100%;background:linear-gradient(90deg,#7dffb0,#ffd166,#ff5c7a);border-radius:99px}
+.qprompt{font-family:'Baloo 2','Cairo';direction:ltr;font-size:1.15rem;font-weight:800;color:#ffe9a8;margin-bottom:8px}
+.qsent{direction:ltr;font-family:'Baloo 2';font-size:1.25rem;font-weight:600;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:12px;margin-bottom:10px;color:#fff}
+.opt{display:block;width:100%;margin:8px 0;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.25);color:#fff;font-family:'Baloo 2','Cairo';font-weight:600;font-size:1.05rem;text-align:left;direction:ltr;cursor:pointer;transition:.15s}
+.opt:active{transform:scale(.97)}
+.opt.ok{background:#1f9d5c;border-color:#7dffb0;animation:popOk .4s}
+.opt.bad{background:#b3364f;border-color:#ff9db0;animation:shakeX .45s}
+.opt.dim{opacity:.3;pointer-events:none}
+@keyframes popOk{50%{transform:scale(1.05)}}
+@keyframes shakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;direction:ltr;min-height:44px;margin:8px 0;padding:8px;border-radius:14px;background:rgba(0,0,0,.25)}
+.wchip{padding:10px 15px;border-radius:12px;background:linear-gradient(160deg,#8a5cff,#6b4bd8);border:1.5px solid rgba(255,255,255,.4);color:#fff;font-family:'Baloo 2';font-weight:600;font-size:1rem;cursor:pointer;transition:.15s}
+.wchip:active{transform:scale(.9)}
+#ansRow{background:rgba(125,255,176,.12);border:1.5px dashed rgba(125,255,176,.4)}
+#qExplain{margin-top:12px;padding:12px;border-radius:14px;background:rgba(125,255,176,.14);border:1px solid rgba(125,255,176,.4)}
+#qExpEn{direction:ltr;font-family:'Baloo 2';font-weight:600;color:#c9ffe2}
+#qExpAr{font-size:.85rem;color:#a8ffd0;margin-top:4px}
+#chancePrompt{margin-top:12px;padding:12px;border-radius:14px;background:rgba(255,209,102,.15);border:1px solid rgba(255,209,102,.5);font-weight:800}
+/* ---------- fall / complete ---------- */
+.oops{font-family:'Baloo 2';font-size:2.2rem;font-weight:800;color:#ff9db0}
+.try{color:#ffd9ef;font-weight:700;margin-bottom:10px}
+.lab{font-size:.8rem;color:#cbb8ff;margin:8px 0 4px;font-weight:700}
+.correctBox{direction:ltr;font-family:'Baloo 2';font-size:1.15rem;font-weight:800;color:#7dffb0;background:rgba(31,157,92,.25);border:1.5px solid rgba(125,255,176,.5);border-radius:14px;padding:10px}
+.whyBox{direction:ltr;font-family:'Baloo 2';color:#ffe9a8;font-size:.98rem}
+.whyBoxAr{font-size:.85rem;color:#ffd9a8;margin:4px 0 10px}
+.stars{display:flex;justify-content:center;gap:8px;margin:10px 0}
+.stars span{font-size:52px;animation:starPop .6s cubic-bezier(.34,1.8,.64,1) backwards;filter:drop-shadow(0 0 14px rgba(255,210,90,.7))}
+.stars span.off{filter:grayscale(1);opacity:.25}
+@keyframes starPop{from{transform:scale(0) rotate(-180deg)}}
+.compcoins{font-family:'Baloo 2';font-size:1.2rem;color:#ffd166;font-weight:800;margin-bottom:8px}
+/* ---------- banner / toasts ---------- */
+#banner{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;z-index:30}
+#banner .b1{font-family:'Baloo 2';font-size:clamp(2.4rem,10vw,4.5rem);font-weight:800;color:#fff;text-shadow:0 0 30px rgba(255,120,200,.9),0 4px 0 rgba(90,30,150,.8);animation:banIn 1.8s forwards}
+#banner .b2{font-size:1.1rem;font-weight:800;color:#ffe9a8;text-shadow:0 2px 8px rgba(0,0,0,.6);animation:banIn 1.8s forwards}
+@keyframes banIn{0%{transform:scale(.3);opacity:0}15%{transform:scale(1.15);opacity:1}25%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}
+#toasts{position:fixed;top:calc(56px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:35;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
+.toast{padding:8px 18px;border-radius:999px;background:rgba(30,12,60,.85);border:1px solid rgba(255,255,255,.35);color:#fff;font-weight:800;font-size:.9rem;animation:toastIn 2.2s forwards;backdrop-filter:blur(6px)}
+@keyframes toastIn{0%{transform:translateY(-16px);opacity:0}12%{transform:translateY(0);opacity:1}80%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}
+/* ---------- level select / shop ---------- */
+#lvGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin:12px 0}
+.lvCell{aspect-ratio:1;border-radius:10px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;font-family:'Baloo 2';font-weight:800;font-size:.72rem;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.lvCell.boss{background:linear-gradient(160deg,rgba(255,90,140,.4),rgba(140,60,255,.4));border-color:rgba(255,140,190,.6)}
+.lvCell.lock{opacity:.3;cursor:default}
+.lvCell .st{position:absolute;bottom:1px;font-size:.5rem;letter-spacing:-1px}
+.shopItem{display:flex;align-items:center;gap:10px;justify-content:space-between;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:10px 14px;margin:8px 0;text-align:right}
+.shopItem .ico{font-size:1.6rem}
+.shopItem .txt{flex:1;font-size:.85rem;font-weight:700}
+@media (max-width:600px){.pill{font-size:.72rem;padding:6px 10px}.pbtn{width:50px;height:50px}#lvGrid{grid-template-columns:repeat(8,1fr)}}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="vignette"></div>
+
+
+<div id="hud" class="hidden">
+  <div class="pill">المستوى <b id="lvlNum">1</b></div>
+  <div class="pill" id="hearts">❤️❤️❤️</div>
+  <div id="progWrap"><div id="progFill"></div><span id="progText">1 / 100</span></div>
+  <div class="pill">🪙 <b id="coinNum">0</b></div>
+  <button class="pill iconbtn" id="soundBtn">🔊</button>
+  <button class="pill iconbtn" id="menuBtn">☰</button>
+</div>
+
+
+<div id="bossWrap" class="hidden"><span id="bossName">👾 The Verb Monster</span><div id="bossPips"></div></div>
+
+
+<div id="powers" class="hidden">
+  <button class="pbtn" id="btnHint" title="تلميح">💡<span class="cnt" id="cntHint">0</span></button>
+  <button class="pbtn" id="btnShield" title="درع">🛡️<span class="cnt" id="cntShield">0</span></button>
+  <button class="pbtn" id="btnChance" title="فرصة ثانية">🔄<span class="cnt" id="cntChance">0</span></button>
+  <button class="pbtn" id="btnShop" title="المتجر">🛒</button>
+</div>
+
+
+<div id="startScreen" class="screen">
+  <div class="card">
+    <img id="charImg" alt="Grammar Bridge Hero">
+    <h1 class="title">Grammar Bridge</h1>
+    <div class="subtitle">🌉 جسر القواعد 🌉</div>
+    <div class="tag">Correct Grammar = Safe Bridge ✅ &nbsp;·&nbsp; Wrong Grammar = Broken Tile 💥<br>Fix the Sentence = Repair the Bridge 🔧</div>
+    <button class="btn" id="btnStart">▶ ابدأ المغامرة</button>
+    <button class="btn ghost" id="btnLevels">🗺️ اختيار المستوى</button>
+  </div>
+</div>
+
+
+<div id="levelSheet" class="screen hidden"><div class="card">
+  <h2>🗺️ اختيار المستوى</h2>
+  <div id="lvGrid"></div>
+  <button class="btn ghost" id="closeLevels">إغلاق</button>
+</div></div>
+
+
+<div id="shopSheet" class="screen hidden"><div class="card">
+  <h2>🛒 متجر القوى — Grammar Coins</h2>
+  <div class="shopItem"><span class="ico">💡</span><span class="txt"><b>تلميح Hint</b><br>حذف إجابة خاطئة واحدة</span><button class="btn small gold" data-buy="hint">15🪙 شراء</button></div>
+  <div class="shopItem"><span class="ico">🛡️</span><span class="txt"><b>درع Shield</b><br>يمنع السقوط مرة واحدة تلقائيًا</span><button class="btn small gold" data-buy="shield">20🪙 شراء</button></div>
+  <div class="shopItem"><span class="ico">🔄</span><span class="txt"><b>فرصة ثانية Second Chance</b><br>إعادة السؤال دون كسر المربع</span><button class="btn small gold" data-buy="chance">25🪙 شراء</button></div>
+  <button class="btn ghost" id="closeShop">إغلاق</button>
+</div></div>
+
+
+<div id="qScreen" class="screen transparent hidden"><div class="card">
+  <div class="qtop"><span id="qType" class="chip"></span><div id="qTimerWrap"><div id="qTimerFill"></div></div></div>
+  <div id="qPrompt" class="qprompt"></div>
+  <div id="qSentence" class="qsent hidden"></div>
+  <div id="qOpts"></div>
+  <div id="qRearr" class="hidden">
+    <div id="ansRow" class="chips"></div>
+    <div id="chipRow" class="chips"></div>
+    <button class="btn small" id="btnCheckRearr">تحقق ✓</button>
+  </div>
+  <div id="qExplain" class="hidden"><div id="qExpEn"></div><div id="qExpAr"></div></div>
+  <div id="qPowerRow"><button class="pbtn small" id="qHintBtn">💡 تلميح (<span id="qHintCnt">0</span>)</button></div>
+  <div id="chancePrompt" class="hidden"><div>🔄 استخدم فرصة ثانية؟ (بدون كسر المربع)</div>
+    <div><button class="btn small gold" id="chYes">نعم 🔄</button><button class="btn small ghost" id="chNo">لا</button></div>
+  </div>
+  <div id="qRetryRow" class="hidden"><button class="btn small" id="qRetryBtn">🔁 حاول مرة أخرى</button></div>
+</div></div>
+
+
+<div id="fallScreen" class="screen hidden"><div class="card">
+  <div class="oops">Oops! 😭</div>
+  <div class="try">Try Again — حاول مرة أخرى!</div>
+  <div class="lab">Correct answer — الإجابة الصحيحة:</div>
+  <div id="fallCorrect" class="correctBox"></div>
+  <div class="lab">Why? — لماذا؟</div>
+  <div id="fallWhy" class="whyBox"></div>
+  <div id="fallWhyAr" class="whyBoxAr"></div>
+  <button class="btn gold" id="btnFix">🔧 FIX THE TILE — أصلح المربع</button>
+</div></div>
+
+
+<div id="completeScreen" class="screen hidden"><div class="card">
+  <h2 id="compTitle">🎉 Level Complete!</h2>
+  <div id="compStars" class="stars"></div>
+  <div id="compCoins" class="compcoins"></div>
+  <button class="btn" id="btnNext">المستوى التالي ▶</button>
+</div></div>
+
+
+<div id="winScreen" class="screen hidden"><div class="card">
+  <h2>🏆 أنت بطل القواعد!</h2>
+  <p style="color:#ffd9ef;font-weight:700">عبرتَ جسر القواعد كاملًا — 100 مستوى! الشخصية فخورة بك ✨</p>
+  <div id="winStats" class="compcoins"></div>
+  <button class="btn" id="btnEndless">🌌 الوضع اللانهائي (500+)</button>
+  <button class="btn ghost" id="btnMenu2">القائمة</button>
+</div></div>
+
+
+<div id="banner"></div>
+<div id="toasts"></div>
+
+
+<script>
+/* ================= UTILS ================= */
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+function mulberry(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function shuffle(arr,rng){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+
+/* ================= SAVE ================= */
+const SAVE_KEY='grammarBridgeSave1';
+let save={unlocked:1,current:1,coins:30,stars:{},powers:{hint:1,shield:0,chance:0},sound:true};
+try{const s=localStorage.getItem(SAVE_KEY);if(s)save=Object.assign(save,JSON.parse(s))}catch(e){}
+function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(save))}catch(e){}}
+
+
+/* ================= AUDIO ================= */
+let AC=null,bgmTimer=null,bgmStep=0,bgmNext=0;
+function initAudio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();if(save.sound)startBGM();}
+window.addEventListener('pointerdown',initAudio,{once:true});
+function tone(f,dur,type,vol,slide){if(!AC||!save.sound)return;const o=AC.createOscillator(),g=AC.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f,AC.currentTime);if(slide)o.frequency.exponentialRampToValueAtTime(slide,AC.currentTime+dur);g.gain.setValueAtTime(vol||.15,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+dur);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+dur+.02);}
+function noiseBurst(dur,fc,vol){if(!AC||!save.sound)return;const n=AC.sampleRate*dur,buf=AC.createBuffer(1,n,AC.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);const src=AC.createBufferSource();src.buffer=buf;const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=fc;const g=AC.createGain();g.gain.value=vol;src.connect(f);f.connect(g);g.connect(AC.destination);src.start();}
+const sfx={
+ click:()=>tone(620,.07,'square',.08),
+ ding:()=>{tone(880,.12,'triangle',.18);setTimeout(()=>tone(1318,.25,'triangle',.18),90)},
+ coin:()=>{tone(1250,.07,'square',.09);setTimeout(()=>tone(1650,.12,'square',.09),60)},
+ wrong:()=>{noiseBurst(.3,500,.5);tone(110,.3,'sawtooth',.2)},
+ crack:()=>{noiseBurst(.22,900,.55);tone(70,.25,'square',.25)},
+ fall:()=>{tone(600,.8,'sine',.2,120);noiseBurst(.5,700,.2)},
+ magic:()=>{[523,659,784,1046,1318].forEach((f,i)=>setTimeout(()=>tone(f,.22,'sine',.14),i*70))},
+ hit:()=>{tone(220,.12,'sawtooth',.2,90);noiseBurst(.12,1500,.3)},
+ pop:()=>tone(420,.09,'sine',.15,840),
+ step:()=>tone(300,.05,'sine',.05),
+ victory:()=>{[523,523,659,784,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.22,'triangle',.16),i*130))}
+};
+function startBGM(){if(bgmTimer||!AC||!save.sound)return;bgmNext=AC.currentTime+.1;bgmStep=0;bgmTimer=setInterval(()=>{if(!AC)return;while(bgmNext<AC.currentTime+.35){playBGMStep(bgmStep,bgmNext);bgmNext+=0.3125;bgmStep++}},120);}
+function stopBGM(){if(bgmTimer){clearInterval(bgmTimer);bgmTimer=null}}
+function playBGMStep(st,t){const chords=[[261.6,329.6,392],[196,246.9,293.7],[220,261.6,329.6],[174.6,220,261.6]],bass=[130.8,98,110,87.3];const bar=Math.floor(st/8)%4;if(st%8===0){const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.value=bass[bar];g.gain.setValueAtTime(.05,t);g.gain.exponentialRampToValueAtTime(.001,t+.6);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.7);}
+ const c=chords[bar],n=c[[0,1,2,1,0,2,1,2][st%8]]*2;o2=AC.createOscillator();const g2=AC.createGain();o2.type='triangle';o2.frequency.value=n;g2.gain.setValueAtTime(.028,t);g2.gain.exponentialRampToValueAtTime(.001,t+.28);o2.connect(g2);g2.connect(AC.destination);o2.start(t);o2.stop(t+.3);}
+
+
+/* ================= IMAGES (character + boss, chroma-key) ================= */
+const CHAR_URL='https://image.qwenlm.ai/public_source/3c3084ad-2ba9-4cb6-bbd1-3b0ad7389d5e/12b6321ec-f6e9-4d91-8ba7-ead5c4891732.png';
+const BOSS_URL='https://image.qwenlm.ai/public_source/3c3084ad-2ba9-4cb6-bbd1-3b0ad7389d5e/15f785c63-ee52-4e63-8495-56054748533b.png';
+function keyCanvas(img){const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);const d=x.getImageData(0,0,c.width,c.height),p=d.data;for(let i=0;i<p.length;i+=4){const r=p[i],g=p[i+1],b=p[i+2];if(r>150&&b>100&&g<140&&(r-g)>55&&(b-g)>30){p[i+3]=0}else if(r>140&&g<150&&(r-g)>45&&(b-g)>22){p[i+3]*=0.4}}x.putImageData(d,0,0);return c;}
+function loadImg(url){return new Promise((res,rej)=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=rej;im.src=url;});}
+function fallbackChar(){const c=document.createElement('canvas');c.width=512;c.height=640;const x=c.getContext('2d');x.fillStyle='#5a2b3f';x.beginPath();x.arc(170,110,70,0,7);x.arc(342,110,70,0,7);x.fill();x.fillStyle='#f7d3b8';x.beginPath();x.arc(256,220,150,0,7);x.fill();x.fillStyle='#4a2b1c';x.beginPath();x.arc(200,210,26,0,7);x.arc(312,210,26,0,7);x.fill();x.fillStyle='#7a1f3d';x.beginPath();x.ellipse(256,500,150,140,0,0,7);x.fill();return c;}
+let charCanvas=null,bossCanvas=null;
+
+
+/* ================= QUESTION BANKS ================= */
+const Q=(type,prompt,sent,opts,en,ar)=>({type,prompt,sent,opts:opts.map(o=>({t:o[0],ok:!!o[1]})),en,ar});
+const QR=(prompt,ans,en,ar)=>({type:'rearrange',prompt,ans,en,ar});
+const BANKS=[
+[ Q('choose','Choose the correct sentence:',null,[['She go to school every day.',0],['She goes to school every day.',1]],'With she / he / it we use GOES in the present simple.','مع She نستخدم goes في المضارع البسيط.'),
+  Q('fill','Fill in the blank:','I ___ a student.',[['am',1],['is',0],['are',0]],'With I we use am.','مع I نستخدم am.'),
+  Q('choose','Choose the correct sentence:',null,[['They is my friends.',0],['They are my friends.',1]],'With they / we / you we use are.','مع They نستخدم are.'),
+  Q('fix','Fix the sentence:','He don\'t like apples.',[['He doesn\'t like apples.',1],['He don\'t likes apples.',0],['He doesn\'t likes apples.',0]],'With he / she / it we use doesn\'t + base verb.','مع He نستخدم doesn\'t والفعل الأساسي.'),
+  Q('fill','Fill in the blank:','This is my sister. ___ name is Sara.',[['Her',1],['His',0],['Their',0]],'Sara is a girl → her.','لأن سارة بنت نستخدم her.'),
+  Q('fill','Choose the correct plural:','One child, two ___.',[['childs',0],['children',1],['childes',0]],'Child → children (irregular plural).','جمع child شاذ: children.'),
+  Q('choose','Choose the correct sentence:',null,[['I am happy.',1],['I is happy.',0]],'I + am.','مع I نستخدم am.'),
+  Q('duel','Quick duel!','___ you ready?',[['Are',1],['Is',0]],'You + are.','مع You نستخدم are.'),
+  QR('Rearrange the words:',['She','is','a','teacher.'],'Subject + to be + complement.','الفاعل ثم فعل الكينونة ثم المكمّل.'),
+  Q('mistake','Find the mistake:','We is from Spain.',[['We',0],['is',1],['from Spain',0]],'We + are, not is.','مع We نستخدم are وليس is.'),
+  Q('fill','Fill in the blank:','It ___ a cat.',[['am',0],['is',1],['are',0]],'It + is.','مع It نستخدم is.'),
+  Q('choose','Choose the correct sentence:',null,[['My brother play football.',0],['My brother plays football.',1]],'He / she / it → verb + s.','الفاعل مفرد غائب → نضيف s للفعل.')],
+[ Q('fill','Fill in the blank:','___ she like pizza?',[['Do',0],['Does',1]],'She → does in questions.','مع She نستخدم Does في السؤال.'),
+  Q('fix','Fix the sentence:','They doesn\'t play tennis.',[['They don\'t play tennis.',1],['They doesn\'t plays tennis.',0],['They not play tennis.',0]],'They → don\'t.','مع They نستخدم don\'t.'),
+  Q('fill','Fill in the blank:','I ___ two brothers.',[['have',1],['has',0]],'I / you / we / they → have.','مع I نستخدم have.'),
+  Q('choose','Choose the correct sentence:',null,[['This is mine book.',0],['This is my book.',1]],'Use my before a noun.','نستخدم my قبل الاسم.'),
+  Q('duel','Quick duel!','Where ___ you live?',[['do',1],['does',0]],'You → do.','مع You نستخدم do.'),
+  Q('fill','Fill in the blank:','The dog wagged ___ tail.',[['its',1],['it\'s',0]],'its = possession; it\'s = it is.','its للملكية و it\'s اختصار لـ it is.'),
+  Q('choose','Choose the correct sentence:',null,[['She doesn\'t eats meat.',0],['She doesn\'t eat meat.',1]],'After doesn\'t use the base verb.','بعد doesn\'t يأتي الفعل الأساسي.'),
+  Q('mistake','Find the mistake:','Does they want coffee?',[['Does',1],['they',0],['coffee',0]],'They → do.','مع They نستخدم Do.'),
+  Q('fill','Fill in the blank:','Those shoes are ___.',[['my',0],['mine',1],['me',0]],'mine = without a noun.','نستخدم mine بدون اسم بعدها.'),
+  QR('Rearrange the words:',['Where','does','she','live?'],'Question word + does + subject + verb.','أداة الاستفهام ثم does ثم الفاعل ثم الفعل.'),
+  Q('choose','Choose the correct sentence:',null,[['We has a new car.',0],['We have a new car.',1]],'We → have.','مع We نستخدم have.'),
+  Q('fix','Fix the sentence:','He have a big house.',[['He has a big house.',1],['He haves a big house.',0],['He having a big house.',0]],'He / she / it → has.','مع He نستخدم has.')],
+[ Q('fill','Fill in the blank:','Yesterday I ___ to school.',[['go',0],['went',1],['gone',0]],'Past of go = went.','ماضي go هو went.'),
+  Q('choose','Choose the correct sentence:',null,[['She watched TV last night.',1],['She watch TV last night.',0]],'Regular past → verb + ed.','الماضي المنتظم بإضافة ed.'),
+  Q('fix','Fix the sentence:','They was at home.',[['They were at home.',1],['They wased at home.',0],['They are at home yesterday.',0]],'They → were.','مع They نستخدم were.'),
+  Q('fill','Fill in the blank:','He ___ his keys yesterday.',[['lose',0],['lost',1],['losed',0]],'Past of lose = lost.','ماضي lose هو lost.'),
+  Q('duel','Quick duel!','___ you tired last night?',[['Was',0],['Were',1]],'You → were.','مع You نستخدم were.'),
+  Q('mistake','Find the mistake:','She didn\'t went out.',[['didn\'t',0],['went',1],['out',0]],'After didn\'t use the base verb: go.','بعد didn\'t نستخدم الفعل الأساسي go.'),
+  Q('choose','Choose the correct sentence:',null,[['We saw a great film.',1],['We seed a great film.',0]],'Past of see = saw.','ماضي see هو saw.'),
+  Q('fill','Fill in the blank:','The children ___ in the park.',[['play',0],['played',1],['plaied',0]],'play → played (spelling!).','نضيف ed بدون تغيير y هنا: played.'),
+  Q('fix','Fix the sentence:','I were very happy.',[['I was very happy.',1],['I were very happyed.',0],['I am very happy yesterday.',0]],'I → was.','مع I نستخدم was.'),
+  QR('Rearrange the words:',['We','went','to','the','beach.'],'Subject + past verb + place.','الفاعل ثم الفعل الماضي ثم المكان.'),
+  Q('choose','Choose the correct sentence:',null,[['Did you ate lunch?',0],['Did you eat lunch?',1]],'After did use the base verb.','بعد did نستخدم الفعل الأساسي.'),
+  Q('fill','Fill in the blank:','She ___ a letter last week.',[['write',0],['wrote',1],['writed',0]],'Past of write = wrote.','ماضي write هو wrote.')],
+[ Q('fill','Fill in the blank:','Look! It ___ raining.',[['is',1],['am',0],['are',0]],'It + is + -ing.','مع It نستخدم is + ing.'),
+  Q('choose','Choose the correct sentence:',null,[['They are playing football now.',1],['They is playing football now.',0]],'They + are + -ing.','مع They نستخدم are + ing.'),
+  Q('fix','Fix the sentence:','She is runing fast.',[['She is running fast.',1],['She is run fasting.',0],['She running fast.',0]],'run → running (double the n).','نضاعف الحرف في running.'),
+  Q('fill','Fill in the blank:','I ___ reading a great book.',[['am',1],['is',0],['are',0]],'I + am + -ing.','مع I نستخدم am + ing.'),
+  Q('duel','Quick duel!','The baby ___ sleeping.',[['is',1],['are',0]],'The baby (it) → is.','المفرد الغائب → is.'),
+  Q('mistake','Find the mistake:','We are sit in the garden.',[['are',0],['sit',1],['garden',0]],'are + sitting.','نستخدم sitting بعد are.'),
+  Q('choose','Choose the correct sentence:',null,[['He is makeing dinner.',0],['He is making dinner.',1]],'make → making (drop the e).','نحذف e ثم نضيف ing.'),
+  Q('fill','Fill in the blank:','The kids ___ watching cartoons.',[['is',0],['are',1]],'The kids (they) → are.','الجمع → are.'),
+  QR('Rearrange the words:',['She','is','listening','to','music.'],'Subject + is/are + verb-ing.','فاعل ثم is ثم فعل ing.'),
+  Q('fix','Fix the sentence:','They are watches TV.',[['They are watching TV.',1],['They are watch TV.',0],['They watching TV.',0]],'are + watching.','بعد are نستخدم watching.'),
+  Q('fill','Fill in the blank:','Listen! Someone ___ singing.',[['is',1],['are',0]],'Someone → is.','Someone مفرد → is.'),
+  Q('choose','Choose the correct sentence:',null,[['You are siting on my bag.',0],['You are sitting on my bag.',1]],'sit → sitting (double the t).','نضاعف t في sitting.')],
+[ Q('fill','Fill in the blank:','Tomorrow I ___ visit my grandma.',[['will',1],['am',0]],'will + base verb for the future.','للمستقبل نستخدم will + الفعل الأساسي.'),
+  Q('choose','Choose the correct sentence:',null,[['She will to call you.',0],['She will call you.',1]],'No "to" after will.','لا نستخدم to بعد will.'),
+  Q('fix','Fix the sentence:','They are going play football.',[['They are going to play football.',1],['They going to plays football.',0],['They are go to play football.',0]],'going TO + base verb.','نستخدم to بعد going.'),
+  Q('fill','Choose the correct future:','Look at the clouds! It ___ rain.',[['will',0],['is going to',1]],'Evidence now → going to.','عند وجود دليل الآن نستخدم going to.'),
+  Q('duel','Quick duel!','___ you help me, please?',[['Will',1],['Are',0]],'Will for requests.','نستخدم will للطلبات.'),
+  Q('mistake','Find the mistake:','I will goes with you.',[['will',0],['goes',1],['you',0]],'will + go (base form).','بعد will نستخدم go.'),
+  Q('choose','Choose the correct sentence:',null,[['We are going to travel in July.',1],['We going to travel in July.',0]],'We ARE going to.','لا ننسى فعل الكينونة are.'),
+  Q('fill','Fill in the blank:','She ___ be a doctor one day.',[['will',1],['is',0]],'Prediction → will.','التنبؤ بالمستقبل → will.'),
+  QR('Rearrange the words:',['It','will','rain','tomorrow.'],'Subject + will + verb.','فاعل ثم will ثم الفعل.'),
+  Q('fix','Fix the sentence:','He willn\'t come.',[['He won\'t come.',1],['He willn\'t comes.',0],['He no will come.',0]],'will not → won\'t.','الاختصار الصحيح هو won\'t.'),
+  Q('choose','Choose the correct sentence:',null,[['I\'ll see you later.',1],['I\'ll to see you later.',0]],'I\'ll = I will + base verb.','بعد will الفعل بدون to.'),
+  Q('fill','Fill in the blank:','We ___ going to have a party.',[['is',0],['are',1]],'We → are.','مع We نستخدم are.')],
+[ Q('fill','Fill in the blank:','An elephant is ___ than a mouse.',[['big',0],['bigger',1],['biggest',0]],'Comparative: big → bigger.','المقارنة بإضافة er.'),
+  Q('choose','Choose the correct sentence:',null,[['She runs fastly.',0],['She runs fast.',1]],'Fast is already an adverb.','fast ظرف بحد ذاته.'),
+  Q('fix','Fix the sentence:','This is the most best film.',[['This is the best film.',1],['This is the more best film.',0],['This is bestest film.',0]],'best = superlative already.','best هي صيغة التفضيل الأعلى.'),
+  Q('fill','Fill in the blank:','He drives very ___.',[['careful',0],['carefully',1]],'Adverb describes the verb.','الظرف يصف الفعل.'),
+  Q('duel','Quick duel!','She is ___ than me at math.',[['good',0],['better',1]],'Comparative of good = better.','صيغة المقارنة من good هي better.'),
+  Q('mistake','Find the mistake:','He is more tall than his dad.',[['more tall',1],['than',0],['his dad',0]],'tall → taller.','نستخدم taller وليس more tall.'),
+  Q('choose','Choose the correct sentence:',null,[['This box is heavyer.',0],['This box is heavier.',1]],'heavy → heavier (y→i).','نحول y إلى i ثم er.'),
+  Q('fill','Fill in the blank:','Today is the ___ day of the week.',[['hot',0],['hotter',0],['hottest',1]],'Superlative: the hottest.','التفضيل الأعلى: the hottest.'),
+  QR('Rearrange the words:',['She','is','taller','than','me.'],'Comparative + than.','صيغة المقارنة ثم than.'),
+  Q('fix','Fix the sentence:','She sings beautiful.',[['She sings beautifully.',1],['She sing beautiful.',0],['She sings more beautiful.',0]],'Use an adverb: beautifully.','نستخدم الظرف beautifully.'),
+  Q('choose','Choose the correct sentence:',null,[['He is the most fastest runner.',0],['He is the fastest runner.',1]],'fastest only, no "most".','لا نجمع most مع fastest.'),
+  Q('fill','Fill in the blank:','The movie was really ___.',[['interested',0],['interesting',1]],'Things are interesting; people are interested.','الشيء interesting والشخص interested.')],
+[ Q('fill','Fill in the blank:','The book is ___ the table.',[['on',1],['in',0],['at',0]],'On a surface → on.','على السطح نستخدم on.'),
+  Q('choose','Choose the correct sentence:',null,[['I have some questions.',1],['I have any questions.',0]],'some in positive sentences.','نستخدم some في الإثبات.'),
+  Q('fix','Fix the sentence:','She is married in a doctor.',[['She is married to a doctor.',1],['She is married at a doctor.',0],['She married to doctor.',0]],'married TO someone.','متزوجة من = married to.'),
+  Q('fill','Fill in the blank:','How ___ water do you drink?',[['much',1],['many',0]],'Uncountable → much.','غير المعدود → much.'),
+  Q('duel','Quick duel!','The meeting is ___ Monday.',[['in',0],['on',1]],'Days → on.','الأيام نستخدم on.'),
+  Q('mistake','Find the mistake:','There isn\'t some milk.',[['isn\'t',0],['some',1],['milk',0]],'Negative → any.','في النفي نستخدم any.'),
+  Q('choose','Choose the correct sentence:',null,[['How many apples do we need?',1],['How much apples do we need?',0]],'Countable plural → many.','المعدود الجمع → many.'),
+  Q('fill','Fill in the blank:','I was born ___ 2010.',[['in',1],['on',0],['at',0]],'Years → in.','السنوات نستخدم in.'),
+  QR('Rearrange the words:',['She','studies','at','night.'],'Subject + verb + time phrase.','فاعل ثم فعل ثم ظرف زمان.'),
+  Q('fix','Fix the sentence:','He is good in English.',[['He is good at English.',1],['He is good on English.',0],['He good at English.',0]],'good AT something.','نستخدم good at.'),
+  Q('fill','Fill in the blank:','There are ___ eggs in the fridge.',[['some',1],['any',0]],'Positive → some.','في الإثبات نستخدم some.'),
+  Q('choose','Choose the correct sentence:',null,[['We arrived at the airport at 9.',1],['We arrived to the airport on 9.',0]],'arrive AT a place, AT a time.','نستخدم at للمكان والوقت.')],
+[ Q('fill','Fill in the blank:','___ is your name?',[['What',1],['Where',0]],'Asking about a thing → what.','السؤال عن شيء → What.'),
+  Q('choose','Choose the correct sentence:',null,[['Where do you live?',1],['Where you live?',0]],'Questions need do/does.','الأسئلة تحتاج do.'),
+  Q('fix','Fix the sentence:','She likes what?',[['What does she like?',1],['What she likes?',0],['What do she like?',0]],'What + does + subject + base verb.','ترتيب السؤال الصحيح.'),
+  Q('fill','Fill in the blank:','___ old are you?',[['How',1],['What',0]],'How old = age.','السؤال عن العمر بـ How old.'),
+  Q('duel','Quick duel!','___ time is it?',[['What',1],['Who',0]],'What time.','نستخدم What time.'),
+  Q('mistake','Find the mistake:','Does she works here?',[['Does',0],['works',1],['here',0]],'does + base verb: work.','بعد Does الفعل بدون s.'),
+  Q('choose','Choose the correct question:',null,[['Is he a teacher?',1],['He is a teacher?',0]],'Invert: Is he...?','نقلب: Is he.'),
+  Q('fill','Fill in the blank:','___ did you go yesterday?',[['Where',1],['Who',0]],'Place → where.','المكان → Where.'),
+  QR('Rearrange the words:',['Do','you','like','coffee?'],'Do + subject + verb.','Do ثم الفاعل ثم الفعل.'),
+  Q('fix','Fix the sentence:','Why you are sad?',[['Why are you sad?',1],['Why are sad you?',0],['Why you sad are?',0]],'Why + are + you.','ترتيب: Why are you.'),
+  Q('choose','Choose the correct question:',null,[['Who is that woman?',1],['That woman who is?',0]],'Who + is + ...','نبدأ بـ Who is.'),
+  Q('fill','Fill in the blank:','___ is crying? The baby.',[['Who',1],['Which',0]],'Person → who.','الشخص → Who.')],
+[ Q('fill','Fill in the blank:','You ___ stop when the light is red.',[['must',1],['can',0]],'Obligation → must.','الإلزام → must.'),
+  Q('choose','Choose the correct sentence:',null,[['She can speaks three languages.',0],['She can speak three languages.',1]],'can + base verb.','بعد can الفعل الأساسي.'),
+  Q('fix','Fix the sentence:','You should to study more.',[['You should study more.',1],['You should studying more.',0],['You should studies more.',0]],'should + base verb (no to).','بعد should الفعل بدون to.'),
+  Q('fill','Fill in the blank:','___ I use your pen, please?',[['Can',1],['Must',0]],'Polite request → can.','الطلب المهذب → Can.'),
+  Q('duel','Quick duel!','You ___ wear a seatbelt in a car.',[['must',1],['can',0]],'Rule / obligation → must.','القاعدة → must.'),
+  Q('mistake','Find the mistake:','He can\'t to swim.',[['can\'t',0],['to swim',1]],'can\'t + swim (no to).','بعد can\'t الفعل بدون to.'),
+  Q('choose','Choose the correct sentence:',null,[['We have to leave now.',1],['We have leave now.',0]],'have TO + verb.','نستخدم have to.'),
+  Q('fill','Fill in the blank:','Students ___ use phones in class. It\'s forbidden!',[['mustn\'t',1],['don\'t',0]],'Prohibition → mustn\'t.','المنع → mustn\'t.'),
+  QR('Rearrange the words:',['You','should','drink','more','water.'],'Subject + should + verb.','فاعل ثم should ثم الفعل.'),
+  Q('fix','Fix the sentence:','She must goes home.',[['She must go home.',1],['She must going home.',0],['She musts go home.',0]],'must + go.','بعد must الفعل الأساسي.'),
+  Q('choose','Choose the correct sentence:',null,[['You don\'t have to pay; it\'s free.',1],['You mustn\'t to pay; it\'s free.',0]],'not necessary = don\'t have to.','غير ضروري = don\'t have to.'),
+  Q('fill','Fill in the blank:','I ___ swim when I was five.',[['can',0],['could',1]],'Past ability → could.','القدرة في الماضي → could.')],
+[ Q('mistake','Find the mistake:','If I will see him, I\'ll tell him.',[['will see',1],['I\'ll tell',0],['him',0]],'First conditional: If I see him...','في الشرطية الأولى نستخدم المضارع بعد if.'),
+  Q('fix','Fix the sentence:','She said me that she was tired.',[['She told me that she was tired.',1],['She said to me that she is tired.',0],['She telled me that she was tired.',0]],'said → told someone.','نستخدم told مع الشخص.'),
+  Q('fill','Fill in the blank:','If I ___ rich, I would travel the world.',[['am',0],['was',0],['were',1]],'Second conditional → were.','الشرطية الثانية → were.'),
+  Q('choose','Choose the correct sentence:',null,[['I have lived here since 2019.',1],['I live here since 2019.',0]],'since + present perfect.','مع since نستخدم المضارع التام.'),
+  Q('fill','Fill in the blank:','The letter ___ written yesterday.',[['was',1],['were',0]],'Passive past: was written.','المبني للمجهول في الماضي: was.'),
+  Q('fix','Fix the sentence:','I look forward to see you.',[['I look forward to seeing you.',1],['I look forward seeing you.',0],['I looking forward to see you.',0]],'look forward to + -ing.','بعد look forward to نستخدم ing.'),
+  Q('mistake','Find the mistake:','He suggested to go out.',[['suggested',0],['to go out',1]],'suggest + -ing: going out.','نستخدم going out بعد suggested.'),
+  Q('choose','Choose the correct sentence:',null,[['She enjoys reading books.',1],['She enjoys to read books.',0]],'enjoy + -ing.','بعد enjoy نستخدم ing.'),
+  Q('fill','Fill in the blank:','By next year, I ___ finished my degree.',[['will have',1],['will',0]],'Future perfect: will have + p.p.','المستقبل التام: will have.'),
+  QR('Rearrange the words:',['The','train','had','left','before','we','arrived.'],'Past perfect for the earlier action.','الحدث الأسبق في الماضي التام.'),
+  Q('fix','Fix the sentence:','Despite he was tired, he kept working.',[['Although he was tired, he kept working.',1],['Despite being tired, but he worked.',0],['Although he was tired, but he kept working.',0]],'Although + clause.','نستخدم Although مع الجملة.'),
+  Q('choose','Choose the correct sentence:',null,[['I wish I had more time.',1],['I wish I would have more time.',0]],'wish + past for present desire.','بعد wish نستخدم الماضي.')]];
+
+
+/* ---------- generators (endless variety) ---------- */
+function genSVA(rng){const S=[['She',1],['He',1],['My mother',1],['Tom',1],['The cat',1],['Everyone',1],['They',0],['We',0],['I',0],['The children',0],['My friends',0],['You',0]];const V=[['go','goes','to school every day'],['play','plays','football on Fridays'],['like','likes','ice cream'],['watch','watches','TV at night'],['study','studies','English every morning'],['need','needs','some water']];const s=S[Math.floor(rng()*S.length)],v=V[Math.floor(rng()*V.length)];const good=s[1]?v[1]:v[0],bad=s[1]?v[0]:v[0]+'s';const opts=rng()<.5?[[s[0]+' '+good+' '+v[2]+'.',1],[s[0]+' '+bad+' '+v[2]+'.',0]]:[[s[0]+' '+bad+' '+v[2]+'.',0],[s[0]+' '+good+' '+v[2]+'.',1]];return Q('choose','Choose the correct sentence:',null,opts,s[0]+' → '+good+' (present simple).','الفاعل '+s[0]+' يحتاج '+good+'.');}
+function genBe(rng){const S=[['I','am'],['He','is'],['She','is'],['It','is'],['We','are'],['They','are'],['The dogs','are'],['My dad','is']];const A=['happy','at home','a student','my friend','tall','hungry'];const s=S[Math.floor(rng()*S.length)],a=A[Math.floor(rng()*A.length)];const wrong=s[1]==='am'?'is':(s[1]==='is'?'are':'am');return Q('fill','Fill in the blank:',s[0]+' ___ '+a+'.',[[s[1],1],[wrong,0]],s[0]+' + '+s[1]+'.','مع '+s[0]+' نستخدم '+s[1]+'.');}
+function genPast(rng){const V=[['walk','walked','walkeded'],['eat','ate','eated'],['run','ran','runned'],['buy','bought','buyed'],['take','took','taked'],['swim','swam','swimmed']];const v=V[Math.floor(rng()*V.length)];const sub=['I','She','They','We'][Math.floor(rng()*4)];return Q('fill','Fill in the blank:',sub+' ___ yesterday.',[[v[1],1],[v[0],0],[v[2],0]],'Past of '+v[0]+' = '+v[1]+'.','ماضي '+v[0]+' هو '+v[1]+'.');}
+function genCont(rng){const V=[['run','running'],['make','making'],['sit','sitting'],['dance','dancing'],['swim','swimming'],['write','writing']];const v=V[Math.floor(rng()*V.length)];const s=[['She','is'],['He','is'],['They','are'],['I','am']][Math.floor(rng()*4)];const wrongIng=v[0]+'ing';return Q('choose','Choose the correct sentence:',null,[[s[0]+' '+s[1]+' '+v[1]+'.',1],[s[0]+' '+s[1]+' '+wrongIng+'.',0]],v[0]+' → '+v[1]+'.','الصيغة الصحيحة هي '+v[1]+'.');}
+const GENS=[r=>Math.random()<.5?genBe(r):genSVA(r),genSVA,genPast,genCont,null,null,null,null,null,null];
+const TOPICS=[['Verb to be & Basics','أساسيات الكينونة والمضارع'],['Do / Does & Have / Has','الملكية والأفعال المساعدة'],['Past Simple','الماضي البسيط'],['Present Continuous','المضارع المستمر'],['Future: will & going to','المستقبل'],['Comparatives & Superlatives','صفات المقارنة والتفضيل'],['Prepositions & Quantifiers','حروف الجر والكميات'],['Questions & WH','الأدوات الاستفهامية'],['Modal Verbs','الأفعال الناقصة'],['Mixed Master Challenge','تحدي شامل متقدم']];
+
+
+function pickQuestions(L,n,bossMode){const rng=mulberry(L*7919+n*131);const bucket=L>100?Math.floor(rng()*10):Math.min(9,Math.floor((L-1)/10));let pool=shuffle(BANKS[bucket],rng);if(bossMode)pool=pool.filter(q=>q.type==='fix'||q.type==='mistake'||q.type==='choose').concat(pool);const out=[];let pi=0;for(let k=0;k<n;k++){const g=GENS[bucket];if(!bossMode&&g&&rng()<0.35)out.push(g(rng));else out.push(pool[pi++%pool.length]);}return out;}
+
+
+/* ================= THREE SCENE ================= */
+const LEN=14,TOTAL=100,GAP=3.0;
+let scene,camera,renderer,clock,skyMat,starsPts,sunSpr,heroMesh,heroShadow,bossSpr=null,archGroupMap=new Map();
+let tileMap=new Map(),anims=[],particles=[],clouds=[];
+let shakeAmt=0,camDip=0,heroBaseY=0;
+const THEMES=[
+ {top:'#6fb9ff',bot:'#ffe3f2',fog:'#d8ecff',tA:'#efe6ff',tB:'#d6def f'.replace(' ',''),q:'#c39bff',star:0},
+ {top:'#5fd4c8',bot:'#eafff5',fog:'#d8fff2',tA:'#dffcf2',tB:'#c2f0e2',q:'#7be0c8',star:0},
+ {top:'#ffb45e',bot:'#fff3d6',fog:'#ffe9c2',tA:'#ffe9c9',tB:'#ffd9a8',q:'#ffb35e',star:0},
+ {top:'#ff8d7a',bot:'#ffd9e8',fog:'#ffd3dd',tA:'#ffdbe0',tB:'#ffc2cf',q:'#ff8fb0',star:0},
+ {top:'#8a6bd8',bot:'#ffc9e2',fog:'#d9b8ef',tA:'#e6d4ff',tB:'#d0b8f5',q:'#b78cff',star:.2},
+ {top:'#2b3f8f',bot:'#7a5cd0',fog:'#4a4aa0',tA:'#b8c2ff',tB:'#9aa8f0',q:'#8fb2ff',star:.7},
+ {top:'#123a5c',bot:'#2e7f8f',fog:'#1d5a70',tA:'#bfeef2',tB:'#9adbe2',q:'#6fe0e8',star:.8},
+ {top:'#3a1668',bot:'#a03a8f',fog:'#6a2a80',tA:'#e8c2ff',tB:'#d0a2f0',q:'#ff8fe0',star:.9},
+ {top:'#5c1030',bot:'#ff6a4a',fog:'#a03848',tA:'#ffd2c2',tB:'#ffb2a2',q:'#ff9f6a',star:.5},
+ {top:'#ffd166',bot:'#fff8e0',fog:'#ffe9a8',tA:'#fff2c9',tB:'#ffe29a',q:'#ffcf5e',star:.3}];
+let themeCur=null,themeTgt=null;
+function C(h){return new THREE.Color(h)}
+function setTheme(zone){const t=THEMES[zone];themeTgt={top:C(t.top),bot:C(t.bot),fog:C(t.fog),tA:C(t.tA),tB:C(t.tB),q:C(t.q),star:t.star};if(!themeCur)themeCur=JSON.parse(JSON.stringify({top:t.top,bot:t.bot,fog:t.fog,tA:t.tA,tB:t.tB,q:t.q,star:t.star})),themeCur={top:C(t.top),bot:C(t.bot),fog:C(t.fog),tA:C(t.tA),tB:C(t.tB),q:C(t.q),star:t.star};}
+function pathPos(i){return new THREE.Vector3(Math.sin(i*0.05)*2.5, Math.sin(i*0.023)*0.6, -i*GAP);}
+function tileInfo(i){if(i<=0)return{kind:'start',level:1};const adj=i-1,level=Math.floor(adj/LEN)+1,off=adj%LEN;if(off===3||off===7||off===11)return{kind:'question',level,qi:off===3?0:off===7?1:2};if(off===13)return{kind:'checkpoint',level};return{kind:'walk',level};}
+
+
+let glowTex,starTex,crackTex,symTex,cloudTex,heartTex;
+function makeCanvasTex(size,draw){const c=document.createElement('canvas');c.width=c.height=size;draw(c.getContext('2d'),size);const t=new THREE.CanvasTexture(c);return t;}
+function initTextures(){
+ glowTex=makeCanvasTex(64,(x,s)=>{const g=x.createRadialGradient(s/2,s/2,2,s/2,s/2,s/2);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.4,'rgba(255,255,255,.6)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,s,s);});
+ starTex=makeCanvasTex(64,(x,s)=>{x.translate(s/2,s/2);x.fillStyle='#fff';x.beginPath();for(let i=0;i<8;i++){const r=i%2?7:26,a=i*Math.PI/4;x.lineTo(Math.cos(a)*r,Math.sin(a)*r);}x.closePath();x.fill();});
+ heartTex=makeCanvasTex(64,(x,s)=>{x.translate(s/2,s/2+6);x.scale(1.6,1.6);x.fillStyle='#ff6a9a';x.beginPath();x.moveTo(0,6);x.bezierCurveTo(-14,-6,-6,-16,0,-8);x.bezierCurveTo(6,-16,14,-6,0,6);x.fill();});
+ crackTex=makeCanvasTex(256,(x,s)=>{x.strokeStyle='rgba(20,5,10,.9)';x.lineWidth=5;x.lineCap='round';const rnd=mulberry(7);for(let k=0;k<6;k++){let px=s/2+(rnd()-.5)*30,py=s/2+(rnd()-.5)*30;x.beginPath();x.moveTo(px,py);for(let j=0;j<5;j++){px+=(rnd()-.5)*90;py+=(rnd()-.5)*90;x.lineTo(px,py);}x.stroke();}});
+ symTex=makeCanvasTex(256,(x,s)=>{x.font='800 170px "Baloo 2", sans-serif';x.textAlign='center';x.textBaseline='middle';x.shadowColor='#ffd166';x.shadowBlur=30;x.fillStyle='#fff6d8';x.fillText('?',s/2,s/2+14);});
+ cloudTex=makeCanvasTex(128,(x,s)=>{x.fillStyle='rgba(255,255,255,.9)';for(let i=0;i<6;i++){const r=18+Math.random()*16;x.beginPath();x.arc(20+Math.random()*88,40+Math.random()*48,r,0,7);x.fill();}});
+}
+function initScene(){
+ scene=new THREE.Scene();scene.fog=new THREE.Fog(0xd8ecff,40,150);
+ camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,600);
+ renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);$('stage').appendChild(renderer.domElement);
+ const hemi=new THREE.HemisphereLight(0xffffff,0x8877aa,.9);scene.add(hemi);
+ const dir=new THREE.DirectionalLight(0xfff2dd,.8);dir.position.set(5,10,4);scene.add(dir);
+ skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,uniforms:{top:{value:C('#6fb9ff')},bot:{value:C('#ffe3f2')}},vertexShader:'varying vec3 vW;void main(){vW=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'uniform vec3 top;uniform vec3 bot;varying vec3 vW;void main(){float h=normalize(vW).y;float t=pow(clamp(h,0.,1.),.75);gl_FragColor=vec4(mix(bot,top,t),1.);}' });
+ const sky=new THREE.Mesh(new THREE.SphereGeometry(350,24,16),skyMat);scene.add(sky);window._sky=sky;
+ const sg=new THREE.BufferGeometry(),sp=[];for(let i=0;i<350;i++){const a=Math.random()*Math.PI*2,e=Math.random()*Math.PI*.45+.1,r=300;sp.push(Math.cos(a)*Math.cos(e)*r,Math.sin(e)*r,Math.sin(a)*Math.cos(e)*r);}sg.setAttribute('position',new THREE.Float32BufferAttribute(sp,3));
+ starsPts=new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:2.2,transparent:true,opacity:0}));scene.add(starsPts);window._stars=starsPts;
+ sunSpr=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xfff2c0,transparent:true,opacity:.9}));sunSpr.scale.set(90,90,1);scene.add(sunSpr);
+ for(let i=0;i<14;i++){const m=new THREE.SpriteMaterial({map:cloudTex,transparent:true,opacity:.75,depthWrite:false});const s=new THREE.Sprite(m);s.position.set((Math.random()-.5)*70,Math.random()<.6?-8-Math.random()*8:10+Math.random()*8,-Math.random()*220);const sc=10+Math.random()*16;s.scale.set(sc,sc*.6,1);s.userData={vx:(Math.random()-.5)*.4};clouds.push(s);scene.add(s);}
+ initTextures();
+ // hero
+ const tex=new THREE.CanvasTexture(charCanvas);tex.minFilter=THREE.LinearFilter;
+ const aspect=charCanvas.width/charCanvas.height;
+ heroMesh=new THREE.Mesh(new THREE.PlaneGeometry(2.0*aspect>1?2.0:2.0*aspect,2.0/ (aspect>1?aspect:1) * (aspect>1?aspect:1) ),new THREE.MeshBasicMaterial({map:tex,transparent:true,alphaTest:.08}));
+ // simpler: fixed plane sized by aspect
+ heroMesh.geometry.dispose();heroMesh.geometry=new THREE.PlaneGeometry(1.9*aspect>=1.9?1.9:1.9, 1.9/aspect);
+ scene.add(heroMesh);
+ heroShadow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0x000000,transparent:true,opacity:.35}));heroShadow.scale.set(1.7,.5,1);scene.add(heroShadow);
+ clock=new THREE.Clock();
+ addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+}
+
+
+/* ---------- tiles ---------- */
+const TILE_GEO=new THREE.BoxGeometry(2.7,.55,2.35);
+function createTile(i){
+ const info=tileInfo(i),pos=pathPos(i),g=new THREE.Group();g.position.copy(pos);
+ const zone=Math.min(9,Math.floor((info.level-1)/10)),th=THEMES[zone];
+ const isQ=info.kind==='question',isC=info.kind==='checkpoint'||info.kind==='start';
+ const col=isQ?th.q:(i%2?th.tA:th.tB);
+ const mat=new THREE.MeshStandardMaterial({color:col,roughness:.8,metalness:.05,emissive:new THREE.Color(col),emissiveIntensity:isQ?.35:.08});
+ const mesh=new THREE.Mesh(TILE_GEO,mat);g.add(mesh);
+ if(isC){g.scale.set(1.5,1,1.3);}
+ const crack=new THREE.Mesh(new THREE.PlaneGeometry(2.6,2.2),new THREE.MeshBasicMaterial({map:crackTex,transparent:true,opacity:0}));crack.rotation.x=-Math.PI/2;crack.position.y=.29;g.add(crack);
+ let sym=null;
+ if(isQ){sym=new THREE.Mesh(new THREE.PlaneGeometry(1.5,1.5),new THREE.MeshBasicMaterial({map:symTex,transparent:true,depthWrite:false}));sym.rotation.x=-Math.PI/2;sym.position.y=.3;g.add(sym);}
+ scene.add(g);
+ const t={i,info,g,mesh,mat,crack,sym,state:isQ?'question':'walk',base:pos.clone(),shake:0,pulse:Math.random()*6};
+ tileMap.set(i,t);
+ if(isC&&info.kind==='checkpoint')buildArch(i,pos,info.level);
+ if(i%4===0&&i>0){const orb=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color(th.q),transparent:true,opacity:.8}));orb.scale.set(1.2,1.2,1);const side=(i%8===0)?1.9:-1.9;orb.position.set(pos.x+side,pos.y+1.2,pos.z);scene.add(orb);t.orb=orb;}
+ return t;
+}
+function buildArch(i,pos,level){const g=new THREE.Group();g.position.copy(pos);const pm=new THREE.MeshStandardMaterial({color:0xffd166,emissive:0xff9f43,emissiveIntensity:.5});const p1=new THREE.Mesh(new THREE.BoxGeometry(.4,3.4,.4),pm);p1.position.set(-2.2,1.7,0);const p2=p1.clone();p2.position.x=2.2;const beam=new THREE.Mesh(new THREE.BoxGeometry(5.2,.5,.5),pm);beam.position.y=3.5;g.add(p1,p2,beam);const c=document.createElement('canvas');c.width=256;c.height=64;const x=c.getContext('2d');x.fillStyle='#7a3bd0';x.fillRect(0,0,256,64);x.fillStyle='#fff';x.font='800 34px "Baloo 2",sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('LEVEL '+level+' ✓',128,34);const bm=new THREE.Mesh(new THREE.PlaneGeometry(3.4,.85),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true}));bm.position.y=2.7;bm.rotation.y=Math.PI;g.add(bm);scene.add(g);archGroupMap.set(i,g);}
+function ensureTiles(c){const from=Math.max(0,c-6),to=c+42;for(let i=from;i<=to;i++)if(!tileMap.has(i))createTile(i);for(const [i,t] of Array.from(tileMap)){if(i<from-4||i>to+8){scene.remove(t.g);t.mat.dispose();if(t.orb)scene.remove(t.orb);tileMap.delete(i);}if(i>to+8&&archGroupMap.has(i)){scene.remove(archGroupMap.get(i));archGroupMap.delete(i);}}}
+function tileShake(t,dur){t.shake=dur;}
+function breakTile(t){if(t.state==='broken')return;t.state='broken';sfx.crack();shakeAmt=.5;for(let k=0;k<7;k++){const sh=new THREE.Mesh(new THREE.BoxGeometry(.5,.3,.5),t.mat.clone());sh.position.copy(t.base);sh.position.y+=.2;spawnP(sh,{vel:new THREE.Vector3((Math.random()-.5)*6,3+Math.random()*4,(Math.random()-.5)*6),grav:14,life:1.4,spin:true});}
+ anims.push({t:0,dur:1.2,fn:(dt,a)=>{t.g.position.y-=dt*(4+a.t*18);t.g.rotation.x+=dt*2;t.g.rotation.z+=dt*1.5;if(a.t>=1)t.g.visible=false;}});}
+function repairTile(t){t.state='repaired';t.g.visible=true;t.g.position.copy(t.base);t.g.rotation.set(0,0,0);t.g.scale.set(0,0,0);t.crack.material.opacity=0;t.mat.emissive.set('#ffd166');t.mat.emissiveIntensity=.6;anims.push({t:0,dur:.6,fn:(dt,a)=>{const s=Math.min(1,a.t/.6);const e=1+Math.sin(s*Math.PI)*.15;const sc=(1-Math.pow(1-s,3))*e;t.g.scale.set(sc*(t.info.kind==='checkpoint'?1.5:1),sc,sc*(t.info.kind==='checkpoint'?1.3:1));if(a.t>=1){t.g.scale.set(t.info.kind==='checkpoint'?1.5:1,1,t.info.kind==='checkpoint'?1.3:1);t.mat.emissiveIntensity=.15;}}});sparkle(t.base.clone().add(new THREE.Vector3(0,1,0)),0xffd166,26);}
+function correctTile(t){t.state='correct';t.mat.color.set('#58d68d');t.mat.emissive.set('#2ecc71');t.mat.emissiveIntensity=.55;if(t.sym)t.sym.visible=false;sparkle(t.base.clone().add(new THREE.Vector3(0,.8,0)),0x7dffb0,18);}
+function crackTile(t,stable){t.state=stable?'cracked':t.state;t.crack.material.opacity=1;t.mat.color.set('#d97b7b');t.mat.emissive.set('#802020');t.mat.emissiveIntensity=.3;tileShake(t,.6);}
+
+
+/* ---------- particles ---------- */
+function spawnP(obj,o){obj.userData=Object.assign({vel:new THREE.Vector3(),grav:0,life:1,age:0,spin:false},o);scene.add(obj);particles.push(obj);}
+function sparkle(pos,color,n){for(let i=0;i<n;i++){const m=new THREE.Sprite(new THREE.SpriteMaterial({map:starTex,color,transparent:true}));const s=.4+Math.random()*.6;m.scale.set(s,s,1);m.position.copy(pos);spawnP(m,{vel:new THREE.Vector3((Math.random()-.5)*5,2+Math.random()*4,(Math.random()-.5)*5),grav:6,life:.9+Math.random()*.5});}}
+function hearts(pos){for(let i=0;i<8;i++){const m=new THREE.Sprite(new THREE.SpriteMaterial({map:heartTex,transparent:true}));m.scale.set(.7,.7,1);m.position.copy(pos);spawnP(m,{vel:new THREE.Vector3((Math.random()-.5)*3,3+Math.random()*2,(Math.random()-.5)*3),grav:2,life:1.2});}}
+function confetti(pos){const cols=[0xff7ab8,0xffd166,0x7dffb0,0x8a5cff,0x6fd3ff];for(let i=0;i<50;i++){const m=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:cols[i%5],transparent:true}));const s=.3+Math.random()*.5;m.scale.set(s,s,1);m.position.copy(pos);spawnP(m,{vel:new THREE.Vector3((Math.random()-.5)*10,4+Math.random()*7,(Math.random()-.5)*10),grav:10,life:1.6+Math.random()*.8});}}
+
+
+/* ================= GAME STATE ================= */
+let mode='menu',level=1,mistakes=0,levelQs=[],bossQs=[],bossIdx=0,bossHP=5,bossDefeated=false;
+let walk={active:false,from:0,to:0,t:0,dur:.42},hero={idx:0,vy:0,falling:false,fallShown:false};
+let curQ=null,curTileIdx=null,qLocked=false,qTimer=null,qTimeLeft=0,qTimeMax=0,hintUsed=false;
+const levelStart=L=>1+(L-1)*LEN;
+
+
+function updateHUD(){$('coinNum').textContent=save.coins;$('cntHint').textContent=save.powers.hint;$('cntShield').textContent=save.powers.shield;$('cntChance').textContent=save.powers.chance;$('qHintCnt').textContent=save.powers.hint;$('lvlNum').textContent=level;const h=['❤️','❤️','❤️'];for(let i=0;i<Math.min(3,mistakes);i++)h[2-i]='💔';$('hearts').textContent=h.join('');const off=clamp(hero.idx-levelStart(level),0,LEN);$('progFill').style.width=clamp(((level-1)*LEN+off)/(TOTAL*LEN)*100,0,100)+'%';$('progText').textContent=(level<=TOTAL?level+' / '+TOTAL:'∞ '+level);}
+function addCoins(n){save.coins+=n;persist();updateHUD();sfx.coin();}
+function toast(msg){const d=document.createElement('div');d.className='toast';d.textContent=msg;$('toasts').appendChild(d);setTimeout(()=>d.remove(),2200);}
+function banner(b1,b2){$('banner').innerHTML='<div class="b1">'+b1+'</div>'+(b2?'<div class="b2">'+b2+'</div>':'');setTimeout(()=>{$('banner').innerHTML=''},1900);}
+
+
+function enterLevel(L){level=L;mistakes=0;bossDefeated=false;bossQs=null;levelQs=pickQuestions(L,3,false);if(L%10===0)bossQs=pickQuestions(L,7,true);setTheme(Math.min(9,Math.floor(((Math.min(L,TOTAL))-1)/10)));
+ $('startScreen').classList.add('hidden');$('completeScreen').classList.add('hidden');$('winScreen').classList.add('hidden');$('fallScreen').classList.add('hidden');$('qScreen').classList.add('hidden');$('levelSheet').classList.add('hidden');
+ $('hud').classList.remove('hidden');$('powers').classList.remove('hidden');$('bossWrap').classList.add('hidden');
+ hero.idx=levelStart(L);hero.falling=false;hero.vy=0;const p=pathPos(hero.idx);heroBaseY=p.y+.28;heroMesh.position.set(p.x,heroBaseY+1,p.z);heroMesh.rotation.set(0,0,0);heroMesh.scale.set(0,0,0);
+ anims.push({t:0,dur:.5,fn:(dt,a)=>{const s=1-Math.pow(1-Math.min(1,a.t/.5),3);heroMesh.scale.set(s,s,s);}});
+ ensureTiles(hero.idx);mode='play';updateHUD();
+ const topic=TOPICS[Math.min(9,Math.floor((Math.min(L,TOTAL)-1)/10))];
+ banner('LEVEL '+L,topic[0]+' · '+topic[1]);
+ save.current=L;persist();
+ setTimeout(()=>{if(mode==='play')stepTo(hero.idx+1)},1400);
+}
+function stepTo(i){if(walk.active)return;walk={active:true,from:hero.idx,to:i,t:0,dur:.42};sfx.step();}
+function onArrive(i){hero.idx=i;ensureTiles(i);updateHUD();const info=tileInfo(i);
+ if(info.kind==='question'){openQuestionFor(i,info.qi);}
+ else if(info.kind==='checkpoint'){if(info.level%10===0&&!bossDefeated)startBoss(info.level);else levelComplete();}
+ else{setTimeout(()=>{if(mode==='play'&&!walk.active&&!hero.falling)stepTo(i+1)},170);}
+}
+
+
+/* ---------- question flow ---------- */
+function reshuffle(q){if(q.opts){const rng=mulberry(Date.now()%100000+Math.random()*999);q._view=shuffle(q.opts,rng);}if(q.ans){const rng=mulberry(Date.now()%100000+Math.random()*999);let sh=shuffle(q.ans,rng);if(sh.join(' ')===q.ans.join(' '))sh=sh.reverse();q._chips=sh;}}
+function openQuestionFor(tileIdx,qi){curTileIdx=tileIdx;curQ=levelQs[qi];mode='question';reshuffle(curQ);showQCard(curQ,false);}
+function timerFor(q){if(q.type==='duel')return 6;if(level>=91)return 12;if(level>=61)return 15;if(level>=31)return 20;return 0;}
+function showQCard(q,isBoss){qLocked=false;hintUsed=false;
+ $('qScreen').classList.remove('hidden');$('qExplain').classList.add('hidden');$('chancePrompt').classList.add('hidden');$('qRetryRow').classList.add('hidden');$('qPowerRow').classList.remove('hidden');
+ const labels={choose:'اختر الجملة الصحيحة',fix:'أصلح الجملة',fill:'أكمل الفراغ',verb:'اختر الفعل الصحيح',mistake:'اكتشف الخطأ',rearrange:'رتّب الكلمات',duel:'⚡ تحدي سريع!'};
+ $('qType').textContent=labels[q.type]||'Grammar';
+ $('qPrompt').textContent=q.prompt;
+ if(q.sent){$('qSentence').classList.remove('hidden');$('qSentence').textContent=q.sent;}else $('qSentence').classList.add('hidden');
+ const opts=$('qOpts');opts.innerHTML='';
+ if(q.type==='rearrange'){$('qOpts').classList.add('hidden');$('qRearr').classList.remove('hidden');$('qPowerRow').classList.add('hidden');const ar=$('ansRow'),cr=$('chipRow');ar.innerHTML='';cr.innerHTML='';q._chips.forEach(w=>{const b=document.createElement('button');b.className='wchip';b.textContent=w;b.onclick=()=>{sfx.click();cr.removeChild(b);ar.appendChild(b);};cr.appendChild(b);});$('btnCheckRearr').onclick=()=>{const ans=Array.from(ar.children).map(c=>c.textContent);if(ans.length!==q.ans.length){toast('أكمل كل الكلمات!');return;}handleAnswer(ans.join(' ')===q.ans.join(' '),null);};}
+ else{$('qOpts').classList.remove('hidden');$('qRearr').classList.add('hidden');const list=q._view||q.opts;list.forEach((o,idx)=>{const b=document.createElement('button');b.className='opt';b.textContent=String.fromCharCode(65+idx)+'. '+o.t;b.onclick=()=>{if(qLocked)return;handleAnswer(o.ok,b);};b.dataset.ok=o.ok?'1':'0';opts.appendChild(b);});}
+ qTimeMax=timerFor(q);if(qTimeMax>0){$('qTimerWrap').style.opacity=1;qTimeLeft=qTimeMax;}else $('qTimerWrap').style.opacity=.25;
+}
+function stopTimer(){qTimeLeft=-1;}
+function handleAnswer(ok,btn){if(qLocked)return;qLocked=true;stopTimer();
+ const q=curQ;
+ if(ok){sfx.ding();addCoins(5);toast('+5 🪙 ✓ Correct!');if(btn)btn.classList.add('ok');Array.from($('qOpts').children).forEach(b=>b.style.pointerEvents='none');if(q.type==='rearrange')$('qRearr').classList.add('hidden');
+  $('qExplain').classList.remove('hidden');$('qExpEn').textContent='✓ '+q.en;$('qExpAr').textContent=q.ar;$('qPowerRow').classList.add('hidden');
+  heroReact('happy');if(curTileIdx!=null){const t=tileMap.get(curTileIdx);if(t)correctTile(t);}
+  setTimeout(()=>{$('qScreen').classList.add('hidden');if(mode==='question'||mode==='boss'){if(bossMode)bossHit();else{mode='play';setTimeout(()=>stepTo(hero.idx+1),120);}}},1500);
+ }else{
+  sfx.wrong();mistakes++;updateHUD();if(btn)btn.classList.add('bad');Array.from($('qOpts').children).forEach(b=>{if(b.dataset.ok==='1')b.classList.add('ok');b.style.pointerEvents='none';});
+  $('qExplain').classList.remove('hidden');$('qExpEn').textContent=q.en;$('qExpAr').textContent=q.ar;$('qPowerRow').classList.add('hidden');
+  heroReact('surprised');
+  if(bossMode){crackTile(tileMap.get(hero.idx),true);setTimeout(()=>{$('qExplain').classList.add('hidden');$('qRetryRow').classList.remove('hidden');$('qRetryBtn').onclick=()=>{sfx.click();$('qRetryRow').classList.add('hidden');bossNextQ();};},700);return;}
+  if(save.powers.shield>0){save.powers.shield--;persist();updateHUD();toast('🛡️ الدرع منع السقوط!');crackTile(tileMap.get(curTileIdx),true);setTimeout(()=>{$('qExplain').classList.add('hidden');$('qRetryRow').classList.remove('hidden');$('qRetryBtn').onclick=()=>{sfx.click();$('qRetryRow').classList.add('hidden');reshuffle(curQ);showQCard(curQ,false);};},900);return;}
+  if(save.powers.chance>0){$('chancePrompt').classList.remove('hidden');$('chYes').onclick=()=>{save.powers.chance--;persist();updateHUD();toast('🔄 فرصة ثانية!');$('chancePrompt').classList.add('hidden');reshuffle(curQ);showQCard(curQ,false);};$('chNo').onclick=()=>{$('chancePrompt').classList.add('hidden');startFall();};return;}
+  setTimeout(startFall,650);
+ }
+}
+function startFall(){mode='fall';$('qScreen').classList.add('hidden');const t=tileMap.get(curTileIdx);crackTile(t,false);sfx.crack();shakeAmt=.6;setTimeout(()=>breakTile(t),480);setTimeout(()=>{hero.falling=true;hero.vy=2;hero.fallShown=false;sfx.fall();},520);}
+function showFall(){if(hero.fallShown)return;hero.fallShown=true;const q=curQ;$('fallCorrect').textContent=(q.type==='rearrange')?q.ans.join(' '):(q._view||q.opts).find(o=>o.ok).t;$('fallWhy').textContent=q.en;$('fallWhyAr').textContent=q.ar;$('fallScreen').classList.remove('hidden');}
+$('btnFix').onclick=()=>{sfx.magic();$('fallScreen').classList.add('hidden');const t=tileMap.get(curTileIdx);repairTile(t);toast('Bridge Fixed! 🔧✨');hero.falling=false;hero.vy=0;const p=pathPos(curTileIdx);heroBaseY=p.y+.28;heroMesh.position.set(p.x,heroBaseY+1,p.z);heroMesh.rotation.set(0,0,0);heroMesh.scale.set(0,0,0);anims.push({t:0,dur:.5,fn:(dt,a)=>{const s=1-Math.pow(1-Math.min(1,a.t/.5),3);heroMesh.scale.set(s,s,s);}});camDip=0;mode='question';setTimeout(()=>{reshuffle(curQ);showQCard(curQ,false);},700);};
+
+
+/* ---------- hint ---------- */
+function useHint(){if(mode!=='question'||qLocked||hintUsed)return;if(curQ.type==='rearrange'){toast('لا يتوفر تلميح للترتيب');return;}if(save.powers.hint<=0){$('shopSheet').classList.remove('hidden');return;}save.powers.hint--;persist();updateHUD();hintUsed=true;const wrongs=Array.from($('qOpts').children).filter(b=>b.dataset.ok==='0');if(wrongs.length)wrongs[Math.floor(Math.random()*wrongs.length)].classList.add('dim');sfx.magic();toast('💡 تلميح!');}
+$('qHintBtn').onclick=useHint;$('btnHint').onclick=()=>{if(mode==='question')useHint();else $('shopSheet').classList.remove('hidden');};
+$('btnShield').onclick=()=>$('shopSheet').classList.remove('hidden');
+$('btnChance').onclick=()=>$('shopSheet').classList.remove('hidden');
+$('btnShop').onclick=()=>$('shopSheet').classList.remove('hidden');
+document.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>{const k=b.dataset.buy,cost={hint:15,shield:20,chance:25}[k];if(save.coins>=cost){save.coins-=cost;save.powers[k]++;persist();updateHUD();sfx.coin();toast('تم الشراء! ✨');}else{toast('🪙 عملات غير كافية!');}});
+$('closeShop').onclick=()=>$('shopSheet').classList.add('hidden');
+
+
+/* ---------- boss ---------- */
+let bossMode=false;
+function startBoss(L){bossMode=true;bossHP=5;bossIdx=0;bossDefeated=false;$('bossWrap').classList.remove('hidden');renderPips();
+ if(!bossSpr){const tex=new THREE.CanvasTexture(bossCanvas);bossSpr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,alphaTest:.08}));bossSpr.scale.set(3.2,3.2,1);scene.add(bossSpr);}
+ const bp=pathPos(levelStart(L)+LEN-1);bossSpr.position.set(bp.x,bp.y+2.2,bp.z-1);bossSpr.visible=true;
+ banner('⚔️ GRAMMAR BOSS','The Verb Monster — وحش الأفعال');sfx.hit();
+ setTimeout(bossNextQ,1600);}
+function renderPips(){$('bossPips').innerHTML='';for(let i=0;i<5;i++){const s=document.createElement('span');s.textContent='💜';if(i>=bossHP)s.className='hit';$('bossPips').appendChild(s);}}
+function bossNextQ(){mode='boss';curQ=bossQs[bossIdx++%bossQs.length];curTileIdx=null;reshuffle(curQ);showQCard(curQ,true);}
+function bossHit(){sfx.hit();bossHP--;renderPips();shakeAmt=.4;bossSpr.material.color.set('#ff5c7a');setTimeout(()=>bossSpr&&bossSpr.material.color.set('#ffffff'),180);sparkle(bossSpr.position.clone(),0xff5c7a,16);if(bossHP<=0){bossDefeated=true;setTimeout(bossDefeat,600);}else setTimeout(bossNextQ,900);}
+function bossDefeat(){sfx.victory();confetti(bossSpr.position.clone());addCoins(50);toast('BOSS DEFEATED! 🎉 +50 🪙');anims.push({t:0,dur:1.2,fn:(dt,a)=>{bossSpr.material.rotation+=dt*8;const s=Math.max(.01,3.2*(1-a.t/1.2));bossSpr.scale.set(s,s,1);if(a.t>=1)bossSpr.visible=false;}});$('bossWrap').classList.add('hidden');bossMode=false;setTimeout(levelComplete,1400);}
+
+
+/* ---------- level complete ---------- */
+function levelComplete(){mode='complete';sfx.victory();confetti(heroMesh.position.clone());const stars=mistakes===0?3:mistakes===1?2:1;const reward=20+stars*5;save.coins+=reward;const prev=save.stars[level]||0;save.stars[level]=Math.max(prev,stars);save.unlocked=Math.max(save.unlocked,level+1);persist();updateHUD();
+ $('compTitle').textContent='🎉 Level '+level+' Complete!';const sc=$('compStars');sc.innerHTML='';for(let i=0;i<3;i++){const s=document.createElement('span');s.textContent='⭐';if(i>=stars)s.className='off';s.style.animationDelay=(i*.25)+'s';sc.appendChild(s);}
+ $('compCoins').textContent='+'+reward+' 🪙 Grammar Coins';$('completeScreen').classList.remove('hidden');}
+$('btnNext').onclick=()=>{sfx.click();$('completeScreen').classList.add('hidden');if(level>=TOTAL){let tot=0;for(const k in save.stars)tot+=save.stars[k];$('winStats').textContent='⭐ '+tot+' نجمة · 🪙 '+save.coins+' عملة';$('winScreen').classList.remove('hidden');mode='menu';}else enterLevel(level+1);};
+$('btnEndless').onclick=()=>{sfx.click();enterLevel(Math.max(TOTAL+1,save.unlocked));};
+$('btnMenu2').onclick=()=>{$('winScreen').classList.add('hidden');$('startScreen').classList.remove('hidden');};
+
+
+/* ---------- hero reactions ---------- */
+let reactT=0,reactType='';
+function heroReact(t){reactType=t;reactT=0;if(t==='happy')hearts(heroMesh.position.clone().add(new THREE.Vector3(0,1.6,0)));}
+
+
+/* ================= MAIN LOOP ================= */
+function tick(){requestAnimationFrame(tick);const dt=Math.min(.05,clock.getDelta());const time=clock.elapsedTime;
+ // theme lerp
+ if(themeTgt){const k=1-Math.exp(-dt*1.6);['top','bot','fog','tA','tB','q'].forEach(n=>themeCur[n].lerp(themeTgt[n],k));themeCur.star=lerp(themeCur.star,themeTgt.star,k);skyMat.uniforms.top.value.copy(themeCur.top);skyMat.uniforms.bot.value.copy(themeCur.bot);scene.fog.color.copy(themeCur.fog);starsPts.material.opacity=themeCur.star;}
+ // walk
+ if(walk.active){walk.t+=dt/walk.dur;if(walk.t>=1){walk.active=false;onArrive(walk.to);}else{const a=pathPos(walk.from),b=pathPos(walk.to);const p=new THREE.Vector3().lerpVectors(a,b,walk.t);heroBaseY=lerp(a.y,b.y,walk.t)+.28;heroMesh.position.x=p.x;heroMesh.position.z=p.z;heroMesh.position.y=heroBaseY+1+Math.sin(walk.t*Math.PI)*.5;}}
+ else if(!hero.falling){heroMesh.position.y=heroBaseY+1+Math.sin(time*2.2)*.06;}
+ // falling
+ if(hero.falling){hero.vy-=22*dt;heroMesh.position.y+=hero.vy*dt;heroMesh.rotation.z+=dt*2.5;camDip=lerp(camDip,Math.min(6,(heroBaseY-heroMesh.position.y)*.7),.1);if(heroMesh.position.y<heroBaseY-7)showFall();}
+ else camDip=lerp(camDip,0,.08);
+ // hero billboard + react
+ heroMesh.quaternion.copy(camera.quaternion);
+ if(reactType){reactT+=dt;if(reactType==='happy'){const s=1+Math.sin(reactT*14)*.08;heroMesh.scale.set(s,s,s);if(reactT>.9){reactType='';heroMesh.scale.set(1,1,1);}}else if(reactType==='surprised'){heroMesh.position.x+=Math.sin(reactT*40)*.05;if(reactT>.6)reactType='';}}
+ heroShadow.position.set(heroMesh.position.x,heroBaseY+.32,heroMesh.position.z);
+ // tiles anim
+ for(const [i,t] of tileMap){if(t.state==='question'&&t.sym){const s=1+Math.sin(time*3+t.pulse)*.12;t.sym.scale.set(s,s,1);t.mat.emissiveIntensity=.3+Math.sin(time*3+t.pulse)*.15;}if(t.shake>0){t.shake-=dt;t.g.position.x=t.base.x+Math.sin(t.shake*40)*.12;t.g.position.y=t.base.y+Math.abs(Math.sin(t.shake*30))*.08;if(t.shake<=0){t.g.position.copy(t.base);}}}
+ // anims
+ for(let i=anims.length-1;i>=0;i--){const a=anims[i];a.t+=dt;if(a.fn(dt,a)||a.t>=a.dur)anims.splice(i,1);}
+ // particles
+ for(let i=particles.length-1;i>=0;i--){const p=particles[i],u=p.userData;u.age+=dt;u.vel.y-=u.grav*dt;p.position.addScaledVector(u.vel,dt);if(u.spin)p.rotation.z+=dt*4;const f=1-u.age/u.life;if(f<=0){scene.remove(p);particles.splice(i,1);}else p.material.opacity=f;}
+ // clouds
+ clouds.forEach(c=>{c.position.x+=c.userData.vx*dt*4;if(c.position.z>camera.position.z+30)c.position.z-=240;});
+ // timer
+ if(mode==='question'&&!qLocked&&qTimeMax>0&&qTimeLeft>0){qTimeLeft-=dt;$('qTimerFill').style.width=Math.max(0,qTimeLeft/qTimeMax*100)+'%';if(qTimeLeft<=0){toast('⏰ انتهى الوقت!');handleAnswer(false,null);}}
+ // camera
+ const target=new THREE.Vector3(heroMesh.position.x+2.6,heroMesh.position.y+3.1-camDip*.4,heroMesh.position.z+6.8);
+ camera.position.lerp(target,.07);if(shakeAmt>0){shakeAmt=Math.max(0,shakeAmt-dt*1.5);camera.position.x+=(Math.random()-.5)*shakeAmt*.5;camera.position.y+=(Math.random()-.5)*shakeAmt*.5;}
+ camera.lookAt(heroMesh.position.x*.6,heroMesh.position.y+1.1-camDip,heroMesh.position.z-7);
+ window._sky.position.copy(camera.position);starsPts.position.copy(camera.position);sunSpr.position.set(camera.position.x-60,camera.position.y+70,camera.position.z-160);
+ if(bossSpr&&bossSpr.visible)bossSpr.position.y+=Math.sin(time*2)*.004;
+ renderer.render(scene,camera);
+}
+
+
+/* ================= UI wiring ================= */
+$('btnStart').onclick=()=>{sfx.click();enterLevel(save.current||1);};
+$('btnLevels').onclick=()=>{sfx.click();buildLevelGrid();$('levelSheet').classList.remove('hidden');};
+$('closeLevels').onclick=()=>$('levelSheet').classList.add('hidden');
+$('menuBtn').onclick=()=>{sfx.click();mode='menu';$('startScreen').classList.remove('hidden');$('hud').classList.add('hidden');$('powers').classList.add('hidden');$('bossWrap').classList.add('hidden');};
+$('soundBtn').onclick=()=>{save.sound=!save.sound;persist();$('soundBtn').textContent=save.sound?'🔊':'🔇';if(save.sound){initAudio();startBGM();}else stopBGM();};
+function buildLevelGrid(){const g=$('lvGrid');g.innerHTML='';const max=Math.max(TOTAL,save.unlocked);for(let L=1;L<=max;L++){const d=document.createElement('div');d.className='lvCell'+(L%10===0?' boss':'')+(L>save.unlocked?' lock':'');d.innerHTML=(L>save.unlocked?'🔒':L)+(save.stars[L]?'<span class="st">'+'⭐'.repeat(save.stars[L])+'</span>':'');if(L<=save.unlocked)d.onclick=()=>{sfx.click();$('levelSheet').classList.add('hidden');enterLevel(L);};g.appendChild(d);}}
+
+
+/* ================= BOOT ================= */
+Promise.all([loadImg(CHAR_URL),loadImg(BOSS_URL)]).then(([ci,bi])=>{charCanvas=keyCanvas(ci);bossCanvas=keyCanvas(bi);$('charImg').src=charCanvas.toDataURL();boot();}).catch(()=>{charCanvas=fallbackChar();bossCanvas=fallbackChar();$('charImg').src=charCanvas.toDataURL();boot();});
+function boot(){$('soundBtn').textContent=save.sound?'🔊':'🔇';initScene();updateHUD();tick();}
+</script>
+</body>
+</html>

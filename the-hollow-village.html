@@ -121,11 +121,12 @@ body.touch #touchUI.on{display:block}
 #btnCrouch{right:32px;bottom:122px;width:52px;height:52px;font-size:11px}
 #btnSprint{right:112px;bottom:112px;width:52px;height:52px;font-size:11px}
 #btnPauseT{left:14px;top:14px;width:46px;height:46px;font-size:15px}
-#hintRotate{position:fixed;inset:0;z-index:99;background:#080604;display:none;flex-direction:column;
-  align-items:center;justify-content:center;gap:18px;text-align:center;padding:20px}
-#hintRotate .rr{font-size:44px;animation:spinHint 2.4s ease-in-out infinite;display:inline-block}
-@keyframes spinHint{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(90deg)}}
-@media (orientation:portrait) and (pointer:coarse){ #hintRotate{display:flex} }
+/* القرية تُرى بالعرض، فنُدير المسرح تلقائيًا بدل أن نطلب إدارة الجهاز */
+@media (orientation:portrait) and (pointer:coarse){
+  html{overflow:hidden}
+  body{position:fixed;top:0;left:0;width:100vh;height:100vw;
+       transform-origin:0 0;transform:rotate(90deg) translateY(-100%)}
+}
 
 /* ---------- التحميل ---------- */
 #loading{position:fixed;inset:0;background:#080604;z-index:70;display:flex;flex-direction:column;
@@ -155,7 +156,6 @@ body.touch #touchUI.on{display:block}
 @keyframes epi{to{opacity:1}}
 @media (max-height:420px){ #objBox{max-width:230px} .panel{padding:18px 22px} }
 </style>
-<script src="public/js/palm-games-fab.js" defer></script>
 </head>
 <body>
 <div id="stage"></div>
@@ -262,8 +262,6 @@ body.touch #touchUI.on{display:block}
 <div class="fx" id="fadeWhite"></div>
 <div class="fx" id="fade"></div>
 
-<div id="hintRotate"><span class="rr">⟳</span><div style="font-size:15px">القرية تُرى بالعرض.<br>أدر جهازك من فضلك.</div></div>
-
 <div id="loading">
   <div id="loadTitle">القرية الخاوية</div>
   <div id="loadBarW"><div id="loadBar"></div></div>
@@ -326,7 +324,15 @@ if(IS_TOUCH) document.body.classList.add('touch');
 /* ================= [2] إعداد الرندر ================= */
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_TOUCH?1.5:2));
-renderer.setSize(innerWidth,innerHeight);
+/* مقاس المسرح وإحداثياته بعد الإدارة التلقائية */
+const ROT=()=>innerHeight>innerWidth&&matchMedia('(pointer:coarse)').matches;
+const SW=()=>ROT()?innerHeight:innerWidth;
+const SH=()=>ROT()?innerWidth:innerHeight;
+const PX=(x,y)=>ROT()?y:x;
+const PY=(x,y)=>ROT()?innerWidth-x:y;
+const TX=t=>PX(t.clientX,t.clientY);
+const TY=t=>PY(t.clientX,t.clientY);
+renderer.setSize(SW(),SH());
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
@@ -338,7 +344,7 @@ const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x070503);
 scene.fog=new THREE.FogExp2(0x070503, 0.07); // ضباب قرى الليل — أضيق قليلًا للرهبة
 
-const camera=new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 70);
+const camera=new THREE.PerspectiveCamera(68, SW()/SH(), 0.1, 70);
 camera.rotation.order='YXZ';
 scene.add(camera);
 
@@ -358,8 +364,10 @@ camera.add(flash); camera.add(flashTarget); flash.target=flashTarget;
 const bulbs=[[-0,2.6,13,'#ffb268'],[13,2.4,11,'#ffbd7a'],[0,2.7,2,'#ffa85e']].map(b=>{
   const l=new THREE.PointLight(new THREE.Color(b[3]),0,9,1.6); l.position.set(b[0],b[1],b[2]); scene.add(l); return l;});
 
-addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight); });
+function fitStage(){ camera.aspect=SW()/SH(); camera.updateProjectionMatrix();
+  renderer.setSize(SW(),SH()); }
+addEventListener('resize',fitStage);
+addEventListener('orientationchange',()=>setTimeout(fitStage,140));
 
 /* موارد مشتركة — يُعاد استخدامها في كل شيء */
 const GEO={ box:new THREE.BoxGeometry(1,1,1), sph:new THREE.SphereGeometry(0.5,10,8),
@@ -933,16 +941,17 @@ function setThumb(dx,dy){ el.joyThumb.style.left=(40+dx)+'px'; el.joyThumb.style
 function onTouch(ev){ ev.preventDefault();
   for(const t of ev.changedTouches){
     if(ev.type==='touchstart'){
-      if(t.clientX<innerWidth*0.45&&t.clientY>innerHeight*0.35&&joy.id===null){ joy.id=t.identifier; }
-      else if(look.id===null){ look.id=t.identifier; look.x=t.clientX; look.y=t.clientY; } }
+      if(TX(t)<SW()*0.45&&TY(t)>SH()*0.35&&joy.id===null){ joy.id=t.identifier; }
+      else if(look.id===null){ look.id=t.identifier; look.x=TX(t); look.y=TY(t); } }
     else if(ev.type==='touchmove'){
       if(t.identifier===joy.id){ const r=el.joyBase.getBoundingClientRect();
-        const cx=r.left+r.width/2, cy=r.top+r.height/2, R=r.width/2;
-        let dx=t.clientX-cx, dy=t.clientY-cy; const m=Math.hypot(dx,dy), mx=R-16;
+        const rcx=r.left+r.width/2, rcy=r.top+r.height/2, R=r.width/2;
+        const cx=PX(rcx,rcy), cy=PY(rcx,rcy);
+        let dx=TX(t)-cx, dy=TY(t)-cy; const m=Math.hypot(dx,dy), mx=R-16;
         if(m>mx){ dx*=mx/m; dy*=mx/m; } joy.dx=dx/mx; joy.dy=dy/mx; setThumb(dx,dy); }
       else if(t.identifier===look.id&&!P.hidden){
-        lookBy((t.clientX-look.x)*0.0042*CFG.sens,(t.clientY-look.y)*0.0042*CFG.sens);
-        look.x=t.clientX; look.y=t.clientY; } }
+        lookBy((TX(t)-look.x)*0.0042*CFG.sens,(TY(t)-look.y)*0.0042*CFG.sens);
+        look.x=TX(t); look.y=TY(t); } }
     else { if(t.identifier===joy.id){ joy.id=null; joy.dx=joy.dy=0; setThumb(0,0); }
       if(t.identifier===look.id) look.id=null; } } }
 addEventListener('touchstart',onTouch,{passive:false});
@@ -1185,7 +1194,7 @@ const TIERS={ low:{pr:1,sh:0,dust:110,fog:0.082}, med:{pr:1.5,sh:512,dust:210,fo
   high:{pr:2,sh:1024,dust:320,fog:0.06} };
 function applyQuality(t){ const q=TIERS[t]; CFG.quality=t; saveCfg();
   const pr=Math.min(window.devicePixelRatio, IS_TOUCH?Math.min(q.pr,1.5):q.pr);
-  renderer.setPixelRatio(Math.max(0.75,pr-G.autoTier*0.25)); renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(Math.max(0.75,pr-G.autoTier*0.25)); renderer.setSize(SW(),SH());
   const sh=Math.max(0,q.sh-G.autoTier*256);
   flash.castShadow=sh>0;
   if(sh>0){ flash.shadow.mapSize.set(sh,sh); if(flash.shadow.map){flash.shadow.map.dispose();flash.shadow.map=null;} }

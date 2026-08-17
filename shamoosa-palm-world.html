@@ -1348,7 +1348,8 @@ function buildYara(){
   }
 
   var halo=glowSprite(1.9,0.22); halo.position.y=1.0; g.add(halo);
-  g.userData={body:body,headG:headG,face:null,armPivots:armPivots,legPivots:legPivots};
+  g.userData={body:body,headG:headG,face:null,armPivots:armPivots,legPivots:legPivots,
+               raysG:raysG,eyeL:eyeL,eyeR:eyeR};
   /* «wow» تُوسّع العينين وتُشعل الأشعة لحظةً بدل تبديل وجه مرسوم */
   g.userData.setMood=function(m){
     var k=(m==='wow')?1.2:1;
@@ -1721,6 +1722,83 @@ if(matchMedia('(pointer:coarse)').matches) document.body.classList.add('touch');
 
 var P={vy:0,onGround:true,camYaw:0,camPitch:0.34,camDist:10.5};
 
+/* ===== منحنيات الحركة الأصلية لشخصية يارا ===== */
+var TAU=Math.PI*2;
+var YKEYS=['rootY','torsoRX','torsoRY','torsoRZ','headRX','headRY','headRZ',
+           'raysRZ','raysS','legL','legR','coatL','coatR','blink'];
+function osc(t,T,h,ph){ return Math.sin(TAU*(h||1)*t/T+(ph||0)); }
+function blinkFn(t,T){
+  var w=0.09,c=T*0.5;
+  var d=Math.abs(((t-c)%T+T)%T); d=Math.min(d,T-d);
+  if(d<w){ var k=Math.cos(d/w*Math.PI/2); return 1-0.92*k*k; }
+  return 1;
+}
+var YMODES={ idle:4, walk:1.1, run:0.7, jump:1.6, dance:1.6 };
+function computePose(mode,t){
+  var d={},k; for(k=0;k<YKEYS.length;k++) d[YKEYS[k]]=0;
+  d.raysS=1; d.blink=1;
+  var T=YMODES[mode]||4;
+  if(mode==='idle'){
+    d.rootY=0.02*osc(t,T,2);
+    d.torsoRX=0.02*osc(t,T,2,1); d.torsoRZ=0.03*osc(t,T,1); d.torsoRY=0.05*osc(t,T,1);
+    d.headRY=0.22*osc(t,T,1,2); d.headRZ=0.06*osc(t,T,2); d.headRX=0.05*osc(t,T,1);
+    d.raysRZ=0.12*osc(t,T,1); d.raysS=1+0.03*osc(t,T,2);
+    d.legL=0.05*osc(t,T,1); d.legR=-0.05*osc(t,T,1);
+    d.coatL=0.05*osc(t,T,1,1); d.coatR=0.05*osc(t,T,1,2);
+    d.blink=blinkFn(t,T);
+  }else if(mode==='walk'){
+    d.legL=0.55*osc(t,T,1); d.legR=0.55*osc(t,T,1,Math.PI);
+    d.rootY=0.05*Math.abs(Math.cos(TAU*t/T));
+    d.torsoRX=0.1; d.torsoRY=0.08*osc(t,T,1); d.torsoRZ=0.04*osc(t,T,2);
+    d.headRZ=0.05*osc(t,T,1,Math.PI); d.headRY=0.06;
+    d.raysRZ=0.06*osc(t,T,1,Math.PI);
+    d.coatL=0.12*osc(t,T,1,Math.PI/2); d.coatR=0.12*osc(t,T,1,Math.PI*1.5);
+  }else if(mode==='run'){
+    d.legL=0.9*osc(t,T,1); d.legR=0.9*osc(t,T,1,Math.PI);
+    d.rootY=0.1*Math.abs(Math.cos(TAU*t/T));
+    d.torsoRX=0.22; d.headRX=-0.08;
+    d.raysRZ=0.1*osc(t,T,1);
+    d.coatL=-0.35+0.1*osc(t,T,1); d.coatR=-0.35+0.1*osc(t,T,1,Math.PI);
+    d.headRZ=0.04*osc(t,T,2);
+  }else if(mode==='jump'){
+    var ph=t/T, y=0,tuck=0,flap=0,lean=0,c;
+    if(ph<0.18){ c=Math.sin(ph/0.18*Math.PI); y=-0.1*c; lean=0.12*c; tuck=0.25*c; }
+    else if(ph<0.62){ var m=Math.sin((ph-0.18)/0.44*Math.PI); y=0.55*m; tuck=0.8*m; flap=-0.5*m; lean=0.1*m; }
+    else if(ph<0.82){ c=Math.sin((ph-0.62)/0.2*Math.PI); y=-0.12*c; lean=0.15*c; tuck=0.3*c; }
+    d.rootY=y; d.legL=tuck; d.legR=tuck; d.coatL=flap; d.coatR=flap;
+    d.torsoRX=lean; d.headRX=-0.08*Math.max(0,y);
+    d.raysS=1+0.12*Math.max(0,y/0.55);
+  }else if(mode==='dance'){
+    d.rootY=0.07*Math.abs(Math.sin(TAU*t/T));
+    d.torsoRY=0.35*osc(t,T,1); d.torsoRZ=0.12*osc(t,T,2);
+    d.headRZ=0.2*osc(t,T,2,Math.PI/2); d.headRY=0.2*osc(t,T,1);
+    d.legL=0.15*osc(t,T,2); d.legR=0.15*osc(t,T,2,Math.PI);
+    d.raysRZ=0.15*osc(t,T,2); d.raysS=1+0.06*osc(t,T,4);
+    d.coatL=0.15*osc(t,T,2,Math.PI/2); d.coatR=0.15*osc(t,T,2,Math.PI*1.5);
+    d.blink=blinkFn(t,T);
+  }
+  return d;
+}
+function lerpPose(a,b,u){
+  var r={},k;
+  for(k=0;k<YKEYS.length;k++){ var K=YKEYS[k]; r[K]=a[K]+(b[K]-a[K])*u; }
+  return r;
+}
+/* الجذع والرأس يعلوان مع rootY، والكمّان يأخذان حركة أطراف المعطف */
+function applyYaraPose(A,d){
+  A.body.position.y=0.84+d.rootY;
+  A.body.rotation.set(d.torsoRX,d.torsoRY,d.torsoRZ);
+  A.headG.position.y=1.88+d.rootY;
+  A.headG.rotation.set(d.headRX,d.headRY,d.headRZ);
+  if(A.raysG){ A.raysG.rotation.z=d.raysRZ; A.raysG.scale.setScalar(d.raysS); }
+  A.legPivots[0].piv.rotation.x=d.legL;
+  A.legPivots[1].piv.rotation.x=d.legR;
+  A.armPivots[0].piv.rotation.x=d.coatL-d.legL*0.55;
+  A.armPivots[1].piv.rotation.x=d.coatR-d.legR*0.55;
+  if(A.eyeL){ A.eyeL.scale.y=d.blink; A.eyeR.scale.y=d.blink; }
+}
+var YM={ mode:'idle', mt:0, blend:1, prev:null, moveT:0, stillT:0 };
+
 updates.push(function(t,dt){
   if(!G.playing) return;
   var A=shamoosa.userData,i;
@@ -1752,21 +1830,19 @@ updates.push(function(t,dt){
   P.vy-=17*dt; shamoosa.position.y+=P.vy*dt;
   if(shamoosa.position.y<=gy+0.05){ shamoosa.position.y=gy+0.05; P.vy=0; P.onGround=true; }
 
-  /* المشية */
-  var step=Math.sin(t*10);
-  if(moving&&P.onGround){
-    A.body.position.y=0.84+Math.abs(step)*0.08;
-    A.headG.position.y=1.88+Math.abs(step)*0.06;
-    A.headG.rotation.z=step*0.05;
-    for(i=0;i<2;i++) A.armPivots[i].piv.rotation.x=step*A.armPivots[i].side*0.8;
-    for(i=0;i<2;i++) A.legPivots[i].piv.rotation.x=-step*A.legPivots[i].side*0.7;
-  }else{
-    A.body.position.y=lerp(A.body.position.y,0.84+Math.sin(t*1.6)*0.012,0.2);
-    A.headG.position.y=lerp(A.headG.position.y,1.88+Math.sin(t*1.6)*0.016,0.2);
-    A.headG.rotation.z=lerp(A.headG.rotation.z,Math.sin(t*0.8)*0.04,0.1);
-    for(i=0;i<2;i++) A.armPivots[i].piv.rotation.x=lerp(A.armPivots[i].piv.rotation.x,Math.sin(t*1.6)*0.06,0.14);
-    for(i=0;i<2;i++) A.legPivots[i].piv.rotation.x=lerp(A.legPivots[i].piv.rotation.x,0,0.16);
-  }
+  /* الحركة: وقوف · مشي · ركض · قفز · رقص — بنفس منحنيات الشخصية الأصلية */
+  YM.moveT = moving ? YM.moveT+dt : 0;
+  YM.stillT = moving ? 0 : YM.stillT+dt;
+  var want;
+  if(!P.onGround)            want='jump';
+  else if(moving)            want = (YM.moveT>1.4 || keys.ShiftLeft || keys.ShiftRight) ? 'run' : 'walk';
+  else if(YM.stillT>6)       want='dance';
+  else                       want='idle';
+  if(want!==YM.mode){ YM.prev=computePose(YM.mode,YM.mt); YM.mode=want; YM.mt=0; YM.blend=0; }
+  YM.mt+=dt; YM.blend=Math.min(1,YM.blend+dt/0.18);
+  var pose=computePose(YM.mode,YM.mt);
+  if(YM.blend<1 && YM.prev) pose=lerpPose(YM.prev,pose,YM.blend);
+  applyYaraPose(A,pose);
 
   /* الكاميرا تتبع يارا */
   var ch=Math.cos(P.camPitch)*P.camDist;

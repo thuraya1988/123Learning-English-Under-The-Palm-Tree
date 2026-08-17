@@ -20,20 +20,16 @@
   #tSuper{right:150px;bottom:150px;width:54px;height:54px;font-size:11px;}
   #tPause{right:16px;top:14px;width:40px;height:40px;font-size:16px;}
   #tStart{left:50%;bottom:22px;transform:translateX(-50%);width:150px;height:42px;border-radius:21px;font-size:14px;}
-  #rotateHint{position:fixed;inset:0;background:#0d0906;color:#f3e2c2;z-index:50;
-    display:none;flex-direction:column;align-items:center;justify-content:center;
-    font:700 17px Arial,sans-serif;text-align:center;padding:24px;gap:10px;}
-  #rotateHint .icon{font-size:44px;animation:rot 1.6s ease-in-out infinite;}
-  @keyframes rot{0%,100%{transform:rotate(0deg)}50%{transform:rotate(90deg)}}
-  @media (orientation:portrait){
-    body.touch #rotateHint{display:flex;}
-    body.touch #touchUI,body.touch canvas{visibility:hidden;}
+  /* اللعبة تُعرض بالعرض، فنُدير المسرح تلقائيًا بدل أن نطلب إدارة الجهاز */
+  @media (orientation:portrait) and (pointer:coarse){
+    html{overflow:hidden}
+    body{position:fixed;top:0;left:0;width:100vh;height:100vw;
+         transform-origin:0 0;transform:rotate(90deg) translateY(-100%)}
   }
 </style>
 </head>
 <body>
 <canvas id="screen"></canvas>
-<div id="rotateHint"><div class="icon">⟳</div>Turn your phone sideways<br>to play Palm O' Chaos</div>
 <div id="touchUI">
   <div id="tLeft" class="tbtn">◀</div>
   <div id="tRight" class="tbtn">▶</div>
@@ -90,8 +86,14 @@ const dc=cv.getContext('2d');
 const game=document.createElement('canvas'); game.width=VW; game.height=VH;
 const g=game.getContext('2d');
 let dpr=1;
-function resize(){ dpr=Math.min(window.devicePixelRatio||1,2); cv.width=innerWidth*dpr; cv.height=innerHeight*dpr; }
-addEventListener('resize',resize); resize();
+/* مقاس المسرح بعد الإدارة التلقائية */
+const ROT=()=>innerHeight>innerWidth&&matchMedia('(pointer:coarse)').matches;
+const SW=()=>ROT()?innerHeight:innerWidth;
+const SH=()=>ROT()?innerWidth:innerHeight;
+function resize(){ dpr=Math.min(window.devicePixelRatio||1,2); cv.width=SW()*dpr; cv.height=SH()*dpr; }
+addEventListener('resize',resize);
+addEventListener('orientationchange',()=>setTimeout(resize,140));
+resize();
 
 /* warm vintage palette */
 const INK='#241a12', CREAM='#f3e2c2', PAPER='#e9d3a8', RED='#c0492f',
@@ -1400,7 +1402,7 @@ function updateFilm(dt,t){
   dustMotes=dustMotes.filter(m=>m.y<VH+10);
   bandY+=dt*90; if(bandY>VH+160)bandY=-160-rand(500); }
 function present(t){
-  const w=innerWidth,h=innerHeight;
+  const w=SW(),h=SH();
   dc.setTransform(dpr,0,0,dpr,0,0);
   dc.fillStyle='#0b0805'; dc.fillRect(0,0,w,h);
   const sc=Math.min(w/VW,h/VH),dw=VW*sc,dh=VH*sc,dx=(w-dw)/2,dy=(h-dh)/2;

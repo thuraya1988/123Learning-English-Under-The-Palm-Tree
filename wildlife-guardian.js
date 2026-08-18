@@ -1594,6 +1594,66 @@ addEventListener('keydown', e=>{
   }
 });
 addEventListener('keyup', e=>keys[e.code] = false);
+
+/* ===== لوحة لمس للجوّال — اللعبة كانت بلوحة المفاتيح فقط =====
+   الأزرار تكتب في نفس خريطة keys، فلا يتغيّر منطق اللعبة. */
+(function touchPad(){
+  const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (!IS_TOUCH) return;
+
+  const css = document.createElement('style');
+  css.textContent =
+    '#wgPad{position:fixed;inset:0;z-index:40;pointer-events:none;' +
+      'font-family:system-ui,sans-serif;-webkit-tap-highlight-color:transparent}' +
+    '#wgPad .b{position:absolute;pointer-events:auto;display:flex;align-items:center;' +
+      'justify-content:center;border-radius:50%;background:rgba(12,20,14,.5);' +
+      'border:1px solid rgba(180,220,180,.45);color:#dff0d8;font-size:20px;' +
+      'backdrop-filter:blur(4px);user-select:none;touch-action:none}' +
+    '#wgPad .b:active{background:rgba(120,200,130,.55)}' +
+    '#wgPad .b.wide{border-radius:24px;width:auto;padding:0 14px;font-size:13px;' +
+      'letter-spacing:.06em;height:44px}' +
+    '#wgFwd{left:74px;bottom:150px;width:58px;height:58px}' +
+    '#wgBack{left:74px;bottom:26px;width:58px;height:58px}' +
+    '#wgLeft{left:12px;bottom:88px;width:58px;height:58px}' +
+    '#wgRight{left:136px;bottom:88px;width:58px;height:58px}' +
+    '#wgSpray{right:18px;bottom:96px;width:74px;height:74px;font-size:28px}' +
+    '#wgScan{right:104px;bottom:34px}' +
+    '#wgGrab{right:18px;bottom:34px}' +
+    '@media(min-width:900px){#wgPad{display:none}}';
+  document.head.appendChild(css);
+
+  const pad = document.createElement('div');
+  pad.id = 'wgPad';
+  pad.innerHTML =
+    '<div class="b" id="wgFwd">▲</div><div class="b" id="wgBack">▼</div>' +
+    '<div class="b" id="wgLeft">◀</div><div class="b" id="wgRight">▶</div>' +
+    '<div class="b" id="wgSpray">💧</div>' +
+    '<div class="b wide" id="wgScan">SCAN</div>' +
+    '<div class="b wide" id="wgGrab">GRAB</div>';
+  document.body.appendChild(pad);
+
+  const held = [];
+  function hold(id, code){
+    const el = pad.querySelector('#' + id); if (!el) return;
+    const on  = e => { e.preventDefault(); keys[code] = true;  };
+    const off = e => { if (e) e.preventDefault(); keys[code] = false; };
+    el.addEventListener('pointerdown', on);
+    ['pointerup','pointerleave','pointercancel'].forEach(ev => el.addEventListener(ev, off));
+    held.push(() => { keys[code] = false; });
+  }
+  function tap(id, fn){
+    const el = pad.querySelector('#' + id); if (!el) return;
+    el.addEventListener('pointerdown', e => { e.preventDefault(); fn(); });
+  }
+  hold('wgFwd','KeyW'); hold('wgBack','KeyS');
+  hold('wgLeft','KeyA'); hold('wgRight','KeyD');
+  hold('wgSpray','Space');
+  tap('wgScan', () => doScan());
+  tap('wgGrab', () => armGrab());
+  /* شبكة أمان: أيّ إفلات أو خروج يُطفئ كلّ الأزرار */
+  ['pointerup','pointercancel','blur'].forEach(ev =>
+    addEventListener(ev, () => held.forEach(f => f())));
+})();
 renderer.domElement.addEventListener('mousedown', e=>{
   if (e.button === 2){ rmbDown = true; }
   if (e.button === 0){ lmbDown = true; clickScan(e); }

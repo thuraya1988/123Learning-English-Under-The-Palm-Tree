@@ -1423,8 +1423,17 @@ addEventListener('keyup',e=>{
  if(e.code==='KeyA')input.left=false;
  if(e.code==='KeyD')input.right=false;});
 addEventListener('wheel',e=>{if(P.started&&!uiLock&&!cineLock)moveMeters(e.deltaY*.02);},{passive:true});
-function holdBtn(el,fn){el.addEventListener('pointerdown',e=>{e.preventDefault();fn(true);});
- el.addEventListener('pointerup',()=>fn(false));el.addEventListener('pointerleave',()=>fn(false));}
+/* الإفلات يُلتقط أيضًا عند pointercancel — وإلّا بقي المشي شغّالًا بعد رفع
+   الإصبع إذا ألغى المتصفّح اللمسة، فتقطع مسافة كبيرة من ضغطة واحدة.
+   وشبكة أمان على مستوى النافذة توقف كلّ ما هو مضغوط. */
+const heldBtns=[];
+function holdBtn(el,fn){
+ heldBtns.push(fn);
+ el.addEventListener('pointerdown',e=>{e.preventDefault();fn(true);});
+ ['pointerup','pointerleave','pointercancel'].forEach(ev=>el.addEventListener(ev,()=>fn(false)));}
+['pointerup','pointercancel','blur'].forEach(ev=>
+ addEventListener(ev,()=>heldBtns.forEach(f=>f(false))));
+addEventListener('visibilitychange',()=>{if(document.hidden)heldBtns.forEach(f=>f(false));});
 holdBtn($('btnWalk'),v=>input.fwd=v);
 holdBtn($('btnLeft'),v=>input.left=v);
 holdBtn($('btnRight'),v=>input.right=v);

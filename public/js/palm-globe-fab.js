@@ -56,7 +56,8 @@
       '.palm-globe-fab:hover{transform:translateY(-3px) scale(1.06);}' +
       // Big shaded sphere with the earth texture panning around it.
       '.pgf-earth{width:56px;height:56px;border-radius:50%;flex-shrink:0;' +
-      'background:#1c4e8a url(https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg) repeat-x;' +
+      // النسخة المحليّة: نفس الصورة موجودة في المستودع، فلا نعتمد على مستودع خارجيّ
+      'background:#1c4e8a url(public/textures/globe/earth_atmos_2048.jpg) repeat-x;' +
       'background-size:auto 100%;' +
       'animation:pgfRotate 18s linear infinite,pgfGlow 3.2s ease-in-out infinite;}' +
       '@keyframes pgfRotate{from{background-position-x:0}to{background-position-x:-112px}}' +

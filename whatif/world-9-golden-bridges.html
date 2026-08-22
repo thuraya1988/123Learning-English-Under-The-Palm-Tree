@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مدينة الجسور الذهبية — مشهد تفاعلي</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.2.6/arabic-400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.2.6/arabic-700.css">
+<style>
+  :root{ --ink:#17181c; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; overflow:hidden; }
+  body{ background:#000; font-family:'Cairo',sans-serif; }
+  #stage{ position:relative; width:100%; height:100vh; display:flex; align-items:center; justify-content:center; }
+  #scene{ height:100vh; max-width:100vw; display:block; box-shadow:0 0 90px rgba(0,0,0,.9); }
+
+  header{ position:fixed; top:14px; right:14px; z-index:6; display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+  header h1{ font-size:15px; font-weight:700; color:#e8c06a; background:rgba(10,10,12,.85); border:2px solid #e8c06a; border-radius:30px; padding:6px 16px; }
+  header button{ font-family:'Cairo',sans-serif; font-size:13px; font-weight:700; color:#e8c06a; background:rgba(10,10,12,.85); border:2px solid #e8c06a; border-radius:30px; padding:6px 14px; cursor:pointer; transition:transform .2s, background .3s; }
+  header button:hover{ transform:translateY(-3px); background:#1c1d22; }
+  header button:active{ transform:scale(.94); }
+
+  #hint{ position:fixed; bottom:12px; right:50%; transform:translateX(50%); z-index:6; background:rgba(232,192,106,.92); color:#17181c; font-size:12.5px; padding:8px 20px; border-radius:30px; white-space:nowrap; max-width:94vw; overflow:hidden; text-overflow:ellipsis; }
+  #tip{ position:fixed; z-index:9; pointer-events:none; background:#e8c06a; color:#17181c; font-size:13px; font-weight:700; padding:4px 14px; border-radius:20px; opacity:0; transition:opacity .2s; transform:translate(-50%,-150%); }
+
+  .star{ animation:tw 3s ease-in-out infinite alternate; }
+  @keyframes tw{ from{ opacity:.15; } to{ opacity:1; } }
+  .moon{ cursor:pointer; transform-box:fill-box; transform-origin:center; }
+  .mist{ transition:opacity 1s; }
+
+  .layer{ will-change:transform; }
+  .tower{ transform-box:fill-box; transition:transform .6s cubic-bezier(.2,.8,.2,1), filter .4s; cursor:pointer; }
+  .tower:hover{ transform:translateY(-8px); filter:brightness(1.12); }
+
+  .win{ cursor:pointer; }
+  .win .main{ transition:fill .3s; }
+  .win .halo{ fill:#ffcf6e; opacity:0; transition:opacity .4s; pointer-events:none; }
+  .win.lit .main{ fill:#f0a832 !important; }
+  .win.lit .halo{ opacity:.55; }
+
+  .refl{ animation:shim 3.4s ease-in-out infinite alternate; }
+  @keyframes shim{ from{ opacity:.25; } to{ opacity:.6; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="scene" viewBox="0 0 1000 1800" preserveAspectRatio="xMidYMid meet" aria-label="لوحة مدينة الجسور التفاعلية">
+    <defs>
+      <filter id="blurG" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="8"/></filter>
+      <filter id="blurM" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="22"/></filter>
+      <filter id="glowF" x="-120%" y="-120%" width="340%" height="340%">
+        <feGaussianBlur stdDeviation="10" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 0.05 0"/></filter>
+    </defs>
+    <rect x="0" y="0" width="1000" height="1800" fill="#0a0a0c"></rect>
+    <g id="starsG"></g>
+    <g id="moonsG"></g>
+    <g id="mistG" class="mist"></g>
+    <g id="layerBack" class="layer" data-depth="5"></g>
+    <g id="layerFront" class="layer" data-depth="12"></g>
+    <rect x="0" y="0" width="1000" height="1800" filter="url(#paper)" opacity=".5" pointer-events="none"></rect>
+    <g id="fxG" pointer-events="none"></g>
+  </svg>
+
+  <header>
+    <h1>🌙 مدينة الجسور الذهبية</h1>
+    <button id="shootBtn">🌠 شهب</button>
+    <button id="mistBtn">🌫️ إخفاء الضباب</button>
+    <button id="lightBtn">💡 إضاءة الكل</button>
+    <button id="resetBtn">🔄 إعادة</button>
+  </header>
+  <div id="hint">مرّر المؤشر لتحريك الطبقات • انقر النوافذ لتضيئها • انقر الأقمار • انقر السماء للشهب</div>
+  <div id="tip"></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var NS='http://www.w3.org/2000/svg', INK='#17181c', AMBER='#f0a832';
+  var seed=71;
+  function rnd(){ seed=(seed*9301+49297)%233280; return seed/233280; }
+  function rr(a,b){ return a+rnd()*(b-a); }
+  function el(t,a,p){ var n=document.createElementNS(NS,t); for(var k in a) n.setAttribute(k,a[k]); if(p) p.appendChild(n); return n; }
+
+  var svg=document.getElementById('scene');
+  var starsG=document.getElementById('starsG'), moonsG=document.getElementById('moonsG'), mistG=document.getElementById('mistG');
+  var layerBack=document.getElementById('layerBack'), layerFront=document.getElementById('layerFront');
+  var fxG=document.getElementById('fxG'), tip=document.getElementById('tip');
+  var clipN=0, defs=svg.querySelector('defs');
+
+  for(var s=0;s<120;s++){
+    el('circle',{cx:rr(4,996).toFixed(1),cy:rr(4,560).toFixed(1),r:rr(1,3).toFixed(1),fill:'#f2eeda','class':'star',style:'animation-delay:'+rr(0,3).toFixed(1)+'s'},starsG);
+  }
+  function spiralD(cx,cy,rmax,turns){
+    var d='M '+cx+' '+cy, tot=turns*Math.PI*2;
+    for(var a=0;a<=tot;a+=0.18){ var r=rmax*a/tot; d+=' L '+(cx+Math.cos(a)*r).toFixed(1)+' '+(cy+Math.sin(a)*r).toFixed(1); }
+    return d;
+  }
+  function sparklePts(cx,cy,r){
+    var pts=[];
+    for(var i=0;i<8;i++){ var rad=i%2===0?r:r*0.3, a=Math.PI*i/4-Math.PI/2;
+      pts.push((cx+Math.cos(a)*rad).toFixed(1)+','+(cy+Math.sin(a)*rad).toFixed(1)); }
+    return pts.join(' ');
+  }
+  /* الأقمار */
+  function crescent(cx,cy,r,rot){
+    var g=el('g',{'class':'moon'},moonsG);
+    el('path',{d:'M '+cx+' '+(cy-r)+' A '+r+' '+r+' 0 1 0 '+cx+' '+(cy+r)+' A '+(r*1.35)+' '+(r*1.35)+' 0 1 1 '+cx+' '+(cy-r)+' Z',fill:'#e8c06a',transform:'rotate('+rot+' '+cx+' '+cy+')',filter:'url(#glowF)'},g);
+    g.addEventListener('click',function(ev){ ev.stopPropagation(); g.animate([{transform:'scale(1)'},{transform:'scale(1.18)'},{transform:'scale(1)'}],{duration:800,easing:'ease-in-out'}); });
+    return g;
+  }
+  crescent(612,168,48,-18);
+  crescent(455,222,34,-14);
+  var fullM=el('g',{'class':'moon'},moonsG);
+  el('circle',{cx:730,cy:320,r:92,fill:'#e8c06a',filter:'url(#glowF)'},fullM);
+  el('circle',{cx:705,cy:295,r:12,fill:'#d9b054',opacity:.6},fullM);
+  el('circle',{cx:760,cy:350,r:9,fill:'#d9b054',opacity:.6},fullM);
+  fullM.addEventListener('click',function(ev){ ev.stopPropagation(); fullM.animate([{transform:'scale(1)'},{transform:'scale(1.12)'},{transform:'scale(1)'}],{duration:800,easing:'ease-in-out'}); });
+
+  /* الضباب */
+  [[500,620,430,170,'#7a8699',.55],[500,790,470,150,'#b8c2cc',.5],[290,520,260,130,'#5a6472',.5],[770,540,260,130,'#5a6472',.5]].forEach(function(m,i){
+    var e=el('ellipse',{cx:m[0],cy:m[1],rx:m[2],ry:m[3],fill:m[4],opacity:m[5],filter:'url(#blurM)'},mistG);
+    e.animate([{transform:'translateX(-50px)'},{transform:'translateX(50px)'}],{duration:16000+i*4000,direction:'alternate',iterations:Infinity,easing:'ease-in-out'});
+  });
+
+  /* ---------- أدوات ---------- */
+  function tower(parent,name){ var g=el('g',{'class':'tower'},parent); if(name) g.dataset.name=name; return g; }
+  function addWin(g,x,y,w,h,lit,grid){
+    var grp=el('g',{'class':'win'},g), cx=x+w/2;
+    el('circle',{cx:cx,cy:y+h/2,r:Math.max(w,h)*1.05,'class':'halo',filter:'url(#blurG)'},grp);
+    var main=el('path',{d:'M '+x+' '+(y+h)+' L '+x+' '+(y+h*0.35)+' Q '+x+' '+(y+h*0.1)+' '+cx+' '+y+' Q '+(x+w)+' '+(y+h*0.1)+' '+(x+w)+' '+(y+h*0.35)+' L '+(x+w)+' '+(y+h)+' Z','class':'main'},grp);
+    main.setAttribute('fill',lit?AMBER:'#2a2d33'); main.setAttribute('stroke',INK); main.setAttribute('stroke-width',2);
+    if(grid){
+      el('line',{x1:cx,y1:y+4,x2:cx,y2:y+h-2,stroke:INK,'stroke-width':1.5},grp);
+      el('line',{x1:x+3,y1:y+h*0.5,x2:x+w-3,y2:y+h*0.5,stroke:INK,'stroke-width':1.5},grp);
+    }
+    if(lit) grp.classList.add('lit');
+    grp.addEventListener('click',function(ev){ ev.stopPropagation(); grp.classList.toggle('lit'); });
+    return grp;
+  }
+  function roof(g,cfg){
+    var x=cfg.x,w=cfg.w,y=cfg.y,apex=y-cfg.roofH,cx=x+w/2,ov=w*0.12;
+    var id,clip;
+    if(cfg.roof==='swoop'){
+      el('path',{d:'M '+(x-ov)+' '+y+' Q '+(x+w*0.2)+' '+(y-cfg.roofH*0.85)+' '+cx+' '+(y-cfg.roofH)+' Q '+(x+w*0.8)+' '+(y-cfg.roofH*0.85)+' '+(x+w+ov)+' '+y+' Z',fill:'#7d848c',stroke:INK,'stroke-width':2.5},g);
+      return;
+    }
+    var fill=cfg.roof==='dark'?'#2a2d33':(cfg.roof==='white'?'#e8e8e6':'#c9ccd2');
+    el('polygon',{points:(x-ov)+','+y+' '+(x+w+ov)+','+y+' '+cx+','+apex,fill:fill,stroke:INK,'stroke-width':2.5},g);
+    if(cfg.roof==='pattern'||cfg.roof==='silver'){
+      id='cl'+(clipN++); clip=el('clipPath',{id:id},defs);
+      el('polygon',{points:(x-ov)+','+y+' '+(x+w+ov)+','+y+' '+cx+','+apex},clip);
+      var gg=el('g',{'clip-path':'url(#'+id+')'},g);
+      if(cfg.roof==='pattern'){
+        for(var yy=apex+18;yy<y;yy+=16) for(var xx=x-ov;xx<x+w+ov;xx+=18)
+          el('path',{d:'M '+xx+' '+yy+' A 9 9 0 0 1 '+(xx+18)+' '+yy,fill:'none',stroke:'#5a5f66','stroke-width':1.2},gg);
+      } else {
+        for(var i=0;i<3;i++) el('path',{d:spiralD(x+w*rr(.2,.8),y-cfg.roofH*rr(.2,.6),rr(8,16),3),fill:'none',stroke:'#8a8f96','stroke-width':1.3},gg);
+      }
+    }
+    if(cfg.roof==='swirl'){
+      id='cl'+(clipN++); clip=el('clipPath',{id:id},defs);
+      el('polygon',{points:(x-ov)+','+y+' '+(x+w+ov)+','+y+' '+cx+','+apex},clip);
+      var g2=el('g',{'clip-path':'url(#'+id+')'},g);
+      for(var j=0;j<8;j++) el('path',{d:spiralD(x+w*rr(.15,.85),y-cfg.roofH*rr(.15,.8),rr(10,22),3),fill:'none',stroke:'#d9b96a','stroke-width':1.6},g2);
+    }
+    if(cfg.fin==='cross'){ el('line',{x1:cx,y1:apex,x2:cx,y2:apex-30,stroke:INK,'stroke-width':3},g); el('line',{x1:cx-10,y1:apex-18,x2:cx+10,y2:apex-18,stroke:INK,'stroke-width':3},g); }
+    if(cfg.fin==='star'){ el('line',{x1:cx,y1:apex,x2:cx,y2:apex-26,stroke:INK,'stroke-width':2.5},g); el('polygon',{points:sparklePts(cx,apex-34,12),fill:'#e8e8e6',stroke:INK,'stroke-width':1.5},g); }
+    if(cfg.fin==='drop'){ el('path',{d:'M '+cx+' '+(apex-34)+' Q '+(cx+12)+' '+(apex-14)+' '+cx+' '+apex+' Q '+(cx-12)+' '+(apex-14)+' '+cx+' '+(apex-34)+' Z',fill:'#d9a13f',stroke:INK,'stroke-width':2},g); }
+  }
+  function genWins(g,cfg){
+    var cols=Math.max(1,Math.floor(cfg.w/48)), rows=Math.max(1,Math.floor(cfg.h/95));
+    var mx=(cfg.w-cols*30)/(cols+1), my=(cfg.h-rows*52)/(rows+1);
+    for(var rI=0;rI<rows;rI++) for(var cI=0;cI<cols;cI++){
+      var wx=cfg.x+mx+(30+mx)*cI+2, wy=cfg.y+my+(52+my)*rI+2;
+      addWin(g,wx.toFixed(0),wy.toFixed(0),28,50,rnd()<0.85,rnd()<0.4);
+    }
+  }
+  function mkTower(parent,cfg){
+    var g=tower(parent,cfg.name);
+    roof(g,cfg);
+    el('rect',{x:cfg.x,y:cfg.y,width:cfg.w,height:cfg.h,fill:cfg.body,stroke:INK,'stroke-width':2.5},g);
+    genWins(g,cfg);
+    return g;
+  }
+
+  /* ---------- الأبراج الخلفية ---------- */
+  [
+    {x:-10,y:310,w:100,h:520,body:'#efe6cf',roof:'silver',roofH:250,fin:'drop',name:'برج القطرة'},
+    {x:90,y:480,w:115,h:620,body:'#efe6cf',roof:'pattern',roofH:360,fin:'cross',name:'برج الصليب'},
+    {x:265,y:400,w:95,h:640,body:'#d9c49a',roof:'silver',roofH:295,fin:'cross',name:'البرج الذهبي'},
+    {x:205,y:740,w:85,h:420,body:'#9aa0a8',roof:'silver',roofH:185,name:'برج الضباب'},
+    {x:330,y:760,w:120,h:420,body:'#8a8f96',roof:'swoop',roofH:150,name:'برج السرج'},
+    {x:395,y:430,w:75,h:520,body:'#3a3d42',roof:'dark',roofH:300,name:'المرصد الأسود'},
+    {x:475,y:820,w:115,h:420,body:'#c9ccd2',roof:'silver',roofH:130,name:'بيت النوافذ'},
+    {x:575,y:860,w:150,h:420,body:'#efe6cf',roof:'pattern',roofH:270,fin:'star',name:'برج النجمة'},
+    {x:700,y:760,w:110,h:420,body:'#d9c49a',roof:'pattern',roofH:240,name:'برج الحراشف'},
+    {x:855,y:520,w:145,h:620,body:'#d9c49a',roof:'white',roofH:430,fin:'star',name:'البرج الأبيض'},
+    {x:945,y:820,w:60,h:420,body:'#d9c49a',roof:'pattern',roofH:200,name:'البرج الصغير'}
+  ].forEach(function(c){ mkTower(layerBack,c); });
+
+  /* ---------- الأمام ---------- */
+  /* البيت الذهبي اليسار */
+  var f1=tower(layerFront,'بيت الشجرة الذهبية');
+  el('path',{d:'M 45 1090 Q 120 900 210 878 Q 300 900 380 1090 Z',fill:'#7d848c',stroke:INK,'stroke-width':3},f1);
+  for(var d1=0;d1<26;d1++) el('circle',{cx:rr(80,350).toFixed(0),cy:rr(930,1080).toFixed(0),r:2,fill:'#5a5f66'},f1);
+  el('rect',{x:55,y:1080,width:310,height:300,fill:'#efe6cf',stroke:INK,'stroke-width':3},f1);
+  el('rect',{x:85,y:1100,width:170,height:260,fill:'#d9a13f',stroke:INK,'stroke-width':2},f1);
+  el('path',{d:'M 170 1350 L 170 1160 M 170 1220 Q 130 1190 120 1160 M 170 1220 Q 210 1190 220 1160 M 170 1280 Q 120 1260 105 1230 M 170 1280 Q 220 1260 235 1230',fill:'none',stroke:INK,'stroke-width':3},f1);
+  el('path',{d:spiralD(120,1300,16,3)+' '+spiralD(220,1300,16,3),fill:'none',stroke:INK,'stroke-width':2},f1);
+  el('path',{d:'M 150 1360 L 150 1230 Q 150 1190 185 1190 Q 220 1190 220 1230 L 220 1360 Z',fill:INK},f1);
+  el('circle',{cx:207,cy:1290,r:4,fill:'#d9a13f'},f1);
+  addWin(f1,285,1140,50,70,true);
+  for(var rl=60;rl<360;rl+=18) el('line',{x1:rl,y1:1332,x2:rl,y2:1360,stroke:INK,'stroke-width':2.5},f1);
+  el('line',{x1:55,y1:1330,x2:365,y2:1330,stroke:INK,'stroke-width':3},f1);
+
+  /* برج البوابة */
+  var f2=tower(layerFront,'برج البوابة');
+  roof(f2,{x:395,w:130,y:1130,roofH:160,roof:'silver'});
+  el('rect',{x:395,y:1130,width:130,height:220,fill:'#3a3d42',stroke:INK,'stroke-width':3},f2);
+  addWin(f2,430,1180,60,170,true,true);
+
+  /* البرج المزخرف الكبير */
+  var f3=tower(layerFront,'قصر الزخارف');
+  roof(f3,{x:640,w:260,y:1000,roofH:580,roof:'swirl'});
+  el('path',{d:'M 628 1000 L 770 420 L 912 1000',fill:'none',stroke:'#d9b96a','stroke-width':3},f3);
+  el('rect',{x:640,y:1000,width:260,height:460,fill:'#4a4e55',stroke:INK,'stroke-width':3},f3);
+  addWin(f3,660,1015,60,140,true,true);
+  addWin(f3,740,1015,60,140,true,true);
+  addWin(f3,820,1015,60,140,true,true);
+  el('line',{x1:640,y1:1190,x2:900,y2:1190,stroke:'#d9b96a','stroke-width':3},f3);
+  addWin(f3,695,1240,45,80,true);
+  el('path',{d:'M 790 1420 L 790 1290 Q 790 1250 835 1250 Q 880 1250 880 1290 L 880 1420 Z',fill:'#d9a13f',stroke:INK,'stroke-width':2.5},f3);
+  el('path',{d:'M 835 1410 L 835 1265 M 835 1300 Q 810 1290 800 1270 M 835 1300 Q 860 1290 870 1270 M 835 1350 Q 805 1340 798 1315 M 835 1350 Q 865 1340 872 1315',fill:'none',stroke:INK,'stroke-width':2},f3);
+
+  var f4=tower(layerFront,'البرج الشرقي');
+  roof(f4,{x:900,w:100,y:1170,roofH:180,roof:'pattern'});
+  el('rect',{x:900,y:1170,width:100,height:260,fill:'#d9c49a',stroke:INK,'stroke-width':3},f4);
+  addWin(f4,930,1210,40,60,true);
+
+  /* ---------- الجسر والماء ---------- */
+  for(var st=0;st<8;st++) el('rect',{x:60+st*14,y:1480+st*22,width:150-st*14,height:12,fill:'#b8b5ac',stroke:INK,'stroke-width':1.5},layerFront);
+  el('path',{d:'M 270 1470 Q 540 1400 810 1470 L 810 1560 L 270 1560 Z',fill:'#b8b5ac',stroke:INK,'stroke-width':3},layerFront);
+  el('path',{d:'M 330 1560 Q 540 1430 750 1560 Z',fill:'#050506'},layerFront);
+  el('path',{d:'M 280 1440 Q 540 1370 800 1440',fill:'none',stroke:INK,'stroke-width':5},layerFront);
+  for(var bp=290;bp<=800;bp+=42){
+    var byy=1440-Math.sin(Math.PI*(bp-280)/520)*66;
+    el('line',{x1:bp,y1:byy,x2:bp,y2:byy+32,stroke:INK,'stroke-width':3.5},layerFront);
+    el('path',{d:spiralD(bp+20,byy+18,9,2.5),fill:'none',stroke:INK,'stroke-width':2},layerFront);
+  }
+  el('rect',{x:0,y:1560,width:1000,height:240,fill:'#0a0c10'},layerFront);
+  el('ellipse',{cx:540,cy:1600,rx:190,ry:36,fill:'#e8c06a',opacity:.5,filter:'url(#blurG)'},layerFront);
+  [180,300,430,540,660,780,880].forEach(function(rx,i){
+    var p=el('path',{d:'M '+rx+' 1580 q 8 30 0 60 q -8 30 0 60 q 8 30 0 60',fill:'none',stroke:'#e8c06a','stroke-width':5,'class':'refl',style:'animation-delay:'+(i*0.5)+'s'},layerFront);
+  });
+  var ripples=el('g',{},layerFront);
+  for(var rp2=0;rp2<26;rp2++){
+    el('line',{x1:rr(0,900).toFixed(0),y1:rr(1580,1790).toFixed(0),x2:rr(0,900).toFixed(0),y2:0,stroke:(rnd()<.5?'#3a3f46':'#c9c2a8'),'stroke-width':1.6,opacity:rr(.15,.4).toFixed(2)},ripples);
+  }
+  ripples.querySelectorAll('line').forEach(function(l){ l.setAttribute('x2',parseFloat(l.getAttribute('x1'))+rr(40,140)); l.setAttribute('y2',l.getAttribute('y1')); });
+  ripples.animate([{transform:'translateX(-16px)'},{transform:'translateX(16px)'}],{duration:9000,direction:'alternate',iterations:Infinity,easing:'ease-in-out'});
+
+  /* صخور ونباتات */
+  [[60,1600,70],[140,1660,80],[40,1720,90],[240,1720,70],[880,1600,70],[950,1660,85],[820,1720,80],[700,1740,60]].forEach(function(rk){
+    el('ellipse',{cx:rk[0],cy:rk[1],rx:rk[2],ry:rk[2]*0.55,fill:'#c9b281',stroke:INK,'stroke-width':2,opacity:.9},layerFront);
+  });
+  (function(){
+    el('path',{d:'M 25 1400 L 25 1160 M 25 1240 L 5 1200 M 25 1240 L 45 1200 M 25 1320 L 0 1280',stroke:'#d9a13f','stroke-width':3,fill:'none'},layerFront);
+    for(var i=0;i<10;i++){ var a=Math.PI+i*Math.PI/9; el('line',{x1:45,y1:1400,x2:45+Math.cos(a)*34,y2:1400+Math.sin(a)*34,stroke:'#d9a13f','stroke-width':2.5},layerFront); }
+    el('path',{d:'M 955 1300 L 955 1230 M 955 1260 L 935 1230 M 955 1260 L 975 1230 M 955 1290 L 930 1265',stroke:'#e8e8e6','stroke-width':2.5,fill:'none'},layerFront);
+    for(var j=0;j<6;j++) el('circle',{cx:935+j*8,cy:1225-(j%2)*10,r:3,fill:'#e8e8e6'},layerFront);
+  })();
+
+  /* ---------- تفاعل ---------- */
+  function shoot(x,y){
+    var g=el('g',{},fxG);
+    el('line',{x1:0,y1:0,x2:-52,y2:-32,stroke:'#f2eeda','stroke-width':2.5,opacity:.85},g);
+    el('circle',{cx:0,cy:0,r:4.5,fill:'#f2eeda',filter:'url(#glowF)'},g);
+    g.animate([
+      {transform:'translate('+x+'px,'+y+'px)',opacity:1},
+      {transform:'translate('+(x+210)+'px,'+(y+140)+'px)',opacity:0}
+    ],{duration:1100,easing:'ease-out'}).onfinish=(function(g2){ return function(){ g2.remove(); }; })(g);
+  }
+  svg.addEventListener('click',function(e){
+    if(e.target.tagName==='rect'&&e.target.getAttribute('fill')==='#0a0a0c'){
+      var m=svg.getScreenCTM().inverse(), p=new DOMPoint(e.clientX,e.clientY).matrixTransform(m);
+      if(p.y<600) shoot(p.x,p.y);
+    }
+  });
+  setInterval(function(){ if(Math.random()<.3) shoot(rr(60,760),rr(40,300)); },7000);
+
+  document.querySelectorAll('.tower').forEach(function(g){
+    if(!g.dataset.name) return;
+    g.addEventListener('pointerenter',function(){ tip.textContent=g.dataset.name; tip.style.opacity=1; });
+    g.addEventListener('pointermove',function(e){ tip.style.left=e.clientX+'px'; tip.style.top=(e.clientY-8)+'px'; });
+    g.addEventListener('pointerleave',function(){ tip.style.opacity=0; });
+  });
+
+  var tx=0,ty=0,cx2=0,cy2=0;
+  window.addEventListener('pointermove',function(e){ tx=(e.clientX/window.innerWidth)*2-1; ty=(e.clientY/window.innerHeight)*2-1; });
+  (function loop(){
+    cx2+=(tx-cx2)*0.06; cy2+=(ty-cy2)*0.06;
+    [layerBack,layerFront].forEach(function(L){
+      var d=parseFloat(L.dataset.depth);
+      L.style.transform='translate('+(cx2*d)+'px,'+(cy2*d*0.4)+'px)';
+    });
+    requestAnimationFrame(loop);
+  })();
+
+  document.getElementById('shootBtn').addEventListener('click',function(){
+    for(var i=0;i<4;i++)(function(i){ setTimeout(function(){ shoot(rr(40,700),rr(30,260)); },i*260); })(i);
+  });
+  var mistOn=true;
+  document.getElementById('mistBtn').addEventListener('click',function(){
+    mistOn=!mistOn; mistG.style.opacity=mistOn?1:0;
+    document.getElementById('mistBtn').textContent=mistOn?'🌫️ إخفاء الضباب':'🌫️ إظهار الضباب';
+  });
+  document.getElementById('lightBtn').addEventListener('click',function(){
+    var wins=Array.prototype.slice.call(document.querySelectorAll('.win'));
+    var allLit=wins.every(function(w){ return w.classList.contains('lit'); });
+    wins.forEach(function(w){ w.classList.toggle('lit',!allLit); });
+  });
+  document.getElementById('resetBtn').addEventListener('click',function(){ location.reload(); });
+})();
+</script>
+</body>
+</html>

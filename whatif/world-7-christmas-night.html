@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ليلة الميلاد — مشهد تفاعلي</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.2.6/arabic-400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.2.6/arabic-700.css">
+<style>
+  :root{ --ink:#0a0a0a; --gold:#c9b281; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; overflow:hidden; }
+  body{ background:#000; font-family:'Cairo',sans-serif; }
+  #stage{ position:relative; width:100%; height:100vh; display:flex; align-items:center; justify-content:center; }
+  #scene{ height:100vh; max-width:100vw; display:block; box-shadow:0 0 90px rgba(0,0,0,.9); }
+
+  header{ position:fixed; top:14px; right:14px; z-index:6; display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+  header h1{ font-size:15px; font-weight:700; color:var(--gold); background:rgba(10,10,10,.85); border:2px solid var(--gold); border-radius:30px; padding:6px 16px; }
+  header button{ font-family:'Cairo',sans-serif; font-size:13px; font-weight:700; color:var(--gold); background:rgba(10,10,10,.85); border:2px solid var(--gold); border-radius:30px; padding:6px 14px; cursor:pointer; transition:transform .2s, background .3s; }
+  header button:hover{ transform:translateY(-3px); background:#1c1a16; }
+  header button:active{ transform:scale(.94); }
+
+  #hint{ position:fixed; bottom:12px; right:50%; transform:translateX(50%); z-index:6; background:rgba(201,178,129,.92); color:#131313; font-size:12.5px; padding:8px 20px; border-radius:30px; white-space:nowrap; max-width:94vw; overflow:hidden; text-overflow:ellipsis; }
+  #tip{ position:fixed; z-index:9; pointer-events:none; background:var(--gold); color:#131313; font-size:13px; font-weight:700; padding:4px 14px; border-radius:20px; opacity:0; transition:opacity .2s; transform:translate(-50%,-150%); }
+
+  .star{ animation:tw 3s ease-in-out infinite alternate; }
+  @keyframes tw{ from{ opacity:.25; } to{ opacity:1; } }
+  #bigStar{ cursor:pointer; transform-box:fill-box; transform-origin:center; animation:tw 4s ease-in-out infinite alternate; }
+
+  .layer{ will-change:transform; }
+  .tower{ transform-box:fill-box; transition:transform .6s cubic-bezier(.2,.8,.2,1), filter .4s; cursor:pointer; }
+  .tower:hover{ transform:translateY(-8px); filter:brightness(1.12); }
+
+  .win{ cursor:pointer; }
+  .win .main{ transition:fill .3s; }
+  .win .halo{ fill:#ffcf6e; opacity:0; transition:opacity .4s; pointer-events:none; }
+  .win.lit .main{ fill:#c9a13f !important; }
+  .win.lit .halo{ opacity:.55; }
+
+  .clickable{ cursor:pointer; }
+  .beam{ opacity:0; transition:opacity .4s; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="scene" viewBox="0 0 1200 1600" preserveAspectRatio="xMidYMid meet" aria-label="لوحة ليلة الميلاد التفاعلية">
+    <defs>
+      <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#050505"/>
+        <stop offset=".7" stop-color="#141412"/>
+        <stop offset="1" stop-color="#2a2822"/>
+      </linearGradient>
+      <pattern id="herring" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <rect width="12" height="12" fill="#6e6252"/>
+        <line x1="0" y1="0" x2="0" y2="12" stroke="#3f3a31" stroke-width="5"/>
+      </pattern>
+      <pattern id="hound" width="18" height="18" patternUnits="userSpaceOnUse">
+        <rect width="18" height="18" fill="#8a7a63"/>
+        <path d="M0 9 L9 0 L18 9 L9 18 Z" fill="#3f3a31"/>
+        <rect width="5" height="5" fill="#3f3a31"/>
+      </pattern>
+      <pattern id="gpat" width="22" height="22" patternUnits="userSpaceOnUse">
+        <rect width="22" height="22" fill="#3f3a31"/>
+        <circle cx="11" cy="11" r="7" fill="none" stroke="#c9b281" stroke-width="1.4"/>
+        <circle cx="0" cy="0" r="3" fill="none" stroke="#c9b281" stroke-width="1"/>
+        <circle cx="22" cy="22" r="3" fill="none" stroke="#c9b281" stroke-width="1"/>
+      </pattern>
+      <filter id="blurG" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="8"/></filter>
+      <filter id="glowF" x="-120%" y="-120%" width="340%" height="340%">
+        <feGaussianBlur stdDeviation="8" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+
+    <rect x="0" y="0" width="1200" height="1600" fill="url(#skyG)"></rect>
+    <g id="starsG"></g>
+    <g id="bigStar"></g>
+    <g id="layerBack" class="layer" data-depth="4"></g>
+    <g id="layerTrees" class="layer" data-depth="6"></g>
+    <g id="layerMain" class="layer" data-depth="10"></g>
+    <g id="layerFront" class="layer" data-depth="14"></g>
+    <g id="snowG" pointer-events="none"></g>
+    <g id="fxG" pointer-events="none"></g>
+  </svg>
+
+  <header>
+    <h1>🎄 ليلة الميلاد</h1>
+    <button id="snowBtn">❄️ إيقاف الثلج</button>
+    <button id="sleighBtn">🛷 تحليق المزلجة</button>
+    <button id="lightBtn">💡 إضاءة الكل</button>
+    <button id="resetBtn">🔄 إعادة</button>
+  </header>
+  <div id="hint">مرّر المؤشر لتحريك الطبقات • انقر النوافذ • انقر الغزال والمزلجة والشجرة والسيارة ونافذة سانطا!</div>
+  <div id="tip"></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var NS='http://www.w3.org/2000/svg', INK='#0a0a0a', GOLD='#c9b281';
+  var seed=53;
+  function rnd(){ seed=(seed*9301+49297)%233280; return seed/233280; }
+  function rr(a,b){ return a+rnd()*(b-a); }
+  function el(t,a,p){ var n=document.createElementNS(NS,t); for(var k in a) n.setAttribute(k,a[k]); if(p) p.appendChild(n); return n; }
+
+  var svg=document.getElementById('scene');
+  var starsG=document.getElementById('starsG'), bigStar=document.getElementById('bigStar');
+  var layerBack=document.getElementById('layerBack'), layerTrees=document.getElementById('layerTrees');
+  var layerMain=document.getElementById('layerMain'), layerFront=document.getElementById('layerFront');
+  var snowG=document.getElementById('snowG'), fxG=document.getElementById('fxG'), tip=document.getElementById('tip');
+
+  /* نجوم ذهبية */
+  for(var s=0;s<80;s++){
+    el('circle',{cx:rr(5,1195).toFixed(1),cy:rr(5,470).toFixed(1),r:rr(2,7).toFixed(1),fill:(rnd()<.5?'#c9b281':'#a38f68'),'class':'star',opacity:rr(.4,1).toFixed(2),style:'animation-delay:'+rr(0,3).toFixed(1)+'s'},starsG);
+  }
+  /* النجمة الكبيرة */
+  (function(){
+    var cx=820,cy=230;
+    var g=bigStar;
+    el('line',{x1:cx,y1:cy-130,x2:cx,y2:cy+130,stroke:GOLD,'stroke-width':7,'stroke-linecap':'round',filter:'url(#glowF)'},g);
+    el('line',{x1:cx-75,y1:cy,x2:cx+75,y2:cy,stroke:GOLD,'stroke-width':6,'stroke-linecap':'round',filter:'url(#glowF)'},g);
+    for(var i=0;i<4;i++){
+      var a=Math.PI/4+i*Math.PI/2;
+      el('line',{x1:cx-Math.cos(a)*52,y1:cy-Math.sin(a)*52,x2:cx+Math.cos(a)*52,y2:cy+Math.sin(a)*52,stroke:GOLD,'stroke-width':3.5,'stroke-linecap':'round'},g);
+    }
+    el('circle',{cx:cx,cy:cy,r:7,fill:GOLD},g);
+    g.addEventListener('click',function(ev){
+      ev.stopPropagation();
+      g.animate([{transform:'scale(1)'},{transform:'scale(1.25)'},{transform:'scale(1)'}],{duration:900,easing:'ease-in-out'});
+      shoot(cx-60,cy+40); shoot(cx+40,cy-30);
+    });
+  })();
+
+  /* خلفية المدينة */
+  el('path',{d:'M 0 420 L 60 380 L 120 430 L 200 400 L 260 450 L 340 430 L 420 470 L 520 450 L 600 490 L 700 460 L 800 500 L 900 470 L 1000 500 L 1100 470 L 1200 500 L 1200 900 L 0 900 Z',fill:'#8a8578',opacity:.45},layerBack);
+  el('path',{d:'M 0 520 L 80 480 L 160 530 L 260 500 L 360 550 L 470 520 L 560 570 L 680 540 L 780 580 L 900 550 L 1020 590 L 1120 560 L 1200 590 L 1200 1000 L 0 1000 Z',fill:'#b5aca0',opacity:.55},layerBack);
+  el('path',{d:'M 0 640 L 100 600 L 200 650 L 320 620 L 440 670 L 560 640 L 700 680 L 840 650 L 980 690 L 1100 660 L 1200 690 L 1200 1100 L 0 1100 Z',fill:'#d8d2c4',opacity:.75},layerBack);
+
+  /* أشجار عارية */
+  function bare(parent,x,baseY,h,color,w){
+    el('line',{x1:x,y1:baseY,x2:x,y2:baseY-h,stroke:color,'stroke-width':w,'stroke-linecap':'round'},parent);
+    [[.45,-1],[.55,1],[.68,-1],[.78,1],[.88,-1],[.95,1]].forEach(function(b){
+      el('line',{x1:x,y1:baseY-h*b[0],x2:x+b[1]*h*0.3,y2:baseY-h*b[0]-h*0.22,stroke:color,'stroke-width':w*0.5,'stroke-linecap':'round'},parent);
+      el('line',{x1:x+b[1]*h*0.18,y1:baseY-h*b[0]-h*0.12,x2:x+b[1]*h*0.36,y2:baseY-h*b[0]-h*0.05,stroke:color,'stroke-width':w*0.35,'stroke-linecap':'round'},parent);
+    });
+  }
+  bare(layerTrees,60,950,560,INK,7);
+  bare(layerTrees,180,900,480,INK,6);
+  bare(layerTrees,1120,960,560,'#d8d2c4',7);
+  bare(layerTrees,1000,900,460,'#d8d2c4',5);
+  bare(layerTrees,820,1150,300,INK,4);
+
+  /* ---------- أدوات ---------- */
+  function tower(parent,name){ var g=el('g',{'class':'tower'},parent); if(name) g.dataset.name=name; return g; }
+  function addWin(g,x,y,w,h,type,fill,lit){
+    var grp=el('g',{'class':'win'},g), cx=x+w/2, cy=y+h/2, main;
+    el('circle',{cx:cx,cy:cy,r:Math.max(w,h)*1.05,'class':'halo',filter:'url(#blurG)'},grp);
+    if(type==='arch'){ main=el('path',{d:'M '+x+' '+(y+h)+' L '+x+' '+(y+h*0.45)+' Q '+x+' '+y+' '+cx+' '+y+' Q '+(x+w)+' '+y+' '+(x+w)+' '+(y+h*0.45)+' L '+(x+w)+' '+(y+h)+' Z','class':'main'},grp); }
+    else { main=el('rect',{x:x,y:y,width:w,height:h,'class':'main'},grp); }
+    main.setAttribute('fill',fill); main.setAttribute('stroke','#d8d2c4'); main.setAttribute('stroke-width',2.5);
+    if(type==='arch'){ el('path',{d:'M '+(x+6)+' '+(y+h*0.4)+' L '+(x+w-6)+' '+(y+h*0.4)+' M '+cx+' '+(y+6)+' L '+cx+' '+(y+h*0.4),stroke:'#d8d2c4','stroke-width':1.5,fill:'none'},grp); }
+    else { el('line',{x1:cx,y1:y+3,x2:cx,y2:y+h-3,stroke:'#0a0a0a','stroke-width':1.5,opacity:.6},grp); el('line',{x1:x+3,y1:y+h/2,x2:x+w-3,y2:y+h/2,stroke:'#0a0a0a','stroke-width':1.5,opacity:.6},grp); }
+    if(lit) grp.classList.add('lit');
+    grp.addEventListener('click',function(ev){ ev.stopPropagation(); grp.classList.toggle('lit'); });
+    return grp;
+  }
+
+  /* ---------- البيت الأيسر ---------- */
+  var hL=tower(layerMain,'بيت الغزال');
+  el('rect',{x:40,y:900,width:380,height:380,fill:'#8a7a63',stroke:INK,'stroke-width':3},hL);
+  el('polygon',{points:'30,905 270,905 150,700',fill:INK},hL);
+  el('polygon',{points:'58,900 242,900 150,735',fill:'url(#gpat)',stroke:GOLD,'stroke-width':1.5},hL);
+  addWin(hL,128,828,44,62,'arch','#2a3540');
+  el('polygon',{points:'240,905 430,905 400,775 280,775',fill:INK},hL);
+  el('rect',{x:328,y:740,width:44,height:80,fill:INK},hL);
+  /* الغزال */
+  var deer=el('g',{'class':'clickable'},hL);
+  (function(){
+    var g=deer, x=350, y=742;
+    el('ellipse',{cx:x,cy:y-32,rx:28,ry:15,fill:INK},g);
+    el('line',{x1:x-18,y1:y-22,x2:x-20,y2:y,stroke:INK,'stroke-width':4},g);
+    el('line',{x1:x-8,y1:y-20,x2:x-8,y2:y,stroke:INK,'stroke-width':4},g);
+    el('line',{x1:x+10,y1:y-20,x2:x+10,y2:y,stroke:INK,'stroke-width':4},g);
+    el('line',{x1:x+20,y1:y-24,x2:x+22,y2:y,stroke:INK,'stroke-width':4},g);
+    el('line',{x1:x+22,y1:y-40,x2:x+30,y2:y-62,stroke:INK,'stroke-width':6},g);
+    el('ellipse',{cx:x+33,cy:y-66,rx:10,ry:7,fill:INK},g);
+    el('line',{x1:x+30,y1:y-72,x2:x+24,y2:y-92,stroke:INK,'stroke-width':3},g);
+    el('line',{x1:x+36,y1:y-72,x2:x+40,y2:y-94,stroke:INK,'stroke-width':3},g);
+    el('line',{x1:x+26,y1:y-84,x2:x+18,y2:y-90,stroke:INK,'stroke-width':2.5},g);
+    el('line',{x1:x+25,y1:y-88,x2:x+30,y2:y-96,stroke:INK,'stroke-width':2.5},g);
+    el('line',{x1:x+39,y1:y-86,x2:x+46,y2:y-92,stroke:INK,'stroke-width':2.5},g);
+    el('line',{x1:x+40,y1:y-90,x2:x+36,y2:y-98,stroke:INK,'stroke-width':2.5},g);
+    el('line',{x1:x-26,y1:y-36,x2:x-32,y2:y-30,stroke:INK,'stroke-width':3},g);
+  })();
+  deer.addEventListener('click',function(ev){
+    ev.stopPropagation();
+    deer.animate([{transform:'translateY(0)'},{transform:'translateY(-26px)'},{transform:'translateY(0)'}],{duration:700,easing:'ease-out'});
+  });
+  addWin(hL,85,940,55,110,'arch','#c9a13f',true);
+  addWin(hL,175,940,55,110,'arch','#2a3540');
+  addWin(hL,310,960,50,90,'rect','#2a3540');
+  addWin(hL,85,1100,55,100,'rect','#2a3540');
+  addWin(hL,310,1100,50,100,'rect','#2a3540');
+
+  /* شجرتا الميلاد */
+  var treeDots=[];
+  function xmasTree(parent,x,baseY,h){
+    var g=el('g',{'class':'clickable'},parent);
+    el('line',{x1:x,y1:baseY,x2:x,y2:baseY-h,stroke:INK,'stroke-width':5},g);
+    for(var i=0;i<6;i++){
+      var w=(h*0.42)*(1-i/6.5), y=baseY-i*(h*0.15);
+      el('polygon',{points:(x-w)+','+y+' '+(x+w)+','+y+' '+x+','+(y-h*0.22),fill:INK},g);
+    }
+    for(var d=0;d<14;d++){
+      var dy=baseY-rr(20,h*0.9), dw=(h*0.35)*(1-(baseY-dy)/h);
+      var dot=el('circle',{cx:x+rr(-dw,dw),cy:dy,r:4,fill:GOLD},g);
+      treeDots.push(dot);
+    }
+    g.addEventListener('click',function(ev){
+      ev.stopPropagation();
+      treeDots.forEach(function(dt,i){
+        dt.animate([{opacity:.2},{opacity:1},{opacity:.2}],{duration:1200,delay:i*90,iterations:2});
+      });
+    });
+    return g;
+  }
+  xmasTree(layerFront,235,1330,300);
+  xmasTree(layerFront,340,1330,260);
+
+  /* ---------- البيت الأوسط ---------- */
+  var hM=tower(layerMain,'برج النقشات');
+  el('rect',{x:425,y:760,width:135,height:520,fill:'url(#herring)',stroke:INK,'stroke-width':3},hM);
+  el('polygon',{points:'415,765 570,765 492,620',fill:INK},hM);
+  addWin(hM,470,790,45,70,'arch','#8a8578');
+  addWin(hM,470,930,45,80,'rect','#2a2620');
+  addWin(hM,470,1020,45,80,'rect','#2a2620');
+  el('path',{d:'M 468 1280 L 468 1190 Q 468 1160 493 1160 Q 518 1160 518 1190 L 518 1280 Z',fill:'#c9b281',stroke:INK,'stroke-width':2.5},hM);
+  el('rect',{x:560,y:860,width:230,height:420,fill:'url(#hound)',stroke:INK,'stroke-width':3},hM);
+  el('polygon',{points:'555,865 800,865 770,775 585,775',fill:INK},hM);
+  addWin(hM,605,920,55,100,'arch','#8a8578');
+  addWin(hM,685,920,55,100,'arch','#c9a13f',true);
+  addWin(hM,605,1060,55,100,'rect','#8a8578');
+  addWin(hM,685,1060,55,100,'rect','#8a8578');
+  /* المزلجة */
+  var sleigh=el('g',{'class':'clickable'},hM);
+  (function(){
+    var g=sleigh, x=650, y=770;
+    el('path',{d:'M '+(x-55)+' '+(y-8)+' Q '+(x-70)+' '+(y-8)+' '+(x-70)+' '+(y-26)+' M '+(x-55)+' '+(y-8)+' L '+(x+55)+' '+(y-8)+' Q '+(x+72)+' '+(y-8)+' '+(x+72)+' '+(y-24)+' Q '+(x+72)+' '+(y-36)+' '+(x+60)+' '+(y-34),fill:'none',stroke:INK,'stroke-width':5},g);
+    el('path',{d:'M '+(x-30)+' '+(y-12)+' Q '+(x-34)+' '+(y-44)+' '+(x-6)+' '+(y-44)+' L '+(x+8)+' '+(y-44)+' Q '+(x+14)+' '+(y-60)+' '+(x+34)+' '+(y-58)+' L '+(x+52)+' '+(y-56)+' Q '+(x+58)+' '+(y-40)+' '+(x+48)+' '+(y-12)+' Z',fill:INK},g);
+    el('path',{d:'M '+(x-48)+' '+(y-14)+' Q '+(x-56)+' '+(y-30)+' '+(x-44)+' '+(y-38),fill:'none',stroke:INK,'stroke-width':4},g);
+    el('circle',{cx:x-46,cy:y-42,r:5,fill:INK},g);
+    el('rect',{x:x-16,y:y-58,width:16,height:14,fill:INK},g);
+    el('rect',{x:x+2,y:y-54,width:12,height:10,fill:INK},g);
+    el('circle',{cx:x-24,cy:y-6, r:6,fill:'none',stroke:INK,'stroke-width':3},g);
+    el('circle',{cx:x+30,cy:y-6,r:6,fill:'none',stroke:INK,'stroke-width':3},g);
+  })();
+  function flySleigh(){
+    sleigh.animate([
+      {transform:'translate(0,0)'},
+      {transform:'translate(60px,-260px)',offset:.3},
+      {transform:'translate(500px,-520px)',opacity:0,offset:.85},
+      {transform:'translate(-700px,-520px)',opacity:0,offset:.86},
+      {transform:'translate(0,0)',opacity:1}
+    ],{duration:6000,easing:'ease-in-out'});
+  }
+  sleigh.addEventListener('click',function(ev){ ev.stopPropagation(); flySleigh(); });
+
+  /* ---------- البيت الأيمن ---------- */
+  var hR=tower(layerMain,'بيت سانطا');
+  el('rect',{x:830,y:980,width:320,height:300,fill:INK,stroke:INK,'stroke-width':3},hR);
+  el('rect',{x:830,y:810,width:320,height:150,fill:'#5a6a7a',stroke:INK,'stroke-width':3},hR);
+  el('polygon',{points:'800,812 1180,812 990,570',fill:'#8a7a63',stroke:INK,'stroke-width':3},hR);
+  el('rect',{x:830,y:770,width:320,height:42,fill:'url(#hound)',stroke:INK,'stroke-width':2},hR);
+  el('rect',{x:830,y:950,width:320,height:32,fill:'#8a7a63',stroke:INK,'stroke-width':2},hR);
+  el('rect',{x:850,y:690,width:40,height:70,fill:'none'},hR);
+  addWin(hR,960,680,60,80,'arch','#2a2620');
+  addWin(hR,870,840,60,80,'rect','#1a2026');
+  addWin(hR,965,840,60,80,'rect','#1a2026');
+  addWin(hR,1060,840,60,80,'rect','#c9a13f',true);
+  /* نافذة سانطا */
+  var shop=el('g',{'class':'clickable'},hR);
+  el('rect',{x:870,y:1000,width:240,height:100,fill:'#e8e2d0',stroke:GOLD,'stroke-width':3},shop);
+  var santa=el('g',{},shop);
+  el('circle',{cx:920,cy:1052,r:16,fill:'#a02620'},santa);
+  el('circle',{cx:920,cy:1032,r:9,fill:'#e8d9c0'},santa);
+  el('path',{d:'M 912 1026 Q 920 1016 930 1026 L 934 1022 Q 920 1010 908 1022 Z',fill:'#a02620'},santa);
+  el('circle',{cx:934,cy:1022,r:3,fill:'#e8e2d0'},santa);
+  el('path',{d:'M 908 1040 Q 904 1052 912 1060',fill:'none',stroke:'#e8e2d0','stroke-width':4},santa);
+  el('circle',{cx:900,cy:1056,r:12,fill:'#8a6b4d'},santa);
+  el('rect',{cx:0,x:944,y:1046,width:14,height:14,fill:'#3a6a8a'},santa);
+  el('line',{x1:951,y1:1046,x2:951,y2:1060,stroke:'#e8e2d0','stroke-width':1.5},santa);
+  el('line',{x1:944,y1:1053,x2:958,y2:1053,stroke:'#e8e2d0','stroke-width':1.5},santa);
+  var shopTree=el('g',{},shop);
+  el('polygon',{points:'1040,1088 1080,1088 1060,1016',fill:'#2a5a34'},shopTree);
+  el('polygon',{points:'1046,1060 1074,1060 1060,1030',fill:'#2a5a34'},shopTree);
+  shop.addEventListener('click',function(ev){
+    ev.stopPropagation();
+    santa.animate([{transform:'translateX(0)'},{transform:'translateX(60px)'},{transform:'translateX(0)'}],{duration:2500,easing:'ease-in-out'});
+  });
+  addWin(hR,1060,1000,55,90,'rect','#6e6a60');
+  el('rect',{x:860,y:1120,width:90,height:20,fill:'#8a7a63'},hR);
+  var doorR=el('g',{'class':'clickable'},hR);
+  el('rect',{x:870,y:1150,width:65,height:130,fill:'#4a5a6a',stroke:GOLD,'stroke-width':2.5},doorR);
+  el('circle',{cx:902,cy:1200,r:14,fill:'none',stroke:'#2a5a34','stroke-width':5},doorR);
+  el('circle',{cx:902,cy:1200,r:14,fill:'none',stroke:'#c9b281','stroke-width':1.5,'stroke-dasharray':'3 5'},doorR);
+  el('circle',{cx:884,cy:1240,r:3,fill:GOLD},doorR);
+  doorR.addEventListener('click',function(ev){
+    ev.stopPropagation();
+    doorR.animate([{transform:'scale(1)'},{transform:'scale(1.06)'},{transform:'scale(1)'}],{duration:500,easing:'ease-out'});
+  });
+
+  /* ---------- الشارع والسيارات ---------- */
+  el('rect',{x:0,y:1280,width:1200,height:60,fill:'#8a8578'},layerFront);
+  el('line',{x1:0,y1:1284,x2:1200,y2:1284,stroke:'#d8d2c4','stroke-width':3},layerFront);
+  el('rect',{x:0,y:1340,width:1200,height:260,fill:'#050505'},layerFront);
+  el('line',{x1:0,y1:1352,x2:1200,y2:1352,stroke:GOLD,'stroke-width':3},layerFront);
+
+  function car(parent,x,y,dir){
+    var g=el('g',{'class':'clickable'},parent);
+    var beam=el('polygon',{points:(x+ (dir>0? 120:0))+','+(y-18)+' '+(x+(dir>0?260:-140))+','+(y+6)+' '+(x+(dir>0?260:-140))+','+(y+26)+' '+(x+(dir>0?120:0))+','+(y-2),fill:'#ffe9a0','class':'beam'},g);
+    el('path',{d:'M '+x+' '+(y-16)+' Q '+(x+10)+' '+(y-34)+' '+(x+34)+' '+(y-36)+' L '+(x+82)+' '+(y-36)+' Q '+(x+108)+' '+(y-34)+' '+(x+118)+' '+(y-16)+' L '+(x+120)+' '+(y-4)+' L '+x+' '+(y-4)+' Z',fill:INK},g);
+    el('circle',{cx:x+28,cy:y-2,r:10,fill:INK},g);
+    el('circle',{cx:x+92,cy:y-2,r:10,fill:INK},g);
+    el('circle',{cx:x+28,cy:y-2,r:4,fill:'#3f3a31'},g);
+    el('circle',{cx:x+92,cy:y-2,r:4,fill:'#3f3a31'},g);
+    g.addEventListener('click',function(ev){
+      ev.stopPropagation();
+      beam.style.opacity=.5;
+      g.animate([{transform:'translateX(0)'},{transform:'translateX('+(dir>0?1400:-1400)+'px)'}],{duration:5000,easing:'ease-in'}).onfinish=(function(g2,b){ return function(){ b.style.opacity=0; g2.style.transform=''; g2.setAttribute('transform','translate('+(dir>0?-1400:1400)+' 0)'); setTimeout(function(){ g2.setAttribute('transform',''); },60); }; })(g,beam);
+    });
+    return g;
+  }
+  car(layerFront,-40,1288,1);
+  car(layerFront,520,1288,1);
+
+  /* توقيع */
+  el('rect',{x:84,y:1432,width:52,height:44,fill:'none',stroke:'#a3505a','stroke-width':2.5},layerFront);
+  el('text',{x:110,y:1462,'text-anchor':'middle','font-size':24,fill:'#a3505a','font-family':'serif','font-style':'italic'},layerFront).textContent='JC';
+  el('rect',{x:84,y:1496,width:70,height:70,fill:'#a38f68',stroke:'#d8d2c4','stroke-width':2},layerFront);
+
+  /* ---------- ثلج ---------- */
+  var snowOn=true;
+  function flake(){
+    if(!snowOn) return;
+    var f=el('circle',{cx:rr(0,1200).toFixed(0),cy:-10,r:rr(1.5,3.5).toFixed(1),fill:'#f4efe4',opacity:rr(.4,.9)},snowG);
+    var dx=rr(-60,60), dur=rr(6000,11000);
+    f.animate([
+      {transform:'translate(0,0)'},
+      {transform:'translate('+(dx*0.5)+'px,540px)'},
+      {transform:'translate('+dx+'px,1080px)'},
+      {transform:'translate('+(dx*0.7)+'px,1620px)'}
+    ],{duration:dur,easing:'linear'}).onfinish=(function(f2){ return function(){ f2.remove(); }; })(f);
+  }
+  for(var i0=0;i0<40;i0++) setTimeout(flake,i0*180);
+  setInterval(flake,300);
+
+  function shoot(x,y){
+    var g=el('g',{},fxG);
+    el('line',{x1:0,y1:0,x2:-50,y2:-30,stroke:GOLD,'stroke-width':2.5,opacity:.85},g);
+    el('circle',{cx:0,cy:0,r:4.5,fill:GOLD,filter:'url(#glowF)'},g);
+    g.animate([
+      {transform:'translate('+x+'px,'+y+'px)',opacity:1},
+      {transform:'translate('+(x+200)+'px,'+(y+130)+'px)',opacity:0}
+    ],{duration:1100,easing:'ease-out'}).onfinish=(function(g2){ return function(){ g2.remove(); }; })(g);
+  }
+  svg.addEventListener('click',function(e){
+    if(e.target.tagName==='rect'&&e.target.getAttribute('fill')==='url(#skyG)'){
+      var m=svg.getScreenCTM().inverse(), p=new DOMPoint(e.clientX,e.clientY).matrixTransform(m);
+      if(p.y<500) shoot(p.x,p.y);
+    }
+  });
+
+  /* تلميحات */
+  document.querySelectorAll('.tower').forEach(function(g){
+    g.addEventListener('pointerenter',function(){ tip.textContent=g.dataset.name; tip.style.opacity=1; });
+    g.addEventListener('pointermove',function(e){ tip.style.left=e.clientX+'px'; tip.style.top=(e.clientY-8)+'px'; });
+    g.addEventListener('pointerleave',function(){ tip.style.opacity=0; });
+  });
+
+  /* بارالاكس */
+  var tx=0,ty=0,cx2=0,cy2=0;
+  window.addEventListener('pointermove',function(e){ tx=(e.clientX/window.innerWidth)*2-1; ty=(e.clientY/window.innerHeight)*2-1; });
+  (function loop(){
+    cx2+=(tx-cx2)*0.06; cy2+=(ty-cy2)*0.06;
+    [layerBack,layerTrees,layerMain,layerFront].forEach(function(L){
+      var d=parseFloat(L.dataset.depth);
+      L.style.transform='translate('+(cx2*d)+'px,'+(cy2*d*0.4)+'px)';
+    });
+    requestAnimationFrame(loop);
+  })();
+
+  /* أزرار */
+  var snowBtn=document.getElementById('snowBtn');
+  snowBtn.addEventListener('click',function(){
+    snowOn=!snowOn;
+    snowBtn.textContent=snowOn?'❄️ إيقاف الثلج':'❄️ تشغيل الثلج';
+  });
+  document.getElementById('sleighBtn').addEventListener('click',flySleigh);
+  document.getElementById('lightBtn').addEventListener('click',function(){
+    var wins=Array.prototype.slice.call(document.querySelectorAll('.win'));
+    var allLit=wins.every(function(w){ return w.classList.contains('lit'); });
+    wins.forEach(function(w){ w.classList.toggle('lit',!allLit); });
+  });
+  document.getElementById('resetBtn').addEventListener('click',function(){ location.reload(); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مدينة الأبراج الحالمة — نهار وليل — مشهد تفاعلي</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.2.6/arabic-400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.2.6/arabic-700.css">
+<style>
+  :root{ --ink:#171512; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; overflow:hidden; }
+  body{ background:#221e18; font-family:'Cairo',sans-serif; }
+  #stage{ position:relative; width:100%; height:100vh; display:flex; align-items:center; justify-content:center; }
+  #scene{ height:100vh; max-width:100vw; display:block; box-shadow:0 0 80px rgba(0,0,0,.6); }
+
+  header{ position:fixed; top:14px; right:14px; z-index:6; display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+  header h1{ font-size:16px; font-weight:700; color:var(--ink); background:rgba(244,239,228,.9); border:2px solid var(--ink); border-radius:30px; padding:6px 16px; }
+  header button{ font-family:'Cairo',sans-serif; font-size:14px; font-weight:700; color:var(--ink); background:rgba(244,239,228,.9); border:2px solid var(--ink); border-radius:30px; padding:6px 14px; cursor:pointer; transition:transform .2s, background .3s; }
+  header button:hover{ transform:translateY(-3px); background:#fff; }
+  header button:active{ transform:scale(.94); }
+
+  #hint{ position:fixed; bottom:12px; right:50%; transform:translateX(50%); z-index:6; background:rgba(23,21,18,.78); color:#f4efe4; font-size:12.5px; padding:8px 20px; border-radius:30px; white-space:nowrap; max-width:94vw; overflow:hidden; text-overflow:ellipsis; }
+  #credit{ position:fixed; bottom:12px; left:14px; z-index:6; color:#9a938a; font-size:12px; }
+  #tip{ position:fixed; z-index:9; pointer-events:none; background:var(--ink); color:#f4efe4; font-size:13px; padding:4px 14px; border-radius:20px; opacity:0; transition:opacity .2s; transform:translate(-50%,-150%); }
+
+  .skyrect{ transition:opacity 1.2s ease; }
+  #skyNight{ opacity:0; }
+  #scene.night #skyDay{ opacity:0; }
+  #scene.night #skyNight{ opacity:1; }
+
+  .stars{ opacity:0; transition:opacity 1.2s ease; }
+  #scene.night .stars{ opacity:1; }
+  .star{ animation:tw 3s ease-in-out infinite alternate; }
+  @keyframes tw{ from{ opacity:.15; } to{ opacity:1; } }
+
+  .sunpath{ stroke:#c98a2a; transition:opacity 1s; }
+  #scene.night .sunpath{ opacity:0; }
+  .rings{ stroke:#4a4438; fill:none; transition:stroke 1s; }
+  #scene.night .rings{ stroke:#e9e2cf; }
+  #sunG{ transform-box:fill-box; transform-origin:center; animation:spin 140s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .moon{ opacity:0; transition:opacity 1.2s ease; }
+  #scene.night .moon{ opacity:1; }
+  .clouds{ transition:opacity 1.2s ease; pointer-events:none; }
+  #scene.night .clouds{ opacity:0; }
+
+  .birdW{ transform-box:fill-box; transform-origin:center; animation:flap .5s ease-in-out infinite alternate; }
+  @keyframes flap{ from{ transform:scaleY(1); } to{ transform:scaleY(.35); } }
+
+  .layer{ will-change:transform; }
+  #scene.night .towers{ filter:brightness(.85) saturate(.9); }
+  .tower{ transform-box:fill-box; transition:transform .6s cubic-bezier(.2,.8,.2,1); cursor:pointer; }
+  .tower:hover{ transform:translateY(-10px); }
+
+  .win{ cursor:pointer; }
+  .win .main{ transition:fill .3s; }
+  .win .halo{ fill:#ffcf6e; opacity:0; transition:opacity .4s; pointer-events:none; }
+  #scene.day .glasswin .main{ fill:#9ccfe0; }
+  #scene.night .glasswin .main{ fill:#3f3a31; }
+  #scene.night .glasswin.lit .main{ fill:#ffe08a !important; }
+  #scene.night .glasswin.lit .halo{ opacity:.7; }
+  .shut{ opacity:0; transition:opacity .8s; }
+  #scene.day .shut{ opacity:1; }
+  .shine{ opacity:0; transition:opacity .8s; }
+  #scene.day .shine{ opacity:.75; }
+
+  .dandy{ transform-box:fill-box; transform-origin:50% 100%; animation:sway 6s ease-in-out infinite alternate; cursor:pointer; }
+  .dandy:nth-child(odd){ animation-duration:7.5s; }
+  @keyframes sway{ from{ transform:rotate(-2.2deg); } to{ transform:rotate(2.2deg); } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="scene" class="day" viewBox="0 0 1000 1750" preserveAspectRatio="xMidYMid meet" aria-label="لوحة مدينة الأبراج — نهار وليل">
+    <defs>
+      <linearGradient id="skyDayG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#7ec4e0"/>
+        <stop offset=".7" stop-color="#b8dcec"/>
+        <stop offset="1" stop-color="#dceef6"/>
+      </linearGradient>
+      <linearGradient id="skyNightG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#12102a"/>
+        <stop offset="1" stop-color="#2a2748"/>
+      </linearGradient>
+      <filter id="blurG" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="9"/></filter>
+      <filter id="glowF" x="-120%" y="-120%" width="340%" height="340%">
+        <feGaussianBlur stdDeviation="10" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0.22  0 0 0 0 0.19  0 0 0 0 0.15  0 0 0 0.4 0"/></filter>
+    </defs>
+    <rect id="skyDay" class="skyrect" x="0" y="0" width="1000" height="1750" fill="url(#skyDayG)"></rect>
+    <rect id="skyNight" class="skyrect" x="0" y="0" width="1000" height="1750" fill="url(#skyNightG)"></rect>
+    <g id="starsG" class="stars"></g>
+    <g id="skyG"></g>
+    <g id="cloudsG" class="clouds"></g>
+    <g id="layerBack" class="layer towers" data-depth="7"></g>
+    <g id="layerMid" class="layer towers" data-depth="14"></g>
+    <g id="layerFront" class="layer" data-depth="24"></g>
+    <g id="userG"></g>
+    <rect x="0" y="0" width="1000" height="1750" filter="url(#paper)" opacity=".5" pointer-events="none"></rect>
+    <g id="fxG" pointer-events="none"></g>
+  </svg>
+
+  <header>
+    <h1>🏰 مدينة الأبراج الحالمة</h1>
+    <button id="nightBtn">🌙 وضع الليل</button>
+    <button id="birdBtn">🐦 عصافير</button>
+    <button id="lightBtn">💡 إضاءة النوافذ</button>
+    <button id="clearBtn">✨ مسح نجومي</button>
+    <button id="resetBtn">🔄 إعادة</button>
+  </header>
+  <div id="hint">النهار: سماء زرقاء وسحب وعصافير ونوافذ مفتوحة • الليل: قمر ونجوم وشهب ونوافذ مضيئة • مرّر المؤشر وانقر النوافذ والسماء والأزهار</div>
+  <div id="credit">اللوحة الأصلية: Vanessa H</div>
+  <div id="tip"></div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var NS='http://www.w3.org/2000/svg', INK='#171512';
+  var seed=13;
+  function rnd(){ seed=(seed*9301+49297)%233280; return seed/233280; }
+  function rr(a,b){ return a+rnd()*(b-a); }
+  function el(t,a,p){ var n=document.createElementNS(NS,t); for(var k in a) n.setAttribute(k,a[k]); if(p) p.appendChild(n); return n; }
+
+  var svg=document.getElementById('scene');
+  var starsG=document.getElementById('starsG'), skyG=document.getElementById('skyG'), cloudsG=document.getElementById('cloudsG');
+  var layerBack=document.getElementById('layerBack'), layerMid=document.getElementById('layerMid'), layerFront=document.getElementById('layerFront');
+  var userG=document.getElementById('userG'), fxG=document.getElementById('fxG'), tip=document.getElementById('tip');
+
+  /* ---------- السماء ---------- */
+  for(var s=0;s<90;s++){
+    el('circle',{cx:rr(10,990).toFixed(1),cy:rr(10,720).toFixed(1),r:rr(1,2.4).toFixed(1),fill:'#efe9d6','class':'star',style:'animation-delay:'+rr(0,3).toFixed(1)+'s'},starsG);
+  }
+  function rings(cx,cy,r){ el('circle',{cx:cx,cy:cy,r:r,'class':'rings','stroke-width':2},skyG); }
+  rings(435,110,55); rings(435,110,92); rings(172,205,28);
+  (function spiral(cx,cy,rmax,turns){
+    var d='M '+cx+' '+cy, tot=turns*Math.PI*2;
+    for(var a=0;a<=tot;a+=0.12){ var r=rmax*a/tot; d+=' L '+(cx+Math.cos(a)*r).toFixed(1)+' '+(cy+Math.sin(a)*r).toFixed(1); }
+    var wrap=el('g',{id:'sunG'},skyG);
+    el('path',{d:d,'class':'sunpath',fill:'none','stroke-width':2.5,opacity:.9},wrap);
+  })(712,120,112,5);
+  /* القمر */
+  (function(){
+    var g=el('g',{'class':'moon'},skyG);
+    el('circle',{cx:712,cy:120,r:92,fill:'#f2eeda',filter:'url(#glowF)'},g);
+    el('circle',{cx:690,cy:100,r:12,fill:'#d8d2c2',opacity:.7},g);
+    el('circle',{cx:740,cy:150,r:8,fill:'#d8d2c2',opacity:.6},g);
+    el('circle',{cx:725,cy:90,r:5,fill:'#d8d2c2',opacity:.6},g);
+  })();
+  /* السحب */
+  function cloud(cx,cy,sc){
+    var g=el('g',{},cloudsG);
+    el('ellipse',{cx:cx,cy:cy,rx:70*sc,ry:26*sc,fill:'#ffffff',opacity:.95},g);
+    el('ellipse',{cx:cx-45*sc,cy:cy+10*sc,rx:45*sc,ry:20*sc,fill:'#ffffff',opacity:.9},g);
+    el('ellipse',{cx:cx+48*sc,cy:cy+8*sc,rx:50*sc,ry:22*sc,fill:'#ffffff',opacity:.9},g);
+    el('ellipse',{cx:cx+10*sc,cy:cy-16*sc,rx:40*sc,ry:18*sc,fill:'#ffffff',opacity:.95},g);
+    g.animate([{transform:'translateX(-70px)'},{transform:'translateX(70px)'}],{duration:rr(18000,30000),direction:'alternate',iterations:Infinity,easing:'ease-in-out'});
+  }
+  cloud(200,180,1.1); cloud(520,120,.9); cloud(790,300,1.2); cloud(120,430,.8); cloud(640,420,.7);
+
+  /* عصافير */
+  function spawnBird(x,y,dir){
+    var g=el('g',{},fxG);
+    el('path',{d:'M 0 0 Q -8 -9 -17 -3 Q -8 2 0 0 Z',fill:'#2a2620','class':'birdW'},g);
+    el('path',{d:'M 0 0 Q 8 -9 17 -3 Q 8 2 0 0 Z',fill:'#2a2620','class':'birdW'},g);
+    el('circle',{cx:0,cy:0,r:2.6,fill:'#2a2620'},g);
+    var dist=(dir>0?1200-x-150:x+150);
+    g.animate([
+      {transform:'translate('+x+'px,'+y+'px)'},
+      {transform:'translate('+(x+dist*0.5*dir)+'px,'+(y-30)+'px)'},
+      {transform:'translate('+(x+dist*dir)+'px,'+(y-10)+'px)'}
+    ],{duration:rr(9000,14000),easing:'linear'}).onfinish=function(){ g.remove(); };
+  }
+  setInterval(function(){ if(svg.classList.contains('day')) spawnBird(rr(-150,100),rr(120,520),1); },5000);
+  /* شهب ليلية */
+  function shoot(x,y){
+    var g=el('g',{},fxG);
+    el('line',{x1:0,y1:0,x2:-52,y2:-32,stroke:'#f4efe4','stroke-width':2.5,opacity:.85},g);
+    el('circle',{cx:0,cy:0,r:4.5,fill:'#f4efe4',filter:'url(#glowF)'},g);
+    g.animate([
+      {transform:'translate('+x+'px,'+y+'px)',opacity:1},
+      {transform:'translate('+(x+210)+'px,'+(y+140)+'px)',opacity:0}
+    ],{duration:1100,easing:'ease-out'}).onfinish=function(){ g.remove(); };
+  }
+  setInterval(function(){ if(svg.classList.contains('night')&&Math.random()<.5) shoot(rr(60,700),rr(40,300)); },6000);
+
+  /* ---------- أدوات البناء ---------- */
+  function tower(parent,name){ var g=el('g',{'class':'tower'},parent); if(name) g.dataset.name=name; return g; }
+  function body(g,x,y,w,h,fill){ return el('rect',{x:x,y:y,width:w,height:h,fill:fill,stroke:INK,'stroke-width':3},g); }
+  function cone(g,x,w,baseY,tipY,fill){ return el('polygon',{points:(x-6)+','+baseY+' '+(x+w+6)+','+baseY+' '+(x+w/2)+','+tipY,fill:fill,stroke:INK,'stroke-width':3},g); }
+  var GLASS=['#f4efe4','#e8e2d0','#3f3a31','#8a8578','#b5ac9c','#d8ccb4'];
+  var SHUT=['#7a5230','#5a6a5a','#8a4a2a','#4a5a6a','#6b4a2a'];
+  function addWin(g,x,y,w,h,type,fill,grid){
+    var grp=el('g',{'class':'win'},g), cx=x+w/2, cy=y+h/2, main;
+    var glass=GLASS.indexOf(fill)>-1 && (type==='rect'||type==='arch');
+    if(glass) grp.classList.add('glasswin');
+    el('circle',{cx:cx,cy:cy,r:Math.max(w,h)*1.05,'class':'halo',filter:'url(#blurG)'},grp);
+    if(glass){
+      var sc=SHUT[Math.floor(rnd()*SHUT.length)];
+      el('rect',{x:x-11,y:y+2,width:9,height:h-4,fill:sc,stroke:INK,'stroke-width':1.5,'class':'shut'},grp);
+      el('rect',{x:x+w+2,y:y+2,width:9,height:h-4,fill:sc,stroke:INK,'stroke-width':1.5,'class':'shut'},grp);
+    }
+    if(type==='arch'){ main=el('path',{d:'M '+x+' '+(y+h)+' L '+x+' '+(y+h*0.45)+' Q '+x+' '+y+' '+cx+' '+y+' Q '+(x+w)+' '+y+' '+(x+w)+' '+(y+h*0.45)+' L '+(x+w)+' '+(y+h)+' Z','class':'main'},grp); }
+    else if(type==='round'||type==='wheel'){ main=el('circle',{cx:cx,cy:cy,r:Math.min(w,h)/2,'class':'main'},grp); }
+    else if(type==='oval'){ main=el('ellipse',{cx:cx,cy:cy,rx:w/2,ry:h/2,'class':'main'},grp); }
+    else { main=el('rect',{x:x,y:y,width:w,height:h,'class':'main'},grp); }
+    main.setAttribute('fill',fill); main.setAttribute('stroke',INK); main.setAttribute('stroke-width',2);
+    if(glass) el('line',{x1:x+3,y1:y+h-4,x2:x+w-3,y2:y+4,stroke:'#ffffff','stroke-width':2,'class':'shine'},grp);
+    if(grid){
+      el('line',{x1:cx,y1:y,x2:cx,y2:y+h,stroke:INK,'stroke-width':1.5},grp);
+      el('line',{x1:x,y1:y+h/3,x2:x+w,y2:y+h/3,stroke:INK,'stroke-width':1.5},grp);
+      el('line',{x1:x,y1:y+2*h/3,x2:x+w,y2:y+2*h/3,stroke:INK,'stroke-width':1.5},grp);
+    }
+    if(type==='wheel'){
+      for(var i=0;i<8;i++){ var a=i*Math.PI/4; el('line',{x1:cx,y1:cy,x2:cx+Math.cos(a)*w/2,y2:cy+Math.sin(a)*w/2,stroke:INK,'stroke-width':1.5},grp); }
+      el('circle',{cx:cx,cy:cy,r:3,fill:INK},grp);
+    }
+    grp.addEventListener('click',function(ev){ ev.stopPropagation(); grp.classList.toggle('lit'); });
+    return grp;
+  }
+  function stripedCone(g,cx,baseW,baseY,tipY,colors){
+    var H=baseY-tipY, n=colors.length;
+    for(var i=0;i<n;i++){
+      var y1=baseY-H*i/n, y2=baseY-H*(i+1)/n, w1=baseW*(1-i/n)+4, w2=baseW*(1-(i+1)/n)+2;
+      el('polygon',{points:(cx-w1/2)+','+y1+' '+(cx+w1/2)+','+y1+' '+(cx+w2/2)+','+y2+' '+(cx-w2/2)+','+y2,fill:colors[i],stroke:INK,'stroke-width':2},g);
+    }
+  }
+  function burst(cx,cy){
+    for(var i=0;i<14;i++){
+      var a=rnd()*Math.PI*2, d=rr(30,85);
+      var c=el('circle',{cx:cx,cy:cy,r:rr(1.5,3).toFixed(1),fill:INK},fxG);
+      c.animate([{transform:'translate(0,0)',opacity:1},{transform:'translate('+(Math.cos(a)*d)+'px,'+(Math.sin(a)*d)+'px)',opacity:0}],{duration:750,easing:'ease-out'}).onfinish=function(){ this.effect.target.remove(); };
+    }
+  }
+  function dandy(parent,cx,cy,r,stemTo){
+    var g=el('g',{'class':'dandy'},parent);
+    if(stemTo) el('path',{d:'M '+cx+' '+cy+' Q '+(cx+rr(-25,25)).toFixed(1)+' '+((cy+stemTo)/2).toFixed(1)+' '+cx+' '+stemTo,stroke:INK,'stroke-width':2,fill:'none'},g);
+    for(var i=0;i<8;i++){ var a=i*Math.PI/8; el('line',{x1:cx-Math.cos(a)*r,y1:cy-Math.sin(a)*r,x2:cx+Math.cos(a)*r,y2:cy+Math.sin(a)*r,stroke:INK,'stroke-width':1.4},g); }
+    el('circle',{cx:cx,cy:cy,r:3,fill:INK},g);
+    g.addEventListener('click',function(ev){
+      ev.stopPropagation(); burst(cx,cy);
+      g.animate([{transform:'scale(1)'},{transform:'scale(1.22)'},{transform:'scale(1)'}],{duration:450,easing:'ease-out'});
+    });
+    return g;
+  }
+  function fluff(parent,cx,cy,r,color,baseY,trunkW){
+    if(baseY) el('path',{d:'M '+cx+' '+baseY+' Q '+(cx-5)+' '+((baseY+cy)/2)+' '+cx+' '+(cy+r*0.6),stroke:INK,'stroke-width':trunkW||5,fill:'none'},parent);
+    var g=el('g',{},parent);
+    el('circle',{cx:cx,cy:cy,r:r,fill:color,opacity:.28},g);
+    for(var i=0;i<70;i++){ var a=rnd()*Math.PI*2, l=r*rr(.4,1); el('line',{x1:cx,y1:cy,x2:(cx+Math.cos(a)*l).toFixed(1),y2:(cy+Math.sin(a)*l).toFixed(1),stroke:color,'stroke-width':1,opacity:.75},g); }
+    el('circle',{cx:cx,cy:cy,r:3,fill:INK},g);
+  }
+  function fanTree(parent,x,baseY,topY,r,color){
+    el('path',{d:'M '+x+' '+baseY+' Q '+(x-6)+' '+((baseY+topY)/2)+' '+x+' '+topY,stroke:INK,'stroke-width':6,fill:'none'},parent);
+    var g=el('g',{},parent);
+    for(var i=0;i<26;i++){ var a=(-170+i*(160/25))*Math.PI/180; el('line',{x1:x,y1:topY,x2:(x+Math.cos(a)*r).toFixed(1),y2:(topY+Math.sin(a)*r).toFixed(1),stroke:color,'stroke-width':1.4,opacity:.85},g); }
+    el('circle',{cx:x,cy:topY,r:4,fill:INK},g);
+  }
+  function fence(x0,x1){
+    for(var x=x0;x<=x1;x+=13) el('line',{x1:x,y1:1700,x2:x,y2:1750,stroke:INK,'stroke-width':3,opacity:.7},layerFront);
+    el('line',{x1:x0,y1:1706,x2:x1,y2:1706,stroke:INK,'stroke-width':3,opacity:.7},layerFront);
+  }
+
+  /* ---------- الطبقة الخلفية ---------- */
+  var t1=tower(layerBack,'بوابة الماس');
+  body(t1,8,700,110,1050,'#cbb493');
+  addWin(t1,40,720,32,64,'arch','#f4efe4',true);
+  el('polygon',{points:'60,560 115,665 60,770 5,665',fill:INK},t1);
+
+  var t2=tower(layerBack,'برج المرجان');
+  body(t2,880,560,95,1190,'#8a8578');
+  cone(t2,874,107,565,380,INK);
+  addWin(t2,930,570,14,18,'rect','#f4efe4');
+  addWin(t2,915,600,18,26,'rect','#b23a2a');
+  addWin(t2,908,655,14,20,'rect','#b23a2a');
+
+  var t3=tower(layerBack,'برج النوافذ التوأم');
+  body(t3,812,620,92,280,'#7c7669');
+  addWin(t3,875,640,16,22,'rect','#f4efe4');
+  addWin(t3,830,650,16,22,'rect','#b23a2a');
+  addWin(t3,850,700,20,26,'rect','#f4efe4',true);
+  el('rect',{x:812,y:760,width:92,height:140,fill:INK,stroke:INK,'stroke-width':3},t3);
+  addWin(t3,826,790,24,52,'arch','#f4efe4');
+  addWin(t3,866,790,24,52,'arch','#f4efe4');
+  body(t3,812,900,92,850,'#c9a875');
+  addWin(t3,825,930,26,60,'arch','#e8e2d0',true);
+  addWin(t3,862,1010,22,50,'arch','#e8e2d0',true);
+
+  var t4=tower(layerBack,'البرج الذهبي');
+  body(t4,690,630,115,1120,'#c9a875');
+  cone(t4,684,127,635,240,'#8a6b3f');
+  addWin(t4,722,655,18,30,'rect','#3f3a31');
+  addWin(t4,750,650,22,34,'rect','#f4efe4');
+  addWin(t4,782,655,14,26,'rect','#3f3a31');
+  el('rect',{x:735,y:930,width:70,height:120,fill:'#b5ac9c',stroke:INK,'stroke-width':2},t4);
+  addWin(t4,745,955,16,22,'rect','#3f3a31');
+  addWin(t4,748,1000,14,18,'rect','#f4efe4');
+
+  /* ---------- الطبقة الوسطى ---------- */
+  var m1=tower(layerMid,'برج الساعة القديمة');
+  body(m1,125,540,95,1210,'#8a8578');
+  cone(m1,118,109,545,240,INK);
+  addWin(m1,155,470,34,44,'rect','#f4efe4',true);
+  addWin(m1,152,595,26,30,'rect','#b23a2a');
+  addWin(m1,165,860,18,22,'rect','#f4efe4');
+
+  var m2=tower(layerMid,'برج البوابات');
+  body(m2,205,760,125,540,INK);
+  el('path',{d:'M 205 760 Q 215 695 267 688 Q 320 695 330 760 Z',fill:INK},m2);
+  el('circle',{cx:262,cy:742,r:5,fill:'#f4efe4'},m2);
+  el('circle',{cx:276,cy:758,r:4,fill:'#f4efe4'},m2);
+  el('circle',{cx:254,cy:772,r:3.5,fill:'#f4efe4'},m2);
+  addWin(m2,222,880,14,40,'arch','#f4efe4');
+  addWin(m2,245,860,50,80,'arch','#d98e32');
+  addWin(m2,305,880,14,40,'arch','#f4efe4');
+  addWin(m2,250,1020,44,70,'arch','#f4efe4');
+  addWin(m2,225,1060,12,36,'arch','#f4efe4');
+  addWin(m2,308,1060,12,36,'arch','#f4efe4');
+  addWin(m2,225,1230,12,40,'arch','#f4efe4');
+  addWin(m2,268,1225,44,44,'wheel','#f4efe4');
+  el('rect',{x:196,y:1300,width:50,height:450,fill:'#7a5230',stroke:INK,'stroke-width':3},m2);
+  addWin(m2,208,1355,16,20,'rect','#f4efe4');
+  addWin(m2,206,1420,14,18,'rect','#f4efe4');
+  addWin(m2,208,1480,16,22,'rect','#f4efe4');
+  addWin(m2,206,1545,14,18,'rect','#f4efe4');
+  el('rect',{x:246,y:1300,width:84,height:450,fill:'#f4efe4',stroke:INK,'stroke-width':3},m2);
+  addWin(m2,266,1360,40,40,'wheel','#f4efe4');
+  addWin(m2,272,1440,26,26,'round','#3f3a31');
+  addWin(m2,268,1510,32,32,'wheel','#f4efe4');
+  addWin(m2,266,1600,36,60,'arch','#b5ac9c');
+  for(var ly=1660;ly<1700;ly+=9) el('line',{x1:198,y1:ly,x2:242,y2:ly,stroke:INK,'stroke-width':3},m2);
+
+  var m3=tower(layerMid,'سارية العلم');
+  el('line',{x1:268,y1:620,x2:268,y2:432,stroke:INK,'stroke-width':3},m3);
+  el('polygon',{points:'245,432 295,432 268,255',fill:INK},m3);
+
+  var m4=tower(layerMid,'بيت السقف الرمادي');
+  el('rect',{x:395,y:690,width:80,height:140,fill:'#c9a875',stroke:INK,'stroke-width':2},m4);
+  el('polygon',{points:'333,832 492,832 415,652',fill:'#8a8578',stroke:INK,'stroke-width':3},m4);
+  body(m4,345,830,135,920,'#6b4a2a');
+  addWin(m4,362,845,26,36,'oval','#d8ccb4');
+  addWin(m4,428,845,42,42,'rect','#f4efe4',true);
+  addWin(m4,368,915,26,48,'rect','#e8e2d0',true);
+  addWin(m4,424,910,36,52,'rect','#f4efe4',true);
+  addWin(m4,424,972,20,48,'rect',INK);
+
+  var m5=tower(layerMid,'برج الخطوط');
+  el('rect',{x:395,y:690,width:70,height:140,fill:'#c9a875',stroke:INK,'stroke-width':3},m5);
+  stripedCone(m5,430,76,690,110,[INK,'#c9a875','#d98e32',INK,'#8a8578','#c9a875',INK,'#d98e32',INK]);
+  el('ellipse',{cx:430,cy:300,rx:13,ry:24,fill:INK},m5);
+  el('circle',{cx:430,cy:292,r:3,fill:'#f4efe4'},m5);
+
+  var m6=tower(layerMid,'البرج الأبيض');
+  body(m6,482,670,95,200,'#9a938a');
+  addWin(m6,495,700,20,30,'rect','#3f3a31');
+  addWin(m6,548,700,16,26,'rect','#3f3a31');
+  addWin(m6,493,780,18,28,'rect','#3f3a31');
+  addWin(m6,550,790,14,34,'rect','#c9a875');
+  el('rect',{x:482,y:870,width:95,height:310,fill:'#f4efe4',stroke:INK,'stroke-width':3},m6);
+  addWin(m6,494,890,28,28,'wheel','#f4efe4');
+  addWin(m6,540,890,28,28,'wheel','#f4efe4');
+  addWin(m6,494,955,14,20,'rect',INK);
+  addWin(m6,545,960,12,24,'rect','#8a8578');
+  addWin(m6,494,1010,16,26,'rect',INK);
+  addWin(m6,546,1030,14,30,'rect','#8a8578');
+
+  var m7=tower(layerMid,'برج السلّم');
+  el('polygon',{points:'497,670 567,670 532,380',fill:'#c9a875',stroke:INK,'stroke-width':3},m7);
+  for(var ry=655;ry>395;ry-=14){
+    var hw=35*(ry-380)/(670-380);
+    el('line',{x1:532-hw,y1:ry,x2:532+hw,y2:ry,stroke:INK,'stroke-width':2},m7);
+  }
+
+  var m8=tower(layerMid,'برج الساعة');
+  el('rect',{x:580,y:563,width:60,height:337,fill:INK,stroke:INK,'stroke-width':3},m8);
+  stripedCone(m8,610,70,560,260,['#f4efe4',INK,'#f4efe4',INK,'#f4efe4',INK,'#f4efe4',INK]);
+  el('rect',{x:575,y:515,width:60,height:48,fill:'#f4efe4',stroke:INK,'stroke-width':3},m8);
+  el('circle',{cx:605,cy:539,r:14,fill:INK},m8);
+  el('line',{x1:605,y1:539,x2:605,y2:529,stroke:'#f4efe4','stroke-width':2},m8);
+  el('line',{x1:605,y1:539,x2:613,y2:543,stroke:'#f4efe4','stroke-width':2},m8);
+  addWin(m8,598,620,20,30,'rect','#f4efe4');
+  addWin(m8,600,690,14,14,'round','#f4efe4');
+  addWin(m8,598,730,16,24,'rect','#f4efe4');
+  addWin(m8,605,830,26,40,'rect','#f4efe4',true);
+  el('rect',{x:592,y:900,width:52,height:850,fill:'#b98d55',stroke:INK,'stroke-width':3},m8);
+  addWin(m8,600,960,16,16,'rect','#8a8578');
+  addWin(m8,612,1040,14,14,'rect','#8a8578');
+  addWin(m8,600,1120,16,16,'rect','#8a8578');
+  addWin(m8,610,1210,14,14,'rect','#8a8578');
+  addWin(m8,600,1300,16,16,'rect','#8a8578');
+
+  var m9=tower(layerMid,'البيت الأسود');
+  el('polygon',{points:'655,1030 790,1030 722,878',fill:INK},m9);
+  addWin(m9,712,952,20,26,'rect','#f4efe4');
+  el('rect',{x:655,y:1030,width:135,height:180,fill:INK,stroke:INK,'stroke-width':3},m9);
+  addWin(m9,670,1100,24,44,'arch','#f4efe4');
+  addWin(m9,708,1100,24,44,'arch','#f4efe4');
+  addWin(m9,746,1100,24,44,'arch','#f4efe4');
+  addWin(m9,672,1160,26,44,'rect','#c9a875',true);
+  addWin(m9,710,1160,26,44,'rect','#c9a875',true);
+  addWin(m9,748,1160,26,44,'rect','#c9a875',true);
+
+  var m10=tower(layerMid,'برج الباب الأحمر');
+  body(m10,665,1240,70,510,'#c9a875');
+  addWin(m10,690,1330,20,24,'rect','#3f3a31');
+  addWin(m10,688,1400,22,26,'rect','#3f3a31');
+  addWin(m10,686,1470,24,26,'rect','#3f3a31');
+  addWin(m10,686,1560,30,44,'arch','#3f3a31');
+  body(m10,735,1240,65,510,'#b99b6b');
+  addWin(m10,742,1400,34,140,'rect','#e8e2d0',true);
+  addWin(m10,745,1600,32,90,'rect','#b23a2a');
+
+  /* أزهار نجمية */
+  [[315,225,34,640],[370,295,28,650],[520,190,26,380],[600,140,28,262],[855,195,26,620],[925,200,26,560],[955,490,32,900],[545,845,24,1000],[88,455,16,0]].forEach(function(d){ dandy(layerMid,d[0],d[1],d[2],d[3]); });
+
+  /* ---------- الطبقة الأمامية ---------- */
+  el('rect',{x:0,y:1700,width:1000,height:50,fill:'#d8ccb4'},layerFront);
+
+  var hut=tower(layerFront,'الكوخ');
+  el('polygon',{points:'400,1602 590,1602 495,1495',fill:'#6e6a60',stroke:INK,'stroke-width':3},hut);
+  body(hut,410,1600,170,150,'#c9a875');
+  addWin(hut,428,1635,44,62,'rect','#f4efe4',true);
+  addWin(hut,486,1640,26,60,'rect',INK);
+  addWin(hut,525,1640,26,34,'rect','#8a8578');
+
+  fanTree(layerFront,60,1700,1250,95,'#b98d55');
+  fluff(layerFront,400,1380,75,'#8a8578',1700,5);
+  fluff(layerFront,505,1170,80,'#8a8578',1600,5);
+
+  el('line',{x1:620,y1:1600,x2:620,y2:1450,stroke:INK,'stroke-width':5},layerFront);
+  (function(){
+    var g=el('g',{},layerFront);
+    el('circle',{cx:620,cy:1400,r:48,fill:'#f4efe4',opacity:.9},g);
+    for(var i=0;i<40;i++){ var a=rnd()*Math.PI*2, l=48*rr(.5,1); el('line',{x1:620,y1:1400,x2:(620+Math.cos(a)*l).toFixed(1),y2:(1400+Math.sin(a)*l).toFixed(1),stroke:INK,'stroke-width':.8,opacity:.7},g); }
+    el('circle',{cx:620,cy:1400,r:3.5,fill:INK},g);
+  })();
+
+  fluff(layerFront,860,1230,120,'#8a8578',1700,7);
+  el('line',{x1:865,y1:1180,x2:865,y2:1000,stroke:INK,'stroke-width':4},layerFront);
+  [[865,1080,830,1030],[865,1060,900,1010],[865,1020,840,970],[865,1000,890,950]].forEach(function(b){ el('line',{x1:b[0],y1:b[1],x2:b[2],y2:b[3],stroke:INK,'stroke-width':2.5},layerFront); });
+
+  el('path',{d:'M 660 1050 C 648 950 655 875 682 838 C 704 872 708 950 702 1050 Z',fill:'#e8e2d0',stroke:INK,'stroke-width':2},layerFront);
+  el('circle',{cx:684,cy:880,r:3,fill:INK},layerFront);
+  fluff(layerFront,712,772,55,'#9a938a',0);
+
+  fence(0,140); fence(800,1000);
+
+  /* ---------- التفاعل ---------- */
+  function toSvg(e){ var m=svg.getScreenCTM().inverse(); return new DOMPoint(e.clientX,e.clientY).matrixTransform(m); }
+  svg.addEventListener('click',function(e){
+    if(e.target.classList.contains('skyrect')){
+      var p=toSvg(e);
+      if(svg.classList.contains('day')){ spawnBird(p.x-80,p.y,1); }
+      else if(userG.children.length<40){ dandy(userG,Math.round(p.x),Math.round(p.y),rr(14,26),0); }
+    }
+  });
+
+  document.querySelectorAll('.tower').forEach(function(g){
+    g.addEventListener('pointerenter',function(){ tip.textContent=g.dataset.name||'برج'; tip.style.opacity=1; });
+    g.addEventListener('pointermove',function(e){ tip.style.left=e.clientX+'px'; tip.style.top=(e.clientY-8)+'px'; });
+    g.addEventListener('pointerleave',function(){ tip.style.opacity=0; });
+  });
+
+  /* بارالاكس */
+  var tx=0,ty=0,cx=0,cy=0;
+  window.addEventListener('pointermove',function(e){ tx=(e.clientX/window.innerWidth)*2-1; ty=(e.clientY/window.innerHeight)*2-1; });
+  (function loop(){
+    cx+=(tx-cx)*0.06; cy+=(ty-cy)*0.06;
+    [layerBack,layerMid,layerFront].forEach(function(L){
+      var d=parseFloat(L.dataset.depth);
+      L.style.transform='translate('+(cx*d)+'px,'+(cy*d*0.4)+'px)';
+    });
+    requestAnimationFrame(loop);
+  })();
+
+  /* أبواغ / يراعات */
+  setInterval(function(){
+    var night=svg.classList.contains('night');
+    var c=el('circle',{cx:rr(50,950).toFixed(1),cy:1720,r:rr(1.5,3).toFixed(1),fill:night?'#ffe9a0':'#ffffff',opacity:.8},fxG);
+    c.animate([{transform:'translate(0,0)',opacity:.8},{transform:'translate('+rr(-60,60).toFixed(0)+'px,-'+rr(300,700).toFixed(0)+'px)',opacity:0}],{duration:rr(5000,9000),easing:'ease-out'}).onfinish=function(){ this.effect.target.remove(); };
+  },900);
+
+  /* الأزرار */
+  var nightBtn=document.getElementById('nightBtn');
+  nightBtn.addEventListener('click',function(){
+    var toNight=!svg.classList.contains('night');
+    svg.classList.toggle('night',toNight);
+    svg.classList.toggle('day',!toNight);
+    var glass=Array.prototype.slice.call(document.querySelectorAll('.glasswin'));
+    if(toNight){ glass.forEach(function(w){ w.classList.toggle('lit',Math.random()<0.85); }); }
+    else { glass.forEach(function(w){ w.classList.remove('lit'); }); }
+    nightBtn.textContent=toNight?'☀️ وضع النهار':'🌙 وضع الليل';
+  });
+  document.getElementById('birdBtn').addEventListener('click',function(){
+    if(svg.classList.contains('day')){ for(var i=0;i<5;i++)(function(i){ setTimeout(function(){ spawnBird(rr(-150,200),rr(100,520),1); },i*350); })(i); }
+    else { for(var j=0;j<4;j++)(function(j){ setTimeout(function(){ shoot(rr(40,700),rr(30,260)); },j*260); })(j); }
+  });
+  document.getElementById('lightBtn').addEventListener('click',function(){
+    var wins=Array.prototype.slice.call(document.querySelectorAll('.glasswin'));
+    var allLit=wins.every(function(w){ return w.classList.contains('lit'); });
+    wins.forEach(function(w){ w.classList.toggle('lit',!allLit); });
+  });
+  document.getElementById('clearBtn').addEventListener('click',function(){ userG.innerHTML=''; });
+  document.getElementById('resetBtn').addEventListener('click',function(){ location.reload(); });
+})();
+</script>
+</body>
+</html>

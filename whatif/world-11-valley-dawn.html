@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>فجر الوادي — Evgenia — مشهد تفاعلي</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.2.6/arabic-400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.2.6/arabic-700.css">
+<style>
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; overflow:hidden; }
+  body{ background:#2a2d33; font-family:'Cairo',sans-serif; }
+  #stage{ position:relative; width:100%; height:100vh; display:flex; align-items:center; justify-content:center; }
+  #scene{ height:100vh; max-width:100vw; display:block; box-shadow:0 0 80px rgba(0,0,0,.6); }
+
+  header{ position:fixed; top:14px; right:14px; z-index:6; display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+  header h1{ font-size:15px; font-weight:700; color:#4a4450; background:rgba(247,240,230,.9); border:2px solid #4a4450; border-radius:30px; padding:6px 16px; }
+  header button{ font-family:'Cairo',sans-serif; font-size:13px; font-weight:700; color:#4a4450; background:rgba(247,240,230,.9); border:2px solid #4a4450; border-radius:30px; padding:6px 14px; cursor:pointer; transition:transform .2s, background .3s; }
+  header button:hover{ transform:translateY(-3px); background:#fff; }
+  header button:active{ transform:scale(.94); }
+
+  #hint{ position:fixed; bottom:12px; right:50%; transform:translateX(50%); z-index:6; background:rgba(42,45,51,.8); color:#f7f0e6; font-size:12.5px; padding:8px 20px; border-radius:30px; white-space:nowrap; max-width:94vw; overflow:hidden; text-overflow:ellipsis; }
+
+  .layer{ will-change:transform; }
+  .spark{ animation:tw 3s ease-in-out infinite alternate; }
+  @keyframes tw{ from{ opacity:.15; } to{ opacity:.9; } }
+  .mist{ transition:opacity 1s; }
+  .mistBand{ animation:drift 26s ease-in-out infinite alternate; }
+  @keyframes drift{ from{ transform:translateX(-40px); } to{ transform:translateX(40px); } }
+  .reflG{ animation:drift 14s ease-in-out infinite alternate; }
+  .refl{ animation:shim 4s ease-in-out infinite alternate; }
+  @keyframes shim{ from{ opacity:.2; } to{ opacity:.65; } }
+  .pine{ transform-box:fill-box; transform-origin:50% 100%; animation:sway 8s ease-in-out infinite alternate; cursor:pointer; }
+  @keyframes sway{ from{ transform:rotate(-.8deg); } to{ transform:rotate(.8deg); } }
+  .puff{ transform-box:fill-box; transform-origin:50% 100%; animation:bob 5s ease-in-out infinite alternate; cursor:pointer; }
+  @keyframes bob{ from{ transform:rotate(-2deg); } to{ transform:rotate(2.5deg); } }
+  .sunWarm{ opacity:0; transition:opacity 2s ease; }
+  #scene.rise .sunWarm{ opacity:.5; }
+  #scene.rise .sunCore{ opacity:.95; }
+  .sunCore{ opacity:.55; transition:opacity 2s ease; }
+  .waterHit{ cursor:pointer; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="scene" viewBox="0 0 800 1440" preserveAspectRatio="xMidYMid meet" aria-label="لوحة فجر الوادي التفاعلية">
+    <defs>
+      <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#aeb6bd"/>
+        <stop offset=".45" stop-color="#d9c7c0"/>
+        <stop offset=".75" stop-color="#f4d9c4"/>
+        <stop offset="1" stop-color="#f7e3c9"/>
+      </linearGradient>
+      <linearGradient id="waterG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#d8d5d2"/>
+        <stop offset=".5" stop-color="#e8d5cc"/>
+        <stop offset="1" stop-color="#c4ccd2"/>
+      </linearGradient>
+      <radialGradient id="sunG" cx=".5" cy=".5" r=".5">
+        <stop offset="0" stop-color="#fbe8c0" stop-opacity=".95"/>
+        <stop offset="1" stop-color="#fbe8c0" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="warmG" cx=".5" cy=".5" r=".5">
+        <stop offset="0" stop-color="#ffcf9a" stop-opacity=".8"/>
+        <stop offset="1" stop-color="#ffcf9a" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="blurM" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="14"/></filter>
+      <filter id="blurS" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="4"/></filter>
+    </defs>
+
+    <rect x="0" y="0" width="800" height="520" fill="url(#skyG)"></rect>
+    <circle class="sunCore" cx="400" cy="330" r="240" fill="url(#sunG)"></circle>
+    <circle class="sunWarm" cx="400" cy="330" r="300" fill="url(#warmG)"></circle>
+    <g id="skyDots"></g>
+
+    <g id="layerFar" class="layer" data-depth="4"></g>
+    <g id="mistG" class="mist"></g>
+    <g id="layerMid" class="layer" data-depth="9"></g>
+    <g id="layerNear" class="layer" data-depth="15"></g>
+    <g id="fxG" pointer-events="none"></g>
+    <text x="600" y="1385" font-family="Cairo, sans-serif" font-weight="700" font-size="34" fill="#141210">Evgenia</text>
+  </svg>
+
+  <header>
+    <h1>🌄 فجر الوادي — Evgenia</h1>
+    <button id="riseBtn">🌅 إشراقة</button>
+    <button id="mistBtn">🌫️ إخفاء الضباب</button>
+    <button id="breezeBtn">🌸 نسمة</button>
+    <button id="birdsBtn">🕊️ عصافير</button>
+    <button id="resetBtn">🔄 إعادة</button>
+  </header>
+  <div id="hint">مرّر المؤشر لتحريك الطبقات • انقر الماء لصنع تموّجات • انقر الأشجار والأزهار • انقر السماء لتطير العصافير</div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var NS='http://www.w3.org/2000/svg';
+  var seed=97;
+  function rnd(){ seed=(seed*9301+49297)%233280; return seed/233280; }
+  function rr(a,b){ return a+rnd()*(b-a); }
+  function el(t,a,p){ var n=document.createElementNS(NS,t); for(var k in a) n.setAttribute(k,a[k]); if(p) p.appendChild(n); return n; }
+
+  var svg=document.getElementById('scene');
+  var skyDots=document.getElementById('skyDots');
+  var layerFar=document.getElementById('layerFar'), mistG=document.getElementById('mistG'), layerMid=document.getElementById('layerMid'), layerNear=document.getElementById('layerNear');
+  var fxG=document.getElementById('fxG');
+  var defs=svg.querySelector('defs');
+  var clipN=0;
+
+  /* نقاط السماء */
+  for(var s=0;s<220;s++){
+    el('circle',{cx:rr(2,798).toFixed(1),cy:rr(2,340).toFixed(1),r:rr(.7,1.8).toFixed(1),fill:(rnd()<.5?'#f7f0e6':'#e0cfa8'),opacity:rr(.2,.8).toFixed(2),'class':(rnd()<.35?'spark':'')},skyDots);
+  }
+
+  /* ---------- التلال البعيدة ---------- */
+  el('path',{d:'M 0 340 Q 200 296 400 330 Q 600 298 800 340 L 800 500 L 0 500 Z',fill:'#9aa4ae',opacity:.85},layerFar);
+  el('path',{d:'M 0 380 Q 140 356 290 428 Q 390 470 470 474 L 470 500 L 0 500 Z',fill:'#7f8b96'},layerFar);
+  el('path',{d:'M 800 380 Q 660 356 520 428 Q 450 466 400 474 L 400 500 L 800 500 Z',fill:'#7f8b96'},layerFar);
+  /* غابات صغيرة على المنحدرات */
+  (function(){
+    for(var i=0;i<90;i++){
+      var t=rnd(), x=rr(10,440), y=380+ (x/470)*90 + rr(-8,14);
+      el('path',{d:'M '+x.toFixed(0)+' '+y.toFixed(0)+' l 3 8 l -6 0 Z',fill:'#3f4a52',opacity:rr(.5,.9).toFixed(2)},layerFar);
+    }
+    for(var j=0;j<90;j++){
+      var x2=rr(360,790), y2=380+((800-x2)/470)*90 + rr(-8,14);
+      el('path',{d:'M '+x2.toFixed(0)+' '+y2.toFixed(0)+' l 3 8 l -6 0 Z',fill:'#3f4a52',opacity:rr(.5,.9).toFixed(2)},layerFar);
+    }
+  })();
+
+  /* الضباب */
+  [[400,470,420,50],[250,430,260,40],[560,440,260,40],[400,520,460,55]].forEach(function(m,i){
+    var e=el('ellipse',{cx:m[0],cy:m[1],rx:m[2],ry:m[3],fill:'#f7f0e6',opacity:.55,filter:'url(#blurM)','class':'mistBand',style:'animation-delay:'+(-i*6)+'s'},mistG);
+  });
+
+  /* ---------- الماء ---------- */
+  el('path',{d:'M 0 470 L 800 470 L 800 810 L 0 810 Z',fill:'url(#waterG)'},layerMid);
+  var waterHit=el('rect',{x:0,y:470,width:800,height:340,fill:'transparent','class':'waterHit'},layerMid);
+  var reflG=el('g',{'class':'reflG'},layerMid);
+  for(var rI=0;rI<26;rI++){
+    var ry=rr(480,800), rx1=rr(40,640), rw=rr(40,160);
+    el('line',{x1:rx1.toFixed(0),y1:ry.toFixed(0),x2:(rx1+rw).toFixed(0),y2:ry.toFixed(0),stroke:(rnd()<.5?'#f2c9c0':'#f7f0e6'),'stroke-width':rr(1.5,3).toFixed(1),'class':'refl',style:'animation-delay:'+rr(0,4).toFixed(1)+'s'},reflG);
+  }
+  /* انعكاس الرأس الأيمن */
+  el('path',{d:'M 500 660 Q 640 640 800 668 L 800 760 Q 640 730 500 700 Z',fill:'#5a6470',opacity:.35,filter:'url(#blurS)'},layerMid);
+  waterHit.addEventListener('click',function(ev){
+    ev.stopPropagation();
+    var m=svg.getScreenCTM().inverse(), p=new DOMPoint(ev.clientX,ev.clientY).matrixTransform(m);
+    for(var k=0;k<3;k++){
+      var c=el('ellipse',{cx:p.x,cy:p.y,rx:4,ry:1.5,fill:'none',stroke:'#f7f0e6','stroke-width':2},fxG);
+      c.animate([{transform:'scale(1)',opacity:.8},{transform:'scale('+(8+k*5)+')',opacity:0}],{duration:1400+k*350,easing:'ease-out'}).onfinish=(function(c2){ return function(){ c2.remove(); }; })(c);
+    }
+  });
+
+  /* ---------- الرأس الأيمن وأشجاره ---------- */
+  el('path',{d:'M 470 650 Q 600 620 800 640 L 800 700 Q 620 690 470 668 Z',fill:'#b5a887'},layerMid);
+  (function(){
+    var px=[520,560,600,650,700,750,790];
+    px.forEach(function(x,i){
+      var h=rr(50,90), y=648- (i%2)*6;
+      el('line',{x1:x,y1:y,x2:x,y2:y-h,stroke:'#2f3a40','stroke-width':2.5},layerMid);
+      for(var b=0;b<4;b++){ var by=y-h+b*(h/4.5); el('line',{x1:x,y1:by,x2:x-(h*0.18)*(1-b/5),y2:by+6,stroke:'#2f3a40','stroke-width':1.5},layerMid); el('line',{x1:x,y1:by,x2:x+(h*0.18)*(1-b/5),y2:by+6,stroke:'#2f3a40','stroke-width':1.5},layerMid); }
+    });
+    [620,660,700,740,780].forEach(function(x){
+      el('line',{x1:x,y1:650,x2:x,y2:610,stroke:'#e8e4da','stroke-width':2},layerMid);
+      for(var d=0;d<14;d++) el('circle',{cx:(x+rr(-12,12)).toFixed(0),cy:rr(596,640).toFixed(0),r:1.6,fill:'#d9cfa8',opacity:.8},layerMid);
+    });
+  })();
+
+  /* ---------- اليسار: صنوبر وأساس ---------- */
+  function pine(x,baseY,h){
+    var g=el('g',{'class':'pine'},layerMid);
+    el('line',{x1:x,y1:baseY,x2:x,y2:baseY-h,stroke:'#2a2620','stroke-width':4,'stroke-linecap':'round'},g);
+    for(var b=0;b<7;b++){
+      var by=baseY-h*0.35-b*(h*0.09), bl=(h*0.28)*(1-b/8);
+      el('line',{x1:x,y1:by,x2:x-bl,y2:by+8,stroke:'#2a2620','stroke-width':2.2},g);
+      el('line',{x1:x,y1:by,x2:x+bl,y2:by+8,stroke:'#2a2620','stroke-width':2.2},g);
+    }
+    g.addEventListener('click',function(ev){ ev.stopPropagation(); shimmer(x,baseY-h*0.6,60,'#d9cfa8'); });
+    return g;
+  }
+  pine(58,810,500);
+  pine(96,810,380);
+  function birch(x,baseY,h){
+    var g=el('g',{'class':'pine'},layerMid);
+    el('line',{x1:x,y1:baseY,x2:x,y2:baseY-h,stroke:'#4a443a','stroke-width':2.5},g);
+    el('line',{x1:x,y1:baseY-h*0.55,x2:x-h*0.16,y2:baseY-h*0.75,stroke:'#4a443a','stroke-width':1.5},g);
+    el('line',{x1:x,y1:baseY-h*0.65,x2:x+h*0.16,y2:baseY-h*0.85,stroke:'#4a443a','stroke-width':1.5},g);
+    for(var d=0;d<60;d++){
+      var a=rnd()*Math.PI*2, l=h*0.3*Math.sqrt(rnd());
+      el('circle',{cx:(x+Math.cos(a)*l*0.7).toFixed(0),cy:(baseY-h*0.8+Math.sin(a)*l).toFixed(0),r:rr(1,2.2).toFixed(1),fill:(rnd()<.6?'#d9b96a':'#e8d9a0'),opacity:rr(.4,.9).toFixed(2),'class':(rnd()<.3?'spark':'')},g);
+    }
+    g.addEventListener('click',function(ev){ ev.stopPropagation(); shimmer(x,baseY-h*0.8,70,'#e0c178'); });
+    return g;
+  }
+  birch(165,830,230);
+  birch(240,840,220);
+  birch(300,845,200);
+
+  function shimmer(x,y,r,color){
+    for(var i=0;i<12;i++){
+      var c=el('circle',{cx:x+rr(-r*0.5,r*0.5),cy:y+rr(-r*0.5,r*0.5),r:rr(1,2.5),fill:color},fxG);
+      c.animate([{transform:'translateY(0)',opacity:1},{transform:'translateY('+rr(-40,-15)+'px)',opacity:0}],{duration:rr(800,1400),easing:'ease-out'}).onfinish=(function(c2){ return function(){ c2.remove(); }; })(c);
+    }
+  }
+
+  /* ---------- التلال المنقّطة ---------- */
+  function dottedHill(d,fill,colors,n,yMin,yMax){
+    var id='cl'+(clipN++);
+    var cp=el('clipPath',{id:id},defs);
+    el('path',{d:d},cp);
+    el('path',{d:d,fill:fill},layerNear);
+    var g=el('g',{'clip-path':'url(#'+id+')'},layerNear);
+    for(var i=0;i<n;i++){
+      el('circle',{cx:rr(0,800).toFixed(0),cy:rr(yMin,yMax).toFixed(0),r:rr(.8,2.4).toFixed(1),fill:colors[Math.floor(rnd()*colors.length)],opacity:rr(.35,.95).toFixed(2),'class':(rnd()<.25?'spark':'')},g);
+    }
+    return g;
+  }
+  dottedHill('M 0 800 Q 200 756 420 810 Q 620 852 800 800 L 800 1010 L 0 1010 Z','#a8b0b8',['#f7f0e6','#e0cfa8','#c9c2a8','#8f9aa4'],500,760,1010);
+  dottedHill('M 0 950 Q 250 898 500 960 Q 680 1002 800 958 L 800 1160 L 0 1160 Z','#8f9aa4',['#f7f0e6','#e0c178','#c9c2a8','#7c8894'],500,900,1160);
+  dottedHill('M 0 1100 Q 200 1048 450 1110 Q 650 1152 800 1098 L 800 1440 L 0 1440 Z','#7c8894',['#f2c9cc','#e8b8bc','#f7f0e6','#e0c178','#5a6470'],700,1050,1440);
+
+  /* أزهار وردية */
+  (function(){
+    for(var i=0;i<26;i++){
+      var x=rr(10,360), y=rr(1160,1430), r=rr(6,15);
+      var g=el('g',{'class':'puff',style:'animation-delay:'+rr(0,4).toFixed(1)+'s'},layerNear);
+      el('line',{x1:x,y1:y+r,x2:x+rr(-6,6),y2:y+r+rr(14,30),stroke:'#5a5342','stroke-width':1.5},g);
+      el('circle',{cx:x,cy:y,r:r,fill:(rnd()<.5?'#f2c9cc':'#e8b8bc'),opacity:.95},g);
+      el('circle',{cx:x-r*0.3,cy:y-r*0.3,r:r*0.35,fill:'#f7e0e2',opacity:.8},g);
+      g.addEventListener('click',(function(gg,x2,y2){ return function(ev){ ev.stopPropagation(); petalBurst(x2,y2); }; })(g,x,y));
+    }
+    for(var j=0;j<40;j++){
+      el('circle',{cx:rr(380,795).toFixed(0),cy:rr(1200,1430).toFixed(0),r:rr(1.5,3).toFixed(1),fill:(rnd()<.5?'#f2c9cc':'#e0c178'),opacity:.8,'class':'spark'},layerNear);
+    }
+  })();
+  function petalBurst(x,y){
+    for(var i=0;i<10;i++){
+      var c=el('circle',{cx:x,cy:y,r:rr(2,4),fill:(i%2?'#f2c9cc':'#e8b8bc')},fxG);
+      var a=rnd()*Math.PI*2, d=rr(25,70);
+      c.animate([{transform:'translate(0,0)',opacity:1},{transform:'translate('+(Math.cos(a)*d)+'px,'+(Math.sin(a)*d-20)+'px)',opacity:0}],{duration:rr(800,1300),easing:'ease-out'}).onfinish=(function(c2){ return function(){ c2.remove(); }; })(c);
+    }
+  }
+
+  /* لقائمات صاعدة */
+  setInterval(function(){
+    var c=el('circle',{cx:rr(20,780).toFixed(0),cy:rr(1150,1420).toFixed(0),r:rr(1,2.2).toFixed(1),fill:(rnd()<.5?'#f7f0e6':'#e0c178'),opacity:.8},fxG);
+    c.animate([{transform:'translateY(0)',opacity:.8},{transform:'translateY('+rr(-260,-120)+'px)',opacity:0}],{duration:rr(4000,7000),easing:'ease-out'}).onfinish=(function(c2){ return function(){ c2.remove(); }; })(c);
+  },500);
+
+  /* عصافير */
+  function bird(x,y){
+    var g=el('g',{},fxG);
+    var p=el('path',{d:'M -9 0 Q -4 -7 0 0 Q 4 -7 9 0',fill:'none',stroke:'#3a3540','stroke-width':2.5,'stroke-linecap':'round'},g);
+    p.style.transformBox='fill-box'; p.style.transformOrigin='center';
+    p.animate([{transform:'scaleY(1)'},{transform:'scaleY(.35)'},{transform:'scaleY(1)'}],{duration:320,iterations:Infinity});
+    var dx=rr(500,800);
+    g.animate([
+      {transform:'translate('+x+'px,'+y+'px)'},
+      {transform:'translate('+(x+dx*0.5)+'px,'+(y-40)+'px)'},
+      {transform:'translate('+(x+dx+80)+'px,'+(y-10)+'px)'}
+    ],{duration:rr(6000,8000),easing:'linear'}).onfinish=function(){ g.remove(); };
+  }
+  svg.addEventListener('click',function(e){
+    if(e.target.tagName==='rect'&&!e.target.classList.contains('waterHit')&&e.target.getAttribute('fill')==='url(#skyG)'){
+      var m=svg.getScreenCTM().inverse(), p=new DOMPoint(e.clientX,e.clientY).matrixTransform(m);
+      bird(p.x,p.y);
+    }
+  });
+
+  /* بارالاكس */
+  var tx=0,ty=0,cx2=0,cy2=0;
+  window.addEventListener('pointermove',function(e){ tx=(e.clientX/window.innerWidth)*2-1; ty=(e.clientY/window.innerHeight)*2-1; });
+  (function loop(){
+    cx2+=(tx-cx2)*0.06; cy2+=(ty-cy2)*0.06;
+    [layerFar,layerMid,layerNear].forEach(function(L){
+      var d=parseFloat(L.dataset.depth);
+      L.style.transform='translate('+(cx2*d)+'px,'+(cy2*d*0.4)+'px)';
+    });
+    requestAnimationFrame(loop);
+  })();
+
+  /* أزرار */
+  var riseBtn=document.getElementById('riseBtn');
+  riseBtn.addEventListener('click',function(){
+    svg.classList.toggle('rise');
+    riseBtn.textContent=svg.classList.contains('rise')?'🌄 فجر هادئ':'🌅 إشراقة';
+  });
+  var mistOn=true;
+  document.getElementById('mistBtn').addEventListener('click',function(){
+    mistOn=!mistOn; mistG.style.opacity=mistOn?1:0;
+    document.getElementById('mistBtn').textContent=mistOn?'🌫️ إخفاء الضباب':'🌫️ إظهار الضباب';
+  });
+  document.getElementById('breezeBtn').addEventListener('click',function(){
+    for(var i=0;i<24;i++) petalBurst(rr(20,780),rr(1150,1400));
+    shimmer(240,700,90,'#e0c178'); shimmer(90,600,90,'#d9cfa8');
+  });
+  document.getElementById('birdsBtn').addEventListener('click',function(){
+    for(var i=0;i<4;i++)(function(i){ setTimeout(function(){ bird(rr(40,300),rr(80,300)); },i*400); })(i);
+  });
+  document.getElementById('resetBtn').addEventListener('click',function(){ location.reload(); });
+})();
+</script>
+</body>
+</html>

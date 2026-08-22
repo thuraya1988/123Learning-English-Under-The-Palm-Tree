@@ -757,7 +757,8 @@ function updateShip(dt){
     if(keys.KeyS)G.sail=Math.max(0,G.sail-dt*.5);}
   else if(G.autopilot){const d=curDest().dock.clone().sub(ship.position);
     const ta=Math.atan2(d.x,d.z);G.rudder=Math.max(-1,Math.min(1,angDiff(ta,G.heading)*1.4));
-    G.sail=.85;}
+    /* الدفة الآلية تُنزل الشراع عند الاقتراب من الميناء حتى تهدأ السرعة ويمكن الرسوّ */
+    G.sail=d.length()<45?.1:.85;}
   const target=G.sail*14*wf*G.windStr/.6;
   G.speed+=(Math.min(20,target)-G.speed)*dt*.6;
   G.heading+=G.rudder*dt*.5*(.35+.65*Math.min(1,G.speed/8));
@@ -769,10 +770,7 @@ function updateShip(dt){
   ship.position.y=.12*Math.sin(G.time*.5)*waterUni.uAmp.value;
   wheel.rotation.z=G.rudder*1.2;
   pennant.rotation.y=.3*Math.sin(G.time*1.7);
-  // وصول؟
-  const dest=curDest().dock;
-  if(ship.position.distanceTo(dest)<30&&G.speed<4&&!G.docked&&G.state==='sail'){
-    promptTxt='E|dock';showPrompt('⚓ E: رسوٌّ في '+curDest().P.name);}
+  /* الوصول يُفحص داخل updatePrompt لأنّها تُنفَّذ بعد هذه الدالة وتُصفّر promptTxt */
   // أحداث
   const leg=LEGS[Math.min(G.leg,5)];
   if(leg.event==='pirates'&&!G.piratesOn&&legProg()>.4){G.piratesOn=true;pirate.visible=true;
@@ -836,6 +834,10 @@ function hidePrompt(){promptEl.style.display='none';}
 function updatePrompt(){promptTxt='';
   if(G.finished||dlgOpen){hidePrompt();return;}
   if(G.sex){showPrompt('🔭 وجّه النظر لنجم ثم E للقراءة · N للإغلاق');return;}
+  /* بلغنا الميناء وهدأت السرعة — الرسوّ أولى من كلّ تفاعل آخر */
+  if(G.mode==='ship'&&!G.docked&&G.state==='sail'&&ship.position.distanceTo(curDest().dock)<30){
+    if(G.speed<4){promptTxt='E|dock';showPrompt('⚓ E: رسوٌّ في '+curDest().P.name);return;}
+    showPrompt('🛑 أنزل الشراع لتهدأ السرعة قبل الرسوّ في '+curDest().P.name);return;}
   if(G.mode==='ship'&&!G.helm){
     const wl=ship.localToWorld(new THREE.Vector3(0,3.3,-6.6));
     const cp=camera.position;

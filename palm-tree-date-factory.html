@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>تحت شجرة النخيل · لعبة مصنع التمور</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/700.css">
+<style>
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; height:100%; overflow:hidden; background:#14100a;
+    font-family:'Cairo','Segoe UI',sans-serif; touch-action:none; }
+  #app{ position:fixed; inset:0; }
+  #app canvas{ display:block; }
+  .ov{ position:fixed; inset:0; z-index:40; display:flex; align-items:center; justify-content:center;
+    background:rgba(14,10,5,.82); backdrop-filter:blur(8px); }
+  .card{ background:rgba(28,20,10,.92); border:1px solid rgba(226,178,110,.35); border-radius:16px;
+    box-shadow:0 16px 60px rgba(0,0,0,.6); color:#efe3cd; padding:22px 26px;
+    max-width:640px; width:calc(100vw - 32px); max-height:86vh; overflow-y:auto; text-align:right; }
+  .card h1{ margin:0 0 2px; font-size:26px; font-weight:700; color:#f4e8d0; }
+  .card h1 em{ font-style:normal; color:#e0a35c; }
+  .latin{ font-size:10px; letter-spacing:.3em; color:#a98d5f; font-weight:600; }
+  .sub{ color:#cbb astronomy }
+  .sub{ color:#cbb694; font-size:13px; margin:8px 0 12px; line-height:1.9; }
+  .instr{ background:rgba(226,178,110,.07); border:1px solid rgba(226,178,110,.22);
+    border-radius:10px; padding:10px 14px; font-size:12.5px; line-height:2; color:#e2d3b4; }
+  .instr b{ color:#e0a35c; }
+  .bigbtn{ display:block; width:100%; margin-top:14px; font-family:inherit; font-size:16px; font-weight:700;
+    color:#241505; background:linear-gradient(180deg,#f0b46a,#d8923e); border:none; border-radius:10px;
+    padding:12px; cursor:pointer; box-shadow:0 6px 22px rgba(224,163,92,.35); }
+  .bigbtn:active{ transform:scale(.98); }
+  .ghost{ background:rgba(226,178,110,.1); color:#e2d3b4; border:1px solid rgba(226,178,110,.35); box-shadow:none; }
+  #recipes .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(165px,1fr)); gap:8px; margin-top:10px; }
+  .rcp{ background:rgba(226,178,110,.06); border:1px solid rgba(226,178,110,.25); border-radius:10px;
+    padding:9px 11px; cursor:pointer; transition:all .15s; text-align:right; }
+  .rcp:hover{ background:rgba(226,178,110,.16); border-color:#e0a35c; transform:translateY(-2px); }
+  .rcp .nm{ font-size:13px; font-weight:700; color:#f4e8d0; }
+  .rcp .ch{ display:flex; flex-wrap:wrap; gap:3px; margin-top:5px; }
+  .ing{ font-size:9.5px; padding:1px 7px; border-radius:10px; border:1px solid rgba(226,178,110,.3); color:#dccfae; }
+  .rcp .st{ font-size:9.5px; color:#a98d5f; margin-top:4px; }
+  #hud{ position:fixed; inset:0; z-index:20; pointer-events:none; display:none; }
+  #topbar{ position:absolute; top:10px; right:10px; left:10px; display:flex; gap:8px;
+    flex-wrap:wrap; justify-content:center; }
+  .pill{ background:rgba(20,14,7,.72); border:1px solid rgba(226,178,110,.3); border-radius:20px;
+    padding:4px 12px; font-size:11.5px; color:#efe3cd; backdrop-filter:blur(6px); }
+  .pill.gold{ color:#ffd98a; font-weight:700; }
+  #goalbox{ position:absolute; top:52px; right:10px; background:rgba(20,14,7,.78);
+    border:1px solid rgba(226,178,110,.3); border-radius:12px; padding:9px 13px;
+    font-size:11.5px; color:#e2d3b4; max-width:300px; backdrop-filter:blur(6px); line-height:1.9; }
+  #goalbox .t{ color:#ffd98a; font-weight:700; font-size:13px; }
+  .ok{ color:#7ad08a; } .now{ color:#ffd98a; font-weight:700; }
+  #prompt{ position:absolute; bottom:26%; left:50%; transform:translateX(-50%);
+    background:rgba(20,14,7,.85); border:1px solid #e0a35c; border-radius:12px;
+    padding:8px 18px; font-size:14px; font-weight:700; color:#ffd98a; display:none;
+    text-align:center; backdrop-filter:blur(6px); }
+  #prompt small{ display:block; font-size:10px; color:#cbb694; font-weight:400; }
+  #toast{ position:absolute; bottom:36%; left:50%; transform:translateX(-50%);
+    background:rgba(60,20,10,.9); border:1px solid #ff8a5a; border-radius:10px;
+    padding:6px 16px; font-size:12.5px; color:#ffd0b0; display:none; }
+  #cross{ position:absolute; top:50%; left:50%; width:6px; height:6px; margin:-3px;
+    border-radius:50%; background:rgba(255,217,138,.85); box-shadow:0 0 8px rgba(255,217,138,.8); }
+  #joybase{ position:absolute; bottom:26px; left:26px; width:118px; height:118px; border-radius:50%;
+    background:rgba(226,178,110,.10); border:2px solid rgba(226,178,110,.35); display:none; pointer-events:auto; }
+  #joyknob{ position:absolute; top:50%; left:50%; width:52px; height:52px; margin:-26px;
+    border-radius:50%; background:rgba(226,178,110,.5); border:2px solid #f0c890; }
+  #actbtn{ position:absolute; bottom:34px; right:26px; width:86px; height:86px; border-radius:50%;
+    background:linear-gradient(180deg,#f0b46a,#d8923e); border:none; color:#241505;
+    font-family:inherit; font-size:14px; font-weight:700; display:none; pointer-events:auto;
+    box-shadow:0 6px 24px rgba(224,163,92,.45); }
+  #actbtn:active{ transform:scale(.94); }
+  #stars{ font-size:44px; letter-spacing:8px; text-align:center; margin:10px 0; }
+  .st-on{ color:#ffd257; text-shadow:0 0 18px rgba(255,210,87,.7); }
+  .st-off{ color:#4a4234; }
+  #fsbtn{ position:fixed; top:12px; left:12px; z-index:30; background:rgba(20,14,7,.7);
+    border:1px solid rgba(226,178,110,.35); color:#e2d3b4; border-radius:8px; font-family:inherit;
+    font-size:11px; padding:5px 10px; cursor:pointer; }
+  @media (max-width:700px){
+    .card h1{ font-size:20px; }
+    #goalbox{ max-width:230px; font-size:10.5px; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<button id="fsbtn">⛶ ملء الشاشة</button>
+
+<!-- شاشة البداية والتعليمات -->
+<div id="menu" class="ov">
+  <div class="card">
+    <h1>مصنع التمور <em>الفاخر</em></h1>
+    <div class="latin">UNDER THE PALM TREE · DATE FACTORY GAME</div>
+    <div class="sub">ادخل المصنع الآلي، اجمع المكوّنات، شغّل المحطات، واصنع أكثر من ٣٠ وصفة تمور فاخرة حتى تصل إلى الشحن! 🌴</div>
+    <div class="instr">
+      <b>🖥️ الكمبيوتر:</b> WASD أو الأسهم للمشي · Shift للركض · الفأرة للنظر · <b>E</b> للتفاعل<br>
+      <b>📱 الجوال:</b> عصا التحكم اليسرى للمشي · اسحب يمين الشاشة للنظر · زر <b>تفاعل</b> للتنفيذ<br>
+      <b>🎯 طريقة اللعب:</b> ١) اختر وصفة ٢) ارفع المكوّنات من محطاتها ٣) ضعها في محطات التصنيع بالترتيب ٤) عبّئ الصندوق ٥) اشحنه!<br>
+      <b>⭐ التقييم:</b> أنجز بسرعة وبدون أخطاء لتحصل على ٣ نجوم.
+    </div>
+    <button id="btnStart" class="bigbtn">🌴 ابدأ اللعب</button>
+  </div>
+</div>
+
+<!-- اختيار الوصفة -->
+<div id="recipes" class="ov" style="display:none">
+  <div class="card">
+    <h1>اختر <em>الوصفة</em></h1>
+    <div class="sub" id="scoreline">الطلبات المكتملة: 0 · النجوم: 0 ⭐</div>
+    <div class="grid" id="rgrid"></div>
+  </div>
+</div>
+
+<!-- شاشة الإنجاز -->
+<div id="done" class="ov" style="display:none">
+  <div class="card" style="text-align:center">
+    <h1>تم شحن الطلب! 📦</h1>
+    <div id="stars">★★★</div>
+    <div class="sub" id="donetxt"></div>
+    <button id="btnNext" class="bigbtn">وصفة جديدة</button>
+    <button id="btnMenu" class="bigbtn ghost" style="margin-top:8px">قائمة الوصفات</button>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="topbar">
+    <div class="pill gold" id="hudRcp">—</div>
+    <div class="pill" id="hudTime">⏱ 00:00</div>
+    <div class="pill" id="hudScore">📦 0 · ⭐ 0</div>
+  </div>
+  <div id="goalbox"></div>
+  <div id="cross"></div>
+  <div id="prompt"></div>
+  <div id="toast"></div>
+  <div id="joybase"><div id="joyknob"></div></div>
+  <button id="actbtn">تفاعل</button>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================ أساسيات ============================ */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x2a2438, 30, 130);
+
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.08, 300);
+camera.rotation.order = 'YXZ';
+camera.position.set(-40, 1.7, 8);
+scene.add(camera);
+
+const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+/* ============================ صوت ============================ */
+let AC = null;
+function ac(){ if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); return AC; }
+function tone(f0, f1, dur, type='sine', vol=0.18, delay=0){
+  const a = ac(), t0 = a.currentTime + delay;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t0);
+  o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(t0); o.stop(t0 + dur + 0.05);
+}
+function noiseBurst(dur=0.5, freq=900, vol=0.15){
+  const a = ac(), n = a.sampleRate * dur, buf = a.createBuffer(1, n, a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+  const s = a.createBufferSource(); s.buffer = buf;
+  const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq;
+  const g = a.createGain(); g.gain.value = vol;
+  s.connect(f); f.connect(g); g.connect(a.destination); s.start();
+}
+const SFX = {
+  click(){ tone(600, 900, 0.08, 'square', 0.1); },
+  pick(){ tone(420, 880, 0.16, 'sine', 0.2); tone(880, 1320, 0.12, 'sine', 0.12, 0.08); },
+  put(){ tone(500, 240, 0.18, 'triangle', 0.2); },
+  machine(){ noiseBurst(0.55, 700, 0.18); tone(90, 70, 0.5, 'sawtooth', 0.06); },
+  err(){ tone(180, 110, 0.25, 'square', 0.14); },
+  fanfare(){ [523, 659, 784, 1046].forEach((f,i)=>tone(f, f, 0.28, 'triangle', 0.16, i*0.13)); },
+  star(i){ tone(700 + i*250, 900 + i*250, 0.2, 'sine', 0.16); },
+  step(){ noiseBurst(0.07, 380, 0.045); }
+};
+
+/* ============================ إضاءة ============================ */
+scene.add(new THREE.HemisphereLight(0xffd9ae, 0x2c2438, 0.5));
+const moon = new THREE.DirectionalLight(0xffc07a, 2.2);
+moon.position.set(25, 30, 35);
+moon.castShadow = true;
+moon.shadow.mapSize.set(1024, 1024);
+moon.shadow.camera.left = -50; moon.shadow.camera.right = 50;
+moon.shadow.camera.top = 35; moon.shadow.camera.bottom = -35;
+moon.shadow.camera.far = 120;
+moon.shadow.bias = -0.0004; moon.shadow.normalBias = 0.05;
+scene.add(moon);
+for (const lx of [-28, -8, 12, 32]){
+  const p = new THREE.PointLight(0xffd9a8, 55, 40, 2);
+  p.position.set(lx, 9.4, -2);
+  scene.add(p);
+}
+const fireLight = new THREE.PointLight(0xff7a24, 30, 12, 2);
+scene.add(fireLight);
+
+/* ============================ سماء ونجوم ============================ */
+{
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
+  const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0,0,0,512);
+  gr.addColorStop(0,'#0c1230'); gr.addColorStop(0.4,'#2a2c50'); gr.addColorStop(0.52,'#7a5a6a');
+  gr.addColorStop(0.58,'#e8975a'); gr.addColorStop(0.64,'#8a6248'); gr.addColorStop(1,'#2c2420');
+  g.fillStyle = gr; g.fillRect(0,0,1024,512);
+  const sun = g.createRadialGradient(560, 288, 4, 560, 288, 130);
+  sun.addColorStop(0,'rgba(255,235,190,0.9)'); sun.addColorStop(1,'rgba(255,190,120,0)');
+  g.fillStyle = sun; g.fillRect(0,0,1024,512);
+  const t = new THREE.CanvasTexture(c);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  scene.background = t;
+  const pm = new THREE.PMREMGenerator(renderer);
+  const es = new THREE.Scene();
+  es.add(new THREE.Mesh(new THREE.SphereGeometry(50,20,10), new THREE.MeshBasicMaterial({ map:t, side:THREE.BackSide })));
+  scene.environment = pm.fromScene(es, 0.1).texture;
+  const sp = new Float32Array(700*3);
+  for (let i=0;i<700;i++){
+    const a = Math.random()*Math.PI*2, e = Math.random()*Math.PI*0.45;
+    const r = 140;
+    sp[i*3] = Math.cos(a)*Math.cos(e)*r;
+    sp[i*3+1] = Math.sin(e)*r + 10;
+    sp[i*3+2] = Math.sin(a)*Math.cos(e)*r;
+  }
+  const sg = new THREE.BufferGeometry();
+  sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+  scene.add(new THREE.Points(sg, new THREE.PointsMaterial({ color:0xfff2d0, size:1.4, sizeAttenuation:false, transparent:true, opacity:0.9 })));
+}
+
+/* ============================ أدوات ============================ */
+function makeTex(w, h, painter){
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  painter(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function speckle(g, w, h, n, cols, a0, a1, s0, s1){
+  for (let i=0;i<n;i++){
+    g.globalAlpha = a0 + Math.random()*(a1-a0);
+    g.fillStyle = cols[(Math.random()*cols.length)|0];
+    const s = s0 + Math.random()*(s1-s0);
+    g.fillRect(Math.random()*w, Math.random()*h, s, s);
+  }
+  g.globalAlpha = 1;
+}
+function drawPalm(g, cx, cy, s, dark){
+  g.strokeStyle = dark; g.lineCap = 'round';
+  g.lineWidth = s*0.09;
+  g.beginPath(); g.moveTo(cx - s*0.06, cy + s*0.5);
+  g.quadraticCurveTo(cx + s*0.1, cy + s*0.1, cx + s*0.02, cy - s*0.25); g.stroke();
+  g.lineWidth = s*0.055;
+  const tx = cx + s*0.02, ty = cy - s*0.25;
+  for (let i=0;i<7;i++){
+    const a = -Math.PI*0.95 + i*(Math.PI*0.9/6);
+    g.beginPath(); g.moveTo(tx, ty);
+    g.quadraticCurveTo(tx + Math.cos(a)*s*0.32, ty + Math.sin(a)*s*0.32 - s*0.08,
+      tx + Math.cos(a)*s*0.5, ty + Math.sin(a)*s*0.42 + s*0.1);
+    g.stroke();
+  }
+}
+function labelTex(text, bg='#2c2014', fg='#ffd98a'){
+  return makeTex(256, 96, (g,w,h)=>{
+    g.fillStyle = bg; g.fillRect(0,0,w,h);
+    g.strokeStyle = '#e0a35c'; g.lineWidth = 4; g.strokeRect(4,4,w-8,h-8);
+    g.font = '700 34px Cairo, sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = fg; g.fillText(text, w/2, h/2 + 4);
+  });
+}
+function brandTex(){
+  return makeTex(512, 256, (g,w,h)=>{
+    g.fillStyle = '#d8c8a2'; g.fillRect(0,0,w,h);
+    g.strokeStyle = '#5c452a'; g.lineWidth = 8; g.strokeRect(8,8,w-16,h-16);
+    const r = h*0.28;
+    g.strokeStyle = '#4c3a20'; g.lineWidth = r*0.14;
+    g.beginPath(); g.arc(w*0.13, h/2, r, 0, 6.283); g.stroke();
+    drawPalm(g, w*0.13, h/2, r*1.5, '#4c3a20');
+    g.font = `700 ${h*0.24}px Cairo, sans-serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#3c2d16';
+    g.fillText('UNDER THE PALM TREE', w*0.58, h/2);
+  });
+}
+function cartonTex(){
+  return makeTex(256, 256, (g,w,h)=>{
+    g.fillStyle = '#b3946a'; g.fillRect(0,0,w,h);
+    speckle(g, w, h, 1200, ['#a8875c','#bd9e74','#9c7c52'], 0.1, 0.3, 1, 2);
+    const r = w*0.14;
+    g.strokeStyle = '#3c2d16'; g.lineWidth = r*0.16;
+    g.beginPath(); g.arc(w/2, h*0.36, r, 0, 6.283); g.stroke();
+    drawPalm(g, w/2, h*0.36, r*1.5, '#3c2d16');
+    g.font = '700 22px Cairo, sans-serif';
+    g.textAlign = 'center';
+    g.fillStyle = '#3c2d16';
+    g.fillText('UNDER THE PALM TREE', w/2, h*0.72);
+  });
+}
+
+/* ============================ خامات ============================ */
+const mats = [];
+const std = o => { const m = new THREE.MeshStandardMaterial(o); m.envMapIntensity = 0.8; mats.push(m); return m; };
+const texFloor = makeTex(1024, 512, (g,w,h)=>{
+  g.fillStyle = '#8f8a80'; g.fillRect(0,0,w,h);
+  speckle(g, w, h, 9000, ['#9a958a','#7e7970','#a4a096','#706c64'], 0.06, 0.2, 1, 2.4);
+  g.strokeStyle = 'rgba(55,52,48,0.5)'; g.lineWidth = 2;
+  for (let x=0;x<=w;x+=w/15){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,h); g.stroke(); }
+  for (let y=0;y<=h;y+=h/7){ g.beginPath(); g.moveTo(0,y); g.lineTo(w,y); g.stroke(); }
+  g.fillStyle = '#d8b23a';
+  g.fillRect(0, h*0.30, w, 4); g.fillRect(0, h*0.46, w, 4);
+  g.fillRect(0, h*0.62, w, 3); g.fillRect(0, h*0.70, w, 3);
+  g.strokeStyle = '#d8b23a'; g.lineWidth = 3;
+  for (let i=0;i<12;i++){ g.beginPath(); g.arc(w*(0.05+i*0.083), h*0.38, 24, 0, 6.283); g.stroke(); }
+  for (let i=0;i<8;i++){
+    g.fillStyle = 'rgba(42,38,32,0.3)';
+    g.beginPath(); g.ellipse(Math.random()*w, Math.random()*h, 14+Math.random()*20, 8, Math.random(), 0, 6.283); g.fill();
+  }
+  g.strokeStyle = 'rgba(50,48,44,0.5)'; g.lineWidth = 1.2;
+  for (let i=0;i<8;i++){
+    let x = Math.random()*w, y = Math.random()*h;
+    g.beginPath(); g.moveTo(x,y);
+    for (let k=0;k<4;k++){ x += (Math.random()-0.5)*36; y += (Math.random()-0.5)*26; g.lineTo(x,y); }
+    g.stroke();
+  }
+});
+texFloor.repeat.set(4, 2);
+const texWall = makeTex(512, 256, (g,w,h)=>{
+  g.fillStyle = '#cfb489'; g.fillRect(0,0,w,h);
+  speckle(g, w, h, 3000, ['#d8bd92','#bfa276','#c8ad82','#ab9068'], 0.06, 0.2, 1, 2);
+  g.fillStyle = 'rgba(90,72,50,0.35)'; g.fillRect(0, h*0.92, w, h*0.08);
+});
+texWall.repeat.set(8, 1);
+const matFloor = std({ map:texFloor, roughness:0.85, metalness:0.05 });
+const matWall  = std({ map:texWall, roughness:0.9 });
+const matSteel = std({ color:0xb8bcc2, roughness:0.24, metalness:0.92 });
+const matSteelD= std({ color:0x7c8288, roughness:0.35, metalness:0.85 });
+const matFrame = std({ color:0x3a4a5a, roughness:0.6, metalness:0.6 });
+const matDark  = std({ color:0x22242a, roughness:0.7, metalness:0.4 });
+const matBelt  = std({ color:0x2c2e33, roughness:0.9 });
+const matWood  = std({ color:0x7a5836, roughness:0.85 });
+const matChoco = std({ color:0x3a2113, roughness:0.25, metalness:0.15 });
+const matGlass = std({ color:0xbcd4da, roughness:0.06, metalness:0.4, transparent:true, opacity:0.32 });
+const matScreen= std({ color:0x0a1a14, emissive:0x2ad08a, emissiveIntensity:0.9 });
+const matLamp  = std({ color:0x333028, emissive:0xffd9a0, emissiveIntensity:1.8 });
+const matYellow= std({ color:0xd8b23a, roughness:0.55 });
+const matRed   = std({ color:0xa02018, roughness:0.4 });
+const matGreen = std({ color:0x1a7a3a, roughness:0.4 });
+const matFlameO= std({ color:0x000000, emissive:0xff7a1c, emissiveIntensity:2.4, transparent:true, opacity:0.85 });
+const matFlameY= std({ color:0x000000, emissive:0xffd04a, emissiveIntensity:3, transparent:true, opacity:0.9 });
+const matGlow  = std({ color:0x000000, emissive:0xff5a14, emissiveIntensity:2, transparent:true, opacity:0.5 });
+const matHeat  = std({ color:0x1a1210, emissive:0xff8a30, emissiveIntensity:0.9 });
+const matCool  = std({ color:0x22323a, emissive:0xbce8ff, emissiveIntensity:1.2 });
+const matWater = std({ color:0x6ab8cc, roughness:0.1, metalness:0.5, transparent:true, opacity:0.6 });
+const matCarton= std({ map:cartonTex(), roughness:0.85 });
+const matBrand = std({ map:brandTex(), roughness:0.7 });
+
+/* ============================ بناء المصنع ============================ */
+const root = new THREE.Group();
+scene.add(root);
+const solids = [];
+const fans = [];
+function bx(w,h,d,mtl,x,y,z,rx=0,ry=0,rz=0,parent=root){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mtl);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  m.castShadow = true; m.receiveShadow = true;
+  parent.add(m); return m;
+}
+function cy(rt,rb,h,mtl,x,y,z,rx=0,ry=0,rz=0,parent=root){
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,16), mtl);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  m.castShadow = true; m.receiveShadow = true;
+  parent.add(m); return m;
+}
+function solid(x, z, w, d){ solids.push({ x1:x-w/2, x2:x+w/2, z1:z-d/2, z2:z+d/2 }); }
+function signBoard(text, x, y, z, ry=0){
+  const m = bx(1.9, 0.72, 0.08, std({ map:labelTex(text), roughness:0.6 }), x, y, z, 0, ry, 0);
+  return m;
+}
+function ringMarker(x, z){
+  const m = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.045, 8, 32),
+    std({ color:0x332a18, emissive:0xe0a35c, emissiveIntensity:0.0, roughness:0.5 }));
+  m.rotation.x = -Math.PI/2; m.position.set(x, 0.03, z);
+  root.add(m); return m;
+}
+/* الأرضية والجدران والسقف */
+{
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(100, 40), matFloor);
+  f.rotation.x = -Math.PI/2; f.receiveShadow = true; root.add(f);
+  const g2 = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), std({ color:0x8a6a48, roughness:1 }));
+  g2.rotation.x = -Math.PI/2; g2.position.y = -0.03; g2.receiveShadow = true; root.add(g2);
+  bx(92, 12, 0.4, matWall, 0, 6, -16);
+  bx(0.4, 12, 32, matWall, -46, 6, 0);
+  bx(0.4, 12, 32, matWall, 46, 6, 0);
+  bx(30, 12, 0.4, matWall, -31, 6, 16);
+  bx(30, 12, 0.4, matWall, 31, 6, 16);
+  bx(32, 4.5, 0.4, matWall, 0, 9.75, 16);
+  bx(0.1, 3.2, 30, matGlass, -13, 7.2, 15.9);
+  bx(0.1, 3.2, 30, matGlass, 13, 7.2, 15.9);
+  bx(94, 0.3, 34, std({ color:0x3a3630, roughness:0.9 }), 0, 12.15, 0);
+  for (let x=-42; x<=42; x+=7){
+    bx(0.28, 0.28, 31.5, matFrame, x, 10.7, 0);
+    bx(0.24, 0.24, 31.5, matFrame, x, 11.8, 0);
+  }
+  for (let x=-40; x<=40; x+=5){
+    bx(0.9, 0.08, 0.3, matLamp, x, 10.5, -4);
+    bx(0.9, 0.08, 0.3, matLamp, x, 10.5, 8);
+  }
+  bx(92, 0.16, 0.4, matDark, 0, 10.3, -10);
+  signBoard('UNDER THE PALM TREE', 0, 8.4, 15.6);
+}
+/* سير ناقل عام */
+function conveyor(x0, x1, z){
+  const L = x1 - x0, cx = (x0+x1)/2;
+  bx(L, 0.14, 0.75, matSteelD, cx, 0.69, z);
+  bx(L, 0.05, 0.56, matBelt, cx, 0.8, z);
+  bx(L, 0.06, 0.04, matSteel, cx, 0.83, z - 0.36);
+  bx(L, 0.06, 0.04, matSteel, cx, 0.83, z + 0.36);
+  for (let x = x0 + 0.5; x < x1; x += 2.4){
+    bx(0.08, 0.6, 0.08, matFrame, x, 0.3, z - 0.3);
+    bx(0.08, 0.6, 0.08, matFrame, x, 0.3, z + 0.3);
+  }
+}
+conveyor(-38, 30, -4);
+conveyor(30.2, 43, -4);
+
+/* ============================ محطات اللعبة ============================ */
+const stations = [];
+function addStation(id, kind, label, x, z, marker=true){
+  const s = { id, kind, label, x, z, marker: marker ? ringMarker(x, z) : null };
+  stations.push(s); return s;
+}
+/* محطات المكوّنات */
+function ingStation(id, label, x, col){
+  bx(1.4, 0.9, 1.1, matSteelD, x, 0.45, -11);
+  bx(1.2, 0.5, 0.9, std({ color:col, roughness:0.6 }), x, 1.05, -11);
+  cy(0.08, 0.08, 1.2, matSteel, x - 0.55, 0.6, -10.5, 0, 0, 0.5);
+  signBoard(label, x, 2.3, -10.6);
+  solid(x, -11, 1.6, 1.3);
+  addStation(id, 'ing', label, x, -9.4);
+}
+ingStation('dates',     'التمور',      -36, 0x5a3418);
+{ /* صناديق التمور */
+  bx(1.1, 0.6, 0.8, matWood, -38.5, 0.3, -11);
+  const heap = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 8), std({ color:0x5a3418, roughness:0.55 }));
+  heap.scale.set(1.1, 0.4, 0.8); heap.position.set(-38.5, 0.68, -11); heap.castShadow = true; root.add(heap);
+  solid(-38.5, -11, 1.3, 1.0);
+}
+ingStation('chocolate', 'الشوكولاتة',   0, 0x3a2113);
+cy(1.4, 1.4, 2.6, matSteel, 0, 1.7, -12.5);
+const chocoTop = new THREE.Mesh(new THREE.CircleGeometry(1.28, 24), matChoco);
+chocoTop.rotation.x = -Math.PI/2; chocoTop.position.set(0, 3.02, -12.5); root.add(chocoTop);
+bx(0.5, 0.5, 0.5, matFrame, 0, 3.3, -12.5);
+solid(0, -12.5, 3.0, 3.0);
+ingStation('almonds',   'اللوز',        -6, 0xc8a060);
+ingStation('pistachio', 'الفستق',       -3, 0x7a9440);
+ingStation('walnuts',   'الجوز',        3, 0x8a5c34);
+ingStation('coconut',   'جوز الهند',    6, 0xd8d2c2);
+ingStation('saffron',   'الزعفران',     10, 0xc4481c);
+ingStation('ghee',      'السمن',        13, 0xe8c86a);
+ingStation('honey',     'العسل',        16, 0xd8922a);
+ingStation('sesame',    'السمسم',       19, 0xd8c8a0);
+ingStation('spices',    'التوابل',      22, 0xa85a2a);
+
+/* محطات التصنيع */
+function procBase(id, label, x, buildFn){
+  buildFn(x);
+  addStation(id, 'proc', label, x, -2.0);
+}
+procBase('wash', 'الغسيل', -30, x => {
+  bx(5.2, 0.7, 1.8, matSteel, x, 0.72, -4);
+  const w = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 1.5), matWater);
+  w.rotation.x = -Math.PI/2; w.position.set(x, 1.02, -4); root.add(w);
+  for (const dx of [-1.6, 0, 1.6]){
+    cy(0.045, 0.045, 1.7, matSteel, x + dx, 1.6, -4, Math.PI/2, 0, 0);
+    for (const dz of [-0.5, 0.5]) cy(0.02, 0.035, 0.09, matSteelD, x + dx, 1.52, -4 + dz);
+  }
+  bx(0.7, 0.8, 0.5, matSteelD, x + 2.3, 0.4, -6.2);
+  signBoard('محطة الغسيل', x, 3.1, -5.4);
+  solid(x, -4, 5.4, 2.0);
+});
+procBase('dry', 'التجفيف', -24, x => {
+  bx(4.4, 1.6, 1.9, matSteel, x, 1.85, -4);
+  for (const dx of [-1.3, 0, 1.3]){
+    cy(0.34, 0.34, 0.16, matSteelD, x + dx, 2.78, -4);
+    const f = new THREE.Group(); f.position.set(x + dx, 2.82, -4); root.add(f);
+    for (let i=0;i<4;i++) bx(0.28, 0.02, 0.08, matSteel, 0,0,0, 0, i*Math.PI/2, 0.3, f);
+    fans.push({ g:f, s:9 });
+    const hp = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.7), matHeat);
+    hp.position.set(x + dx, 1.35, -4.96); root.add(hp);
+  }
+  signBoard('محطة التجفيف', x, 3.4, -5.4);
+  solid(x, -4, 4.6, 2.1);
+});
+procBase('pit', 'إزالة النوى', -18, x => {
+  bx(3.4, 1.5, 1.7, matSteel, x, 1.75, -4);
+  for (let i=0;i<4;i++){
+    cy(0.1, 0.1, 0.8, matSteelD, x - 1.2 + i*0.8, 1.6, -3.1, Math.PI/2, 0, 0);
+    bx(0.14, 0.05, 0.05, matSteel, x - 1.2 + i*0.8, 1.62, -3.0);
+  }
+  bx(0.7, 0.55, 0.55, std({ color:0xd8d8d2, roughness:0.5 }), x + 1.4, 0.28, -5.6);
+  signBoard('إزالة النوى', x, 3.2, -5.4);
+  solid(x, -4, 3.6, 1.9);
+});
+procBase('cook', 'الطبخ', -12, x => {
+  bx(2.6, 0.25, 2.6, matFrame, x, 0.5, -7.5);
+  cy(1.25, 1.15, 1.3, matSteel, x, 1.35, -7.5, 0, 0, 0);
+  cy(1.3, 1.3, 0.1, matSteelD, x, 2.02, -7.5);
+  const mix = new THREE.Mesh(new THREE.CircleGeometry(1.12, 24), std({ color:0x4a2c12, roughness:0.4 }));
+  mix.rotation.x = -Math.PI/2; mix.position.set(x, 1.96, -7.5); root.add(mix);
+  const glow = new THREE.Mesh(new THREE.CircleGeometry(1.2, 24), matGlow);
+  glow.rotation.x = -Math.PI/2; glow.position.set(x, 0.66, -7.5); root.add(glow);
+  window._flames = [];
+  for (let i=0;i<8;i++){
+    const a = i/8*Math.PI*2;
+    const fx = x + Math.cos(a)*0.9, fz = -7.5 + Math.sin(a)*0.9;
+    const f1 = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.5, 8), matFlameO);
+    f1.position.set(fx, 1.0, fz); root.add(f1);
+    const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.34, 8), matFlameY);
+    f2.position.set(fx, 0.95, fz); root.add(f2);
+    _flames.push({ m:f1, b:1.0, ph:i*0.8 }, { m:f2, b:0.95, ph:i*0.8 + 0.4 });
+  }
+  fireLight.position.set(x, 1.2, -7.5);
+  cy(0.2, 0.2, 0.4, matDark, x + 1.6, 0.7, -6.2, 0, 0, Math.PI/2);
+  signBoard('قسم الطبخ', x, 3.3, -6.0);
+  solid(x, -7.5, 2.9, 2.9);
+});
+procBase('mix', 'الخلط', -6, x => {
+  cy(1.15, 0.95, 1.5, matSteel, x, 1.15, -8);
+  cy(1.2, 1.2, 0.1, matSteelD, x, 1.92, -8);
+  const arm = new THREE.Group(); arm.position.set(x, 1.95, -8); root.add(arm);
+  cy(0.07, 0.07, 1.2, matSteel, 0, -0.5, 0, 0,0,0, arm);
+  bx(0.12, 0.9, 0.3, matSteelD, 0.55, -0.7, 0, 0, 0, 0.35, arm);
+  bx(0.12, 0.9, 0.3, matSteelD, -0.55, -0.7, 0, 0, 0, -0.35, arm);
+  fans.push({ g:arm, s:1.2, axis:'y' });
+  bx(0.6, 0.6, 0.6, matFrame, x, 2.55, -8);
+  signBoard('آلة الخلط', x, 3.4, -6.6);
+  solid(x, -8, 2.6, 2.6);
+});
+procBase('coat', 'التغطية', 6, x => {
+  bx(3.2, 1.4, 1.8, matSteel, x, 1.8, -4);
+  bx(0.05, 0.75, 0.5, std({ color:0x4a2a16, roughness:0.3 }), x, 1.2, -4);
+  bx(2.8, 0.5, 1.4, matSteel, x, 0.35, -4);
+  for (const fx of [x - 1.2, x + 1.2]){
+    const f = new THREE.Group(); f.position.set(fx, 2.7, -4); root.add(f);
+    for (let i=0;i<4;i++) bx(0.22, 0.02, 0.06, matSteel, 0,0,0, 0, i*Math.PI/2, 0.3, f);
+    fans.push({ g:f, s:12 });
+  }
+  signBoard('التغطية بالشوكولاتة', x, 3.2, -5.4);
+  solid(x, -4, 3.4, 2.0);
+});
+procBase('cool', 'التبريد', 14, x => {
+  bx(6.5, 1.5, 1.9, matSteel, x, 1.8, -4);
+  bx(6.5, 0.9, 0.05, matGlass, x, 1.75, -3.04);
+  bx(6.5, 0.9, 0.05, matGlass, x, 1.75, -4.96);
+  for (let i=0;i<4;i++){
+    bx(0.8, 0.05, 0.2, matCool, x - 2.4 + i*1.6, 2.5, -4);
+    const f = new THREE.Group(); f.position.set(x - 2.4 + i*1.6, 2.64, -4); root.add(f);
+    for (let k=0;k<4;k++) bx(0.18, 0.02, 0.05, matSteel, 0,0,0, 0, k*Math.PI/2, 0.3, f);
+    fans.push({ g:f, s:14 });
+  }
+  const cl = new THREE.PointLight(0xbce8ff, 18, 14, 2);
+  cl.position.set(x, 2.2, -4); scene.add(cl);
+  signBoard('نفق التبريد', x, 3.3, -5.4);
+  solid(x, -4, 6.7, 2.1);
+});
+procBase('pack', 'التعبئة', 22, x => {
+  cy(0.5, 0.5, 0.35, matSteelD, x - 2.2, 1.6, -6.5, 0, 0, Math.PI/2);
+  bx(0.8, 0.7, 0.7, matSteel, x - 0.6, 1.3, -5.2);
+  bx(0.5, 0.5, 0.4, matFrame, x + 0.6, 1.2, -5.4);
+  bx(0.45, 0.4, 0.35, std({ color:0xd8d8d2, roughness:0.5 }), x + 1.6, 1.1, -5.6);
+  for (let i=0;i<4;i++)
+    bx(0.5, 0.4, 0.4, matBrand, x - 3.4, 0.22 + (i%2)*0.42, -6.4 - Math.floor(i/2)*0.45);
+  signBoard('محطة التعبئة', x, 3.0, -6.0);
+  solid(x - 1, -5.9, 6.5, 2.2);
+});
+{ /* الشحن */
+  const x = 34;
+  bx(8, 5.5, 0.3, matDark, x, 2.75, 15.8);
+  cy(0.9, 0.9, 7.6, std({ map:labelTex('', '#555', '#555'), color:0x8a8f94, roughness:0.5, metalness:0.7 }), x, 6.0, 15.7, 0, 0, Math.PI/2);
+  bx(1.2, 0.14, 1.0, matWood, 33, 0.12, 10);
+  for (let i=0;i<3;i++) bx(0.85, 0.6, 0.85, matCarton, 33, 0.5 + i*0.62, 10);
+  bx(0.85, 0.6, 0.85, matCarton, 36, 0.42, 11);
+  bx(0.85, 0.6, 0.85, matCarton, 36.9, 0.42, 10.4);
+  signBoard('منصة الشحن 📦', x, 3.4, 13.4);
+  solid(33, 10, 1.4, 1.2); solid(36.4, 10.7, 2.0, 1.6);
+  addStation('ship', 'شحن الطلب', x, 12.6);
+}
+/* لافتة المدخل + أبواب */
+bx(7, 0.5, 1, matWall, 0, 5.6, 17.4);
+for (const cx of [-3, 3]) bx(0.6, 5.4, 0.6, matWall, cx, 2.7, 17.4);
+{
+  const s = bx(6.4, 1.6, 0.2, matBrand, 0, 4.6, 17.5);
+  s.material = std({ map:brandTex(), roughness:0.6, emissive:0xffb46a, emissiveIntensity:0.1 });
+}
+/* خارج المبنى: نخيل */
+function palm(x, z, sc){
+  const P = new THREE.Group(); P.position.set(x, 0, z); P.scale.setScalar(sc); scene.add(P);
+  const trunkM = std({ color:0x8a6a4a, roughness:0.9 });
+  for (let i=0;i<5;i++)
+    cy(0.2 - (i+1)*0.024, 0.2 - i*0.024, 1.5, trunkM, Math.cos(i)*0.1*i*0.15, i*1.41 + 0.75, 0, 0, 0, i*0.03, P);
+  const frondM = std({ color:0x4c7a2c, roughness:0.9, side:THREE.DoubleSide });
+  for (let i=0;i<12;i++){
+    const fr = new THREE.Mesh(new THREE.ConeGeometry(0.16, 3.2, 4), frondM);
+    fr.position.set(0.1, 7.3, 0);
+    fr.rotation.z = Math.PI/2 - [0.35, 0.8, 1.2][i%3];
+    fr.rotation.y = i * 2.618;
+    fr.castShadow = true;
+    P.add(fr);
+  }
+}
+palm(-8, 26, 1.1); palm(4, 29, 0.9); palm(14, 25, 1.2); palm(-20, 28, 1.0);
+
+/* ============================ بيانات الوصفات ============================ */
+const ING_AR = {
+  dates:'التمور', chocolate:'الشوكولاتة', almonds:'اللوز', pistachio:'الفستق', walnuts:'الجوز',
+  coconut:'جوز الهند', saffron:'الزعفران', ghee:'السمن', honey:'العسل', sesame:'السمسم', spices:'التوابل'
+};
+const ING_COL = {
+  dates:0x5a3418, chocolate:0x3a2113, almonds:0xc8a060, pistachio:0x7a9440, walnuts:0x8a5c34,
+  coconut:0xd8d2c2, saffron:0xc4481c, ghee:0xe8c86a, honey:0xd8922a, sesame:0xd8c8a0, spices:0xa85a2a
+};
+const STEP_AR = { wash:'الغسيل', dry:'التجفيف', pit:'إزالة النوى', cook:'الطبخ', mix:'الخلط', coat:'التغطية', cool:'التبريد', pack:'التعبئة' };
+const RECIPES = [
+  { n:'تمور مغطاة بالشوكولاتة الداكنة', i:['dates','chocolate'], s:['wash','dry','coat','cool','pack'] },
+  { n:'تمور محشوة باللوز', i:['dates','almonds'], s:['wash','pit','mix','pack'] },
+  { n:'تمور بالزعفران الفاخرة', i:['dates','saffron','ghee'], s:['wash','dry','mix','pack'] },
+  { n:'كرات التمر بالسمسم', i:['dates','sesame'], s:['pit','mix','coat','pack'] },
+  { n:'معمول التمر الفاخر', i:['dates','almonds','ghee'], s:['mix','cook','pack'] },
+  { n:'دبس التمر', i:['dates'], s:['wash','cook','mix','pack'] },
+  { n:'عجينة التمر', i:['dates','ghee'], s:['pit','mix','pack'] },
+  { n:'تمور محشوة بالفستق', i:['dates','pistachio'], s:['wash','pit','coat','pack'] },
+  { n:'تمور محشوة بالجوز', i:['dates','walnuts'], s:['wash','pit','coat','pack'] },
+  { n:'تمور بالعسل والمكسرات', i:['dates','honey','almonds'], s:['wash','dry','coat','pack'] },
+  { n:'شوكولاتة التمر الساخنة', i:['dates','chocolate','honey'], s:['cook','mix','pack'] },
+  { n:'تمر مغلف بالكاكاو', i:['dates','chocolate'], s:['wash','dry','coat','cool','pack'] },
+  { n:'تمور بالسمسم والعسل', i:['dates','sesame','honey'], s:['wash','coat','pack'] },
+  { n:'حلاوة التمر', i:['dates','ghee','sesame'], s:['cook','mix','pack'] },
+  { n:'تارت التمر', i:['dates','almonds','ghee'], s:['mix','cook','pack'] },
+  { n:'تمور ملكية بالزعفران والعسل', i:['dates','saffron','honey'], s:['wash','dry','coat','pack'] },
+  { n:'كوكيز التمر', i:['dates','almonds'], s:['mix','cook','pack'] },
+  { n:'تمر محشو بالشوكولاتة', i:['dates','chocolate'], s:['pit','coat','cool','pack'] },
+  { n:'بودينغ التمر', i:['dates','honey'], s:['cook','mix','pack'] },
+  { n:'تمور مكرملة', i:['dates'], s:['wash','cook','dry','pack'] },
+  { n:'خليط المكسرات بالتمر', i:['dates','almonds','walnuts','pistachio'], s:['pit','mix','pack'] },
+  { n:'تمور بجوز الهند', i:['dates','coconut','honey'], s:['wash','coat','pack'] },
+  { n:'عصير التمر الطازج', i:['dates'], s:['wash','cook','pack'] },
+  { n:'خلطة التمر بالتوابل', i:['dates','spices','ghee'], s:['mix','cook','pack'] },
+  { n:'تمر بالشوكولاتة البيضاء', i:['dates','chocolate','coconut'], s:['coat','cool','pack'] },
+  { n:'تمور بالقرفة والهيل', i:['dates','spices','honey'], s:['wash','dry','mix','pack'] },
+  { n:'معجون التمر للأطفال', i:['dates','honey'], s:['wash','pit','mix','pack'] },
+  { n:'تمور محمصة بالسمن', i:['dates','ghee'], s:['wash','dry','cook','pack'] },
+  { n:'بسكويت التمر', i:['dates','almonds','ghee'], s:['mix','cook','pack'] },
+  { n:'تمور مغلفة بالفستق والزعفران', i:['dates','pistachio','saffron'], s:['coat','cool','pack'] },
+  { n:'حلوى التمر بالطحينة', i:['dates','sesame','honey'], s:['mix','cook','pack'] },
+  { n:'صندوق التمور الملكية المشكّل', i:['dates','chocolate','almonds','pistachio','saffron'], s:['wash','dry','pit','coat','cool','pack'] },
+];
+
+/* ============================ حالة اللعبة ============================ */
+const game = {
+  state:'menu', order:null, completed:0, stars:0, startTime:0
+};
+const hudRcp = document.getElementById('hudRcp');
+const hudTime = document.getElementById('hudTime');
+const hudScore = document.getElementById('hudScore');
+const goalbox = document.getElementById('goalbox');
+const promptEl = document.getElementById('prompt');
+const toastEl = document.getElementById('toast');
+const hud = document.getElementById('hud');
+let toastT = 0;
+function toast(msg, bad=true){
+  toastEl.textContent = msg;
+  toastEl.style.display = 'block';
+  toastEl.style.borderColor = bad ? '#ff8a5a' : '#8ad08a';
+  toastT = 2.2;
+  if (bad) SFX.err();
+}
+function fmt(t){ const m = Math.floor(t/60), s = Math.floor(t%60); return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+function updateHUD(){
+  const o = game.order;
+  if (!o){ goalbox.innerHTML = ''; return; }
+  hudRcp.textContent = '🌴 ' + o.recipe.n;
+  let html = `<div class="t">📋 ${o.recipe.n}</div>`;
+  html += `<div>المكوّنات: `;
+  html += o.recipe.i.map(k => `<span class="${o.ings[k] ? 'ok' : ''}">${o.ings[k] ? '✓' : '○'} ${ING_AR[k]}</span>`).join(' · ');
+  html += `</div><div>المراحل: `;
+  html += o.recipe.s.map((k, i) => {
+    const done = i < o.stepIdx, now = (o.phase === 'process' && i === o.stepIdx);
+    return `<span class="${done ? 'ok' : (now ? 'now' : '')}">${done ? '✓' : (now ? '▶' : '○')} ${STEP_AR[k]}</span>`;
+  }).join(' · ');
+  html += `</div>`;
+  if (o.phase === 'carry') html += `<div class="now">📦 ضع الصندوق في منصة الشحن!</div>`;
+  goalbox.innerHTML = html;
+}
+
+/* عنصر محمول أمام الكاميرا */
+const holder = new THREE.Group();
+holder.position.set(0.38, -0.34, -0.75);
+camera.add(holder);
+function rebuildHeld(){
+  while (holder.children.length) holder.remove(holder.children[0]);
+  const o = game.order;
+  if (!o) return;
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.11, 0.09, 18), matSteel);
+  holder.add(bowl);
+  if (o.phase === 'carry'){
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.18, 0.2), matCarton);
+    b.position.y = 0.12; holder.add(b);
+    return;
+  }
+  const coated = o.stepIdx >= (o.recipe.s.indexOf('coat') + 1) && o.recipe.s.includes('coat');
+  const taken = Object.keys(o.ings).filter(k => o.ings[k]);
+  taken.forEach((k, i) => {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8),
+      std({ color: coated ? 0x3a2113 : ING_COL[k], roughness: coated ? 0.25 : 0.6 }));
+    const a = i / Math.max(1, taken.length) * Math.PI * 2;
+    s.position.set(Math.cos(a)*0.07, 0.07, Math.sin(a)*0.07);
+    holder.add(s);
+  });
+}
+
+/* شرارات */
+const SPARKS = 240;
+const sparkPos = new Float32Array(SPARKS*3);
+const sparkVel = [];
+const sparkLife = new Float32Array(SPARKS);
+for (let i=0;i<SPARKS;i++){ sparkPos[i*3+1] = -10; sparkVel.push(new THREE.Vector3()); }
+const sparkGeo = new THREE.BufferGeometry();
+sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+const sparkPts = new THREE.Points(sparkGeo, new THREE.PointsMaterial({
+  color:0xffd257, size:0.09, transparent:true, opacity:0.95, depthWrite:false }));
+scene.add(sparkPts);
+let sparkIdx = 0;
+function burst(x, y, z, n=36, col=0xffd257){
+  sparkPts.material.color.setHex(col);
+  for (let i=0;i<n;i++){
+    const j = sparkIdx = (sparkIdx + 1) % SPARKS;
+    sparkPos[j*3] = x; sparkPos[j*3+1] = y; sparkPos[j*3+2] = z;
+    sparkVel[j].set((Math.random()-0.5)*2.4, Math.random()*2.6, (Math.random()-0.5)*2.4);
+    sparkLife[j] = 1;
+  }
+}
+
+/* ============================ التحكم ============================ */
+const keys = {};
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'KeyE') interact();
+  if (e.code === 'Escape' && document.pointerLockElement) document.exitPointerLock();
+});
+addEventListener('keyup', e => keys[e.code] = false);
+
+let yaw = Math.PI/2, pitch = -0.05;
+renderer.domElement.addEventListener('click', () => {
+  ac();
+  if (!isTouch && game.state === 'play' && !document.pointerLockElement)
+    renderer.domElement.requestPointerLock();
+});
+addEventListener('mousemove', e => {
+  if (!isTouch && document.pointerLockElement){
+    yaw -= e.movementX * 0.0022;
+    pitch -= e.movementY * 0.0022;
+    pitch = Math.max(-1.3, Math.min(1.3, pitch));
+  }
+});
+/* لمس: نظر + عصا */
+const joybase = document.getElementById('joybase');
+const joyknob = document.getElementById('joyknob');
+const actbtn = document.getElementById('actbtn');
+let joyId = null, joyVec = { x:0, y:0 }, lookId = null, lookLast = null;
+function touchHandler(e){
+  for (const t of e.changedTouches){
+    if (e.type === 'touchstart'){
+      if (t.clientX < innerWidth*0.45 && joyId === null){
+        joyId = t.identifier;
+        joybase.style.left = (t.clientX - 59) + 'px';
+        joybase.style.top = (t.clientY - 59) + 'px';
+        joybase.style.bottom = 'auto';
+        joyVec = { x:0, y:0 };
+      } else if (lookId === null){
+        lookId = t.identifier;
+        lookLast = { x:t.clientX, y:t.clientY };
+      }
+    } else if (e.type === 'touchmove'){
+      if (t.identifier === joyId){
+        const r = joybase.getBoundingClientRect();
+        let dx = t.clientX - (r.left + 59), dy = t.clientY - (r.top + 59);
+        const d = Math.hypot(dx, dy), mx = 46;
+        if (d > mx){ dx = dx/d*mx; dy = dy/d*mx; }
+        joyknob.style.transform = `translate(${dx}px, ${dy}px)`;
+        joyVec = { x:dx/mx, y:dy/mx };
+      } else if (t.identifier === lookId){
+        yaw -= (t.clientX - lookLast.x) * 0.005;
+        pitch -= (t.clientY - lookLast.y) * 0.005;
+        pitch = Math.max(-1.3, Math.min(1.3, pitch));
+        lookLast = { x:t.clientX, y:t.clientY };
+      }
+    } else {
+      if (t.identifier === joyId){ joyId = null; joyVec = {x:0,y:0}; joyknob.style.transform = ''; }
+      if (t.identifier === lookId){ lookId = null; lookLast = null; }
+    }
+  }
+  if (e.cancelable) e.preventDefault();
+}
+addEventListener('touchstart', touchHandler, { passive:false });
+addEventListener('touchmove', touchHandler, { passive:false });
+addEventListener('touchend', touchHandler);
+actbtn.addEventListener('touchstart', e => { e.stopPropagation(); interact(); });
+actbtn.addEventListener('click', () => interact());
+
+document.getElementById('fsbtn').addEventListener('click', async () => {
+  ac(); SFX.click();
+  try {
+    await document.documentElement.requestFullscreen();
+    if (screen.orientation && screen.orientation.lock)
+      screen.orientation.lock('landscape').catch(()=>{});
+  } catch(e){}
+});
+
+/* حركة اللاعب والتصادم */
+const player = { x:-40, z:8, vx:0, vz:0, bob:0, stepT:0 };
+function collide(nx, nz){
+  const r = 0.35;
+  if (nx < -44.5) nx = -44.5; if (nx > 44.5) nx = 44.5;
+  if (nz < -14.8) nz = -14.8; if (nz > 14.8) nz = 14.8;
+  for (const s of solids){
+    if (nx > s.x1 - r && nx < s.x2 + r && nz > s.z1 - r && nz < s.z2 + r){
+      const dx1 = nx - (s.x1 - r), dx2 = (s.x2 + r) - nx;
+      const dz1 = nz - (s.z1 - r), dz2 = (s.z2 + r) - nz;
+      const m = Math.min(dx1, dx2, dz1, dz2);
+      if (m === dx1) nx = s.x1 - r;
+      else if (m === dx2) nx = s.x2 + r;
+      else if (m === dz1) nz = s.z1 - r;
+      else nz = s.z2 + r;
+    }
+  }
+  return [nx, nz];
+}
+
+/* ============================ التفاعل ============================ */
+let nearest = null;
+function findNearest(){
+  let best = null, bd = 2.6;
+  for (const s of stations){
+    const d = Math.hypot(player.x - s.x, player.z - s.z);
+    if (d < bd){ bd = d; best = s; }
+  }
+  nearest = best;
+  for (const s of stations)
+    if (s.marker) s.marker.material.emissiveIntensity = (s === best) ? 1.6 : 0;
+  if (best && game.state === 'play'){
+    let verb = 'اضغط';
+    if (best.kind === 'ing') verb = 'ارفع المكوّن';
+    else if (best.id === 'ship') verb = 'ضع الصندوق';
+    else verb = 'اضغط زر التشغيل';
+    promptEl.innerHTML = `${best.label}<small>${isTouch ? 'زر تفاعل' : 'E'} — ${verb}</small>`;
+    promptEl.style.display = 'block';
+  } else promptEl.style.display = 'none';
+}
+function startOrder(r){
+  game.order = {
+    recipe:r,
+    ings:Object.fromEntries(r.i.map(k => [k, false])),
+    stepIdx:0, phase:'gather', mistakes:0
+  };
+  game.startTime = performance.now()/1000;
+  game.state = 'play';
+  document.getElementById('recipes').style.display = 'none';
+  document.getElementById('done').style.display = 'none';
+  hud.style.display = 'block';
+  if (isTouch){ joybase.style.display = 'block'; actbtn.style.display = 'block'; }
+  player.x = -40; player.z = 8; yaw = Math.PI/2; pitch = -0.05;
+  rebuildHeld(); updateHUD();
+  SFX.fanfare();
+}
+function completeOrder(){
+  const o = game.order;
+  const t = performance.now()/1000 - game.startTime;
+  let st = 3;
+  if (t > 150) st--; if (t > 240) st--;
+  if (o.mistakes >= 3) st--;
+  st = Math.max(1, st);
+  game.completed++; game.stars += st;
+  hudScore.textContent = `📦 ${game.completed} · ⭐ ${game.stars}`;
+  game.state = 'done';
+  game.order = null;
+  rebuildHeld();
+  promptEl.style.display = 'none';
+  joybase.style.display = 'none'; actbtn.style.display = 'none';
+  const starsEl = document.getElementById('stars');
+  starsEl.innerHTML = [0,1,2].map(i => `<span class="${i < st ? 'st-on' : 'st-off'}">★</span>`).join('');
+  document.getElementById('donetxt').innerHTML =
+    `الوقت: <b>${fmt(t)}</b> · الأخطاء: <b>${o.mistakes}</b><br>إجمالي الطلبات: ${game.completed} · النجوم: ${game.stars} ⭐`;
+  document.getElementById('done').style.display = 'flex';
+  SFX.fanfare();
+  burst(34, 2, 12, 80, 0xffd257);
+  for (let i=0;i<st;i++) setTimeout(()=>SFX.star(i), 400 + i*300);
+}
+function interact(){
+  if (game.state !== 'play' || !nearest) return;
+  const o = game.order, s = nearest;
+  if (s.kind === 'ing'){
+    if (o.phase !== 'gather') return toast('انتهى جمع المكوّنات — توجّه لمحطات التصنيع');
+    if (!o.recipe.i.includes(s.id)) return toast('هذا المكوّن غير مطلوب في الوصفة');
+    if (o.ings[s.id]) return toast('موجود معك بالفعل ✓', false);
+    o.ings[s.id] = true;
+    SFX.pick();
+    burst(s.x, 1.4, s.z, 26, ING_COL[s.id]);
+    if (o.recipe.i.every(k => o.ings[k])){
+      o.phase = 'process';
+      toast('🎉 كل المكوّنات جاهزة! ابدأ بـ: ' + STEP_AR[o.recipe.s[0]], false);
+    } else {
+      toast(`رفعت ${ING_AR[s.id]} ✓`, false);
+    }
+    rebuildHeld(); updateHUD();
+    return;
+  }
+  if (s.id === 'ship'){
+    if (o.phase === 'carry'){ completeOrder(); return; }
+    return toast('أحضِر الصندوق المُعبّأ أولاً');
+  }
+  /* محطة تصنيع */
+  if (o.phase === 'gather') return toast('اجمع كل المكوّنات أولاً من محطاتها');
+  if (o.phase === 'carry') return toast('الصندوق جاهز — توجّه إلى منصة الشحن 📦');
+  const need = o.recipe.s[o.stepIdx];
+  if (s.id !== need) {
+    o.mistakes++;
+    toast(`هذه محطة ${STEP_AR[s.id]} — المطلوب الآن: ${STEP_AR[need]}`);
+    updateHUD();
+    return;
+  }
+  o.stepIdx++;
+  SFX.machine();
+  burst(s.x, 1.6, s.z, 40, 0x8ad0ff);
+  if (o.stepIdx >= o.recipe.s.length){
+    o.phase = 'carry';
+    SFX.put(); SFX.fanfare();
+    toast('📦 تم تعبئة المنتج! اشحنه الآن', false);
+  } else {
+    toast(`✓ ${STEP_AR[s.id]} مكتملة — التالي: ${STEP_AR[o.recipe.s[o.stepIdx]]}`, false);
+  }
+  rebuildHeld(); updateHUD();
+}
+
+/* ============================ واجهة القوائم ============================ */
+const rgrid = document.getElementById('rgrid');
+RECIPES.forEach((r, idx) => {
+  const d = document.createElement('div');
+  d.className = 'rcp';
+  d.innerHTML = `<div class="nm">${idx+1}. ${r.n}</div>
+    <div class="ch">${r.i.map(k => `<span class="ing">${ING_AR[k]}</span>`).join('')}</div>
+    <div class="st">⚙ ${r.s.map(k => STEP_AR[k]).join(' ← ')}</div>`;
+  d.addEventListener('click', () => { ac(); SFX.click(); startOrder(r); });
+  rgrid.appendChild(d);
+});
+document.getElementById('btnStart').addEventListener('click', () => {
+  ac(); SFX.click();
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('recipes').style.display = 'flex';
+  try { document.documentElement.requestFullscreen(); } catch(e){}
+});
+document.getElementById('btnNext').addEventListener('click', () => {
+  SFX.click();
+  document.getElementById('done').style.display = 'none';
+  document.getElementById('recipes').style.display = 'flex';
+  document.getElementById('scoreline').textContent = `الطلبات المكتملة: ${game.completed} · النجوم: ${game.stars} ⭐`;
+  game.state = 'recipes';
+});
+document.getElementById('btnMenu').addEventListener('click', () => {
+  SFX.click();
+  document.getElementById('done').style.display = 'none';
+  document.getElementById('recipes').style.display = 'flex';
+  document.getElementById('scoreline').textContent = `الطلبات المكتملة: ${game.completed} · النجوم: ${game.stars} ⭐`;
+  game.state = 'recipes';
+});
+
+/* ============================ حلقة اللعبة ============================ */
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  /* الحركة */
+  if (game.state === 'play'){
+    let ix = 0, iz = 0;
+    if (keys.KeyW || keys.ArrowUp) iz += 1;
+    if (keys.KeyS || keys.ArrowDown) iz -= 1;
+    if (keys.KeyA) ix -= 1;
+    if (keys.KeyD) ix += 1;
+    if (keys.ArrowLeft) ix -= 1;
+    if (keys.ArrowRight) ix += 1;
+    ix += joyVec.x; iz += -joyVec.y;
+    const mag = Math.hypot(ix, iz);
+    if (mag > 1){ ix /= mag; iz /= mag; }
+    const run = keys.ShiftLeft || keys.ShiftRight;
+    const sp = run ? 6.5 : 4.0;
+    const fx = Math.sin(yaw), fz = Math.cos(yaw);
+    const rx = Math.cos(yaw), rz = -Math.sin(yaw);
+    const tvx = (fx * iz + rx * ix) * sp;
+    const tvz = (fz * iz + rz * ix) * sp;
+    player.vx += (tvx - player.vx) * Math.min(1, dt*10);
+    player.vz += (tvz - player.vz) * Math.min(1, dt*10);
+    let nx = player.x + player.vx * dt;
+    let nz = player.z + player.vz * dt;
+    [nx, nz] = collide(nx, nz);
+    player.x = nx; player.z = nz;
+    const spd = Math.hypot(player.vx, player.vz);
+    if (spd > 0.6){
+      player.bob += dt * spd * 1.8;
+      player.stepT -= dt;
+      if (player.stepT <= 0){ player.stepT = run ? 0.3 : 0.42; SFX.step(); }
+    }
+    camera.position.set(player.x, 1.7 + Math.sin(player.bob)*0.045, player.z);
+    camera.rotation.y = yaw;
+    camera.rotation.x = pitch;
+    hudTime.textContent = '⏱ ' + fmt(performance.now()/1000 - game.startTime);
+    findNearest();
+  }
+
+  /* مؤثرات متحركة */
+  for (const f of fans){
+    if (f.axis === 'y') f.g.rotation.y += f.s * dt;
+    else f.g.rotation.y += f.s * dt;
+  }
+  if (window._flames){
+    for (const f of _flames){
+      const s = 1 + 0.28*Math.sin(t*13 + f.ph) + 0.15*Math.sin(t*23 + f.ph*2);
+      f.m.scale.set(1, s, 1);
+      f.m.position.y = f.b + (s - 1) * 0.2;
+    }
+    fireLight.intensity = 26 + 10*Math.sin(t*11) + 6*Math.sin(t*27);
+  }
+  chocoTop.rotation.z += dt * 0.15;
+  for (let i=0;i<SPARKS;i++){
+    if (sparkLife[i] > 0){
+      sparkLife[i] -= dt * 1.2;
+      sparkVel[i].y -= dt * 3.5;
+      sparkPos[i*3] += sparkVel[i].x * dt;
+      sparkPos[i*3+1] += sparkVel[i].y * dt;
+      sparkPos[i*3+2] += sparkVel[i].z * dt;
+      if (sparkLife[i] <= 0) sparkPos[i*3+1] = -10;
+    }
+  }
+  sparkGeo.attributes.position.needsUpdate = true;
+
+  if (toastT > 0){
+    toastT -= dt;
+    if (toastT <= 0) toastEl.style.display = 'none';
+  }
+
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

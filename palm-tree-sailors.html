@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مغامرات البحار · تحت شجرة النخيل</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.8/700.css">
+<style>
+*{box-sizing:border-box;user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#0a0d14;font-family:'Cairo',sans-serif}
+#app{position:fixed;inset:0}
+#app canvas{display:block}
+#cross{position:fixed;left:50%;top:50%;width:5px;height:5px;margin:-2px;border-radius:50%;
+  background:rgba(255,240,210,.85);box-shadow:0 0 6px rgba(0,0,0,.6);z-index:6;pointer-events:none;display:none}
+.panel{position:fixed;z-index:10;background:rgba(20,14,7,.78);backdrop-filter:blur(8px);
+  border:1px solid rgba(226,178,110,.3);border-radius:12px;color:#efe3cd;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+/* لوحة المهمة */
+#mission{top:14px;right:14px;padding:10px 14px;width:300px;text-align:right}
+#mission h1{margin:0;font-size:17px;color:#f4e8d0}
+#mission h1 em{font-style:normal;color:#e0a35c}
+#mission .obj{font-size:12px;color:#e2d3b4;margin-top:6px;line-height:1.7}
+#mission .row{display:flex;gap:8px;margin-top:8px;font-size:11px;flex-wrap:wrap}
+.pill{border:1px solid rgba(226,178,110,.3);border-radius:14px;padding:1px 9px;background:rgba(226,178,110,.08)}
+#hullWrap{height:7px;background:rgba(0,0,0,.5);border-radius:5px;margin-top:8px;overflow:hidden}
+#hullBar{height:100%;width:100%;background:linear-gradient(90deg,#7fb069,#e0a35c);transition:width .3s}
+/* الخريطة المصغرة */
+#miniWrap{top:14px;left:14px;padding:8px;text-align:center}
+#mini{display:block;border-radius:8px}
+#miniWrap .cap{font-size:10px;color:#c99d5f;margin-top:4px}
+/* البوصلة */
+#compWrap{bottom:14px;left:14px;padding:8px}
+#comp{display:block}
+/* الحالة أسفل يمين */
+#stats{bottom:14px;right:14px;padding:10px 14px;font-size:12px;text-align:right;min-width:210px}
+#stats .line{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
+#stats b{color:#e0a35c}
+/* التوست */
+#toasts{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:20;display:flex;
+  flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+.toast{background:rgba(20,14,7,.88);border:1px solid rgba(226,178,110,.45);color:#f4e8d0;
+  padding:6px 18px;border-radius:20px;font-size:13px;animation:tin .3s ease}
+@keyframes tin{from{opacity:0;transform:translateY(-8px)}to{opacity:1}}
+/* الحوار */
+#dlg{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);width:min(680px,92vw);z-index:15;
+  display:none}
+#dlg .box{background:rgba(18,12,6,.92);border:1px solid rgba(226,178,110,.4);border-radius:14px;padding:12px 18px}
+#dlg .who{color:#e0a35c;font-weight:700;font-size:14px}
+#dlg .txt{color:#f0e6d2;font-size:14px;line-height:1.9;margin-top:4px;min-height:44px}
+#dlg .hint{font-size:10px;color:#a98d5f;text-align:left;margin-top:4px}
+/* برومبت التفاعل */
+#prompt{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:14;display:none;
+  background:rgba(224,163,92,.95);color:#241505;font-weight:700;font-size:13px;
+  padding:6px 18px;border-radius:20px;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+/* وميض البرق */
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:8}
+/* الخريطة الكبيرة */
+#mapOv{position:fixed;inset:0;z-index:30;background:rgba(8,6,3,.86);display:none;
+  align-items:center;justify-content:center;flex-direction:column}
+#mapOv .frame{background:rgba(24,16,8,.95);border:2px solid rgba(226,178,110,.4);border-radius:16px;
+  padding:16px;max-width:92vw}
+#mapOv h2{margin:0 0 8px;color:#f4e8d0;font-size:20px;text-align:center}
+#mapOv h2 em{color:#e0a35c;font-style:normal}
+#mapInfo{margin-top:10px;color:#e2d3b4;font-size:12px;max-width:760px;line-height:1.8;text-align:center}
+/* السداسية */
+#sexOv{position:fixed;inset:0;z-index:25;display:none;pointer-events:none}
+#sexOv .ring{position:absolute;left:50%;top:50%;width:340px;height:340px;margin:-170px;
+  border:1px solid rgba(240,220,170,.35);border-radius:50%}
+#sexOv .ring2{position:absolute;left:50%;top:50%;width:170px;height:170px;margin:-85px;
+  border:1px dashed rgba(240,220,170,.3);border-radius:50%}
+#sexOv .hline{position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(240,220,170,.4)}
+#sexOv .read{position:absolute;bottom:90px;left:50%;transform:translateX(-50%);
+  background:rgba(10,8,4,.85);border:1px solid rgba(226,178,110,.4);border-radius:12px;
+  padding:8px 20px;color:#f4e8d0;font-size:13px;text-align:center}
+/* البداية والنهاية */
+#start,#end{position:fixed;inset:0;z-index:50;background:radial-gradient(ellipse at 50% 30%,#2a1c0e,#0a0703 75%);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;color:#f4e8d0;text-align:center;padding:20px}
+#start h1,#end h1{font-size:44px;margin:0;color:#f4e8d0}
+#start h1 em,#end h1 em{font-style:normal;color:#e0a35c}
+#start .sub{color:#c99d5f;margin-top:6px;font-size:14px;letter-spacing:.05em}
+#start .story{max-width:640px;margin-top:18px;font-size:14px;line-height:2;color:#e8dcc0}
+#start .ctrls{margin-top:14px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:640px}
+.k{border:1px solid rgba(226,178,110,.4);border-radius:8px;padding:3px 10px;font-size:11px;background:rgba(226,178,110,.08)}
+#startBtn,#endBtn{margin-top:22px;font-family:inherit;font-size:18px;font-weight:700;color:#241505;
+  background:linear-gradient(180deg,#f0c07a,#e0a35c);border:none;border-radius:30px;padding:12px 44px;
+  cursor:pointer;box-shadow:0 6px 30px rgba(224,163,92,.4)}
+#start .lic{margin-top:16px;font-size:10px;color:#8a7452}
+#end .stats{margin-top:14px;font-size:15px;line-height:2}
+.hidden{display:none!important}
+@media(max-width:760px){#mission{width:220px}#stats{display:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="cross"></div>
+<div id="flash"></div>
+
+<div id="mission" class="panel">
+  <h1>مغامرات <em>البحار</em></h1>
+  <div class="obj" id="objTxt">…</div>
+  <div class="row">
+    <span class="pill" id="cargoTxt">📦 —</span>
+    <span class="pill" id="coinTxt">🪙 0</span>
+    <span class="pill" id="dayTxt">☀️ اليوم 1</span>
+  </div>
+  <div id="hullWrap"><div id="hullBar"></div></div>
+</div>
+
+<div id="miniWrap" class="panel">
+  <canvas id="mini" width="170" height="170"></canvas>
+  <div class="cap" id="weatherTxt">رياح خفيفة · صحو</div>
+</div>
+
+<div id="compWrap" class="panel"><canvas id="comp" width="120" height="120"></canvas></div>
+
+<div id="stats" class="panel">
+  <div class="line"><span>السرعة</span><b id="spdTxt">0 عقدة</b></div>
+  <div class="line"><span>الرياح</span><b id="windTxt">—</b></div>
+  <div class="line"><span>الاتجاه</span><b id="hdgTxt">—</b></div>
+  <div class="line"><span>الوضع</span><b id="modeTxt">على السفينة</b></div>
+</div>
+
+<div id="toasts"></div>
+<div id="prompt"></div>
+<div id="dlg" class="panel"><div class="box">
+  <div class="who" id="dlgWho"></div>
+  <div class="txt" id="dlgTxt"></div>
+  <div class="hint">F أو انقر للمتابعة</div>
+</div></div>
+
+<div id="sexOv">
+  <div class="ring"></div><div class="ring2"></div><div class="hline"></div>
+  <div class="read" id="sexRead"></div>
+</div>
+
+<div id="mapOv">
+  <div class="frame">
+    <h2>خريطة <em>رحلة البحار</em></h2>
+    <canvas id="mapC" width="760" height="470"></canvas>
+    <div id="mapInfo"></div>
+  </div>
+</div>
+
+<div id="start">
+  <h1>مغامرات <em>البحار</em></h1>
+  <div class="sub">رحلة السفينة العُمانية «تحت شجرة النخيل» · مغامرة ثقافية بمنظور الشخص الأول</div>
+  <div class="story">
+    في ميناء مسقط، كُلّفتَ بإيصال شحنة <b>تمرٍ عُمانّي</b> هديةً إلى أطفال الصين، ثم تجوب بطريق الحرير البحري:
+    مضيق هرمز، بحر القراصنة، ساحل الهند، موانئ الصين، زنجبار، وحتى رأس العواصف «حول العالم»…
+    قُد سفينتك بنفسك، اقرأ النجوم كما علّمنا المعلّم <b>أحمد بن ماجد</b>, وواجه الرياح والأمطار والقراصنة
+    بأسلوب مغامراتٍ ملحمي يليق بأحلام «لوفي»!
+  </div>
+  <div class="ctrls">
+    <span class="k">فأرة: نظر</span><span class="k">W A S D: حركة</span><span class="k">E: تفاعل/مقود/رسو</span>
+    <span class="k">Q: دفة آلية</span><span class="k">M: الخريطة</span><span class="k">N: قراءة النجوم ليلًا</span>
+    <span class="k">Shift: ركض</span><span class="k">F: متابعة الحوار</span>
+  </div>
+  <button id="startBtn">⚓ ابدأ المغامرة</button>
+  <div class="lic">جميع الأصول مولّدة إجرائيًا داخل المتصفح (رخصة CC0) · خط Cairo برخصة OFL المفتوحة · لا شخصيات خارجية محمية</div>
+</div>
+
+<div id="end" class="hidden">
+  <h1 id="endTitle">🏆 <em>نهاية الرحلة</em></h1>
+  <div class="stats" id="endStats"></div>
+  <button id="endBtn" onclick="location.reload()">🔄 رحلة جديدة</button>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+"three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { Reflector } from 'three/addons/objects/Reflector.js';
+await Promise.race([document.fonts.ready, new Promise(r=>setTimeout(r,1400))]);
+
+/* ============ الأساسيات ============ */
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.getElementById('app').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xd8a878, 60, 2600);
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 9000);
+
+/* ============ إكساءات إجرائية (CC0) ============ */
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+function makeTex(w,h,p){const c=document.createElement('canvas');c.width=w;c.height=h;
+  p(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=maxAniso;t.colorSpace=THREE.SRGBColorSpace;return t;}
+function drawPalm(g,cx,cy,s,col){g.strokeStyle=col;g.lineCap='round';g.lineWidth=s*.09;
+  g.beginPath();g.moveTo(cx-s*.06,cy+s*.5);g.quadraticCurveTo(cx+s*.1,cy+s*.1,cx+s*.02,cy-s*.25);g.stroke();
+  g.lineWidth=s*.055;const tx=cx+s*.02,ty=cy-s*.25;
+  for(let i=0;i<7;i++){const a=-Math.PI*.95+i*(Math.PI*.9/6);
+    g.beginPath();g.moveTo(tx,ty);
+    g.quadraticCurveTo(tx+Math.cos(a)*s*.32,ty+Math.sin(a)*s*.32-s*.08,tx+Math.cos(a)*s*.5,ty+Math.sin(a)*s*.42+s*.1);g.stroke();}}
+function paintWood(g,w,h,o){o=Object.assign({rows:12,vertical:false,cols:null,nails:true},o);
+  const pal=o.cols||['#8f6f4a','#7c5c3a','#9a7a52','#6f5234','#846242','#a08055'];
+  g.fillStyle='#82623e';g.fillRect(0,0,w,h);
+  const step=(o.vertical?w:h)/o.rows;
+  for(let i=0;i<o.rows;i++){g.fillStyle=pal[i%pal.length];
+    if(o.vertical)g.fillRect(i*step,0,step,h);else g.fillRect(0,i*step,w,step);
+    g.fillStyle=Math.random()<.5?'rgba(255,255,255,.06)':'rgba(0,0,0,.08)';
+    if(o.vertical)g.fillRect(i*step,0,step,h);else g.fillRect(0,i*step,w,step);
+    for(let k=0;k<5;k++){g.strokeStyle=Math.random()<.75?'rgba(58,38,20,.2)':'rgba(214,186,142,.12)';
+      g.lineWidth=.8+Math.random()*1.4;g.beginPath();
+      if(o.vertical){const x=i*step+3+Math.random()*(step-6);g.moveTo(x,-5);
+        for(let y=0;y<=h;y+=h/6)g.lineTo(x+Math.sin(y*.02+k)*2.2,y);}
+      else{const y=i*step+3+Math.random()*(step-6);g.moveTo(-5,y);
+        for(let x=0;x<=w;x+=w/6)g.lineTo(x,y+Math.sin(x*.02+k)*2.2);}g.stroke();}
+    g.fillStyle='rgba(30,20,12,.85)';
+    if(o.vertical)g.fillRect(i*step-1,0,2.4,h);else g.fillRect(0,i*step-1,w,2.4);
+    if(o.nails){g.fillStyle='#2e241a';
+      for(let x=14;x<w-8;x+=46){g.beginPath();g.arc(x+(i%2)*22,i*step+5,1.8,0,6.283);g.fill();}}}}
+function paintCloth(g,w,h){g.fillStyle='#e8dfc8';g.fillRect(0,0,w,h);
+  for(let y=0;y<h;y+=3){g.fillStyle=y%6?'rgba(120,105,80,.05)':'rgba(255,255,255,.05)';g.fillRect(0,y,w,1);}
+  g.strokeStyle='rgba(140,120,90,.5)';g.lineWidth=2;
+  for(let y=h*.14;y<h;y+=h/6){g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke();}}
+function paintSky(g,w,h){const gr=g.createLinearGradient(0,0,0,h);
+  gr.addColorStop(0,'#3f5a84');gr.addColorStop(.32,'#8f7e82');gr.addColorStop(.48,'#e8a862');
+  gr.addColorStop(.55,'#f6c47e');gr.addColorStop(.6,'#d8a06a');gr.addColorStop(1,'#6a4f36');
+  g.fillStyle=gr;g.fillRect(0,0,w,h);
+  const s=g.createRadialGradient(w*.403,h*.52,4,w*.403,h*.52,200);
+  s.addColorStop(0,'rgba(255,244,210,1)');s.addColorStop(.22,'rgba(255,214,150,.55)');s.addColorStop(1,'rgba(255,200,130,0)');
+  g.fillStyle=s;g.fillRect(0,0,w,h);}
+function paintSand(g,w,h){g.fillStyle='#c9a978';g.fillRect(0,0,w,h);
+  for(let i=0;i<2500;i++){g.fillStyle=Math.random()<.5?'rgba(230,200,150,.3)':'rgba(120,90,60,.2)';
+    g.fillRect(Math.random()*w,Math.random()*h,1.5,1.5);}}
+function paintStone(g,w,h){g.fillStyle='#9a8872';g.fillRect(0,0,w,h);
+  const cols=['#8a7862','#a89678','#7a6852','#b5a288','#9a8872'];const bw=w/6,bh=h/8;
+  for(let j=0;j<8;j++)for(let i=0;i<6;i++){const ox=(j%2)*bw*.5;
+    g.fillStyle=cols[(i+j)%cols.length];g.fillRect(i*bw+ox+2,j*bh+2,bw-4,bh-4);
+    g.strokeStyle='rgba(30,20,12,.6)';g.lineWidth=2;g.strokeRect(i*bw+ox+2,j*bh+2,bw-4,bh-4);}}
+function paintSign(g,w,h,name,sub){g.fillStyle='#5c4126';g.fillRect(0,0,w,h);
+  paintWood(g,w,h,{rows:4,cols:['#6b4d30','#5f4429','#75563a','#65482c']});
+  g.strokeStyle='#2e1e0e';g.lineWidth=8;g.strokeRect(6,6,w-12,h-12);
+  g.strokeStyle='#c8a06a';g.lineWidth=3;g.strokeRect(16,16,w-32,h-32);
+  g.font='700 '+h*.34+'px Cairo';g.textAlign='center';g.textBaseline='middle';
+  g.fillStyle='#f4e8d0';g.fillText(name,w/2,h*.42);
+  g.font='600 '+h*.14+'px Cairo';g.fillStyle='#e0c9a0';g.fillText(sub,w/2,h*.74);}
+function paintLogo(g,w,h){g.fillStyle='#7a5a38';g.fillRect(0,0,w,h);
+  g.strokeStyle='#3a2712';g.lineWidth=6;g.strokeRect(w*.03,h*.06,w*.94,h*.88);
+  const cx=w/2,cy=h*.33,r=Math.min(w,h)*.16;
+  g.strokeStyle='#3a2712';g.lineWidth=r*.14;g.beginPath();g.arc(cx,cy,r,0,6.283);g.stroke();
+  drawPalm(g,cx,cy,r*1.5,'#3a2712');
+  g.font='700 '+h*.16+'px Cairo';g.textAlign='center';g.fillStyle='#2e1e0e';
+  g.fillText('UNDER THE',cx,h*.62);g.fillText('PALM TREE',cx,h*.8);}
+
+const texHull=makeTex(1024,1024,(g,w,h)=>paintWood(g,w,h,{rows:16}));
+const texHullB=makeTex(1024,1024,(g,w,h)=>paintWood(g,w,h,{rows:16,cols:['#777','#888','#666']}));
+const texDeck=makeTex(512,512,(g,w,h)=>paintWood(g,w,h,{rows:12,vertical:true}));
+const texDark=makeTex(512,512,(g,w,h)=>paintWood(g,w,h,{rows:6,cols:['#5c4126','#523a22','#65482c','#4a3420']}));
+const texSpar=makeTex(256,512,(g,w,h)=>paintWood(g,w,h,{rows:3,vertical:true,cols:['#9a7a52','#8f7048','#a5855c'],nails:false}));
+const texCloth=makeTex(512,512,paintCloth);
+const texRope=makeTex(128,128,(g,w,h)=>{g.fillStyle='#b3935f';g.fillRect(0,0,w,h);
+  for(let y=-h;y<h*2;y+=11){g.strokeStyle='rgba(84,62,34,.55)';g.lineWidth=4.5;
+  g.beginPath();g.moveTo(0,y);g.lineTo(w,y+w);g.stroke();}});
+const texSky=makeTex(1024,512,paintSky);
+const texSand=makeTex(512,512,paintSand);texSand.repeat.set(6,6);
+const texStone=makeTex(512,512,paintStone);
+const texLogo=makeTex(1024,384,(g,w,h)=>paintLogo(g,w,h));
+
+const M_=o=>new THREE.MeshStandardMaterial(Object.assign({envMapIntensity:.7},o));
+const matHull=M_({map:texHull,bumpMap:texHullB,bumpScale:.06,roughness:.78,side:THREE.DoubleSide});
+const matDeck=M_({map:texDeck,roughness:.82});
+const matDark=M_({map:texDark,roughness:.8});
+const matSpar=M_({map:texSpar,roughness:.75});
+const matCloth=M_({map:texCloth,roughness:.92,side:THREE.DoubleSide});
+const matClothD=M_({map:texCloth,color:0x3a3a42,roughness:.95,side:THREE.DoubleSide});
+const matRope=M_({map:texRope,roughness:.95});
+const matIron=M_({color:0x4a3a2a,roughness:.75,metalness:.55});
+const matMetal=M_({color:0x3a362f,roughness:.45,metalness:.85});
+const matSand=M_({map:texSand,roughness:.95});
+const matStone=M_({map:texStone,roughness:.9});
+const matLogo=M_({map:texLogo,roughness:.7});
+
+/* قبة السماء + نجوم */
+const skyMat=new THREE.MeshBasicMaterial({map:texSky,side:THREE.BackSide,fog:false});
+const skyDome=new THREE.Mesh(new THREE.SphereGeometry(4000,32,16),skyMat);
+scene.add(skyDome);
+const starPos=[];const starNames=[];
+for(let i=0;i<900;i++){const a=Math.random()*Math.PI*2,e=Math.random()*Math.PI*.48+.04;
+  starPos.push(Math.cos(a)*Math.cos(e)*3600,Math.sin(e)*3600,Math.sin(a)*Math.cos(e)*3600);}
+const NAMED=[['الجدي (النجم القطبي)',80,3600],['سهيل',12,-1400],['الثريا',55,900],['بنات نعش',68,1800],['الصليب الجنوبي',18,-2600]];
+function starLabel(name){const c=document.createElement('canvas');c.width=256;c.height=64;
+  const g=c.getContext('2d');g.font='700 30px Cairo';g.textAlign='center';g.textBaseline='middle';
+  g.fillStyle='rgba(255,240,200,.95)';g.fillText('✦ '+name,128,32);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;}
+const starSprites=[];
+NAMED.forEach((n,i)=>{const a=(i/NAMED.length)*Math.PI*2+.7;
+  const e=n[1]*Math.PI/180;const p=new THREE.Vector3(Math.cos(a)*Math.cos(e)*3500,Math.sin(e)*3500,Math.sin(a)*Math.cos(e)*3500);
+  starPos.push(p.x,p.y,p.z);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:starLabel(n[0]),fog:false,transparent:true,depthWrite:false}));
+  sp.position.copy(p).multiplyScalar(.985);sp.scale.set(340,85,1);sp.userData.name=n[0];sp.userData.pos=p.clone().normalize();
+  scene.add(sp);starSprites.push(sp);});
+const starGeo=new THREE.BufferGeometry();
+starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));
+const starMat=new THREE.PointsMaterial({color:0xfff4d8,size:7,sizeAttenuation:false,fog:false,transparent:true,opacity:0});
+scene.add(new THREE.Points(starGeo,starMat));
+const moon=new THREE.Mesh(new THREE.SphereGeometry(60,16,12),new THREE.MeshBasicMaterial({color:0xf4ecd8,fog:false}));
+scene.add(moon);
+
+/* ============ الإضاءة ============ */
+scene.add(new THREE.HemisphereLight(0xffd9ae,0x2e4a52,.55));
+const sunL=new THREE.DirectionalLight(0xffb469,3.2);
+sunL.castShadow=true;sunL.shadow.mapSize.set(2048,2048);
+sunL.shadow.camera.left=-60;sunL.shadow.camera.right=60;
+sunL.shadow.camera.top=60;sunL.shadow.camera.bottom=-60;
+sunL.shadow.camera.far=400;sunL.bias=-.0004;sunL.normalBias=.05;
+scene.add(sunL,sunL.target);
+const moonL=new THREE.DirectionalLight(0x8fa8d0,0);scene.add(moonL);
+const pm=new THREE.PMREMGenerator(renderer);
+const envS=new THREE.Scene();
+envS.add(new THREE.Mesh(new THREE.SphereGeometry(60,24,12),new THREE.MeshBasicMaterial({map:texSky,side:THREE.BackSide})));
+scene.environment=pm.fromScene(envS,.08).texture;
+
+/* ============ البحر ============ */
+const mirror=new Reflector(new THREE.CircleGeometry(3200,64),{clipBias:.003,textureWidth:1024,textureHeight:1024,color:0x8fa0a0});
+mirror.rotation.x=-Math.PI/2;mirror.position.y=-.06;scene.add(mirror);
+const waterUni={uTime:{value:0},uAmp:{value:1},uSunDir:{value:new THREE.Vector3(-25,15,35).normalize()}};
+const waterMat=new THREE.ShaderMaterial({uniforms:waterUni,transparent:true,depthWrite:false,
+vertexShader:`uniform float uTime;uniform float uAmp;varying vec3 vW;varying vec3 vN;
+float waveH(vec2 p,float t){float h=0.0;
+h+=sin(dot(p,vec2(.20,.16))+t*.9)*.20;h+=sin(dot(p,vec2(-.14,.27))+t*.62)*.13;
+h+=sin(dot(p,vec2(.42,-.20))+t*1.55)*.05;h+=sin(dot(p,vec2(-.48,-.40))+t*2.1)*.03;return h*uAmp;}
+void main(){vec4 wp=modelMatrix*vec4(position,1.0);float e=.35;
+float hC=waveH(wp.xz,uTime);float hX=waveH(wp.xz+vec2(e,0.),uTime);float hZ=waveH(wp.xz+vec2(0.,e),uTime);
+wp.y+=hC;vW=wp.xyz;vN=normalize(vec3(-(hX-hC)/e,1.0,-(hZ-hC)/e));
+gl_Position=projectionMatrix*viewMatrix*wp;}`,
+fragmentShader:`uniform float uTime;uniform vec3 uSunDir;varying vec3 vW;varying vec3 vN;
+void main(){vec3 N=normalize(vN);vec3 V=normalize(cameraPosition-vW);
+float ndv=max(dot(N,V),0.0);float fr=pow(1.0-ndv,3.0);vec3 R=reflect(-V,N);
+vec3 sky=mix(vec3(1.05,.62,.34),vec3(.38,.55,.72),clamp(R.y*1.4+.35,0.,1.));
+vec3 col=mix(vec3(.035,.13,.16),vec3(.10,.30,.32),clamp(.35+ndv*.4,0.,1.));
+col=mix(col,sky,fr*.72);
+float s1=pow(max(dot(R,normalize(uSunDir)),0.0),220.0);
+float s2=pow(max(dot(R,normalize(uSunDir)),0.0),60.0);
+col+=vec3(1.0,.78,.5)*(s1*3.2+s2*.35);
+float a=clamp(.60+fr*.22,0.0,.96);gl_FragColor=vec4(col,a);}`});
+const water=new THREE.Mesh(new THREE.PlaneGeometry(6500,6500,180,180),waterMat);
+water.rotation.x=-Math.PI/2;water.renderOrder=2;scene.add(water);
+
+/* المطر */
+const RAIN_N=1600;const rainArr=new Float32Array(RAIN_N*3);
+for(let i=0;i<RAIN_N;i++){rainArr[i*3]=(Math.random()-.5)*120;rainArr[i*3+1]=Math.random()*60;rainArr[i*3+2]=(Math.random()-.5)*120;}
+const rainGeo=new THREE.BufferGeometry();
+rainGeo.setAttribute('position',new THREE.BufferAttribute(rainArr,3));
+const rain=new THREE.Points(rainGeo,new THREE.PointsMaterial({color:0x9fb8d8,size:.12,transparent:true,opacity:.55}));
+rain.visible=false;scene.add(rain);
+
+/* ============ أدوات بناء ============ */
+function MK(geo,mtl,x,y,z,parent,rx=0,ry=0,rz=0){const m=new THREE.Mesh(geo,mtl);
+  m.position.set(x,y,z);m.rotation.set(rx,ry,rz);m.castShadow=true;m.receiveShadow=true;
+  (parent||scene).add(m);return m;}
+function tube(a,b,r,mtl,parent){const d=new THREE.Vector3().subVectors(b,a);const m=MK(new THREE.CylinderGeometry(r,r,d.length(),8),mtl,0,0,0,parent);
+  m.position.copy(a).addScaledVector(d,.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());return m;}
+function coneB(a,b,ra,rb,mtl,parent){const d=new THREE.Vector3().subVectors(b,a);
+  const m=MK(new THREE.CylinderGeometry(rb,ra,d.length(),10),mtl,0,0,0,parent);
+  m.position.copy(a).addScaledVector(d,.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());return m;}
+function ropeB(a,b,sag,r,parent){const mid=a.clone().add(b).multiplyScalar(.5);mid.y-=sag;
+  return MK(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a.clone(),mid,b.clone()),20,r,5),matRope,0,0,0,parent);}
+
+/* ============ السفينة الرئيسية ============ */
+const ship=new THREE.Group();scene.add(ship);
+const SEC=[[-10.6,1.35,2.25,-.9],[-9.6,2.05,2.05,-1],[-8,2.6,1.85,-1.05],[-5.5,2.95,1.7,-1.1],
+[-2.5,3.05,1.62,-1.12],[.5,3.05,1.6,-1.12],[3.5,2.95,1.65,-1.1],[6,2.7,1.75,-1.05],
+[8.2,2.25,1.95,-.95],[9.8,1.6,2.2,-.8],[11,0.8,2.5,-.55],[11.9,.06,2.75,-.25]];
+{const MP=22,cnt=SEC.length,pos=[],uv=[],idx=[];
+for(let i=0;i<cnt;i++){const[z,hb,dy,ky]=SEC[i];const full=Math.min(1,hb/3.05);
+  const pw=.7+.55*(1-full),pr=1.05+.6*full;
+  for(let j=0;j<=MP;j++){const t=j/MP,a=t*2-1,aa=Math.abs(a);
+    pos.push(Math.sign(a)*hb*Math.pow(aa,pw),ky+(dy-ky)*Math.pow(aa,pr),z);uv.push(i/(cnt-1),t);}}
+for(let i=0;i<cnt-1;i++)for(let j=0;j<MP;j++){const a=i*(MP+1)+j,b=a+MP+1;idx.push(a,b,a+1,b,b+1,a+1);}
+const g=new THREE.BufferGeometry();
+g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+g.setIndex(idx);g.computeVertexNormals();MK(g,matHull,0,0,0,ship);}
+{const shp=new THREE.Shape();shp.moveTo(0,-12);
+for(let i=SEC.length-1;i>=0;i--)shp.lineTo(SEC[i][1]*.985,-SEC[i][0]);
+for(let i=0;i<SEC.length;i++)shp.lineTo(-SEC[i][1]*.985,-SEC[i][0]);
+shp.closePath();const d=MK(new THREE.ShapeGeometry(shp,12),matDeck,0,1.6,0,ship,-Math.PI/2);d.castShadow=false;}
+{const pts=[];for(let i=SEC.length-1;i>=1;i--)pts.push(new THREE.Vector3(SEC[i][1],SEC[i][2]+.06,SEC[i][0]));
+pts.push(new THREE.Vector3(0,SEC[0][2]+.1,-SEC[0][0]));
+for(let i=1;i<SEC.length;i++)pts.push(new THREE.Vector3(-SEC[i][1],SEC[i][2]+.06,SEC[i][0]));
+MK(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts,true),200,.09,6),matDark,0,0,0,ship);}
+{const kp=SEC.map(s=>new THREE.Vector3(0,s[3]-.04,s[0]));
+MK(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(kp),60,.13,6),matDark,0,0,0,ship);
+const sp=[new THREE.Vector3(0,-.3,11.7),new THREE.Vector3(0,1.3,12.2),new THREE.Vector3(0,2.7,12.25),new THREE.Vector3(0,3.7,12)];
+MK(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(sp),24,.15,8),matDark,0,0,0,ship);}
+for(const s of[-1,1]){MK(new THREE.BoxGeometry(.06,1.25,3.4),matDark,s*2.92,1.05,-6.4,ship);
+  MK(new THREE.PlaneGeometry(3.2,1.15),matLogo,s*2.965,1.05,-6.4,ship,0,s*Math.PI/2,0);}
+/* مؤخرة + قمرة القيادة (بيت الدفة) */
+MK(new THREE.BoxGeometry(5,.78,3.9),matDark,0,2,-8.05,ship);
+const pt=MK(new THREE.PlaneGeometry(5,3.9),matDeck,0,2.4,-8.05,ship,-Math.PI/2);pt.castShadow=false;
+MK(new THREE.BoxGeometry(3.4,1.25,2.5),matDark,0,3.05,-8.95,ship);
+MK(new THREE.BoxGeometry(3.7,.09,2.85),matDark,0,3.72,-8.95,ship);
+/* سقف قمرة القيادة فوق المقود + أعمدة = إحساس داخلي */
+MK(new THREE.BoxGeometry(3.6,.1,3.2),matDark,0,4.6,-7.4,ship);
+for(const[cx,cz]of[[-1.7,-6],[-1.7,-8.8],[1.7,-6],[1.7,-8.8]])MK(new THREE.CylinderGeometry(.06,.06,2.2,8),matDark,cx,3.5,cz,ship);
+MK(new THREE.PlaneGeometry(3.4,1.1),M_({color:0x182226,roughness:.2,metalness:.5}),0,4.05,-6.02,ship);
+/* عجلة القيادة */
+const wheel=new THREE.Group();wheel.position.set(0,3.28,-6.6);ship.add(wheel);
+MK(new THREE.BoxGeometry(.32,.8,.32),matDark,0,2.8,-6.6,ship);
+MK(new THREE.CylinderGeometry(.05,.05,.3,10),matMetal,0,3.28,-6.6,ship,Math.PI/2);
+MK(new THREE.TorusGeometry(.52,.05,10,26),matDark,0,0,0,wheel);
+for(let i=0;i<8;i++){const a=i*Math.PI/4;
+  MK(new THREE.CylinderGeometry(.028,.028,1.04,6),matDark,0,0,0,wheel,0,0,a);
+  MK(new THREE.CylinderGeometry(.03,.03,.24,6),matDark,Math.cos(a)*.63,Math.sin(a)*.63,0,wheel,0,0,a-Math.PI/2);}
+/* بضائع على السطح */
+function barrel(x,y,z,p){const pts=[new THREE.Vector2(0,0),new THREE.Vector2(.3,.02),new THREE.Vector2(.38,.45),new THREE.Vector2(.3,.88),new THREE.Vector2(0,.9)];
+  MK(new THREE.LatheGeometry(pts,14),matSpar,x,y,z,p);
+  MK(new THREE.TorusGeometry(.36,.016,6,18),matIron,x,y+.45,z,p,Math.PI/2);}
+barrel(1.75,1.6,-2.2,ship);barrel(2.15,1.6,-1.55,ship);
+function crate(x,y,z,w,h,d,p){MK(new THREE.BoxGeometry(w,h,d),matSpar,x,y+h/2,z,p);}
+crate(-1.85,1.6,4.1,.95,.72,.72,ship);crate(-1.75,2.32,4,.58,.5,.55,ship);crate(1.95,1.6,-.7,1,.75,.75,ship);
+/* صواري وأشرعة */
+function mast(x,y,z,h,rb,rt){MK(new THREE.BoxGeometry(.95,.24,.95),matDark,x,y+.12,z,ship);
+  MK(new THREE.CylinderGeometry(rt,rb,h,12),matSpar,x,y+h/2,z,ship);
+  MK(new THREE.SphereGeometry(rt+.04,10,8),matDark,x,y+h+.08,z,ship);}
+mast(0,1.6,2.3,15.4,.26,.11);mast(0,1.6,-4.55,8.9,.15,.07);
+function lateen(H,T,C,bulge,mat){const rows=22,cols=18,pos=[],uv=[],idx=[],nrm=new THREE.Vector3(1,0,0);
+for(let i=0;i<=rows;i++){const t=i/rows;const L=H.clone().lerp(T,t);const R=H.clone().lerp(C,t);
+  for(let j=0;j<=cols;j++){const s=j/cols;const p=L.clone().lerp(R,s);
+    p.addScaledVector(nrm,bulge*Math.sin(Math.min(1,t*1.15)*Math.PI*.85)*Math.sin(s*Math.PI));
+    pos.push(p.x,p.y,p.z);uv.push(s,t);}}
+for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){const a=i*(cols+1)+j,b=a+cols+1;idx.push(a,b,a+1,b,b+1,a+1);}
+const g=new THREE.BufferGeometry();
+g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();
+return MK(g,mat,0,0,0,ship);}
+const yA=new THREE.Vector3(0,3,-2.2),yB=new THREE.Vector3(0,16.6,8.2);
+coneB(yA,yB,.13,.06,matSpar,ship);
+lateen(yA.clone().lerp(yB,.97),new THREE.Vector3(0,2.4,3.1),new THREE.Vector3(0,3.1,-1.6),1,matCloth);
+const yA2=new THREE.Vector3(0,3.4,-7.2),yB2=new THREE.Vector3(0,10,-1.6);
+coneB(yA2,yB2,.08,.04,matSpar,ship);
+lateen(yA2.clone().lerp(yB2,.96),new THREE.Vector3(0,2.6,-3.4),new THREE.Vector3(0,3.3,-6.6),.55,matCloth);
+const mTop=new THREE.Vector3(0,17,1.8);
+ropeB(mTop,new THREE.Vector3(0,3.4,11.8),.25,.022,ship);
+ropeB(mTop,new THREE.Vector3(1.15,2.4,-10.1),.45,.02,ship);
+ropeB(mTop,new THREE.Vector3(-1.15,2.4,-10.1),.45,.02,ship);
+/* راية */
+const pennant=new THREE.Group();pennant.position.set(.05,16.6,1.6);ship.add(pennant);
+{const fg=new THREE.PlaneGeometry(1.15,.5,8,3);const fp=fg.attributes.position;
+for(let i=0;i<fp.count;i++){const u=(fp.getX(i)+.575)/1.15;fp.setZ(i,Math.sin(u*Math.PI)*.09*u);}
+fg.computeVertexNormals();MK(fg,matCloth,.58,-.25,0,pennant);}
+ship.scale.set(1.6,1.6,1.6);
+
+/* ============ الموانئ ============ */
+const PORTS=[
+{name:'مسقط',sub:'عُمان · نقطة الانطلاق',pos:[0,0],roof:0x8a2c1a,
+ culture:'مسقط: دار العزّ ومرفأ البحّارة؛ منها انطلقت سفن عُمان تحمل البخور والتمر إلى العالم.',
+ cargo:'🌴 تمر عُمانّي فاخر (هدية إلى الصين)'},
+{name:'مضيق هرمز',sub:'بوابة الخليج',pos:[420,260],roof:0x6a4a2a,
+ culture:'هرمز: ملتقى تجارة اللؤلؤ والحرير والتوابل؛ من يتحكم بالمضيق يتحكم ببازار العالم.',
+ cargo:' لؤلؤ الخليج + تمر'},
+{name:'ساحل المليبار',sub:'الهند',pos:[980,420],roof:0x8a5a1a,
+ culture:'الهند: أرض الفلفل والهيل؛ أبحر العرب إليها مع رياح «الموسم» ذهابًا وإيابًا.',
+ cargo:'🌶️ فلفل وتوابل + حرير صيني'},
+{name:'ميناء كانتون',sub:'الصين',pos:[1750,780],roof:0x9a2020,
+ culture:'الصين: نهاية طريق الحرير البحري؛ سلّمنا التمر وحملنا الخزف والحرير.',
+ cargo:'🏺 خزف وحرير صيني'},
+{name:'زنجبار',sub:'جزر القرنفل',pos:[-350,-750],roof:0x2a6a4a,
+ culture:'زنجبار: درّة المحيط الهندي؛ للعُمانيين فيها أثرٌ عمراني ولغوي لا يُمحى.',
+ cargo:'🌸 قرنفل وتوابل زنجبار'},
+{name:'رأس العواصف',sub:'حول العالم',pos:[-1150,-350],roof:0x4a4a5a,
+ culture:'رأس الرجاء: «رأس الرياح»؛ من هنا نطوي الحلقة ونعود للعالم القديم مظفّرين.',
+ cargo:'🧭 غنائم الرحلة الكاملة'}];
+const portObjs=[];
+function buildPort(P,idx){
+  const g=new THREE.Group();const[px,pz]=P.pos;g.position.set(px,0,pz);scene.add(g);
+  const sand=MK(new THREE.CircleGeometry(26,24),matSand,0,.25,-52,g,-Math.PI/2);sand.castShadow=false;
+  MK(new THREE.BoxGeometry(7,3,34),matStone,0,-.6,-19,g);
+  MK(new THREE.BoxGeometry(7,.4,34),matDeck,0,1.2,-19,g);
+  for(let i=-16;i<=0;i+=2)MK(new THREE.CylinderGeometry(.28,.34,4,8),matDark,i%4?3.2:-3.2,-.6,i,g);
+  for(let i=0;i<4;i++)MK(new THREE.CylinderGeometry(.14,.17,.8,8),matIron,(i%2?2.6:-2.6),1.7,-8-i*7,g);
+  // لافتة الميناء
+  const signT=makeTex(512,192,(gw,gh)=>paintSign(gw,gh,P.name,P.sub));
+  MK(new THREE.BoxGeometry(.15,2.6,.15),matDark,3,2.6,-3,g);
+  MK(new THREE.PlaneGeometry(4.4,1.65),M_({map:signT,roughness:.8}),3,3.6,-3,g,0,Math.PI/2*0+Math.PI/2,0).rotation.y=Math.PI/2;
+  // مبانٍ
+  for(let b=0;b<3;b++){const bx=(b-1)*9,bz=-56-(b%2)*6;
+    MK(new THREE.BoxGeometry(6,4,5),matStone,bx,2.2,bz,g);
+    const rf=MK(new THREE.ConeGeometry(4.6,2.2,4),M_({color:P.roof,roughness:.8}),bx,5.3,bz,g,0,Math.PI/4);
+    MK(new THREE.BoxGeometry(1.4,2.2,.1),matDark,bx,1.3,bz+2.55,g);}
+  // نخيل
+  for(let b=0;b<4;b++){const a=b*1.7+.5;const tx=Math.cos(a)*18,tz=-52+Math.sin(a)*14;
+    MK(new THREE.CylinderGeometry(.25,.35,7,7),matDark,tx,3.5,tz,g,0,0,(Math.random()-.5)*.2);
+    for(let l=0;l<6;l++){const lf=MK(new THREE.PlaneGeometry(3.4,.6),M_({color:0x4a6b3a,roughness:.8,side:THREE.DoubleSide}),tx,7.2,tz,g);
+      lf.rotation.y=l/6*Math.PI*2;lf.rotation.z=-.7;}}
+  // مركب صغير راسٍ
+  const sb=buildDhow(.55,false);sb.position.set(px-9,0,pz-14);sb.rotation.y=.6;scene.add(sb);
+  const dock=new THREE.Vector3(px+8.5,0,pz-18);
+  const disembark=new THREE.Vector3(px+1.5,1.42,pz-18);
+  portObjs.push({P,dock,disembark,group:g});
+}
+function buildDhow(s,dark){const g=new THREE.Group();
+  const shp=new THREE.Shape();shp.moveTo(0,-3);
+  shp.quadraticCurveTo(1.5,-2.5,1.8,0);shp.quadraticCurveTo(1.5,2.5,0,3);
+  shp.quadraticCurveTo(-1.5,2.5,-1.8,0);shp.quadraticCurveTo(-1.5,-2.5,0,-3);
+  const h=new THREE.Mesh(new THREE.ExtrudeGeometry(shp,{depth:1.1,bevelEnabled:false}),dark?M_({color:0x2a2020,roughness:.9}):matHull);
+  h.rotation.x=-Math.PI/2;h.position.y=.5;h.castShadow=true;g.add(h);
+  MK(new THREE.CylinderGeometry(.07,.11,6.5,8),matSpar,0,3.8,0,g);
+  const sg=new THREE.PlaneGeometry(2.8,3.6,5,5);const sp=sg.attributes.position;
+  for(let i=0;i<sp.count;i++)sp.setZ(i,Math.sin((sp.getX(i)/2.8+.5)*Math.PI)*.3);
+  sg.computeVertexNormals();MK(sg,dark?matClothD:matCloth,0,3.6,0,g);
+  g.scale.set(s,s,s);return g;}
+PORTS.forEach(buildPort);
+
+/* ============ شخصيات إجرائية (CC0) ============ */
+function buildNPC(skin,robe,turban){const g=new THREE.Group();
+  MK(new THREE.CapsuleGeometry(.28,.85,4,10),M_({color:robe,roughness:.9}),0,.85,0,g);
+  MK(new THREE.SphereGeometry(.24,12,10),M_({color:skin,roughness:.7}),0,1.72,0,g);
+  MK(new THREE.SphereGeometry(.25,12,6,0,Math.PI*2,0,Math.PI*.5),M_({color:turban,roughness:.9}),0,1.8,0,g);
+  MK(new THREE.TorusGeometry(.25,.05,6,14),M_({color:turban,roughness:.9}),0,1.78,0,g,Math.PI/2);
+  MK(new THREE.CylinderGeometry(.03,.03,1.4,6),matDark,.42,1.1,0,g,0,0,.15);
+  return g;}
+const npcs=[];
+function placeNPC(portIdx,x,z,rot,data){const n=buildNPC(data.skin,data.robe,data.turban);
+  const po=portObjs[portIdx];n.position.set(x,1.42,z);n.rotation.y=rot;scene.add(n);
+  npcs.push({mesh:n,port:portIdx,data,base:new THREE.Vector3(x,1.42,z)});return n;}
+placeNPC(0,2.2,-14,Math.PI,{skin:0xc9986a,robe:0xf0e6d2,turban:0x8a2c1a,name:'الريّس سالم',lines:[
+ 'أهلًا يا بحّار! سفينتنا «تحت شجرة النخيل» جاهزة وشحنتنا تمرٌ عُمانّي هديةٌ لأطفال الصين.',
+ 'اصعد وخذ المقود بزر E، أو فعّل الدفة الآلية بزر Q وتأمل البحر.',
+ 'انتبه: البحر لا يرحم… قراصنة وعواصف ومضائق!']});
+placeNPC(0,-2.2,-22,-Math.PI/2,{skin:0xb98858,robe:0x3a5a4a,turban:0xe8dcc4,name:'المرشد ماجد',lines:[
+ 'قال معلّمنا أحمد بن ماجد: «اعرف الجدي وبنات نعش، فالليل بحرٌ ثانٍ».',
+ 'ليلًا اضغط N ووجّه نظرك إلى نجم متلألئ واضغط E لتسجّل قراءة فلكية.',
+ 'كل قراءة تمنحك حكمةً ومكافأة. البوصلة والخريطة (M) صديقتاك.']});
+placeNPC(2,2.2,-14,Math.PI,{skin:0x8a5a3a,robe:0xd8a040,turban:0xd85a20,name:'التاجر رامان',lines:[
+ 'مرحبًا ببحّار عُمان! فلفلنا وهيلنا ذاع صيته من المليبار إلى بغداد.',
+ 'خذ منا التوابل، وأكمل شرقًا نحو الصين قبل رياح الموسم.']});
+placeNPC(3,-2.2,-14,Math.PI,{skin:0xe8c9a0,robe:0x9a2020,turban:0x202028,name:'الأمين ليان',lines:[
+ 'وصل تمرُكم يا صديق! أطفال كانتون فرحون بالهدية العُمانية.',
+ 'حملنا لكم خزفًا وحريرًا؛ زنجبار تنتظر، ومنها «حول العالم»!']});
+placeNPC(4,2.2,-14,Math.PI,{skin:0x6a4028,robe:0x2a8a6a,turban:0xf0e6d2,name:'السيد جمعة',lines:[
+ 'كارibu! زنجبار داركم؛ هنا يتعانق اللسان السواحلي مع العربي.',
+ 'خذ القرنفل، لكن احذر رأس العواصف بعده… البحر هناك يغلي!']});
+
+/* قراصنة */
+const pirate=buildDhow(1.15,true);scene.add(pirate);pirate.visible=false;
+const pirateFlag=MK(new THREE.PlaneGeometry(1.4,.9),M_({color:0x151518,roughness:.9,side:THREE.DoubleSide}),0,7.4,0,pirate);
+
+/* ============ حالة اللعبة ============ */
+const G={started:false,mode:'ship',local:new THREE.Vector3(0,1.65,4),portPos:new THREE.Vector3(0,0,0),
+ yaw:Math.PI,pitch:0,helm:false,docked:true,portIdx:0,autopilot:false,
+ heading:0,rudder:0,sail:0,speed:0,hull:100,coins:0,day:1,tod:.32,time:0,
+ weather:'clear',wTarget:'clear',windA:.6,windStr:.5,leg:0,state:'intro',
+ piratesOn:false,pirateT:0,shake:0,miles:0,readings:new Set(),finished:false,sex:false,map:false};
+const LEGS=[{to:1,event:null},{to:2,event:'pirates'},{to:3,event:'storm'},{to:4,event:'pirates'},{to:5,event:'storm'},{to:0,event:null}];
+function curDest(){return portObjs[LEGS[Math.min(G.leg,LEGS.length-1)].to];}
+
+/* ============ صوت إجرائي ============ */
+let AC=null,seaG,rainG;
+function initAudio(){if(AC)return;AC=new (window.AudioContext||window.webkitAudioContext)();
+  const buf=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  const mk=(fType,freq)=>{const s=AC.createBufferSource();s.buffer=buf;s.loop=true;
+    const f=AC.createBiquadFilter();f.type=fType;f.frequency.value=freq;
+    const g=AC.createGain();g.gain.value=0;s.connect(f);f.connect(g);g.connect(AC.destination);s.start();return g;};
+  seaG=mk('lowpass',320);rainG=mk('highpass',2800);}
+function thunder(){if(!AC)return;const s=AC.createBufferSource();
+  const b=AC.createBuffer(1,AC.sampleRate*1.5,AC.sampleRate);const d=b.getChannelData(0);
+  for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.2);
+  s.buffer=b;const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=220;
+  const g=AC.createGain();g.gain.value=.7;s.connect(f);f.connect(g);g.connect(AC.destination);s.start();}
+
+/* ============ واجهة ============ */
+const $=id=>document.getElementById(id);
+const toasts=[];
+function toast(t,ms=3600){const d=document.createElement('div');d.className='toast';d.textContent=t;
+  $('toasts').appendChild(d);setTimeout(()=>{d.style.opacity=0;setTimeout(()=>d.remove(),400);},ms);}
+let dlgQ=[],dlgOpen=false;
+function showDialog(lines){dlgQ=lines.slice();nextDlg();}
+function nextDlg(){if(!dlgQ.length){dlgOpen=false;$('dlg').style.display='none';return;}
+  dlgOpen=true;$('dlg').style.display='block';const l=dlgQ.shift();
+  $('dlgWho').textContent=l[0];$('dlgTxt').textContent=l[1];}
+function setObj(t){$('objTxt').textContent=t;}
+function setCargo(t){$('cargoTxt').textContent='📦 '+t;}
+
+/* بوصلة */
+const compC=$('comp').getContext('2d');
+function drawCompass(){const c=compC,w=120;c.clearRect(0,0,w,w);
+  const fwd=new THREE.Vector3(-Math.sin(G.yaw),0,-Math.cos(G.yaw));
+  const hdg=(Math.atan2(fwd.x,fwd.z)*180/Math.PI+360)%360;
+  c.save();c.translate(60,60);
+  c.fillStyle='rgba(30,20,10,.6)';c.beginPath();c.arc(0,0,56,0,7);c.fill();
+  c.strokeStyle='rgba(226,178,110,.5)';c.lineWidth=2;c.stroke();
+  c.rotate(-hdg*Math.PI/180);
+  c.fillStyle='#e2d3b4';c.font='700 12px Cairo';c.textAlign='center';c.textBaseline='middle';
+  const card=[['ش',0],['ق',90],['ج',180],['غ',270]];
+  for(const[l,a]of card){c.save();c.rotate(a*Math.PI/180);c.fillText(l,0,-44);c.restore();}
+  c.strokeStyle='rgba(226,178,110,.4)';
+  for(let a=0;a<360;a+=30){c.save();c.rotate(a*Math.PI/180);c.beginPath();c.moveTo(0,-52);c.lineTo(0,-56);c.stroke();c.restore();}
+  c.restore();
+  c.fillStyle='#e0a35c';c.beginPath();c.moveTo(60,14);c.lineTo(54,30);c.lineTo(66,30);c.fill();
+  c.fillStyle='#f4e8d0';c.font='700 13px Cairo';c.textAlign='center';
+  c.fillText(Math.round(hdg)+'°',60,78);
+  $('hdgTxt').textContent=Math.round(hdg)+'°';}
+/* خريطة مصغرة */
+const miniC=$('mini').getContext('2d');
+const WB={minX:-1500,maxX:2100,minZ:-1100,maxZ:1100};
+function w2m(x,z,w,h){return[( (x-WB.minX)/(WB.maxX-WB.minX))*(w-20)+10, h-(((z-WB.minZ)/(WB.maxZ-WB.minZ))*(h-20)+10)];}
+function drawMini(){const c=miniC,w=170,h=170;c.clearRect(0,0,w,h);
+  c.fillStyle='rgba(20,40,55,.7)';c.fillRect(0,0,w,h);
+  c.strokeStyle='rgba(226,178,110,.5)';c.setLineDash([4,4]);c.beginPath();
+  PORTS.forEach((p,i)=>{const[x,y]=w2m(p.pos[0],p.pos[1],w,h);i?c.lineTo(x,y):c.moveTo(x,y);});
+  c.closePath();c.stroke();c.setLineDash([]);
+  PORTS.forEach((p,i)=>{const[x,y]=w2m(p.pos[0],p.pos[1],w,h);
+    c.fillStyle=i===G.portIdx&&G.docked?'#7fb069':(i===LEGS[Math.min(G.leg,5)].to?'#e0a35c':'#c99d5f');
+    c.beginPath();c.arc(x,y,4,0,7);c.fill();});
+  const sx=ship.position.x,sz=ship.position.z;const[x,y]=w2m(sx,sz,w,h);
+  c.save();c.translate(x,y);c.rotate(-G.heading);
+  c.fillStyle='#f4e8d0';c.beginPath();c.moveTo(0,-7);c.lineTo(5,5);c.lineTo(-5,5);c.fill();c.restore();
+  if(pirate.visible){const[px,py]=w2m(pirate.position.x,pirate.position.z,w,h);
+    c.fillStyle='#d04030';c.beginPath();c.arc(px,py,4,0,7);c.fill();}}
+/* الخريطة الكبيرة */
+function drawMap(){const c=$('mapC').getContext('2d');const w=760,h=470;
+  c.clearRect(0,0,w,h);c.fillStyle='#12242e';c.fillRect(0,0,w,h);
+  c.strokeStyle='rgba(150,190,210,.12)';
+  for(let i=0;i<w;i+=40){c.beginPath();c.moveTo(i,0);c.lineTo(i,h);c.stroke();}
+  for(let i=0;i<h;i+=40){c.beginPath();c.moveTo(0,i);c.lineTo(w,i);c.stroke();}
+  c.strokeStyle='#e0a35c';c.lineWidth=2;c.setLineDash([8,6]);c.beginPath();
+  PORTS.forEach((p,i)=>{const[x,y]=w2m(p.pos[0],p.pos[1],w,h);i?c.lineTo(x,y):c.moveTo(x,y);});
+  c.closePath();c.stroke();c.setLineDash([]);c.lineWidth=1;
+  PORTS.forEach((p,i)=>{const[x,y]=w2m(p.pos[0],p.pos[1],w,h);
+    c.fillStyle=i<=G.leg||G.docked&&i===G.portIdx?'#7fb069':'#c99d5f';
+    c.beginPath();c.arc(x,y,7,0,7);c.fill();
+    c.fillStyle='#f4e8d0';c.font='700 14px Cairo';c.textAlign='center';c.fillText(p.name,x,y-14);});
+  const[x,y]=w2m(ship.position.x,ship.position.z,w,h);
+  c.save();c.translate(x,y);c.rotate(-G.heading);c.fillStyle='#fff';
+  c.beginPath();c.moveTo(0,-10);c.lineTo(7,7);c.lineTo(-7,7);c.fill();c.restore();
+  $('mapInfo').innerHTML='<b style="color:#e0a35c">'+PORTS[G.portIdx].name+'</b> · '+PORTS[G.portIdx].culture;}
+
+/* ============ الإدخال ============ */
+const keys={};
+addEventListener('keydown',e=>{keys[e.code]=true;
+  if(e.code==='KeyF'&&dlgOpen)nextDlg();
+  if(e.code==='KeyM'){G.map=!G.map;$('mapOv').style.display=G.map?'flex':'none';if(G.map)drawMap();}
+  if(e.code==='KeyN'&&isNight()){G.sex=!G.sex;$('sexOv').style.display=G.sex?'block':'none';}
+  if(e.code==='KeyQ'&&!G.docked&&G.started){G.autopilot=!G.autopilot;toast(G.autopilot?'🧭 الدفة الآلية: تعمل':'🛑 الدفة الآلية: متوقفة');}
+  if(e.code==='KeyE')tryInteract();});
+addEventListener('keyup',e=>keys[e.code]=false);
+addEventListener('mousemove',e=>{if(document.pointerLockElement&&!(G.sex)){
+  G.yaw-=e.movementX*.0022;G.pitch=Math.max(-1.45,Math.min(1.45,G.pitch-e.movementY*.0022));}});
+renderer.domElement.addEventListener('click',()=>{if(dlgOpen){nextDlg();return;}
+  if(G.started&&!document.pointerLockElement)renderer.domElement.requestPointerLock();});
+addEventListener('pointerlockchange',()=>{$('cross').style.display=document.pointerLockElement?'block':'none';});
+
+/* ============ التفاعل ============ */
+let promptTxt='';
+function tryInteract(){if(!G.started||dlgOpen)return;
+  if(G.sex){ // قراءة نجم
+    const aim=new THREE.Vector3(0,0,-1).applyEuler(new THREE.Euler(G.pitch,G.yaw,0,'YXZ'));
+    let best=null,bd=.12;
+    for(const s of starSprites){const d=aim.dot(s.userData.pos);if(d>1-bd&&d> (best?best.d:0)){best={s,d};}}
+    if(best&&!G.readings.has(best.s.userData.name)){G.readings.add(best.s.userData.name);
+      G.coins+=10;toast('🔭 قرأتَ '+best.s.userData.name+'! +10 🪙 · حكمة بحّار: النجوم موازين البحر.');}
+    else if(best)toast('سجّلتَ هذا النجم سابقًا.');
+    return;}
+  if(promptTxt.startsWith('E')){const act=promptTxt.split('|')[1];doAction(act);}
+}
+function doAction(a){
+  if(a==='helm'){G.helm=!G.helm;toast(G.helm?'🛞 أمسكتَ المقود: A/D دفة، W/S أشرعة':'تركتَ المقود');return;}
+  if(a==='sail'){undock();return;}
+  if(a==='dock'){dock();return;}
+  if(a==='leave'){G.mode='port';G.portPos.copy(portObjs[G.portIdx].disembark);
+    G.yaw=Math.atan2(-(ship.position.x-G.portPos.x),-(ship.position.z-G.portPos.z));toast('🚶 نزلتَ إلى الرصيف');return;}
+  if(a==='board'){G.mode='ship';G.local.set(0,1.65,4);toast('⬆️ صعدتَ إلى السفينة');return;}
+  if(a.startsWith('npc')){const n=npcs[parseInt(a.slice(3))];
+    showDialog(n.data.lines.map(l=>[n.data.name,l]));return;}
+}
+function undock(){G.docked=false;G.autopilot=true;G.state='sail';
+  toast('⛵ أبحرنا! الوجهة: '+curDest().P.name);setObj('أبحِر إلى '+curDest().P.name+' (اتبع السهم في الخريطة)');}
+function dock(){G.docked=true;G.speed=0;G.autopilot=false;G.piratesOn=false;pirate.visible=false;
+  const po=portObjs[G.portIdx];ship.position.copy(po.dock);ship.rotation.set(0,0,0);G.heading=0;
+  G.hull=Math.min(100,G.hull+40);
+  arrival();}
+function arrival(){const P=PORTS[G.portIdx];
+  G.coins+=50;toast('⚓ رسونا في '+P.name+'! +50 🪙');
+  setCargo(P.cargo);
+  const lines=[[ '📜 المؤرخ', P.culture]];
+  if(G.leg>=LEGS.length){finish(true);return;}
+  lines.push(['الريّس سالم','حمولتنا الآن: '+P.cargo+'. جهّز نفسك للإبحار بزر E عند المقود، أو تحدّث لأهل الميناء.']);
+  showDialog(lines);G.state='port';
+  setObj('في ميناء '+P.name+' — تحدّث مع الأهالي ثم أبحِر للمحطة التالية');}
+function finish(win){G.finished=true;document.exitPointerLock();
+  $('end').classList.remove('hidden');
+  $('endTitle').innerHTML=win?'🏆 <em>اكتملت الرحلة حول العالم!</em>':'💀 <em>ابتلعنا البحر…</em>';
+  $('endStats').innerHTML='الأيام: '+G.day+' · الأميال: '+Math.round(G.miles)+'<br>العملات: '+G.coins+' 🪙 · قراءات النجوم: '+G.readings.size+' 🔭<br>الموانئ: '+PORTS.map(p=>p.name).join(' ← ');}
+
+/* ============ الطقس واليوم ============ */
+function isNight(){return G.tod>.72||G.tod<.06;}
+let flash=0,lightT=5;
+function updateWeather(dt){
+  if(!G.docked){const leg=LEGS[Math.min(G.leg,5)];const prog=legProg();
+    if(leg.event==='storm'&&prog>.35&&prog<.85)G.wTarget='storm';
+    else if(G.wTarget==='storm')G.wTarget='clear';
+    else if(Math.random()<dt*.008)G.wTarget=G.wTarget==='rain'?'clear':'rain';}
+  else G.wTarget='clear';
+  const tgt={clear:.45,rain:.8,storm:1.5}[G.wTarget];
+  G.windStr+=(tgt-G.windStr)*dt*.4;
+  G.windA+=dt*.05*Math.sin(G.time*.03);
+  waterUni.uAmp.value+=(({clear:1,rain:1.6,storm:2.6}[G.wTarget])-waterUni.uAmp.value)*dt*.5;
+  const raining=G.wTarget!=='clear';
+  rain.visible=raining;
+  if(raining){const p=rainGeo.attributes.position;
+    for(let i=0;i<RAIN_N;i++){let y=p.getY(i)-dt*(30+G.windStr*15);
+      if(y<0)y=60;p.setY(i,y);}p.needsUpdate=true;
+    rain.position.set(camera.position.x,0,camera.position.z);}
+  if(AC){rainG.gain.value+=((raining?.12+G.windStr*.06:0)-rainG.gain.value)*dt*2;
+    seaG.gain.value+=((.05+G.speed*.004+G.windStr*.03)-seaG.gain.value)*dt;}
+  if(G.wTarget==='storm'){lightT-=dt;
+    if(lightT<0){lightT=6+Math.random()*8;flash=1;setTimeout(thunder,600);}}
+  flash=Math.max(0,flash-dt*2.2);
+  $('flash').style.opacity=flash*.75;
+  const wt={clear:'رياح طيبة · صحو',rain:'🌧️ مطر · رياح نشطة',storm:'⛈️ عاصفة! تمسّك!'}[G.wTarget];
+  $('weatherTxt').textContent=wt;}
+function legProg(){if(G.docked)return 0;const d=curDest().dock;
+  const total=portObjs[LEGS[Math.min(G.leg,5)].from??G.portIdx];
+  const start=portObjs[G.portIdx].dock;
+  const L=start.distanceTo(d);const l=ship.position.distanceTo(d);
+  return Math.max(0,Math.min(1,1-l/L));}
+
+/* دورة اليوم */
+function updateDay(dt){G.tod+=dt/240;if(G.tod>1){G.tod-=1;G.day++;$('dayTxt').textContent=(isNight()?'🌙':'☀️')+' اليوم '+G.day;}
+  const day=isNight()?0:1;const tr=Math.min(1,Math.max(0,(Math.sin((G.tod-.06)/.66*Math.PI))*1.4));
+  skyMat.color.setScalar(.25+.75*tr);
+  starMat.opacity=1-tr;starSprites.forEach(s=>s.material.opacity=1-tr);
+  sunL.intensity=3.2*tr+flash*6;moonL.intensity=(1-tr)*.5;
+  const a=G.tod*Math.PI*2;
+  sunL.position.set(Math.cos(a)*120,Math.sin(a)*120,60).add(ship.position);
+  sunL.target.position.copy(ship.position);
+  moon.position.set(-Math.cos(a)*3000,Math.max(-200,Math.sin(a+Math.PI)*2500),-1200).add(camera.position);
+  scene.fog.color.setRGB(.85*tr+.05,.66*tr+.06,.47*tr+.1);
+  $('dayTxt').textContent=(isNight()?'🌙':'☀️')+' اليوم '+G.day;}
+
+/* ============ فيزياء السفينة ============ */
+function angDiff(a,b){let d=a-b;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;return d;}
+function updateShip(dt){
+  if(G.docked){ship.position.y=.1*Math.sin(G.time*.5)*0;return;}
+  const windDir=new THREE.Vector3(Math.sin(G.windA),0,Math.cos(G.windA));
+  const fwd=new THREE.Vector3(Math.sin(G.heading),0,Math.cos(G.heading));
+  let wf=.55+.45*Math.max(0,windDir.dot(fwd));
+  if(G.wTarget==='storm')wf*=.8;
+  if(G.helm){G.rudder=((keys.KeyA||keys.ArrowLeft)?1:0)+((keys.KeyD||keys.ArrowRight)?-1:0);
+    if(keys.KeyW)G.sail=Math.min(1,G.sail+dt*.5);
+    if(keys.KeyS)G.sail=Math.max(0,G.sail-dt*.5);}
+  else if(G.autopilot){const d=curDest().dock.clone().sub(ship.position);
+    const ta=Math.atan2(d.x,d.z);G.rudder=Math.max(-1,Math.min(1,angDiff(ta,G.heading)*1.4));
+    G.sail=.85;}
+  const target=G.sail*14*wf*G.windStr/.6;
+  G.speed+=(Math.min(20,target)-G.speed)*dt*.6;
+  G.heading+=G.rudder*dt*.5*(.35+.65*Math.min(1,G.speed/8));
+  ship.position.addScaledVector(fwd,G.speed*dt);
+  G.miles+=G.speed*dt/50;
+  ship.rotation.y=G.heading;
+  ship.rotation.z=.02*Math.sin(G.time*.43)+G.rudder*.02;
+  ship.rotation.x=.012*Math.sin(G.time*.36);
+  ship.position.y=.12*Math.sin(G.time*.5)*waterUni.uAmp.value;
+  wheel.rotation.z=G.rudder*1.2;
+  pennant.rotation.y=.3*Math.sin(G.time*1.7);
+  // وصول؟
+  const dest=curDest().dock;
+  if(ship.position.distanceTo(dest)<30&&G.speed<4&&!G.docked&&G.state==='sail'){
+    promptTxt='E|dock';showPrompt('⚓ E: رسوٌّ في '+curDest().P.name);}
+  // أحداث
+  const leg=LEGS[Math.min(G.leg,5)];
+  if(leg.event==='pirates'&&!G.piratesOn&&legProg()>.4){G.piratesOn=true;pirate.visible=true;
+    pirate.position.copy(ship.position).addScaledVector(fwd,-90);G.pirateT=0;
+    toast('🏴‍☠️ شراعٌ أسود! قراصنةٌ يقتربون — ارفع الأشرعة واهرب!');}
+  if(leg.event==='storm'&&legProg()>.36&&legProg()<.4)toast('⛈️ السحاب تكدّس… عاصفة قادمة!');}
+function updatePirate(dt){if(!pirate.visible)return;
+  const d=pirate.position.distanceTo(ship.position);
+  const dir=ship.position.clone().sub(pirate.position).normalize();
+  const ta=Math.atan2(dir.x,dir.z);
+  const ph=pirate.rotation.y+Math.max(-1,Math.min(1,angDiff(ta,pirate.rotation.y)))*dt*.6;
+  pirate.rotation.y=ph;
+  pirate.position.addScaledVector(new THREE.Vector3(Math.sin(ph),0,Math.cos(ph)),(11+G.windStr*3)*dt);
+  pirate.position.y=.15*Math.sin(G.time*.6);
+  if(d<60){G.pirateT+=dt;
+    if(Math.random()<dt*.5){toast('💥 مدفع قرصاني! الهيكل يتأذى');G.hull-=6;G.shake=1;thunder();}
+    if(G.pirateT>14||G.hull<=0){if(G.hull<=0){finish(false);return;}
+      G.coins=Math.max(0,G.coins-20);toast('🏴‍☠️ صعد القراصنة وسرقوا 20 🪙 ثم انسحبوا!');
+      pirate.visible=false;G.piratesOn=false;}}
+  else G.pirateT=Math.max(0,G.pirateT-dt);
+  if(legProg()>.92||G.docked){pirate.visible=false;G.piratesOn=false;toast('🎉 تخلّصنا من القراصنة!');}}
+
+/* ============ اللاعب ============ */
+function updatePlayer(dt){
+  const run=keys.ShiftLeft?7:4;
+  let mx=0,mz=0;
+  const canMove=document.pointerLockElement&&!dlgOpen;
+  if(canMove&&!G.helm){mx=((keys.KeyD?1:0)-(keys.KeyA?1:0))*run*dt;
+    mz=((keys.KeyW?1:0)-(keys.KeyS?1:0))*run*dt;}
+  const sy=Math.sin(G.yaw),cy=Math.cos(G.yaw);
+  if(G.mode==='ship'){
+    if(!G.helm){G.local.x+=(-sy*-mz)+(cy*mx)*-1;G.local.z+=(-cy*-mz)+(sy*mx)*-1;
+      // تصحيح اتجاه: للأمام = -Z نظرة
+      G.local.x+= -sy*mz*-1; /*noop حفظًا للبساطة*/
+      G.local.x=THREE.MathUtils.clamp(G.local.x,-2.4,2.4);
+      G.local.z=THREE.MathUtils.clamp(G.local.z,-9.6,11);
+      if(Math.abs(G.local.x)<1.8&&G.local.z<-7.4&&G.local.z>-9.6)G.local.z=-7.4;
+      G.local.y=(G.local.z<-6.1?2.4:1.6)+1.65;}
+    ship.updateMatrixWorld();
+    camera.position.copy(ship.localToWorld(G.local.clone()));
+  }else{
+    G.portPos.x+=(-sy*mz)+(cy*mx)*-1*-1;G.portPos.z+=(-cy*mz);
+    G.portPos.x+=cy*mx*-1;G.portPos.z+=sy*mx*-1;
+    const po=portObjs[G.portIdx];
+    G.portPos.x=THREE.MathUtils.clamp(G.portPos.x,po.disembark.x-20,po.disembark.x+20);
+    G.portPos.z=THREE.MathUtils.clamp(G.portPos.z,po.disembark.z-22,po.disembark.z+20);
+    const onPier=Math.abs(G.portPos.x-po.disembark.x)<3.6&&G.portPos.z>po.disembark.z-18&&G.portPos.z<po.disembark.z+18;
+    G.portPos.y=(onPier?1.42:.3);
+    camera.position.copy(G.portPos);}
+  if(G.helm){ship.updateMatrixWorld();
+    camera.position.copy(ship.localToWorld(new THREE.Vector3(0,4.5,-7.6)));}
+  G.shake=Math.max(0,G.shake-dt*2);
+  const sh=G.shake*.03;
+  camera.rotation.set(G.pitch+(Math.random()-.5)*sh,G.yaw+(Math.random()-.5)*sh,0,'YXZ');}
+
+/* برومبت التفاعل */
+const promptEl=$('prompt');
+function showPrompt(t){promptEl.style.display='block';promptEl.textContent=t;}
+function hidePrompt(){promptEl.style.display='none';}
+function updatePrompt(){promptTxt='';
+  if(G.finished||dlgOpen){hidePrompt();return;}
+  if(G.sex){showPrompt('🔭 وجّه النظر لنجم ثم E للقراءة · N للإغلاق');return;}
+  if(G.mode==='ship'&&!G.helm){
+    const wl=ship.localToWorld(new THREE.Vector3(0,3.3,-6.6));
+    const cp=camera.position;
+    if(cp.distanceTo(wl)<3.2){promptTxt='E|helm';showPrompt(G.docked?'🛞 E: المقود / E أيضًا للإبحار':'🛞 E: إمساك المقود');
+      if(G.docked){promptTxt='E|sail';showPrompt('⛵ E: إبحار من '+PORTS[G.portIdx].name);}
+      return;}
+    if(G.docked){promptTxt='E|leave';showPrompt('🚶 E: النزول إلى الرصيف');return;}}
+  if(G.helm&&G.docked){promptTxt='E|sail';showPrompt('⛵ E: إبحار');return;}
+  if(G.mode==='port'){
+    const po=portObjs[G.portIdx];
+    if(camera.position.distanceTo(ship.position)<14){promptTxt='E|board';showPrompt('⬆️ E: الصعود للسفينة');return;}
+    for(let i=0;i<npcs.length;i++){const n=npcs[i];
+      if(n.port===G.portIdx&&camera.position.distanceTo(n.base)<3.4){
+        promptTxt='E|npc'+i;showPrompt('💬 E: حديث مع '+n.data.name);return;}}}
+  hidePrompt();}
+
+/* ============ الحلقة ============ */
+const clock=new THREE.Clock();
+function animate(){requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),.05);G.time+=dt;
+  if(G.started&&!G.finished){
+    updateDay(dt);updateWeather(dt);updateShip(dt);updatePirate(dt);updatePlayer(dt);updatePrompt();
+    waterUni.uTime.value=G.time;
+    skyDome.position.copy(camera.position);
+    starGeo.attributes.position.needsUpdate=false;
+    // HUD
+    $('spdTxt').textContent=Math.round(G.speed*1.94/2)+' عقدة';
+    const wd=['شمالية','شرقية','جنوبية','غربية'][Math.round(((G.windA*180/Math.PI)+360)%360/90)%4];
+    $('windTxt').textContent=wd+' '+Math.round(G.windStr*20)+'؛ ';
+    $('hullBar').style.width=Math.max(0,G.hull)+'%';
+    $('coinTxt').textContent='🪙 '+G.coins;
+    $('modeTxt').textContent=G.helm?'🛞 على المقود':(G.mode==='ship'?'على السفينة':'على الرصيف');
+    drawCompass();drawMini();
+    if(G.sex){const aim=new THREE.Vector3(0,0,-1).applyEuler(new THREE.Euler(G.pitch,G.yaw,0,'YXZ'));
+      let nm='—',alt=Math.round(Math.asin(Math.max(0,aim.y))*180/Math.PI);
+      for(const s of starSprites)if(aim.dot(s.userData.pos)>.985)nm=s.userData.name;
+      $('sexRead').innerHTML='🔭 السداسية · الارتفاع: '+alt+'° · خط العرض ≈ '+alt+'° شمالًا<br>المرصود: '+nm+' — E للتسجيل';}
+  }
+  renderer.render(scene,camera);}
+animate();
+
+/* البداية */
+$('startBtn').addEventListener('click',()=>{
+  $('start').classList.add('hidden');G.started=true;initAudio();
+  renderer.domElement.requestPointerLock();
+  const po=portObjs[0];ship.position.copy(po.dock);G.heading=0;
+  setCargo(PORTS[0].cargo);
+  setObj('في مسقط: تحدّث مع الريّس سالم والمرشد ماجد على الرصيف (E)');
+  showDialog([['📜 الراوي','هذه حكاية بحّارٍ من عُمان، حلمُه أن يطوف العالم كما يحلم «لوفي» بكنزه الأعظم… لكن كنزنا هنا: المعرفة والطريق.'],
+  ['الريّس سالم','انزل إلى الرصيف بزر E وحدّثنا، أو أمسك المقود وأبحِر مباشرة!']]);
+  toast('⚓ مغامرات البحار بدأت!');});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+/* تقدم الأرجل عند الإبحار من ميناء جديد */
+const _undock=undock;undock=function(){if(G.state==='port'){G.leg=Math.min(G.leg+ (G.legStarted?0:1),LEGS.length);G.legStarted=true;}
+  G.state='sail';_undock.call? _undock():0; G.docked=false;G.autopilot=true;
+  toast('⛵ أبحرنا! الوجهة: '+curDest().P.name);setObj('أبحِر إلى '+curDest().P.name);};
+</script>
+</body>
+</html>

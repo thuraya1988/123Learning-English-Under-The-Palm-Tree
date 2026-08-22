@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>مغامرة أعماق المحيطات</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.0.0/700.css">
+<style>
+:root{--cy:#4fe3ff;--cy2:#9beaff;--bg:#03111b;--panel:rgba(4,22,32,.86);--bd:rgba(80,215,255,.28);--gd:#ffd35c;--gd2:#ffea9e;--ok:#5dffa8;--wr:#ff6b6b}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'Cairo',sans-serif;color:#dff4fb;user-select:none}
+#app{position:fixed;inset:0}
+#app canvas{display:block}
+.hidden{display:none!important}
+.panel{background:var(--panel);border:1px solid var(--bd);border-radius:12px;backdrop-filter:blur(10px);box-shadow:0 10px 40px rgba(0,0,0,.45)}
+.btn{font-family:'Cairo';font-weight:700;font-size:14px;color:#dff4fb;background:linear-gradient(180deg,rgba(18,72,92,.9),rgba(8,40,54,.9));border:1px solid var(--bd);border-radius:8px;padding:10px 20px;cursor:pointer;transition:.15s}
+.btn:hover{border-color:var(--cy);box-shadow:0 0 18px rgba(79,227,255,.35);transform:translateY(-1px)}
+.btn.gold{background:linear-gradient(180deg,#b98a1e,#7c5a10);border-color:#ffd35c;color:#fff8e0}
+.btn.sm{padding:6px 12px;font-size:12px}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.modal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(1,8,13,.66);backdrop-filter:blur(4px)}
+.mbox{max-width:720px;width:92%;max-height:88vh;overflow:auto;padding:26px 30px;position:relative}
+.mtitle{font-size:26px;font-weight:700;color:var(--cy2)}
+.msub{font-size:13px;color:#7fb9c9;margin-bottom:14px}
+.mclose{position:absolute;top:14px;left:18px;font-size:20px;color:#9fd7e6;cursor:pointer;background:none;border:none}
+.chip{display:inline-block;font-size:12px;font-weight:700;border:1px solid var(--bd);border-radius:20px;padding:3px 11px;margin:2px;color:#bfeaf5;background:rgba(20,80,100,.25)}
+#hud{position:fixed;inset:0;z-index:20;pointer-events:none}
+.hbox{position:absolute;pointer-events:none}
+#missionBox{top:14px;right:14px;padding:10px 16px;max-width:340px}
+#missionObj{font-size:19px;font-weight:700;color:var(--gd2);margin:2px 0}
+#missionProg{height:6px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden;margin:6px 0 4px}
+#missionBar{height:100%;width:0%;background:linear-gradient(90deg,var(--cy),var(--ok));transition:width .4s}
+#nearestTxt{font-size:12px;color:#9fd7e6}
+#regionBox{top:14px;left:14px;padding:8px 14px;text-align:left;min-width:190px}
+#regionName{font-size:20px;font-weight:700;color:var(--cy2)}
+#readBox{bottom:14px;right:14px;padding:10px 14px;font-size:13px;line-height:1.65}
+#statBox{bottom:14px;left:14px;padding:10px 16px;min-width:230px}
+.bar{height:9px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden;margin:3px 0 8px}
+.bar>div{height:100%;width:100%;border-radius:5px;transition:width .3s}
+#o2b{background:linear-gradient(90deg,#3ad6ff,#8ff3ff)}
+#btb{background:linear-gradient(90deg,#67e08a,#c6ff8a)}
+.blab{display:flex;justify-content:space-between;font-size:11px;color:#7fb9c9}
+#ptsRow{display:flex;gap:12px;font-size:13px;margin-top:4px;flex-wrap:wrap}
+#ptsRow b{color:var(--gd)}
+#prompt{top:62%;left:50%;transform:translate(-50%,-50%);text-align:center}
+#promptMain{font-size:22px;font-weight:700;color:#fff;text-shadow:0 0 18px rgba(79,227,255,.8)}
+#promptSub{font-size:13px;color:var(--cy2);margin-top:2px}
+#toasts{bottom:110px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px}
+.toast{background:rgba(5,30,42,.9);border:1px solid var(--bd);border-right:4px solid var(--cy);border-radius:8px;padding:8px 18px;font-size:15px;font-weight:700;color:#e8fbff;animation:tin .3s ease;white-space:nowrap}
+.toast.gold{border-right-color:var(--gd);color:var(--gd2)}
+.toast.good{border-right-color:var(--ok);color:#c9ffe2}
+@keyframes tin{from{opacity:0;transform:translateY(14px)}to{opacity:1}}
+#viewHint{top:70px;left:50%;transform:translateX(-50%);font-size:11px;color:rgba(160,220,235,.55)}
+#menu{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 120%,#0a4a5e 0%,#052534 45%,#02101a 100%)}
+#title{font-size:min(7vw,64px);font-weight:700;color:#eafbff;text-shadow:0 0 34px rgba(79,227,255,.55)}
+#title span{color:var(--cy)}
+#tagline{font-size:15px;color:#8fd0de;margin-top:6px}
+#menuBtns{margin-top:34px;display:flex;flex-direction:column;gap:12px;width:300px;z-index:2}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{border:1px solid var(--bd);border-radius:10px;padding:10px 14px;background:rgba(10,40,55,.35)}
+.card .ct{font-weight:700;font-size:15px}
+.card .cs{font-size:12px;color:#8fc6d4;margin-top:2px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-bottom:1px solid rgba(80,215,255,.12)}
+.lvlBtn{width:52px;height:52px;border-radius:10px;border:1px solid var(--bd);background:rgba(10,45,60,.5);color:#dff4fb;font-family:'Cairo';font-weight:700;font-size:17px;cursor:pointer}
+.lvlBtn.lock{opacity:.28;cursor:not-allowed}
+.lvlBtn.done{border-color:var(--ok);color:#baffd9}
+.lvlBtn.cur{border-color:var(--gd);color:var(--gd2);box-shadow:0 0 12px rgba(255,211,92,.4)}
+#lvlGrid{display:grid;grid-template-columns:repeat(8,52px);gap:8px;justify-content:center}
+.kword{display:inline-flex;align-items:center;gap:6px;margin:3px;padding:5px 12px;border-radius:20px;border:1px solid rgba(255,211,92,.4);background:rgba(120,90,20,.18);color:var(--gd2);font-weight:700;cursor:pointer;font-size:14px}
+#briefGoals{margin:12px 0;font-size:17px;font-weight:700;color:var(--gd2);line-height:1.8}
+#fcName{font-size:30px;font-weight:700;color:var(--gd2)}
+#fcBody{margin-top:12px;font-size:15px;line-height:1.7}
+#fcBody b{color:var(--cy2)}
+#crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:30px;height:30px;pointer-events:none;z-index:15;opacity:.6}
+#crosshair::before,#crosshair::after{content:'';position:absolute;background:var(--cy);box-shadow:0 0 6px var(--cy)}
+#crosshair::before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%)}
+#crosshair::after{top:50%;left:0;width:100%;height:2px;transform:translateY(-50%)}
+#torpCount{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--bd);border-radius:20px;padding:6px 16px;font-weight:700;color:var(--gd);font-size:14px;pointer-events:none}
+#dmgFlash{position:fixed;inset:0;background:radial-gradient(ellipse,transparent 55%,rgba(255,60,60,.35));opacity:0;z-index:19;pointer-events:none;transition:opacity .25s}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="crosshair"></div>
+<div id="dmgFlash"></div>
+
+<div id="hud" class="hidden">
+ <div id="missionBox" class="hbox panel">
+  <div style="font-size:12px;color:#7fb9c9">المهمة <span id="lvlTag" style="font-family:monospace"></span></div>
+  <div id="missionObj">—</div>
+  <div id="missionProg"><div id="missionBar"></div></div>
+  <div id="nearestTxt" style="font-family:monospace"></div>
+ </div>
+ <div id="regionBox" class="hbox panel">
+  <div id="regionName">مسندم</div>
+  <div id="chipsRow"><span class="chip" id="timeChip">صباح</span><span class="chip" id="weatherChip">هادئ</span><span class="chip" id="healthChip">المحيط 25%</span></div>
+ </div>
+ <div id="readBox" class="hbox panel" style="font-family:monospace">
+  <span style="color:#7fb9c9">العمق </span><span style="color:#e8fbff;font-weight:600" id="rDepth">0 م</span><br>
+  <span style="color:#7fb9c9">السرعة </span><span style="color:#e8fbff;font-weight:600" id="rSpeed">0.0 عقدة</span><br>
+  <span style="color:#7fb9c9">الحرارة </span><span style="color:#e8fbff;font-weight:600" id="rTemp">26°C</span> <span style="color:#7fb9c9">الضغط </span><span style="color:#e8fbff;font-weight:600" id="rPres">1.0 atm</span>
+ </div>
+ <div id="statBox" class="hbox panel">
+  <div class="blab"><span>الأكسجين</span><span id="o2v" style="font-family:monospace">100%</span></div><div class="bar"><div id="o2b"></div></div>
+  <div class="blab"><span>البطارية</span><span id="btv" style="font-family:monospace">100%</span></div><div class="bar"><div id="btb"></div></div>
+  <div id="ptsRow"><span>◆ <b id="pOcean">0</b></span><span>✦ <b id="pDisc">0</b></span><span>🎯 <b id="pHunt">0</b></span><span>➤ <b id="pExpl">0</b></span></div>
+ </div>
+ <div id="prompt" class="hbox"><div id="promptMain"></div><div id="promptSub"></div></div>
+ <div id="toasts" class="hbox"></div>
+ <div id="viewHint" class="hbox">1 قمرة · 2 مطاردة · 3 حرة · 7 بيريسكوب · 5 سونار · M خريطة</div>
+</div>
+<div id="torpCount" class="hidden">🚀 طوربيدات: <span id="torpNum">8</span></div>
+
+<div id="menu">
+ <div id="title">مغامرة <span>الأعماق</span></div>
+ <div id="tagline">رحلة استكشافية وقتالية في أعماق المحيطات</div>
+ <div id="menuBtns">
+  <button class="btn gold" id="btnNew">▶ بدء رحلة جديدة</button>
+  <button class="btn" id="btnLevels">سجل المهام</button>
+  <button class="btn" id="btnHow">كيفية اللعب</button>
+ </div>
+</div>
+
+<div id="M" class="modal hidden"><div class="mbox panel">
+ <button class="mclose" id="mClose">✕</button><div id="mContent"></div></div></div>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const rand=(a=1,b)=>b===undefined?Math.random()*a:a+Math.random()*(b-a);
+const rndIt=a=>a[(Math.random()*a.length)|0];
+
+/* ====================== بيانات اللعبة ====================== */
+const REGION_LEN=480;
+const REGIONS=[
+ {name:'مسندم',nameEn:'MUSANDAM',depth:24,water:'#0e5e6f',sand:'#8a7c5e',desc:'مضايق صخرية ومياه صافية'},
+ {name:'الباطنة',nameEn:'AL BATINAH',depth:11,water:'#12756e',sand:'#b3a375',desc:'شواطئ رملية وأعشاب بحرية'},
+ {name:'مسقط',nameEn:'MUSCAT',depth:14,water:'#0f6a72',sand:'#93866a',desc:'ساحل العاصمة'},
+ {name:'قريات',nameEn:'QURAYYAT',depth:13,water:'#0e7d84',sand:'#9c8f6c',desc:'شعاب مرجانية حية'},
+ {name:'صور',nameEn:'SUR',depth:11,water:'#0f8388',sand:'#ab9d72',desc:'خليج السلاحف والدلافين'},
+ {name:'الوسطى',nameEn:'AL WUSTA',depth:27,water:'#0a4f63',sand:'#6f6650',desc:'مياه برية وخندق عميق'},
+ {name:'ظفار',nameEn:'DHOFAR',depth:17,water:'#0d6b62',sand:'#8d8060',desc:'أرض الحيتان الحدباء'}];
+
+const SPECIES={
+ sergeant:{n:'السمكة الرقيب',cat:'أسماك',hab:'الشعاب الصخرية',food:'العوالق والطحالب',size:'15 سم',beh:'تعيش في أسراب مزدحمة',threat:'ارتفاع حرارة الماء',fact:'الذكور تحمي البيض حتى يفقس',col:0x3d6bd6,reg:[0,3],s:.9,kind:'school',hp:1,pts:10},
+ damsel:{n:'سمسة الآنسة',cat:'أسماك',hab:'الشعاب الضحلة',food:'كائنات صغيرة وطحالب',size:'8 سم',beh:'شجاعة وإقليمية',threat:'التلوث الساحلي',fact:'تدافع عن حديقتها من الطحالب بشراسة',col:0x39c2c9,reg:[0,1],s:.6,kind:'school',hp:1,pts:8},
+ clown:{n:'سمكة المهرج',cat:'أسماك',hab:'داخل شقائق النعمان',food:'كائنات صغيرة',size:'11 سم',beh:'تختبئ بين لوامس شقائق النعمان',threat:'تدمير الموطن',fact:'جميعها تولد ذكوراً، والأكبر تتحول لأنثى!',col:0xff7a2a,reg:[3],s:.7,kind:'school',hp:1,pts:15},
+ butterfly:{n:'سمكة الفراشة',cat:'أسماك',hab:'الشعاب المرجانية',food:'مرجان وديدان',size:'18 سم',beh:'تسبح في أزواج',threat:'فقدان المرجان',fact:'بقعة عينها على الذيل تخدع المفترسين',col:0xffd23c,reg:[3,6],s:.9,kind:'school',hp:1,pts:12},
+ parrot:{n:'سمكة الببغاء',cat:'أسماك',hab:'الشعاب والأعشاب',food:'الطحالب من الصخور',size:'40 سم',beh:'تقرض الصخور بأسنان كمنقار',threat:'الصيد الجائر',fact:'تصنع الرمال! 90 كجم رمل سنوياً',col:0x35c06f,reg:[3,4],s:1.1,kind:'school',hp:2,pts:20},
+ emperor:{n:'سمكة الإمبراطور (شعري)',cat:'أسماك',hab:'قيعان رملية قرب الشعاب',food:'سرطانات وديدان',size:'45 سم',beh:'تتغذى قرب القاع في مجموعات',threat:'الصيد الجائر',fact:'من أحب الأسماك في الأسواق العمانية',col:0xc8cdd8,reg:[1,5],s:1.15,kind:'school',hp:2,pts:25},
+ tuna:{n:'تونة زعنفة صفراء',cat:'أسماك',hab:'المحيط المفتوح',food:'أسماك صغيرة وحبار',size:'150 سم',beh:'سباح سريع جداً، دائماً يتحرك',threat:'الصيد الصناعي',fact:'تسبح أسرع من 70 كم/ساعة',col:0x3756a8,reg:[5],s:1.4,kind:'school',hp:3,pts:40},
+ grouper:{n:'هامور',cat:'أسماك',hab:'الصخور والكهوف والحطام',food:'أسماك وسرطانات',size:'70 سم',beh:'ينتظر بهدوء ثم يضرب بسرعة',threat:'الصيد الجائر',fact:'يمكن أن يتحول من أنثى إلى ذكر',col:0x8a6b4a,reg:[2,4],s:1.3,kind:'solo',hp:4,pts:50},
+ sweetlips:{n:'سمكة الشفاه الحلوة',cat:'أسماك',hab:'شعاب ظفار',food:'سرطانات وأسماك صغيرة',size:'55 سم',beh:'الصغار تتموج كالأوراق للاختباء',threat:'فقدان الموطن',fact:'شفاهها السميكة أعطتها اسمها المضحك',col:0x9aa7c8,reg:[6],s:1.1,kind:'school',hp:2,pts:22},
+ fusilier:{n:'سمكة الفوزيلير',cat:'أسماك',hab:'المياه المفتوحة فوق الشعاب',food:'عوالق',size:'30 سم',beh:'تسبح في أسراب طويلة وسريعة',threat:'الصيد بالطعم',fact:'تتسابق في خطوط زرقاء لامعة',col:0x4a9be0,reg:[4,6,2],s:1,kind:'school',hp:1,pts:10},
+ turtle:{n:'سلحفاة بحرية خضراء',cat:'حيوانات بحرية',hab:'مراعي الأعشاب والشواطئ',food:'أعشاب بحرية وطحالب',size:'110 سم',beh:'ترعى ببطء، تعود لشاطئ ولادتها لتعشش',threat:'الأكياس البلاستيكية تشبه قناديل البحر',fact:'رأس الجنز في عمان من أكبر شواطئ السلاحف في العالم',col:0x5c8a4a,reg:[1,4],s:1.6,kind:'turtle',hp:5,pts:0,friendly:true},
+ hawksbill:{n:'سلحفاة منقار الصقر',cat:'حيوانات بحرية',hab:'الشعاب المرجانية',food:'الإسفنج',size:'80 سم',beh:'تلتقط الإسفنج من شقوق الشعاب',threat:'التلوث وتدمير الشعاب',fact:'منقارها الضيق يصل لشقوق الشعاب',col:0x8a7038,reg:[3],s:1.3,kind:'turtle',hp:5,pts:0,friendly:true},
+ dolphin:{n:'دلفين المحيط الهندي والهادئ',cat:'حيوانات بحرية',hab:'المياه الساحلية',food:'أسماك وحبار',size:'250 سم',beh:'مرحة، تركب أمواج مقدمة السفن',threat:'الضوضاء وشباك الصيد',fact:'تتنادى بصفير يشبه الأسماء',col:0x9fb4c4,reg:[2,4,6],s:1,kind:'dolphin',hp:6,pts:0,friendly:true},
+ shark:{n:'قرش الشعاب ذو الزعنفة السوداء',cat:'حيوانات بحرية',hab:'الشعاب الضحلة والرمل',food:'أسماك صغيرة',size:'160 سم',beh:'يدور ببطء في دوائر واسعة',threat:'صيد زعانف القرش',fact:'القروش تحافظ على صحة الشعاب بأكل الأسماك الضعيفة',col:0x7e93a0,reg:[5],s:1,kind:'shark',hp:8,pts:100},
+ whale:{n:'الحوت الأحدب العربي',cat:'حيوانات بحرية',hab:'المياه العميقة قبالة ظفار',food:'الكريل والأسماك الصغيرة',size:'14 م',beh:'يغني أغاني طويلة تنتقل لكيلومترات',threat:'مهدد بالانقراض',fact:'عمان لديها حيتان حدباء لا تهاجر أبداً!',col:0x54687a,reg:[6],s:1,kind:'whale',hp:20,pts:0,friendly:true},
+ octopus:{n:'أخطبوط الشعاب',cat:'حيوانات بحرية',hab:'الحفر الصخرية والمرجان',food:'سرطانات ومحار',size:'60 سم',beh:'يختبئ ويغير لونه في طرفة عين',threat:'التلوث',fact:'له ثلاثة قلوب ودم أزرق',col:0xc06a3a,reg:[0,3,6],s:1,kind:'octopus',hp:3,pts:35},
+ crab:{n:'سلطعون سباح',cat:'حيوانات بحرية',hab:'القيعان الرملية',food:'كائنات صغيرة وفضلات',size:'15 سم',beh:'يتحرك جانبياً ويختبئ في الرمل',threat:'الفخاخ والنفايات',fact:'أرجله الخلفية مسطحة كمجاديف للسباحة',col:0xb06a48,reg:[1,2,5],s:.5,kind:'crab',hp:1,pts:5},
+ whaleshark:{n:'قرش الحوت',cat:'حيوانات بحرية',hab:'المياه الدافئة المفتوحة',food:'عوالق فقط - لطيف',size:'10 م',beh:'يجوب ببطء وفمه مفتوح',threat:'القوارب والشباك',fact:'أكبر سمكة في العالم، لطيفة جداً',col:0x5a7d9a,reg:[4],s:1,kind:'whale',hp:25,pts:0,friendly:true},
+ angler:{n:'سمكة الشص',cat:'أسماك',hab:'الأعماق السحيقة',food:'أسماك تنجذب لضوئها',size:'50 سم',beh:'تستخدم طُعماً مضيئاً لجذب الفريسة',threat:'الظلام الدامس',fact:'تنتج ضوئها الخاص ببكتيريا متألقة',col:0x2a1a3a,reg:[5,6],s:1,kind:'solo',hp:4,pts:60,glow:true},
+ squid:{n:'حبار عملاق',cat:'حيوانات بحرية',hab:'أعماق المحيط',food:'أسماك وقشريات',size:'3 م',beh:'ينفث الحبر عند الخطر',threat:'الصيد العميق',fact:'له أكبر عيون في المملكة الحيوانية',col:0x8a2a5a,reg:[5,6],s:1.2,kind:'solo',hp:7,pts:80}};
+
+const TRASH_TYPES=[
+ {id:'bottle',n:'زجاجة بلاستيك',pts:10},
+ {id:'bag',n:'كيس بلاستيك',pts:10},
+ {id:'can',n:'علبة ألمنيوم',pts:10},
+ {id:'glass',n:'زجاجة زجاج',pts:12},
+ {id:'tire',n:'إطار قديم',pts:16},
+ {id:'rope',n:'حبل متشابك',pts:12},
+ {id:'box',n:'صندوق خشبي',pts:12},
+ {id:'gear',n:'معدات صيد ضائعة',pts:14}];
+
+const ACH=[
+ {id:'first_hunt',n:'أول صيد',d:'اصطياد أول كائن'},
+ {id:'shark_hunter',n:'صياد القروش',d:'اصطياد 5 قروش'},
+ {id:'deep_hunter',n:'صياد الأعماق',d:'اصطياد كائن من عمق > 45 م'},
+ {id:'first_rescue',n:'أول إنقاذ',d:'تحرير سلحفاة محاصرة'},
+ {id:'cleaner',n:'منظف المحيط',d:'جمع 25 قطعة قمامة'},
+ {id:'reef_pro',n:'حامي الشعاب',d:'قطع 10 شباك شبحية'},
+ {id:'explorer',n:'المستكشف البحري',d:'زيارة جميع المناطق السبع'},
+ {id:'deep',n:'مستكشف الأعماق',d:'الغوص أعمق من 45 م'},
+ {id:'tfriend',n:'صديق السلاحف',d:'إنقاذ 3 سلاحف'},
+ {id:'scholar',n:'عالم البحار',d:'فتح 12 إدخالاً في الموسوعة'},
+ {id:'restore',n:'مُصلح المناطق',d:'استعادة 3 مناطق إلى 80%'},
+ {id:'guardian',n:'حارس المحيط',d:'إكمال جميع المهام الـ 48'}];
+
+const UPG={
+ engine:{n:'المحرك',d:['سرعة قصوى 7 عقد','سرعة 9 عقد','سرعة 11.5 عقدة']},
+ battery:{n:'البطارية',d:['خلية عادية','خلية دورة عميقة','خلية غرافين']},
+ sonar:{n:'السونار',d:['يجد الأجسام','يجد الحيوانات أيضاً','يجد الأسرار المخفية']},
+ lights:{n:'الأضواء',d:['مصابيح هالوجين','مصفوفة LED','كشافات زينون']},
+ oxygen:{n:'الأكسجين',d:['خزان 100%','خزان 130%','خزان 165%']},
+ torpedoes:{n:'الطوربيدات',d:['8 طوربيدات','12 طوربيد','16 طوربيد','إعادة تعبئة سريعة']},
+ arm:{n:'الذراع الآلية',d:['مدى 8 م','مدى 11 م','مدى 14 م']},
+ hull:{n:'الهيكل',d:['هيكل فولاذي','تصفیح مقوى','هيكل تيتانيوم']}};
+const UPG_COST=[0,40,90,160];
+
+/* ====================== الحالة ====================== */
+const S={started:false,paused:false,slow:1,level:1,unlocked:1,time:0,dayT:.28,weather:'CALM',
+ pts:{ocean:0,disc:0,hunt:0,explore:0},xp:0,
+ o2:100,batt:100,lightsOn:true,view:'cockpit',torps:8,torpMax:8,
+ disc:new Set(),ach:new Set(),log:[],
+ stats:{trash:0,nets:0,rescues:0,hunts:0,scans:0,minDepth:0,regions:new Set(),restored:new Set()},
+ regionClean:{},regionTotal:{},mission:null,levelItems:{trash:[],nets:[],ev:[],rescue:[],beacon:null},
+ upg:{engine:1,battery:1,sonar:1,lights:1,oxygen:1,torpedoes:1,arm:1,hull:1},
+ cutProg:0,cutting:null,armAnim:null,torpReloadT:0};
+
+function save(){try{localStorage.setItem('deep_v2',JSON.stringify({level:S.level,unlocked:S.unlocked,pts:S.pts,upg:S.upg,disc:[...S.disc],ach:[...S.ach],log:S.log.slice(-60),stats:{trash:S.stats.trash,nets:S.stats.nets,rescues:S.stats.rescues,hunts:S.stats.hunts,scans:S.stats.scans,minDepth:S.stats.minDepth,regions:[...S.stats.regions],restored:[...S.stats.restored]}}));}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem('deep_v2'));if(!d)return false;S.level=d.level;S.unlocked=d.unlocked;S.pts=d.pts;S.upg=d.upg;S.disc=new Set(d.disc);S.ach=new Set(d.ach);S.log=d.log||[];Object.assign(S.stats,d.stats);S.stats.regions=new Set(S.stats.regions);S.stats.restored=new Set(S.stats.restored);return true;}catch(e){return false}}
+function addLog(t){S.log.push({t:Math.floor(S.time),m:t})}
+
+/* ====================== إعداد Three.js ====================== */
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+renderer.setSize(innerWidth,innerHeight);
+$('app').appendChild(renderer.domElement);
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x0a4a5e,.02);
+const camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,900);
+const hemi=new THREE.HemisphereLight(0x9fd8e8,0x0a2a34,.8);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff2d0,2.2);scene.add(sun);scene.add(sun.target);
+const amb=new THREE.AmbientLight(0x20404c,.5);scene.add(amb);
+
+/* ====================== التضاريس ====================== */
+function terrainH(x,z){
+ const t=clamp(z/REGION_LEN,0,6.999),i=Math.floor(t),f=t-i,s=f*f*(3-2*f);
+ let h=-(REGIONS[i].depth*(1-s)+REGIONS[Math.min(6,i+1)].depth*s);
+ h+=Math.sin(x*.05+z*.03)*4+Math.cos(x*.02-z*.01)*2;
+ return h;
+}
+const seabedGeo=new THREE.PlaneGeometry(640,3480,80,240);
+seabedGeo.rotateX(-Math.PI/2);seabedGeo.translate(-70,0,1710);
+{const pos=seabedGeo.attributes.position;const cols=new Float32Array(pos.count*3);
+ const cA=new THREE.Color(),cB=new THREE.Color();
+ for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),y=terrainH(x,z);pos.setY(i,y);
+  const r=clamp(Math.floor(z/REGION_LEN),0,6);
+  cA.set(REGIONS[r].sand);cB.set('#31404a');
+  const d=clamp(-y/40,0,1);cA.lerp(cB,d*.8);
+  cols[i*3]=cA.r;cols[i*3+1]=cA.g;cols[i*3+2]=cA.b;}
+ seabedGeo.setAttribute('color',new THREE.BufferAttribute(cols,3));
+ seabedGeo.computeVertexNormals();}
+const seabed=new THREE.Mesh(seabedGeo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0}));
+scene.add(seabed);
+
+/* ====================== سطح الماء ====================== */
+const waterMat=new THREE.ShaderMaterial({transparent:true,side:THREE.DoubleSide,depthWrite:false,
+ uniforms:{uT:{value:0},uAmp:{value:1},uColA:{value:new THREE.Color('#0a4a5e')},uColB:{value:new THREE.Color('#1b8fa8')}},
+ vertexShader:`uniform float uT;varying float vH;void main(){vec3 p=position;float h=sin(p.x*.055+uT*1.2)*.55+sin(p.y*.045+uT*.9)*.45;p.z+=h;vH=h;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,
+ fragmentShader:`uniform vec3 uColA,uColB;varying float vH;void main(){float k=clamp(vH*.35+.5,0.,1.);vec3 col=mix(uColA,uColB,k);gl_FragColor=vec4(col,.6);}`});
+const waterMesh=new THREE.Mesh(new THREE.PlaneGeometry(1600,1600,48,48),waterMat);
+waterMesh.rotation.x=-Math.PI/2;waterMesh.renderOrder=2;scene.add(waterMesh);
+
+/* ====================== الغواصة ====================== */
+const sub=new THREE.Group();scene.add(sub);
+const hullMat=new THREE.MeshStandardMaterial({color:0xe8b73a,roughness:.55,metalness:.25});
+const darkMat=new THREE.MeshStandardMaterial({color:0x243038,roughness:.6,metalness:.4});
+{const hull=new THREE.Mesh(new THREE.SphereGeometry(1,20,14),hullMat);hull.scale.set(1.15,.95,3.1);sub.add(hull);
+ const sail=new THREE.Mesh(new THREE.BoxGeometry(.9,1.25,1.5),hullMat);sail.position.set(0,1.15,-.2);sub.add(sail);
+ const nose=new THREE.Mesh(new THREE.SphereGeometry(.6,12,10),darkMat);nose.position.set(0,-.05,2.9);sub.add(nose);
+ const tail=new THREE.Mesh(new THREE.ConeGeometry(.9,1.6,12),hullMat);tail.rotation.x=-Math.PI/2;tail.position.set(0,0,-3.6);sub.add(tail);
+ window.SUBPROP=new THREE.Group();SUBPROP.position.set(0,0,-4.55);
+ for(let i=0;i<4;i++){const b=new THREE.Mesh(new THREE.BoxGeometry(.1,.95,.3),darkMat);b.position.y=.5;const w=new THREE.Group();w.add(b);w.rotation.z=i*Math.PI/2;SUBPROP.add(w);}
+ sub.add(SUBPROP);
+ window.spotL=new THREE.SpotLight(0xd8f4ff,0,90,.5,.45,1.2);spotL.position.set(-.55,-.15,2.9);
+ window.spotLT=new THREE.Object3D();spotLT.position.set(0,0,40);sub.add(spotLT);spotL.target=spotLT;sub.add(spotL);
+ window.spotR=new THREE.SpotLight(0xd8f4ff,0,90,.5,.45,1.2);spotR.position.set(.55,-.15,2.9);spotR.target=spotLT;sub.add(spotR);
+ // أنابيب الطوربيد
+ for(let i=0;i<2;i++){const tp=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.8,8),darkMat);tp.rotation.x=Math.PI/2;tp.position.set(-.4+i*.8,-.2,3.2);sub.add(tp);}}
+sub.position.set(-45,-6,20);
+const SV={v:0,vy:0,heading:0,yawVel:0,pitch:0,roll:0,throttle:0};
+
+/* ====================== الطوربيدات ====================== */
+const torpedoes=[];
+function fireTorpedo(){
+ if(S.torps<=0||S.torpReloadT>0)return;
+ S.torps--;S.torpReloadT=.5;
+ const fx=Math.sin(SV.heading),fz=Math.cos(SV.heading);
+ const geo=new THREE.CapsuleGeometry(.15,.8,4,8);
+ const mat=new THREE.MeshStandardMaterial({color:0xd9dde3,emissive:0xff7a18,emissiveIntensity:.4});
+ const mesh=new THREE.Mesh(geo,mat);
+ mesh.rotation.x=Math.PI/2;
+ mesh.position.copy(sub.position);
+ mesh.position.x+=fx*4;mesh.position.z+=fz*4;
+ const t={mesh,vx:fx*40,vz:fz*40,vy:0,life:3,hit:false};
+ torpedoes.push(t);scene.add(mesh);
+ SFX.shoot();
+}
+
+/* ====================== الكائنات ====================== */
+const creatures={schools:[],solos:[]};
+const fishGeo=new THREE.ConeGeometry(.3,1.05,6);fishGeo.rotateX(Math.PI/2);fishGeo.translate(0,0,.2);
+function makeSchool(spId,count,cx,cy,cz){
+ const sp=SPECIES[spId];
+ const mat=new THREE.MeshStandardMaterial({color:sp.col,roughness:.6,emissive:sp.glow?sp.col:0,emissiveIntensity:sp.glow?.4:0});
+ const m=new THREE.InstancedMesh(fishGeo,mat,count);
+ const fish=[];for(let i=0;i<count;i++)fish.push({ox:rand(-7,7),oy:rand(-2.5,2.5),oz:rand(-7,7),ph:rand(6),hp:sp.hp,alive:true});
+ const sc={sp:spId,mesh:m,fish,cx,cy,cz,heading:rand(6),speed:rand(1.2,2),wp:new THREE.Vector3(cx,cy,cz),wpT:0,totalHP:count*sp.hp};
+ m.frustumCulled=false;scene.add(m);creatures.schools.push(sc);return sc;
+}
+function makeSolo(spId,x,y,z){
+ const sp=SPECIES[spId];const g=new THREE.Group();
+ const mat=new THREE.MeshStandardMaterial({color:sp.col,roughness:.6,emissive:sp.glow?sp.col:0,emissiveIntensity:sp.glow?.5:0});
+ let body;
+ if(sp.kind==='turtle'){body=new THREE.Mesh(new THREE.SphereGeometry(1,12,9),mat);body.scale.set(1,.5,1.35);g.add(body);}
+ else if(sp.kind==='dolphin'){body=new THREE.Mesh(new THREE.SphereGeometry(.5,12,9),mat);body.scale.set(1,1,2.6);g.add(body);}
+ else if(sp.kind==='shark'){body=new THREE.Mesh(new THREE.SphereGeometry(.6,12,9),mat);body.scale.set(1,1.05,3);g.add(body);
+  const df=new THREE.Mesh(new THREE.ConeGeometry(.3,.8,6),mat);df.position.y=.8;g.add(df);}
+ else if(sp.kind==='whale'){body=new THREE.Mesh(new THREE.SphereGeometry(2.4,14,10),mat);body.scale.set(1,1.05,5.4);g.add(body);}
+ else if(sp.kind==='octopus'){body=new THREE.Mesh(new THREE.SphereGeometry(.7,10,8),mat);body.position.y=.5;g.add(body);
+  for(let i=0;i<7;i++){const t=new THREE.Mesh(new THREE.ConeGeometry(.14,1.4,5),mat);const a=i/7*Math.PI*2;
+   t.position.set(Math.cos(a)*.55,.1,Math.sin(a)*.55);t.rotation.set(Math.sin(a)*.9,0,-Math.cos(a)*.9);g.add(t);}}
+ else if(sp.kind==='crab'){body=new THREE.Mesh(new THREE.SphereGeometry(.4,8,6),mat);body.scale.set(1.3,.5,1);g.add(body);}
+ else{body=new THREE.Mesh(new THREE.SphereGeometry(.5,12,9),mat);body.scale.set(1,1,2.6);g.add(body);}
+ g.position.set(x,y,z);
+ const solo={sp:spId,g,x,y,z,heading:rand(6),speed:sp.kind==='turtle'?1:sp.kind==='whale'?1.6:2.2,t:rand(6),
+  hp:sp.hp,alive:true,home:{x,y,z},freed:false,netWrap:null};
+ if(sp.kind==='turtle'||sp.kind==='crab')g.position.y=terrainH(x,z)+(sp.kind==='crab'?.4:1.2);
+ scene.add(g);creatures.solos.push(solo);return solo;
+}
+function spawnRegionLife(){
+ for(let r=0;r<7;r++){
+  const avail=Object.keys(SPECIES).filter(k=>SPECIES[k].reg.includes(r)&&SPECIES[k].kind==='school');
+  for(const sp of avail){makeSchool(sp,20,rand(-180,40),rand(-REGIONS[r].depth+2,-5),r*REGION_LEN+rand(60,420));}
+  const solos=Object.keys(SPECIES).filter(k=>SPECIES[k].reg.includes(r)&&SPECIES[k].kind==='solo');
+  for(const sp of solos){makeSolo(sp,rand(-180,40),rand(-REGIONS[r].depth+2,-5),r*REGION_LEN+rand(60,420));}
+ }
+ makeSolo('turtle',-60,0,1*REGION_LEN+200);makeSolo('turtle',30,0,4*REGION_LEN+160);
+ makeSolo('shark',-90,-14,5*REGION_LEN+180);makeSolo('shark',-160,-18,5*REGION_LEN+330);
+ makeSolo('angler',-120,-35,5*REGION_LEN+280);makeSolo('angler',-80,-38,6*REGION_LEN+200);
+ makeSolo('squid',-140,-42,5*REGION_LEN+350);makeSolo('squid',-100,-45,6*REGION_LEN+280);
+}
+
+/* ====================== القمامة والشباك ====================== */
+function spawnTrash(id,x,z,region){
+ const y=terrainH(x,z)+.45;
+ let geo,mat;
+ if(id==='bottle'){geo=new THREE.CapsuleGeometry(.16,.5,4,8);mat=new THREE.MeshStandardMaterial({color:0x7ec8e0,transparent:true,opacity:.85});}
+ else if(id==='bag'){geo=new THREE.PlaneGeometry(.7,.8);mat=new THREE.MeshStandardMaterial({color:0xd8dde2,side:THREE.DoubleSide});}
+ else if(id==='can'){geo=new THREE.CylinderGeometry(.14,.14,.36,10);mat=new THREE.MeshStandardMaterial({color:0xb8bcc4,metalness:.7});}
+ else if(id==='tire'){geo=new THREE.TorusGeometry(.5,.2,8,14);mat=new THREE.MeshStandardMaterial({color:0x1c1c20});}
+ else{geo=new THREE.BoxGeometry(.5,.3,.5);mat=new THREE.MeshStandardMaterial({color:0x7a5c38});}
+ const mesh=new THREE.Mesh(geo,mat);
+ mesh.position.set(x,y,z);mesh.rotation.y=rand(6);scene.add(mesh);
+ const info=TRASH_TYPES.find(t=>t.id===id);
+ const t={mesh,id,name:info.n,pts:info.pts,region,state:'idle'};
+ S.levelItems.trash.push(t);
+ S.regionTotal[region]=(S.regionTotal[region]||0)+1;if(S.regionClean[region]===undefined)S.regionClean[region]=0;return t;
+}
+function spawnNet(x,z,region){
+ const y=terrainH(x,z);const g=new THREE.Group();
+ const net=new THREE.Mesh(new THREE.PlaneGeometry(3.4,2.6,7,5),new THREE.MeshStandardMaterial({color:0x8a9a7a,wireframe:true,transparent:true,opacity:.8,side:THREE.DoubleSide}));
+ net.position.y=1.4;g.add(net);
+ g.position.set(x,y,z);scene.add(g);
+ const n={g,region,state:'idle'};S.levelItems.nets.push(n);S.regionTotal[region]=(S.regionTotal[region]||0)+1;return n;
+}
+function spawnRescue(x,z,region){
+ const y=terrainH(x,z);const solo=makeSolo('turtle',x,0,z);
+ solo.g.position.set(x,y+1.2,z);
+ const net=new THREE.Mesh(new THREE.TorusGeometry(1.5,.28,6,12),new THREE.MeshStandardMaterial({color:0x8a9a7a,wireframe:true}));
+ net.rotation.x=Math.PI/2;solo.g.add(net);
+ const r={solo,net,region,state:'trapped'};solo.netWrap=net;solo.rescueRef=r;
+ S.levelItems.rescue.push(r);return r;
+}
+function spawnAmbient(){
+ for(let r=0;r<7;r++){
+  for(let i=0;i<5;i++)spawnTrash(rndIt(TRASH_TYPES).id,rand(-200,70),r*REGION_LEN+rand(60,420),r);
+ }
+ for(const r of[3,4,5])for(let i=0;i<2;i++)spawnNet(rand(-180,40),r*REGION_LEN+rand(80,400),r);
+ spawnRescue(rand(-100,0),3*REGION_LEN+200,3);spawnRescue(rand(-100,0),4*REGION_LEN+300,4);
+}
+
+/* ====================== نظام المهام ====================== */
+function buildLevels(){
+ const L=[];
+ const plans=[
+  [['hunt',3],['collect',3],['hunt',5],['collect',5],['hunt',8]],
+  [['net',1],['collect',8],['hunt',10],['rescue',1]],
+  [['hunt','shark',1],['collect',10],['hunt',15]],
+  [['net',3],['rescue',1],['collect',12],['hunt',20]],
+  [['hunt','grouper',2],['collect',12],['net',2]],
+  [['hunt','angler',1],['hunt','squid',1],['collect',12],['net',3]],
+  [['collect',15],['net',4],['rescue',2],['hunt','shark',2]]];
+ for(let l=1;l<=48;l++){
+  const w=l<=8?0:l<=16?1:l<=24?2:l<=32?3:l<=40?4:l<=45?5:6;
+  const plan=plans[w];
+  const az=60+(l-1)*67,region=Math.min(6,Math.floor(az/REGION_LEN));
+  const goals=plan.map(p=>{
+   if(p[0]==='hunt')return{type:'hunt',need:p[1],sp:p[2]||null,have:0};
+   if(p[0]==='collect')return{type:'collect',need:p[1],have:0};
+   if(p[0]==='net')return{type:'net',need:p[1],have:0};
+   if(p[0]==='rescue')return{type:'rescue',need:p[1],have:0};
+   return{type:'collect',need:3,have:0};
+  });
+  L.push({id:l,world:w,region,az,goals,weather:['CALM','CALM','CURRENT','STORM'][l%4],reward:20+l*2});
+ }
+ return L;
+}
+const LEVELS=buildLevels();
+function startLevel(l){
+ S.level=l;S.torps=S.torpMax=8;
+ S.mission={level:l,goals:LEVELS[l-1].goals,gi:0,done:false};
+ S.weather=LEVELS[l-1].weather;
+ const L=LEVELS[l-1];
+ const deploy={x:rand(-90,-30),z:L.az};
+ sub.position.set(deploy.x,Math.max(terrainH(deploy.x,deploy.z)-4,-9),deploy.z);SV.heading=0;SV.v=0;SV.vy=0;
+ updateMissionHUD();
+}
+function curGoal(){return S.mission&&!S.mission.done?S.mission.goals[S.mission.gi]:null;}
+function missionEvent(ev,data){
+ const g=curGoal();if(!g)return;
+ if(ev==='hunt'&&g.type==='hunt'){if(!g.sp||g.sp===data){g.have++;if(g.have>=g.need)advanceGoal();}}
+ if(ev==='collect'&&g.type==='collect'){g.have++;if(g.have>=g.need)advanceGoal();}
+ if(ev==='net'&&g.type==='net'){g.have++;if(g.have>=g.need)advanceGoal();}
+ if(ev==='rescue'&&g.type==='rescue'){g.have++;if(g.have>=g.need)advanceGoal();}
+ updateMissionHUD();
+}
+function advanceGoal(){SFX.chime();toast('اكتمل الهدف!','good');
+ S.mission.gi++;if(S.mission.gi>=S.mission.goals.length)completeLevel();else updateMissionHUD();}
+function completeLevel(){
+ if(!S.mission||S.mission.done)return;S.mission.done=true;
+ const L=LEVELS[S.level-1];S.pts.ocean+=L.reward;S.unlocked=Math.max(S.unlocked,Math.min(48,S.level+1));
+ addLog(`أكملت المهمة ${S.level}`);save();showResults(L);
+}
+
+/* ====================== الصوت ====================== */
+const SFX={
+ ok:false,ctx:null,master:null,
+ init(){if(this.ok)return;try{this.ctx=new(window.AudioContext||window.webkitAudioContext)();this.master=this.ctx.createGain();this.master.gain.value=.5;this.master.connect(this.ctx.destination);this.ok=true;}catch(e){}},
+ tone(fr,d=.2,type='sine',g=.18,slide=null){if(!this.ok)return;const t=this.ctx.currentTime;const o=this.ctx.createOscillator(),v=this.ctx.createGain();o.type=type;o.frequency.setValueAtTime(fr,t);if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(g,t+.02);v.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(v);v.connect(this.master);o.start(t);o.stop(t+d+.05);},
+ noiseB(d=.3,fq=800,g=.15){if(!this.ok)return;const t=this.ctx.currentTime;const n=this.ctx.createBufferSource(),buf=this.ctx.createBuffer(1,this.ctx.sampleRate*d,this.ctx.sampleRate),ch=buf.getChannelData(0);for(let i=0;i<ch.length;i++)ch[i]=Math.random()*2-1;n.buffer=buf;const f=this.ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=fq;const v=this.ctx.createGain();v.gain.setValueAtTime(g,t);v.gain.exponentialRampToValueAtTime(.0001,t+d);n.connect(f);f.connect(v);v.connect(this.master);n.start();},
+ shoot(){this.noiseB(.25,900,.18);this.tone(300,.2,.12,'square',120);},
+ boom(){this.noiseB(.6,400,.5);this.tone(90,.5,.3,'sine',30);},
+ collect(){this.tone(520,.1,'sine',.14);this.tone(780,.14,'sine',.14,null,.09);},
+ chime(){this.tone(523,.16,'sine',.14);this.tone(659,.16,'sine',.14,null,.14);this.tone(784,.3,'sine',.14,null,.28);},
+ alarm(){this.tone(880,.14,'square',.08);this.tone(560,.14,'square',.08,null,.16);},
+ ping(){this.tone(1250,.5,'sine',.16,320);},
+ click(){this.tone(950,.06,'square',.07);}
+};
+
+/* ====================== الإدخال ====================== */
+const keys={};let mouseNX=0,mouseNY=0;
+addEventListener('keydown',e=>{
+ if(['Space','Tab'].includes(e.code))e.preventDefault();keys[e.code]=true;
+ if(!S.started)return;
+ if(e.code==='Escape')togglePause();
+ if(e.code==='Space')fireTorpedo();
+ if(e.code==='Digit1')S.view='cockpit';
+ if(e.code==='Digit2')S.view='third';
+ if(e.code==='Digit3')S.view='free';
+ if(e.code==='KeyL')S.lightsOn=!S.lightsOn;
+ if(e.code==='KeyE')tryInteract();
+ if(e.code==='KeyM')openMap();
+ if(e.code==='KeyB')openDB();
+ if(e.code==='KeyU')openUpgrades();
+ if(e.code==='KeyK')openAch();
+});
+addEventListener('keyup',e=>keys[e.code]=false);
+addEventListener('mousemove',e=>{mouseNX=(e.clientX/innerWidth)*2-1;mouseNY=(e.clientY/innerHeight)*2-1;});
+
+function tryInteract(){
+ const p=sub.position;const armR=8;
+ let best=null,bd=armR+3;
+ for(const t of S.levelItems.trash){if(t.state!=='idle')continue;const d=t.mesh.position.distanceTo(p);if(d<bd){bd=d;best={k:'trash',r:t};}}
+ for(const n of S.levelItems.nets){if(n.state!=='idle')continue;const d=n.g.position.distanceTo(p);if(d<bd){bd=d;best={k:'net',r:n};}}
+ for(const r of S.levelItems.rescue){if(r.state==='freed')continue;const d=r.solo.g.position.distanceTo(p);if(d<bd){bd=d;best={k:'rescue',r};}}
+ if(!best)return;
+ if(best.k==='trash')finishCollect(best.r);
+ else if(best.k==='net'){S.cutting=best.r;S.cutProg=0;}
+ else if(best.k==='rescue')rescueInteract(best.r);
+}
+function finishCollect(t){
+ scene.remove(t.mesh);t.state='gone';
+ S.pts.ocean+=t.pts;S.stats.trash++;
+ S.regionClean[t.region]=(S.regionClean[t.region]||0)+1;
+ SFX.collect();toast(`تم جمع ${t.name} +${t.pts}`,'good');addLog(`جمع ${t.name}`);
+ if(S.stats.trash>=25)unlockAch('cleaner');
+ checkRestore(t.region);missionEvent('collect');updateMissionHUD();
+}
+function cutNetDone(n){
+ n.state='cut';scene.remove(n.g);S.stats.nets++;S.pts.ocean+=25;
+ S.regionClean[n.region]=(S.regionClean[n.region]||0)+1;
+ SFX.collect();toast('تم إزالة الشبكة +25','good');addLog('إزالة شبكة شبحية');
+ if(S.stats.nets>=10)unlockAch('reef_pro');
+ checkRestore(n.region);missionEvent('net');
+}
+function rescueInteract(r){
+ if(r.state==='trapped'){S.cutting=r;S.cutProg=0;}
+ else if(r.state==='cut'){
+  r.state='freed';r.solo.freed=true;if(r.solo.netWrap)r.solo.g.remove(r.solo.netWrap);
+  S.stats.rescues++;S.pts.ocean+=50;SFX.chime();
+  toast('تم إنقاذ السلحفاة +50','gold');addLog('إنقاذ سلحفاة');
+  unlockAch('first_rescue');if(S.stats.rescues>=3)unlockAch('tfriend');missionEvent('rescue');
+ }
+}
+function checkRestore(r){
+ const tot=S.regionTotal[r]||0,clean=S.regionClean[r]||0;
+ if(tot>0&&clean/tot>=.8&&!S.stats.restored.has(r)){
+  S.stats.restored.add(r);SFX.chime();
+  toast(`تم استعادة ${REGIONS[r].name}!`,'gold');addLog(`استعادة ${REGIONS[r].name}`);
+  if(S.stats.restored.size>=3)unlockAch('restore');save();
+ }
+}
+function regionHealth(r){const tot=S.regionTotal[r]||1,clean=S.regionClean[r]||0;return Math.round(25+70*(clean/tot));}
+
+/* ====================== الواجهة ====================== */
+function openModal(html){$('mContent').innerHTML=html;$('M').classList.remove('hidden');S.paused=true;}
+function closeModal(){$('M').classList.add('hidden');S.paused=false;}
+$('mClose').onclick=()=>{SFX.click();closeModal();};
+function toast(msg,cls=''){const t=document.createElement('div');t.className='toast '+cls;t.textContent=msg;
+ $('toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .5s';},2600);setTimeout(()=>t.remove(),3200);}
+function unlockAch(id){if(S.ach.has(id))return;S.ach.add(id);const a=ACH.find(x=>x.id===id);
+ SFX.chime();toast(`🏆 إنجاز: ${a.n}`,'gold');addLog(`إنجاز: ${a.n}`);save();}
+
+function openBrief(L){
+ openModal(`<div class="mtitle">العالم ${L.world+1}</div>
+  <div class="msub">المهمة ${L.id} · ${REGIONS[L.region].name} · ${REGIONS[L.region].desc}</div>
+  <div style="font-size:14px;color:#bfeaf5">الطقس: <b>${L.weather==='CALM'?'هادئ':L.weather==='CURRENT'?'تيارات':L.weather==='STORM'?'عاصفة':L.weather}</b></div>
+  <div id="briefGoals">${L.goals.map(g=>{
+   if(g.type==='hunt')return`▸ اصطياد ${g.need} ${g.sp?SPECIES[g.sp]?.n||'كائن':'كائنات'}`;
+   if(g.type==='collect')return`▸ جمع ${g.need} قطعة قمامة`;
+   if(g.type==='net')return`▸ إزالة ${g.need} شبكة`;
+   if(g.type==='rescue')return`▸ إنقاذ ${g.need} سلحفاة`;
+   return'';
+  }).join('<br>')}</div>
+  <button class="btn gold" id="briefGo" style="width:100%;margin-top:16px">⚓ نشر الغواصة</button>`);
+ $('briefGo').onclick=()=>{SFX.click();closeModal();startLevel(L.id);};
+}
+function showResults(L){
+ openModal(`<div class="mtitle" style="color:var(--gd2)">✔ اكتملت المهمة!</div>
+  <div class="msub">المهمة ${L.id} · ${REGIONS[L.region].name}</div>
+  <div id="fcBody"><b>المكافأة:</b> +${L.reward} ◆ نقطة محيط<br>
+  <b>صحة المحيط:</b> ${regionHealth(L.region)}%</div>
+  <div style="display:flex;gap:10px;margin-top:18px">
+  ${S.level<48?`<button class="btn gold" id="rNext">المهمة التالية ▶</button>`:''}
+  <button class="btn" id="rFree">استمر في الاستكشاف</button></div>`);
+ if(S.level<48)$('rNext').onclick=()=>{SFX.click();openBrief(LEVELS[S.level]);};
+ $('rFree').onclick=()=>{closeModal();};
+}
+function openLevels(){
+ SFX.click();let h=`<div class="mtitle">سجل المهام</div><div class="msub">48 مهمة · 7 عوالم</div><div id="lvlGrid">`;
+ for(let i=1;i<=48;i++)h+=`<button class="lvlBtn ${i<=S.unlocked?(i<S.unlocked?'done':'cur'):'lock'}" data-l="${i}">${i}</button>`;
+ h+='</div>';openModal(h);
+ document.querySelectorAll('.lvlBtn:not(.lock)').forEach(b=>b.onclick=()=>{SFX.click();openBrief(LEVELS[+b.dataset.l-1]);});
+}
+function openDB(){
+ SFX.click();let h=`<div class="mtitle">موسوعة المحيط</div>`;
+ const cats=['أسماك','حيوانات بحرية'];
+ for(const c of cats){h+=`<div style="margin:10px 0 6px;font-weight:700;color:var(--cy2)">${c}</div><div class="grid2">`;
+  for(const k in SPECIES)if(SPECIES[k].cat===c){const sp=SPECIES[k];const un=S.disc.has(k);
+   h+=`<div class="card" style="${un?'':'opacity:.4'}"><div class="ct">${un?sp.n:'؟؟؟'}</div><div class="cs">${un?sp.hab:'استمر في الاستكشاف'}</div></div>`;}
+  h+='</div>';}
+ openModal(h);
+}
+function openUpgrades(){
+ SFX.click();let h=`<div class="mtitle">خلية الترقيات</div><div class="msub">النقاط: <b style="color:var(--gd)">${S.pts.ocean}</b></div>`;
+ for(const k in UPG){const lvl=S.upg[k],next=lvl<3?lvl+1:null;
+  h+=`<div class="row"><div><b>${UPG[k].n}</b> <span class="chip">المستوى ${lvl}</span><div style="font-size:12px;color:#8fc6d4">${UPG[k].d[lvl-1]}</div></div>
+  <div>${next?`<button class="btn sm upB" data-k="${k}">◆ ${UPG_COST[next]}</button>`:'<span class="chip" style="color:var(--ok)">أقصى</span>'}</div></div>`;}
+ openModal(h);document.querySelectorAll('.upB').forEach(b=>b.onclick=()=>{const k=b.dataset.k,nl=S.upg[k]+1;
+  if(S.pts.ocean<UPG_COST[nl]){toast('نقاط غير كافية');return;}
+  S.pts.ocean-=UPG_COST[nl];S.upg[k]=nl;SFX.collect();save();openUpgrades();});
+}
+function openAch(){
+ SFX.click();let h=`<div class="mtitle">الإنجازات</div><div class="msub">${S.ach.size} / ${ACH.length}</div>`;
+ for(const a of ACH)h+=`<div class="row"><div><b>${S.ach.has(a.id)?'🏆':'🔒'} ${a.n}</b><div style="font-size:12px;color:#8fc6d4">${a.d}</div></div></div>`;
+ openModal(h);
+}
+function openMap(){
+ SFX.click();openModal(`<div class="mtitle">خريطة الملاحة</div><div class="msub">ساحل عمان</div>
+ <div style="font-size:14px;line-height:2">
+ ${REGIONS.map((r,i)=>`<div><b>${r.name}</b> - ${r.desc} (الصحة: ${regionHealth(i)}%)</div>`).join('')}
+ </div>`);
+}
+function showControls(){
+ openModal(`<div class="mtitle">كيفية اللعب</div>
+ <div class="grid2" style="font-size:14px;line-height:1.9">
+ <div><b>W/S</b> تقدم/تراجع<br><b>A/D</b> يسار/يمين<br><b>Space</b> ارتفاع<br><b>Ctrl</b> غوص<br><b>Shift</b> تعزيز</div>
+ <div><b>Space</b> إطلاق طوربيد<br><b>E</b> جمع/قطع/إنقاذ<br><b>L</b> أضواء<br><b>M</b> خريطة · <b>B</b> موسوعة · <b>U</b> ترقيات · <b>K</b> إنجازات</div></div>
+ <div style="margin-top:12px">اصطد الكائنات بطوربيدات، اجمع القمامة، أنقذ السلاحف، واستكشف الأعماق!</div>
+ <button class="btn" style="margin-top:16px" onclick="document.getElementById('mClose').click()">فهمت</button>`);
+}
+function togglePause(){S.paused=!S.paused;
+ if(S.paused)openModal(`<div class="mtitle">إيقاف مؤقت</div>
+ <div style="display:flex;flex-direction:column;gap:10px">
+ <button class="btn gold" id="pRes">استئناف</button>
+ <button class="btn" id="pCtl">التحكم</button>
+ <button class="btn" id="pAch">الإنجازات</button>
+ <button class="btn" id="pQuit">حفظ والخروج</button></div>`);
+ $('pRes').onclick=()=>{S.paused=false;closeModal();};
+ $('pCtl').onclick=showControls;$('pAch').onclick=openAch;
+ $('pQuit').onclick=()=>{save();location.reload();};
+}
+
+/* ====================== التحديث الرئيسي ====================== */
+const clock=new THREE.Clock();let curRegion=-1;
+function updateSub(dt){
+ const boost=keys['ShiftLeft']&&S.batt>5;
+ const maxV=(S.upg.engine===1?7:S.upg.engine===2?9:11.5)*(boost?1.6:1);
+ let th=0;if(keys['KeyW'])th=1;if(keys['KeyS'])th=-.6;
+ SV.throttle=lerp(SV.throttle,th,dt*3);SV.v=lerp(SV.v,SV.throttle*maxV,dt*1.4);
+ let turn=0;if(keys['KeyA'])turn=1;if(keys['KeyD'])turn=-1;
+ SV.heading+=turn*dt*1.15;
+ let vv=0;if(keys['Space'])vv=1;if(keys['ControlLeft']||keys['ControlRight'])vv=-1;
+ SV.vy=lerp(SV.vy,vv*3.4,dt*2.2);
+ const fx=Math.sin(SV.heading),fz=Math.cos(SV.heading);
+ sub.position.x+=fx*SV.v*dt;sub.position.z+=fz*SV.v*dt;sub.position.y+=SV.vy*dt;
+ sub.position.x=clamp(sub.position.x,-320,175);sub.position.z=clamp(sub.position.z,-10,3440);
+ const floor=terrainH(sub.position.x,sub.position.z)+1.5;
+ if(sub.position.y<floor){sub.position.y=floor;SV.vy=Math.max(0,SV.vy);}
+ if(sub.position.y>1.2)sub.position.y=1.2;
+ SV.pitch=lerp(SV.pitch,-SV.vy*.09,dt*3);SV.roll=lerp(SV.roll,-turn*.12,dt*3);
+ sub.rotation.set(SV.pitch,SV.heading,SV.roll);
+ SUBPROP.rotation.z+=SV.throttle*dt*22+dt*2;
+ // موارد
+ const o2Max=S.upg.oxygen===1?100:S.upg.oxygen===2?130:165;
+ S.o2-=dt*.4;if(sub.position.y>-2.5)S.o2=Math.min(o2Max,S.o2+dt*14);S.o2=clamp(S.o2,0,o2Max);
+ let drain=.12+(boost?.55:0)+(S.lightsOn?.18:0);S.batt-=dt*drain;
+ if(sub.position.y>-2.5)S.batt+=dt*5;S.batt=clamp(S.batt,0,165);
+ if(S.o2<=0){sub.position.set(-45,-4,30);S.o2=o2Max;SFX.alarm();}
+ if(S.o2<25||S.batt<15)if(Math.floor(S.time*2)%2===0)SFX.alarm();
+ // طوربيدات إعادة تعبئة
+ S.torpReloadT=Math.max(0,S.torpReloadT-dt);
+ if(S.upg.torpedoes>=4&&S.torps<S.torpMax)S.torps=Math.min(S.torpMax,S.torps+dt*.3);
+ S.stats.minDepth=Math.min(S.stats.minDepth,sub.position.y);
+ if(S.stats.minDepth<-45)unlockAch('deep');
+ // منطقة
+ const r=clamp(Math.floor(sub.position.z/REGION_LEN),0,6);
+ if(r!==curRegion){curRegion=r;if(!S.stats.regions.has(r)){S.stats.regions.add(r);
+  toast(`دخول ${REGIONS[r].name}`,'gold');addLog(`دخول ${REGIONS[r].name}`);
+  if(S.stats.regions.size===7)unlockAch('explorer');save();}}
+}
+function updateTorpedoes(dt){
+ for(let i=torpedoes.length-1;i>=0;i--){
+  const t=torpedoes[i];t.life-=dt;
+  t.mesh.position.x+=t.vx*dt;t.mesh.position.z+=t.vz*dt;t.mesh.position.y+=t.vy*dt;
+  t.mesh.rotation.z+=dt*10;
+  // اصطدام بكائنات
+  let hit=false;
+  for(const sc of creatures.schools){
+   const d=Math.hypot(t.mesh.position.x-sc.cx,t.mesh.position.z-sc.cz);
+   if(d<10){
+    // قتل الأسماك في النطاق
+    let killed=0;
+    for(const f of sc.fish){if(!f.alive)continue;
+     const fd=Math.hypot(t.mesh.position.x-(sc.cx+f.ox),t.mesh.position.z-(sc.cz+f.oz));
+     if(fd<4){f.alive=false;killed++;}}
+    if(killed>0){
+     const sp=SPECIES[sc.sp];S.pts.hunt+=killed*sp.pts;S.stats.hunts+=killed;
+     SFX.boom();toast(`صيد ${killed} ${sp.n} +${killed*sp.pts}`,'gold');
+     addLog(`صيد ${killed} ${sp.n}`);
+     if(!S.disc.has(sc.sp)){S.disc.add(sc.sp);S.pts.disc+=20;toast(`اكتشاف جديد: ${sp.n}`,'gold');}
+     unlockAch('first_hunt');if(sp.kind==='shark'&&S.stats.hunts>=5)unlockAch('shark_hunter');
+     if(sub.position.y<-45)unlockAch('deep_hunter');
+     missionEvent('hunt',sc.sp);
+     explode(t.mesh.position);
+    }
+    hit=true;break;
+   }
+  }
+  if(!hit){
+   for(const s of creatures.solos){if(!s.alive)continue;
+    const d=t.mesh.position.distanceTo(s.g.position);
+    if(d<3){
+     s.hp--;
+     if(s.hp<=0){s.alive=false;const sp=SPECIES[s.sp];
+      if(!sp.friendly){S.pts.hunt+=sp.pts;S.stats.hunts++;SFX.boom();
+       toast(`صيد ${sp.n} +${sp.pts}`,'gold');addLog(`صيد ${sp.n}`);
+       if(!S.disc.has(s.sp)){S.disc.add(s.sp);S.pts.disc+=20;}
+       unlockAch('first_hunt');missionEvent('hunt',s.sp);
+      }else{toast(`${sp.n} صديق! لا تصطاده`,'gold');}
+      explode(t.mesh.position);s.g.visible=false;
+     }else{SFX.boom();explode(t.mesh.position);}
+     hit=true;break;
+    }
+   }
+  }
+  // اصطدام بالقاع
+  const fh=terrainH(t.mesh.position.x,t.mesh.position.z);
+  if(t.mesh.position.y<fh+1||t.life<=0||hit){
+   explode(t.mesh.position);torpedoes.splice(i,1);continue;
+  }
+ }
+}
+function explode(p){
+ const geo=new THREE.SphereGeometry(2,8,6);
+ const mat=new THREE.MeshBasicMaterial({color:0xff7a18,transparent:true,opacity:.8});
+ const flash=new THREE.Mesh(geo,mat);flash.position.copy(p);scene.add(flash);
+ setTimeout(()=>scene.remove(flash),200);
+ for(let i=0;i<10;i++){
+  const bg=new THREE.SphereGeometry(.3,6,4);
+  const bm=new THREE.MeshBasicMaterial({color:0x9a8a68,transparent:true,opacity:.5});
+  const b=new THREE.Mesh(bg,bm);
+  b.position.copy(p);b.position.x+=rand(-2,2);b.position.y+=rand(-1,1);b.position.z+=rand(-2,2);
+  scene.add(b);setTimeout(()=>scene.remove(b),800);
+ }
+}
+function updateCreatures(dt){
+ const p=sub.position;
+ for(const sc of creatures.schools){
+  sc.wpT-=dt;if(sc.wpT<=0){sc.wpT=rand(6,12);
+   const r=clamp(Math.floor(sc.cz/REGION_LEN),0,6);
+   sc.wp.set(clamp(sc.cx+rand(-70,70),-260,80),rand(-REGIONS[r].depth+2,-5),sc.cz+rand(-70,70));}
+  let panic=0;const dSub=Math.hypot(sc.cx-p.x,sc.cy-p.y,sc.cz-p.z);if(dSub<17)panic=1;
+  const dir=new THREE.Vector3(sc.wp.x-sc.cx,0,sc.wp.z-sc.cz).normalize();
+  const sp=SPECIES[sc.sp];sc.cx+=dir.x*sc.speed*dt*(panic?2.2:1);sc.cz+=dir.z*sc.speed*dt*(panic?2.2:1);
+  sc.cy=lerp(sc.cy,sc.wp.y,dt*.2);
+  const dummy=new THREE.Object3D();
+  for(let i=0;i<sc.fish.length;i++){const f=sc.fish[i];if(!f.alive){
+   dummy.position.set(0,-999,0);dummy.scale.setScalar(.001);dummy.updateMatrix();sc.mesh.setMatrixAt(i,dummy.matrix);continue;}
+   f.ph+=dt*4;
+   dummy.position.set(sc.cx+f.ox+Math.sin(f.ph)*.3,sc.cy+f.oy+Math.sin(f.ph*1.3)*.2,sc.cz+f.oz);
+   dummy.rotation.set(0,Math.atan2(dir.x,dir.z),Math.sin(f.ph)*.15);
+   dummy.scale.setScalar(sp.s);dummy.updateMatrix();sc.mesh.setMatrixAt(i,dummy.matrix);}
+  sc.mesh.instanceMatrix.needsUpdate=true;
+ }
+ for(const s of creatures.solos){if(!s.alive)continue;
+  const sp=SPECIES[s.sp];s.t+=dt;
+  if(sp.kind==='turtle'){
+   if(s.freed){s.heading+=dt*.1;s.g.position.x+=Math.sin(s.heading)*2.4*dt;s.g.position.z+=Math.cos(s.heading)*2.4*dt;s.g.position.y+=dt*.8;if(s.g.position.y>-1.5)s.g.visible=false;}
+   else if(!s.rescueRef||s.rescueRef.state!=='trapped'){s.heading+=Math.sin(s.t*.2)*.01;s.g.position.x+=Math.sin(s.heading)*1*dt;s.g.position.z+=Math.cos(s.heading)*1*dt;
+    const fl=terrainH(s.g.position.x,s.g.position.z)+1.4;s.g.position.y=lerp(s.g.position.y,fl+Math.sin(s.t*.7)*.6,dt);s.g.rotation.y=s.heading;}
+  }else if(sp.kind==='shark'){
+   s.heading+=dt*.14;const R2=110;s.g.position.x=s.home.x+Math.cos(s.heading)*R2;s.g.position.z=s.home.z+Math.sin(s.heading)*R2;
+   s.g.position.y=s.home.y+Math.sin(s.t*.5)*2;s.g.rotation.y=-s.heading+Math.PI/2;
+  }else if(sp.kind==='whale'){
+   s.g.position.x+=Math.sin(s.heading)*s.speed*dt;s.g.position.z+=Math.cos(s.heading)*s.speed*dt;s.g.rotation.y=s.heading;
+  }else{
+   s.heading+=Math.sin(s.t)*.2*dt;s.g.position.x+=Math.sin(s.heading)*s.speed*.5*dt;s.g.position.z+=Math.cos(s.heading)*s.speed*.5*dt;
+   s.g.rotation.y=s.heading;
+  }
+ }
+}
+function updateCamera(dt){
+ const p=sub.position;const fx=Math.sin(SV.heading),fz=Math.cos(SV.heading);
+ let pos=new THREE.Vector3(),tgt=new THREE.Vector3();
+ if(S.view==='third'){pos.set(p.x-fx*13,p.y+5.5,p.z-fz*13);tgt.set(p.x+fx*6,p.y+1,p.z+fz*6);}
+ else if(S.view==='free'){pos.set(p.x+Math.sin(S.time*.3)*15,p.y+8,p.z+Math.cos(S.time*.3)*15);tgt.copy(p);}
+ else{const seat=sub.localToWorld(new THREE.Vector3(0,.75,.9));pos.copy(seat);
+  const ly=SV.heading-mouseNX*.9,lp=-mouseNY*.5;
+  tgt.set(pos.x+Math.sin(ly)*Math.cos(lp)*20,pos.y+Math.sin(lp)*20,pos.z+Math.cos(ly)*Math.cos(lp)*20);}
+ const k=1-Math.exp(-dt*5);
+ camera.position.lerp(pos,k);camera.lookAt(tgt);
+}
+function updateDayNight(dt){
+ S.dayT=(S.dayT+dt/420)%1;const ph=S.dayT;
+ const elev=Math.sin(ph*Math.PI*2-Math.PI/2)*-1;const dayF=clamp(elev*1.4+.15,0,1);
+ sun.intensity=.25+dayF*2.4;hemi.intensity=.25+dayF*.6;amb.intensity=.2+dayF*.35;
+ const sunA=ph*Math.PI*2-Math.PI/2;
+ sun.position.set(sub.position.x+Math.cos(sunA)*80,Math.sin(sunA)*100+10,sub.position.z+30);
+ sun.target.position.copy(sub.position);
+ const isNight=dayF<.2;
+ const spotI=S.lightsOn?(S.upg.lights===1?40:S.upg.lights===2?70:110):0;
+ spotL.intensity=spotR.intensity=spotI*(isNight?1:.65);
+ const r=clamp(Math.floor(sub.position.z/REGION_LEN),0,6);
+ const regW=new THREE.Color(REGIONS[r].water);const deepW=new THREE.Color('#04141e');
+ const depthF=clamp(-sub.position.y/45,0,1);
+ const fogC=regW.clone().lerp(deepW,depthF*.8).lerp(new THREE.Color('#02040a'),1-dayF);
+ scene.fog.color.copy(fogC);scene.fog.density=.02+depthF*.012+(1-dayF)*.012;
+ waterMat.uniforms.uColA.value.copy(fogC).multiplyScalar(.8);
+ waterMat.uniforms.uColB.value.copy(regW).lerp(new THREE.Color('#bfe8f0'),dayF*.5);
+}
+function updateHUD(dt){
+ const p=sub.position;
+ $('rDepth').textContent=`${Math.max(0,-p.y).toFixed(1)} م`;
+ $('rSpeed').textContent=`${Math.abs(SV.v*1.94).toFixed(1)} عقدة`;
+ const r=clamp(Math.floor(p.z/REGION_LEN),0,6);
+ $('rTemp').textContent=`${(26-(-p.y)*.22).toFixed(1)}°C`;
+ $('rPres').textContent=`${(1+Math.max(0,-p.y)/10).toFixed(1)} atm`;
+ $('o2b').style.width=S.o2+'%';$('btb').style.width=S.batt+'%';
+ $('o2v').textContent=Math.round(S.o2)+'%';$('btv').textContent=Math.round(S.batt)+'%';
+ $('pOcean').textContent=S.pts.ocean;$('pDisc').textContent=S.pts.disc;$('pHunt').textContent=S.pts.hunt;$('pExpl').textContent=S.pts.explore;
+ $('regionName').textContent=REGIONS[r].name;
+ $('healthChip').textContent=`المحيط ${regionHealth(r)}%`;
+ $('torpNum').textContent=Math.floor(S.torps);
+ $('timeChip').textContent=S.dayT<.4?'صباح':S.dayT<.58?'ظهيرة':'مساء';
+ waterMat.uniforms.uT.value=S.time;
+}
+function updateMissionHUD(){
+ const g=curGoal();const L=LEVELS[S.level-1];
+ $('lvlTag').textContent=`L${S.level}·W${L.world+1}`;
+ if(!g){$('missionObj').textContent=S.mission&&S.mission.done?'اكتملت المهمة':'لا توجد مهمة';$('missionBar').style.width='100%';return;}
+ let txt='';
+ if(g.type==='hunt')txt=`اصطياد ${g.have}/${g.need} ${g.sp?SPECIES[g.sp]?.n||'':'كائنات'}`;
+ else if(g.type==='collect')txt=`جمع ${g.have}/${g.need} قمامة`;
+ else if(g.type==='net')txt=`إزالة ${g.have}/${g.need} شبكة`;
+ else if(g.type==='rescue')txt=`إنقاذ ${g.have}/${g.need} سلحفاة`;
+ $('missionObj').textContent=txt;
+ let pct=0;if(g.have!==undefined&&g.need)pct=g.have/g.need;
+ $('missionBar').style.width=Math.min(100,pct*100)+'%';
+}
+function updateCutting(dt){
+ if(!S.cutting)return;
+ const target=S.cutting;const dp=(target.g?target.g.position:target.solo.g.position).distanceTo(sub.position);
+ if(keys['KeyE']&&dp<16){S.cutProg+=dt/2.2;
+  $('promptMain').textContent=target.solo?'قطع الشبكة':'إزالة الشبكة';
+  $('promptSub').textContent=`اضغط E باستمرار ${Math.floor(S.cutProg*100)}%`;
+  if(S.cutProg>=1){
+   $('promptMain').textContent='';$('promptSub').textContent='';
+   if(target.solo){target.state='cut';target.solo.g.remove(target.net);
+    $('promptMain').textContent='اضغط E لإطلاق السلحفاة';
+    if(target.solo.rescueRef)target.solo.rescueRef.state='cut';
+   }else cutNetDone(target);
+   S.cutting=null;S.cutProg=0;
+  }
+ }else{if(!keys['KeyE']){S.cutting=null;S.cutProg=0;$('promptMain').textContent='';$('promptSub').textContent='';}}
+}
+function updatePrompt(){
+ if(S.cutting)return;
+ let main='',sub2='';const p=sub.position;const armR=8;let bd=armR+3,bt=null;
+ for(const t of S.levelItems.trash){if(t.state!=='idle')continue;const d=t.mesh.position.distanceTo(p);if(d<bd){bd=d;bt=t;}}
+ if(bt){main=bt.name;sub2='[E] جمع';}
+ else{for(const n of S.levelItems.nets){if(n.state!=='idle')continue;const d=n.g.position.distanceTo(p);if(d<bd){bd=d;main='شبكة صيد';sub2='اضغط [E] للقطع';}}
+  if(!main)for(const r of S.levelItems.rescue){if(r.state==='freed')continue;const d=r.solo.g.position.distanceTo(p);if(d<bd){bd=d;main='سلحفاة محاصرة';sub2='[E] إنقاذ';}}}
+ $('promptMain').textContent=main;$('promptSub').textContent=sub2;
+}
+
+/* ====================== الإقلاع ====================== */
+function beginGame(){
+ SFX.init();spawnRegionLife();spawnAmbient();
+ S.started=true;$('menu').classList.add('hidden');$('hud').classList.remove('hidden');$('torpCount').classList.remove('hidden');
+ addLog('بدأت الرحلة');openBrief(LEVELS[S.level-1]);
+}
+$('btnNew').onclick=()=>{SFX.init();beginGame();};
+$('btnLevels').onclick=()=>{SFX.init();openLevels();};
+$('btnHow').onclick=()=>{SFX.init();showControls();};
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+function animate(){
+ requestAnimationFrame(animate);
+ let dt=Math.min(.05,clock.getDelta());S.time+=dt;
+ if(S.started&&!S.paused){updateSub(dt);updateTorpedoes(dt);updateCreatures(dt);updateDayNight(dt);updateHUD(dt);updateCutting(dt);updatePrompt();}
+ updateCamera(dt);renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>

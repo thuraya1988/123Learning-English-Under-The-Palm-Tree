@@ -92,6 +92,7 @@
 </div>
 
 <script src="whatif/girl-rig.js"></script>
+<script src="whatif/street-layer.js"></script>
 <script>
 (function(){
 'use strict';
@@ -101,104 +102,117 @@
    تمشي → تنتبه → تحلّ → تعزيز → تمشي → الفصل التالي.
    لا نافذة منبثقة، ولا «صحّ» ولا «خطأ».
    ============================================================ */
+
+/* ألوان أرض المشي والأشجار — واحدة لكلّ جوّ */
+var PAL={
+ nightStreet:{walk:'#2b2b33',curb:'#15151b',road:'#101016',rail:'#08080b',bark:'#0a0a0d',leaf:null,canopy:false},
+ plumStreet :{walk:'#3b2c37',curb:'#251b23',road:'#1c141a',rail:'#0d090c',bark:'#0d090c',leaf:null,canopy:false},
+ dayStreet  :{walk:'#d7d1c4',curb:'#a6a092',road:'#8d887b',rail:'#15140f',bark:'#171410',leaf:null,canopy:false},
+ autumn     :{walk:'#d2cabb',curb:'#a3987f',road:'#8a8172',rail:'#171512',bark:'#1d1712',leaf:'#c98a3a',canopy:'#6d4a22'},
+ snowPath   :{walk:'#e9e6de',curb:'#c6c1b6',road:'#dcd8ce',rail:null,bark:'#171310',leaf:null,canopy:'#171310',tuft:'#cfcabe'},
+ dawnPath   :{walk:'#aab6c2',curb:'#8b97a4',road:'#9aa6b2',rail:null,bark:'#2f2b28',leaf:'#e6ccd2',canopy:false,tuft:'#8f9ba8',bloom:'#e8c4cc'},
+ coolPath   :{walk:'#b6bec8',curb:'#96a0ab',road:'#a6b0bb',rail:null,bark:'#33302c',leaf:null,canopy:false,tuft:'#9aa4ae',bloom:'#e6ecf0'},
+ grassPath  :{walk:'#7e8a62',curb:'#5e6a47',road:'#6a7653',rail:null,bark:'#141410',leaf:null,canopy:false,tuft:'#5e6c44',bloom:'#e8e2c4'}
+};
+
 var JOURNEY=[
- {f:'world-11-valley-dawn.html', vb:[800,1440], gy:0.76, name:'فجر الوادي',
+ {f:'world-11-valley-dawn.html', vb:[800,1440], gy:0.76, kind:'path', pal:'dawnPath', name:'فجر الوادي',
   ask:'ماذا لو لمستُ الماء… هل يصحو الوادي؟',
   hint:'انقري صفحة الماء ثلاث مرّات',
   puzzle:{kind:'tap', sel:'.waterHit', need:3},
   act:'riseBtn', reward:'استيقظ الوادي، وطلعت الشمس من ورائكِ.'},
 
- {f:'world-12-valley-dawn-wide.html', vb:[800,1440], gy:0.76, name:'الوادي الواسع',
+ {f:'world-12-valley-dawn-wide.html', vb:[800,1440], gy:0.76, kind:'path', pal:'coolPath', name:'الوادي الواسع',
   ask:'ماذا لو انزاح الضباب… ماذا كان خلفه؟',
   hint:'انقري الماء مرّتين ليصفو',
   puzzle:{kind:'tap', sel:'.waterHit', need:2},
   act:'mistBtn', reward:'انزاح الضباب، وظهرت الضفّة الأخرى.'},
 
- {f:'world-2-forest.html', vb:[1000,1500], gy:0.82, name:'بيت الغابة',
+ {f:'world-2-forest.html', vb:[1000,1500], gy:0.82, kind:'path', pal:'snowPath', name:'بيت الغابة',
   ask:'ماذا لو أضأتُ نافذتين… هل ينتبه أحد؟',
   hint:'انقري النافذتين اللتين تلمعان',
   puzzle:{kind:'light', n:2},
   act:'leafBtn', reward:'أضاءت النافذتان، وهبّت الريح تحيّيكِ.'},
 
- {f:'world-5-autumn.html', vb:[900,1600], gy:0.965, name:'شارع الخريف',
+ {f:'world-5-autumn.html', vb:[900,1600], gy:0.965, kind:'street', pal:'autumn', name:'شارع الخريف',
   ask:'ماذا لو ناديتُ ثلاثة بيوت في وقت واحد؟',
   hint:'انقري النوافذ الثلاث المُشارة',
   puzzle:{kind:'light', n:3},
   act:'birdBtn', reward:'ردّت البيوت الثلاثة، وطارت العصافير.'},
 
- {f:'world-10-paris-autumn.html', vb:[800,1500], gy:0.88, name:'الشارع الباريسي',
+ {f:'world-10-paris-autumn.html', vb:[800,1500], gy:0.88, kind:'street', pal:'autumn', name:'الشارع الباريسي',
   ask:'ماذا لو أضأتُ الشارع من أوّله إلى آخره؟',
   hint:'انقري النوافذ الأربع المُشارة',
   puzzle:{kind:'light', n:4},
   act:'catBtn', reward:'أضاء الشارع، وخرجت القطّة تتمشّى.'},
 
- {f:'world-1-towers.html', vb:[1000,1750], gy:0.93, name:'مدينة الأبراج',
+ {f:'world-1-towers.html', vb:[1000,1750], gy:0.93, kind:'street', pal:'dayStreet', name:'مدينة الأبراج',
   ask:'ماذا لو أيقظتُ الأبراج واحدًا بعد واحد؟',
   hint:'انقري النوافذ الخمس المُشارة',
   puzzle:{kind:'light', n:5},
   act:'clearBtn', reward:'صحت المدينة، ومرّ شهاب فوق الأبراج.'},
 
- {f:'world-17-dreaming-towers.html', vb:[1000,1750], gy:0.93, name:'الأبراج الحالمة',
+ {f:'world-17-dreaming-towers.html', vb:[1000,1750], gy:0.93, kind:'street', pal:'dayStreet', name:'الأبراج الحالمة',
   ask:'ماذا لو قلبتُ الليل نهارًا؟',
   hint:'انقري النوافذ الثلاث ثمّ سيتبدّل الوقت',
   puzzle:{kind:'light', n:3},
   act:'nightBtn', reward:'انقلب الوقت، والمدينة كما هي — والضوء وحده تغيّر.'},
 
- {f:'world-16-lake-and-hills.html', vb:[1000,1500], gy:0.5, name:'قرية البحيرة',
+ {f:'world-16-lake-and-hills.html', vb:[1000,1500], gy:0.5, kind:'path', pal:'grassPath', name:'قرية البحيرة',
   ask:'ماذا لو أضأتُ البيوت التي تنعكس في الماء؟',
   hint:'انقري النوافذ الأربع المُشارة',
   puzzle:{kind:'light', n:4},
   act:'actBtn', reward:'انعكس الضوء في البحيرة مرّتين: مرّة فوق ومرّة تحت.'},
 
- {f:'world-9-golden-bridges.html', vb:[1000,1800], gy:0.86, name:'الجسور الذهبية',
+ {f:'world-9-golden-bridges.html', vb:[1000,1800], gy:0.86, kind:'street', pal:'nightStreet', name:'الجسور الذهبية',
   ask:'ماذا لو رفعتُ الضباب عن الجسور؟',
   hint:'انقري النوافذ الأربع المُشارة',
   puzzle:{kind:'light', n:4},
   act:'mistBtn', reward:'ذهب الضباب، وبانت الجسور ذهبيّة إلى آخر النهر.'},
 
- {f:'world-14-moonlight-bridge.html', vb:[1000,1250], gy:0.8, name:'جسر ضوء القمر',
+ {f:'world-14-moonlight-bridge.html', vb:[1000,1250], gy:0.8, kind:'street', pal:'nightStreet', name:'جسر ضوء القمر',
   ask:'ماذا لو نظرتُ إلى القمر مباشرة؟',
   hint:'انقري القمر',
   puzzle:{kind:'moon', sel:'#moonG'},
   act:'shootBtn', reward:'نظر إليكِ القمر، وأرسل شهبه فوق النهر.'},
 
- {f:'world-13-moonlight-dances.html', vb:[1000,1250], gy:0.79, name:'رقصة ضوء القمر',
+ {f:'world-13-moonlight-dances.html', vb:[1000,1250], gy:0.79, kind:'street', pal:'nightStreet', name:'رقصة ضوء القمر',
   ask:'ماذا لو أضأتُ نافذة… من يرقص خلفها؟',
   hint:'انقري النافذة المُشارة',
   puzzle:{kind:'light', n:1},
   act:'sparkBtn', reward:'خلف النافذة كانت راقصة. رقصت لكِ وحدكِ.'},
 
- {f:'world-3-buonanotte.html', vb:[600,850], gy:0.93, name:'تصبحون على خير',
+ {f:'world-3-buonanotte.html', vb:[600,850], gy:0.93, kind:'path', pal:'snowPath', name:'تصبحون على خير',
   ask:'ماذا لو تمنّيتُ ليلة سعيدة لكلّ بيت؟',
   hint:'انقري النوافذ الثلاث المُشارة',
   puzzle:{kind:'light', n:3},
   act:'catBtn', reward:'ردّت البيوت التحيّة، والقطّة خرجت في نزهتها.'},
 
- {f:'world-4-sleeping-city.html', vb:[1000,1750], gy:0.93, name:'المدينة النائمة',
+ {f:'world-4-sleeping-city.html', vb:[1000,1750], gy:0.93, kind:'street', pal:'nightStreet', name:'المدينة النائمة',
   ask:'ماذا لو أيقظتُ خمس نوافذ في مدينة نائمة؟',
   hint:'انقري النوافذ الخمس المُشارة',
   puzzle:{kind:'light', n:5},
   act:'shootBtn', reward:'خمس نوافذ صحت، والمدينة كلّها تململت.'},
 
- {f:'world-6-moon-village.html', vb:[960,1440], gy:0.93, name:'قرية القمر',
+ {f:'world-6-moon-village.html', vb:[960,1440], gy:0.93, kind:'street', pal:'nightStreet', name:'قرية القمر',
   ask:'ماذا لو كان القمر أقرب ممّا نظنّ؟',
   hint:'انقري القمر',
   puzzle:{kind:'moon', sel:'#moonG'},
   act:'shootBtn', reward:'اقترب القمر خطوة، ونثر شهبه على القرية.'},
 
- {f:'world-15-moon-village-full.html', vb:[960,1440], gy:0.93, name:'القرية في ليلتها الكبيرة',
+ {f:'world-15-moon-village-full.html', vb:[960,1440], gy:0.93, kind:'street', pal:'plumStreet', name:'القرية في ليلتها الكبيرة',
   ask:'ماذا لو أضأتُ القرية كلّها قبل أن ينام القمر؟',
   hint:'انقري النوافذ الخمس المُشارة',
   puzzle:{kind:'light', n:5},
   act:'dayBtn', reward:'أضاءت القرية، ثمّ جاء الصبح على مهلٍ.'},
 
- {f:'world-8-halloween-night.html', vb:[1000,950], gy:0.95, name:'ليلة الهالوين',
+ {f:'world-8-halloween-night.html', vb:[1000,950], gy:0.95, kind:'street', pal:'nightStreet', name:'ليلة الهالوين',
   ask:'ماذا لو طرقتُ بابين في ليلة كهذه؟',
   hint:'انقري النافذتين المُشارتين',
   puzzle:{kind:'light', n:2},
   act:'batsBtn', reward:'فُتح البابان، وطارت الخفافيش فرحًا لا خوفًا.'},
 
- {f:'world-7-christmas-night.html', vb:[1200,1600], gy:0.96, name:'ليلة الميلاد',
+ {f:'world-7-christmas-night.html', vb:[1200,1600], gy:0.96, kind:'path', pal:'snowPath', name:'ليلة الميلاد',
   ask:'ماذا لو أشعلتُ آخر ثلاث نوافذ في الطريق؟',
   hint:'انقري النوافذ الثلاث المُشارة',
   puzzle:{kind:'light', n:3},
@@ -217,7 +231,7 @@ var G={
   wallX:null, exitX:null,
   W:0, H:0, ground:0, scale:1,
   doc:null, targets:[], taps:0, need:0,
-  poll:null, tRibbon:null, running:false
+  poll:null, tRibbon:null, running:false, clock:0
 };
 var keys={l:false,r:false};
 
@@ -272,9 +286,9 @@ function loadWorld(i,then){
       G.doc=d;
       if(d) dressWorld(d);
       layout();
-      G.x=G.W*0.86; G.dir=-1; G.moving=false;
+      G.x=G.W*0.80; G.dir=-1; G.moving=false;
       G.wallX=G.W*0.50;                 /* لا تتجاوز موضع اللغز قبل حلّه */
-      G.exitX=G.W*0.10;
+      G.exitX=G.W*0.15;
       G.phase='walk';
       chapter.textContent=(i+1)+' / '+JOURNEY.length+' · '+w.name;
       chapter.classList.add('on');
@@ -321,8 +335,8 @@ function startPuzzle(){
       var cx=fr.left+r.left+r.width/2, cy=fr.top+r.top+r.height/2;
       return cx>G.W*bx && cx<G.W*(1-bx) && cy>G.H*0.04 && cy<G.H*t;
     });};
-    var vis=band(0.72,0.06);
-    if(vis.length<p.n) vis=band(0.80,0.02);
+    var vis=band(0.66,0.17);
+    if(vis.length<p.n) vis=band(0.72,0.13);
     if(!vis.length) vis=every;
     vis.sort(function(a,b){ return a.getBoundingClientRect().left-b.getBoundingClientRect().left; });
 
@@ -427,7 +441,7 @@ function loop(now){
   var moving=mv!==0;
   if(moving){
     G.x += mv*WIGirl.speed('walk')*0.62*dt*(G.H/620+.6);
-    var lo=G.W*0.07, hi=G.W*0.93;
+    var lo=G.W*0.14, hi=G.W*0.86;
     if(G.wallX!==null && G.x<G.wallX) G.x=G.wallX;
     if(G.x<lo) G.x=lo;
     if(G.x>hi) G.x=hi;
@@ -444,7 +458,13 @@ function loop(now){
   if(G.phase==='walk' && G.wallX===null && G.x<=G.exitX+2){ nextWorld(); }
 
   gx.clearRect(0,0,G.W,G.H);
+  var wj=JOURNEY[G.idx];
+  var so={W:G.W,H:G.H,gy:G.ground,pal:PAL[wj.pal]||PAL.nightStreet,kind:wj.kind||'street',
+          t:G.clock,seed:G.idx+1};
+  G.clock+=dt;
+  WIStreet.back(gx,so);
   WIGirl.draw(gx,G.x,G.ground,G.girlS);
+  WIStreet.front(gx,so);
 }
 requestAnimationFrame(loop);
 

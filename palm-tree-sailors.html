@@ -680,6 +680,8 @@ function doAction(a){
 function undock(){G.docked=false;G.autopilot=true;G.state='sail';
   toast('⛵ أبحرنا! الوجهة: '+curDest().P.name);setObj('أبحِر إلى '+curDest().P.name+' (اتبع السهم في الخريطة)');}
 function dock(){G.docked=true;G.speed=0;G.autopilot=false;G.piratesOn=false;pirate.visible=false;
+  G.portIdx=LEGS[Math.min(G.leg,LEGS.length-1)].to;   /* وصلنا الميناء المقصود فعلًا */
+  G.leg=Math.min(G.leg+1,LEGS.length);                /* وتبدأ المرحلة التالية */
   const po=portObjs[G.portIdx];ship.position.copy(po.dock);ship.rotation.set(0,0,0);G.heading=0;
   G.hull=Math.min(100,G.hull+40);
   arrival();}
@@ -802,9 +804,10 @@ function updatePlayer(dt){
     mz=((keys.KeyW?1:0)-(keys.KeyS?1:0))*run*dt;}
   const sy=Math.sin(G.yaw),cy=Math.cos(G.yaw);
   if(G.mode==='ship'){
-    if(!G.helm){G.local.x+=(-sy*-mz)+(cy*mx)*-1;G.local.z+=(-cy*-mz)+(sy*mx)*-1;
-      // تصحيح اتجاه: للأمام = -Z نظرة
-      G.local.x+= -sy*mz*-1; /*noop حفظًا للبساطة*/
+    if(!G.helm){
+      /* الأمام = -Z بحسب زاوية النظر، واليمين عموديّ عليه */
+      G.local.x += -sy*mz + cy*mx;
+      G.local.z += -cy*mz - sy*mx;
       G.local.x=THREE.MathUtils.clamp(G.local.x,-2.4,2.4);
       G.local.z=THREE.MathUtils.clamp(G.local.z,-9.6,11);
       if(Math.abs(G.local.x)<1.8&&G.local.z<-7.4&&G.local.z>-9.6)G.local.z=-7.4;
@@ -812,8 +815,8 @@ function updatePlayer(dt){
     ship.updateMatrixWorld();
     camera.position.copy(ship.localToWorld(G.local.clone()));
   }else{
-    G.portPos.x+=(-sy*mz)+(cy*mx)*-1*-1;G.portPos.z+=(-cy*mz);
-    G.portPos.x+=cy*mx*-1;G.portPos.z+=sy*mx*-1;
+    G.portPos.x += -sy*mz + cy*mx;
+    G.portPos.z += -cy*mz - sy*mx;
     const po=portObjs[G.portIdx];
     G.portPos.x=THREE.MathUtils.clamp(G.portPos.x,po.disembark.x-20,po.disembark.x+20);
     G.portPos.z=THREE.MathUtils.clamp(G.portPos.z,po.disembark.z-22,po.disembark.z+20);
@@ -886,10 +889,7 @@ $('startBtn').addEventListener('click',()=>{
   toast('⚓ مغامرات البحار بدأت!');});
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;
   camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
-/* تقدم الأرجل عند الإبحار من ميناء جديد */
-const _undock=undock;undock=function(){if(G.state==='port'){G.leg=Math.min(G.leg+ (G.legStarted?0:1),LEGS.length);G.legStarted=true;}
-  G.state='sail';_undock.call? _undock():0; G.docked=false;G.autopilot=true;
-  toast('⛵ أبحرنا! الوجهة: '+curDest().P.name);setObj('أبحِر إلى '+curDest().P.name);};
+/* تقدّم المراحل يتمّ عند الرسوّ داخل dock() — فلا حاجة لغلاف حول undock */
 </script>
 </body>
 </html>

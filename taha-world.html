@@ -703,6 +703,21 @@ function buildBlobBird(color){
   const beak=new THREE.Mesh(new THREE.ConeGeometry(.06,.14,8),clay(0xf28c28));beak.rotation.x=Math.PI/2;beak.position.set(0,.42,.33);g.add(beak);
   addEyes(g,.5,.27,.12,.07);shadowAll(g);return g;
 }
+function buildMonkey(){
+  const g=new THREE.Group(),m=clay(0x2b2b2b),tan=clay(0xd9a066);
+  const body=new THREE.Mesh(new THREE.SphereGeometry(.45,24,18),m);body.scale.set(.95,1.1,.9);body.position.y=.5;
+  const belly=new THREE.Mesh(new THREE.SphereGeometry(.28,16,12),tan);belly.scale.set(.9,1.1,.5);belly.position.set(0,.52,.3);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.38,24,18),m);head.position.y=1.15;
+  const face=new THREE.Mesh(new THREE.SphereGeometry(.26,16,12),tan);face.scale.set(1.1,.9,.6);face.position.set(0,1.1,.22);
+  g.add(body,belly,head,face);
+  [-1,1].forEach(sd=>{
+    const ear=new THREE.Mesh(new THREE.SphereGeometry(.14,12,10),m);ear.position.set(sd*.4,1.18,0);
+    const ein=new THREE.Mesh(new THREE.SphereGeometry(.07,10,8),tan);ein.position.set(sd*.42,1.18,.08);
+    g.add(ear,ein)});
+  addEyes(g,1.22,.3,.14,.075);
+  const nose=new THREE.Mesh(new THREE.SphereGeometry(.045,10,8),blackMat);nose.position.set(0,1.1,.42);g.add(nose);
+  shadowAll(g);return g;
+}
 /* شجرة الأصدقاء: جذع سميك وأغصان وكتل أوراق */
 function buildFriendTree(scale){
   scale=scale||1;
@@ -720,6 +735,25 @@ function buildFriendTree(scale){
    {x:-5.1,y:4.9,z:.3,R:1.1,b:5,br:.65,t:12,tr:.28},
    {x:5.1,y:4.9,z:.3,R:1.1,b:5,br:.65,t:12,tr:.28}].forEach(fs=>{
     const fo=foliageBall(fs.R,fs.b,fs.br,fs.t,fs.tr);fo.position.set(fs.x,fs.y,fs.z);g.add(fo)});
+  /* الأصدقاء جالسون على الأغصان — نفس مواضعهم في شجرة الأصدقاء */
+  const friends=[];
+  const put=(mesh,x,y,z,ry,sc)=>{
+    mesh.position.set(x,y,z);mesh.rotation.y=ry;mesh.scale.setScalar(sc);
+    mesh.userData.baseY=y;mesh.userData.ph=rand(0,6.28);
+    g.add(mesh);friends.push(mesh);return mesh};
+  put(buildBunny(0xf2a9c4),   -1.15,7.15,1.0,  .35,.80);
+  put(buildMonkey(),           1.25,7.15,0.95,-.20,.85);
+  put(buildBird(),             2.45,7.00,0.85,-.50,.80);
+  put(buildBunny(0x3fbdb0),   -3.60,4.30,0.50, .55,.85);
+  put(buildBunny(0xf4c531),   -2.70,4.30,0.55, .25,.85);
+  put(buildBunny(0xd94040),   -1.80,4.30,0.50, .10,.80);
+  put(buildBunny(0xffffff),    2.00,4.40,0.50,-.30,.85);
+  put(buildBear(),             3.00,4.40,0.50,-.55,.80);
+  put(buildBlobBird(0x8fd0c8), 0.85,4.35,1.00,-.30,.60);
+  put(buildBunny(0xffffff),   -4.70,7.75,0.40, .30,.75);
+  put(buildBunny(0xf2a9c4),    4.50,8.10,0.40,-.40,.70);
+  put(buildBlobBird(0x9aa7d6), 3.60,2.75,0.35,-.60,.60);
+  g.userData.friends=friends;
   g.scale.setScalar(scale);
   return g;
 }
@@ -974,7 +1008,17 @@ function platform(g,r=5.4,col='#b8e6c0'){const p=new THREE.Mesh(new THREE.Sphere
  sand.scale.set(1,.22,1);sand.position.y=-3.4;worldG.add(sand);
  const tree=buildFriendTree(.62);
  worldG.add(tree);
- worldAnims.push(dt=>{tree.rotation.y+=dt*.02*timeScale});
+ (tree.userData.friends||[]).forEach(fr=>{
+  makeTappable(fr,()=>{fr.userData.hop=1;AudioSys.pluck(rand(660,1046),.045);
+   discover('friend_'+Math.round(fr.position.x*10),'🤍','d_discover')})});
+ worldAnims.push(dt=>{
+  tree.rotation.y+=dt*.02*timeScale;
+  (tree.userData.friends||[]).forEach(fr=>{
+   const u=fr.userData;
+   let y=u.baseY+Math.sin(clockTime*1.2+u.ph)*.05;
+   if(u.hop>0){u.hop=Math.max(0,u.hop-dt*1.8);y+=Math.abs(Math.sin(u.hop*10))*.6*u.hop;
+    fr.rotation.z=Math.sin(u.hop*14)*.12*u.hop}
+   fr.position.y=y})});
  const hstar=new THREE.Mesh(starGeo(.5,.2),new THREE.MeshStandardMaterial({color:'#ffe6a8',emissive:'#ffcf7a',emissiveIntensity:1}));
  hstar.position.set(0,7.4,0);worldG.add(hstar);
  worldAnims.push(dt=>{hstar.rotation.y+=dt*.5;hstar.position.y=7.4+Math.sin(clockTime*.9)*.2});

@@ -170,13 +170,15 @@ var JOURNEY=[
   puzzle:{kind:'light', n:4},
   act:'mistBtn', reward:'ذهب الضباب، وبانت الجسور ذهبيّة إلى آخر النهر.'},
 
- {f:'world-14-moonlight-bridge.html', vb:[1000,1250], gy:0.8, kind:'street', pal:'nightStreet', name:'جسر ضوء القمر',
+ {f:'world-14-moonlight-bridge.html', vb:[1000,1250], gy:0.68, kind:'bridge', pal:'nightStreet',
+  arc:{x0:240,x1:760,y:[930,-320,320]}, name:'جسر ضوء القمر',
   ask:'ماذا لو نظرتُ إلى القمر مباشرة؟',
   hint:'انقري القمر',
   puzzle:{kind:'moon', sel:'#moonG'},
   act:'shootBtn', reward:'نظر إليكِ القمر، وأرسل شهبه فوق النهر.'},
 
- {f:'world-13-moonlight-dances.html', vb:[1000,1250], gy:0.79, kind:'street', pal:'nightStreet', name:'رقصة ضوء القمر',
+ {f:'world-13-moonlight-dances.html', vb:[1000,1250], gy:0.632, kind:'bridge', pal:'nightStreet',
+  arc:{x0:40,x1:960,y:[900,-440,440]}, name:'رقصة ضوء القمر',
   ask:'ماذا لو أضأتُ نافذة… من يرقص خلفها؟',
   hint:'انقري النافذة المُشارة',
   puzzle:{kind:'light', n:1},
@@ -229,7 +231,7 @@ var G={
   idx:0, phase:'walk',      // walk | notice | puzzle | reward | done
   x:0, dir:-1, moving:false,
   wallX:null, exitX:null,
-  W:0, H:0, ground:0, scale:1,
+  W:0, H:0, ground:0, scale:1, fx:0, fy:0, lo:0, hi:0,
   doc:null, targets:[], taps:0, need:0,
   poll:null, tRibbon:null, running:false, clock:0
 };
@@ -267,11 +269,29 @@ function layout(){
   var top=gline - (w.gy||0.85)*ph;
   stage.style.top=Math.round(Math.min(0,Math.max(vh-ph,top)))+'px';
   G.scale=s;
-  G.ground=Math.round(Math.min(vh*0.86, parseFloat(stage.style.top)+(w.gy||0.85)*ph));
+  G.fx=parseFloat(stage.style.left); G.fy=parseFloat(stage.style.top);
+  G.ground=Math.round(Math.min(vh*0.86, G.fy+(w.gy||0.85)*ph));
+  /* حدود المشي: على الجسر تنتهي عند طرفَيه */
+  if(w.arc){
+    G.lo=Math.max(vw*0.10, G.fx+(w.arc.x0+34)*s);
+    G.hi=Math.min(vw*0.90, G.fx+(w.arc.x1-34)*s);
+    if(G.hi-G.lo<vw*0.34){ G.lo=vw*0.14; G.hi=vw*0.86; }
+  } else { G.lo=vw*0.14; G.hi=vw*0.86; }
   G.girlS=Math.max(.34, Math.min(.95, vh/1120));
 }
 window.addEventListener('resize',layout);
 window.addEventListener('orientationchange',function(){setTimeout(layout,220);});
+
+/* ارتفاع سطح المشي عند نقطة على الشاشة — يتبع قوس الجسر إن وُجد */
+function groundAt(sx){
+  var w=JOURNEY[G.idx];
+  if(!w || !w.arc) return G.ground;
+  var px=(sx-G.fx)/G.scale;
+  var t=(px-w.arc.x0)/(w.arc.x1-w.arc.x0);
+  t=t<0?0:(t>1?1:t);
+  var py=w.arc.y[0]+w.arc.y[1]*t+w.arc.y[2]*t*t;
+  return G.fy+py*G.scale;
+}
 
 /* ====== تحميل عالم ====== */
 function loadWorld(i,then){
@@ -286,9 +306,9 @@ function loadWorld(i,then){
       G.doc=d;
       if(d) dressWorld(d);
       layout();
-      G.x=G.W*0.80; G.dir=-1; G.moving=false;
-      G.wallX=G.W*0.50;                 /* لا تتجاوز موضع اللغز قبل حلّه */
-      G.exitX=G.W*0.15;
+      G.x=G.lo+(G.hi-G.lo)*0.92; G.dir=-1; G.moving=false;
+      G.wallX=G.lo+(G.hi-G.lo)*0.46;    /* لا تتجاوز موضع اللغز قبل حلّه */
+      G.exitX=G.lo+2;
       G.phase='walk';
       chapter.textContent=(i+1)+' / '+JOURNEY.length+' · '+w.name;
       chapter.classList.add('on');
@@ -441,7 +461,7 @@ function loop(now){
   var moving=mv!==0;
   if(moving){
     G.x += mv*WIGirl.speed('walk')*0.62*dt*(G.H/620+.6);
-    var lo=G.W*0.14, hi=G.W*0.86;
+    var lo=G.lo, hi=G.hi;
     if(G.wallX!==null && G.x<G.wallX) G.x=G.wallX;
     if(G.x<lo) G.x=lo;
     if(G.x>hi) G.x=hi;
@@ -459,11 +479,12 @@ function loop(now){
 
   gx.clearRect(0,0,G.W,G.H);
   var wj=JOURNEY[G.idx];
+  var gyNow=groundAt(G.x);
   var so={W:G.W,H:G.H,gy:G.ground,pal:PAL[wj.pal]||PAL.nightStreet,kind:wj.kind||'street',
           t:G.clock,seed:G.idx+1};
   G.clock+=dt;
   WIStreet.back(gx,so);
-  WIGirl.draw(gx,G.x,G.ground,G.girlS);
+  WIGirl.draw(gx,G.x,gyNow,G.girlS);
   WIStreet.front(gx,so);
 }
 requestAnimationFrame(loop);

@@ -21,6 +21,7 @@ function shade(hex,k){
 function back(g,o){
   var W=o.W,H=o.H,gy=o.gy,p=o.pal;
   if(gy>=H) return;
+  if(o.kind==='bridge') return;      /* الجسر مرسوم في اللوحة نفسها */
 
   if(o.kind==='path'){
     /* درب ترابيّ بحافّة غير مستقيمة — يليق بالوادي والغابة */

@@ -481,13 +481,18 @@ let WG=null,tiles=null,plankPos=[],plankQuat=[],baseCols=[],tileState=[],dangers
 let N=0,B0=46,B1=78,CFG=null,QUESTIONS=[],qTotal=0,glowPool=[],glowIdx=0,worldMats=[],driftClouds=[],driftFloaters=[];
 let flyL=null,flyR=null,flyB=null,flyData=[],FLYN=0;   /* الفراشات الحمراء */
 let skyFollow=[];   /* قبّة السماء وما فيها تتبع الماشية */
+/* أثاث القصر المتحرّك والكرمة المتتبِّعة */
+let palAnim={chand:null,knots:[],orb:null,orbY:0,crystals:[],vines:[],vJit:[],
+  vStem:null,vLeaf:null,vTip:null,vineR:4.2,group:null,F:1};
+function resetPalAnim(){ palAnim={chand:null,knots:[],orb:null,orbY:0,crystals:[],vines:[],vJit:[],
+  vStem:null,vLeaf:null,vTip:null,vineR:4.2,group:null,F:1}; }
 let pathX=i=>Math.sin(i*.021)*6.5+Math.sin(i*.008)*3.5;
 function M(mat){mat.userData.disp=true;worldMats.push(mat);return mat;}
 function clearWorld(){
  if(WG){scene.remove(WG);
   WG.traverse(o=>{if(o.isMesh||o.isPoints||o.isSprite){o.geometry&&o.geometry.dispose();}});
   worldMats.forEach(m=>m.dispose());worldMats=[];WG=null;driftClouds=[];driftFloaters=[];
-  flyL=flyR=flyB=null;flyData=[];FLYN=0;skyFollow=[];}
+  flyL=flyR=flyB=null;flyData=[];FLYN=0;skyFollow=[];resetPalAnim();}
 }
 function pathY(i){if(i<B0||i>B1)return 0;const u=(i-B0)/(B1-B0);return 2.4*Math.sin(Math.PI*u);}
 
@@ -830,6 +835,51 @@ function seatFly(f,idx){
  const side=(Math.random()<.5?-1:1)*rand(1.6,8.5);
  f.cx=p.x+side; f.cy=pathY(idx)+rand(1.0,4.6); f.cz=p.z+rand(-5,5);
 }
+const _pd=new THREE.Object3D(); const _pu=new THREE.Vector3(0,1,0); const _pv=new THREE.Vector3();
+function updatePalace(dtReal,t){
+ const P=palAnim; if(!P.group) return;
+ if(P.chand){ P.chand.rotation.z=Math.sin(t*.8)*.06; P.chand.rotation.x=Math.cos(t*.6)*.05; }
+ P.knots.forEach((k,i)=>{ k.rotation.y=t*(.4+i*.15); k.rotation.x=t*.2; });
+ if(P.orb) P.orb.position.y=P.orbY+Math.sin(t*1.4)*.12;
+ P.crystals.forEach((c,i)=>{ c.m.rotation.y=t*(.5+i*.2); c.m.position.y=c.baseY+Math.sin(t*1.1+i*2)*.2; });
+ if(!P.vStem) return;
+ /* الكرمة تلتفّ حول الجدار نحو مكان الماشية — كما في عالمك المرجع */
+ const gp=P.group.position;
+ const cx=camera.position.x-gp.x, cz=camera.position.z-gp.z, cy=camera.position.y-gp.y;
+ const target=Math.atan2(cz,cx);
+ const R=P.vineR; let idx=0;
+ for(let v=0;v<P.vines.length;v++){
+  const ch=P.vines[v], tip=ch.pts[0];
+  let da=((target-tip.a+Math.PI*3)%(Math.PI*2))-Math.PI;
+  tip.a+=da*(1-Math.exp(-dtReal*2.2));
+  tip.y=P.F+1.9+Math.sin(t*.7+ch.phase)*.8+Math.min(1.1,Math.max(-.9,(cy-2.4)*.25));
+  for(let i=1;i<ch.pts.length;i++){
+   const p=ch.pts[i], q=ch.pts[i-1];
+   const dda=q.a-p.a, ddy=q.y-p.y;
+   const d=Math.hypot(dda*R,ddy), seg=.3;
+   if(d>seg){ const f=(d-seg)/d*.7; p.a+=dda*f; p.y+=ddy*f; }
+  }
+  for(let i=0;i<ch.pts.length;i++){
+   const p=ch.pts[i], taper=1-(i/ch.pts.length)*.65;
+   _pd.position.set(Math.cos(p.a)*R,p.y,Math.sin(p.a)*R);
+   _pd.quaternion.identity(); _pd.scale.setScalar(taper); _pd.updateMatrix();
+   P.vStem.setMatrixAt(idx,_pd.matrix);
+   _pv.set(Math.cos(p.a),.6,Math.sin(p.a)).add(P.vJit[idx]).normalize();
+   _pd.quaternion.setFromUnitVectors(_pu,_pv);
+   _pd.scale.setScalar(.7+taper*.7); _pd.updateMatrix();
+   P.vLeaf.setMatrixAt(idx,_pd.matrix);
+   idx++;
+  }
+  const tp=ch.pts[0];
+  _pd.position.set(Math.cos(tp.a)*(R+.08),tp.y+.1,Math.sin(tp.a)*(R+.08));
+  _pd.quaternion.identity();
+  _pd.scale.setScalar(1+Math.sin(t*3+ch.phase)*.15); _pd.updateMatrix();
+  P.vTip.setMatrixAt(v,_pd.matrix);
+ }
+ P.vStem.instanceMatrix.needsUpdate=true;
+ P.vLeaf.instanceMatrix.needsUpdate=true;
+ P.vTip.instanceMatrix.needsUpdate=true;
+}
 const _fd=new THREE.Object3D(); _fd.rotation.order='YZX';
 function updateFlies(t){
  if(!flyL) return;
@@ -905,7 +955,128 @@ function buildPalace(cfg){
   map:glowTex(pal.glass?'rgba(190,230,255,.85)':'rgba(255,226,170,.7)'),
   blending:THREE.AdditiveBlending,depthWrite:false,transparent:true})));
  halo.material.fog=false;halo.scale.setScalar(26);halo.position.set(0,4.6,0);g.add(halo);
+ palaceInterior(cfg,g);
  WG.add(g);
+}
+
+/* ============ داخل القصر واللبلاب والكرمة — من عالم وادي الأزهار الكونية ============ */
+function palaceInterior(cfg,g){
+ const F=1.0;                                  /* أرضيّة القصر */
+ const R=4.0;                                  /* نصف قطر الجدار في هذه اللعبة */
+ const gold  = M(new THREE.MeshStandardMaterial({color:0xd9a441,metalness:1,roughness:.25}));
+ const marble= M(new THREE.MeshStandardMaterial({color:0xf5eef4,roughness:.35}));
+ const velvet= M(new THREE.MeshStandardMaterial({color:0x8a4fd0,roughness:.9}));
+ const carpetM=M(new THREE.MeshStandardMaterial({color:0xb0203a,roughness:.95}));
+ const crystal=M(new THREE.MeshPhysicalMaterial({color:0xffffff,transparent:true,opacity:.5,roughness:.05,clearcoat:1}));
+
+ /* السجّاد الأحمر من المدخل إلى العرش */
+ const carpet=new THREE.Mesh(new THREE.BoxGeometry(1.9,.05,8.4),carpetM);
+ carpet.position.set(0,F+.03,1.9);g.add(carpet);
+
+ /* الثريّا */
+ const ch=new THREE.Group();ch.position.set(0,F+2.9,0);
+ const hoop=new THREE.Mesh(new THREE.TorusGeometry(.95,.055,8,36),gold);hoop.rotation.x=Math.PI/2;ch.add(hoop);
+ ch.add(new THREE.Mesh(new THREE.SphereGeometry(.24,14,10),
+   M(new THREE.MeshStandardMaterial({color:0xfff2d0,emissive:0xffd9a0,emissiveIntensity:2}))));
+ for(let i=0;i<8;i++){const a2=(i/8)*6.283;
+  const drop=new THREE.Mesh(new THREE.ConeGeometry(.065,.3,6),crystal);
+  drop.position.set(Math.cos(a2)*.95,-.28,Math.sin(a2)*.95);drop.rotation.x=Math.PI;ch.add(drop);
+  const chain=new THREE.Mesh(new THREE.CylinderGeometry(.014,.014,.7,4),gold);
+  chain.position.set(Math.cos(a2)*.95,.36,Math.sin(a2)*.95);ch.add(chain);}
+ g.add(ch);palAnim.chand=ch;
+
+ /* العرش */
+ {const th=new THREE.Group();th.position.set(0,F,-2.5);
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(.6,.78,.45,16),gold);base.position.y=.22;
+  const seat=new THREE.Mesh(new THREE.BoxGeometry(1.05,.22,.9),velvet);seat.position.y=.55;
+  const cush=new THREE.Mesh(new THREE.SphereGeometry(.44,14,10),
+    M(new THREE.MeshStandardMaterial({color:0xf286c0,roughness:.9})));
+  cush.scale.set(1.1,.35,.9);cush.position.y=.7;
+  const back=new THREE.Mesh(new THREE.TorusKnotGeometry(.66,.08,90,10,2,3),gold);back.position.set(0,1.5,-.4);
+  th.add(base,seat,cush,back);
+  [-.57,.57].forEach(xx=>{const arm=new THREE.Mesh(new THREE.SphereGeometry(.12,10,8),gold);
+   arm.position.set(xx,.85,.18);th.add(arm);});
+  g.add(th);}
+
+ /* منحوتتا العقدة على قاعدتين */
+ [-2.3,2.3].forEach(xx=>{
+  const ped=new THREE.Mesh(new THREE.BoxGeometry(.62,.9,.62),marble);ped.position.set(xx,F+.45,-.5);g.add(ped);
+  const knot=new THREE.Mesh(new THREE.TorusKnotGeometry(.37,.11,70,10,3,4),
+    M(new THREE.MeshStandardMaterial({color:0xf0a2cf,metalness:.85,roughness:.2})));
+  knot.position.set(xx,F+1.32,-.5);g.add(knot);palAnim.knots.push(knot);});
+
+ /* طاولة الكرة المتوهّجة */
+ {const leg=new THREE.Mesh(new THREE.CylinderGeometry(.07,.12,.72,10),gold);leg.position.set(0,F+.36,1.1);
+  const top=new THREE.Mesh(new THREE.CylinderGeometry(.78,.78,.07,22),marble);top.position.set(0,F+.75,1.1);
+  const orb=new THREE.Mesh(new THREE.SphereGeometry(.26,18,12),
+    M(new THREE.MeshStandardMaterial({color:0xff5fae,emissive:0xff2f9e,emissiveIntensity:1.6})));
+  orb.position.set(0,F+1.2,1.1);g.add(leg,top,orb);palAnim.orb=orb;palAnim.orbY=F+1.2;}
+
+ /* وسائد أرضيّة */
+ [[1.4,.35,0xf286c0],[-1.3,.8,0x8a4fd0],[1.05,-.8,0x2ec4b6],[-1.05,-.55,0xf4c531]].forEach(pp=>{
+  const pouf=new THREE.Mesh(new THREE.SphereGeometry(.4,14,10),
+    M(new THREE.MeshStandardMaterial({color:pp[2],roughness:.95})));
+  pouf.scale.set(1,.55,1);pouf.position.set(pp[0],F+.2,pp[1]);g.add(pouf);});
+
+ /* أريكة مخمليّة منحنية */
+ {const sofa=new THREE.Group();sofa.position.set(-2.3,F,-1.6);sofa.rotation.y=.9;
+  const seat=new THREE.Mesh(new THREE.CapsuleGeometry(.35,1.25,4,10),velvet);
+  seat.rotation.z=Math.PI/2;seat.scale.set(1,1,.8);seat.position.y=.4;
+  const back=new THREE.Mesh(new THREE.TorusGeometry(.8,.12,8,22,Math.PI),velvet);
+  back.position.y=.76;back.rotation.x=-.2;sofa.add(seat,back);g.add(sofa);}
+
+ /* مصباحان أرضيّان */
+ [-3.1,3.1].forEach(xx=>{
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(.035,.055,2.1,8),gold);pole.position.set(xx,F+1.05,-2.1);
+  const lm=new THREE.Mesh(new THREE.SphereGeometry(.26,14,10),
+    M(new THREE.MeshStandardMaterial({color:0xff9fd0,emissive:0xff77c1,emissiveIntensity:1.8})));
+  lm.position.set(xx,F+2.2,-2.1);g.add(pole,lm);});
+
+ /* بلّورات عائمة */
+ [[-1.4,2.3,1.4],[1.6,2.6,-1.05],[.35,2.05,-1.95]].forEach(cc=>{
+  const cr=new THREE.Mesh(new THREE.OctahedronGeometry(.28),crystal);
+  cr.position.set(cc[0],F+cc[1],cc[2]);g.add(cr);
+  palAnim.crystals.push({m:cr,baseY:F+cc[1]});});
+
+ /* اللبلاب الثابت على الجدار الخارجيّ */
+ {const leafG=new THREE.ConeGeometry(.085,.22,5);leafG.scale(1,1,.4);leafG.translate(0,.09,0);
+  const parts=[],flw=[];
+  const dir=new THREE.Vector3(),dm=new THREE.Object3D(),up=new THREE.Vector3(0,1,0);
+  for(let i=0;i<165;i++){
+   const a2=rand(0,6.283),y=F+rand(.3,3.2);
+   const x=Math.cos(a2)*(R+.12),z=Math.sin(a2)*(R+.12);
+   dir.set(Math.cos(a2),rand(.3,.9),Math.sin(a2)).normalize();
+   dm.position.set(x,y,z);dm.quaternion.setFromUnitVectors(up,dir);
+   dm.scale.setScalar(rand(.7,1.5));dm.updateMatrix();
+   parts.push(leafG.clone().applyMatrix4(dm.matrix));
+   if(i%14===0){const fg=new THREE.IcosahedronGeometry(.085,0);
+    fg.translate(x*1.02,y,z*1.02);flw.push(fg);}}
+  /* إضاءة العوالم غروبيّة تُسوّد الأخضر، فنُبقيه مضيئًا قليلًا من نفسه */
+  g.add(new THREE.Mesh(mergeGeometries(parts),
+    M(new THREE.MeshStandardMaterial({color:0x4fa85e,roughness:.8,side:THREE.DoubleSide,
+      emissive:0x2c6b38,emissiveIntensity:.45}))));
+  g.add(new THREE.Mesh(mergeGeometries(flw),
+    M(new THREE.MeshStandardMaterial({color:0xf286c0,emissive:0xff77c1,emissiveIntensity:.5}))));}
+
+ /* الكرمة التي تتتبّع الماشية حول الجدار */
+ {const V=5,VP=20;
+  palAnim.vineR=R+.16;
+  for(let v=0;v<V;v++){
+   const a0=(v/V)*6.283,pts=[];
+   for(let i=0;i<VP;i++)pts.push({a:a0+i*.1,y:F+1.2+Math.sin(i*.4)*.3});
+   palAnim.vines.push({pts,phase:rand(0,6.283)});}
+  palAnim.vStem=new THREE.InstancedMesh(new THREE.SphereGeometry(.05,8,6),
+    M(new THREE.MeshStandardMaterial({color:0x3d9a52,roughness:.8,emissive:0x245c30,emissiveIntensity:.5})),V*VP);
+  const vlG=new THREE.ConeGeometry(.1,.28,5);vlG.scale(1,1,.4);vlG.translate(0,.12,0);
+  palAnim.vLeaf=new THREE.InstancedMesh(vlG,
+    M(new THREE.MeshStandardMaterial({color:0x63c072,roughness:.7,side:THREE.DoubleSide,
+      emissive:0x2f7a3e,emissiveIntensity:.55})),V*VP);
+  palAnim.vTip=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.13,0),
+    M(new THREE.MeshStandardMaterial({color:0xf286c0,emissive:0xff77c1,emissiveIntensity:.8})),V);
+  [palAnim.vStem,palAnim.vLeaf,palAnim.vTip].forEach(m=>{m.frustumCulled=false;g.add(m);});
+  for(let i=0;i<V*VP;i++)palAnim.vJit.push(
+    new THREE.Vector3(rand(-.4,.4),rand(.4,1),rand(-.4,.4)).normalize());
+  palAnim.group=g;palAnim.F=F;}
 }
 
 
@@ -1141,6 +1312,7 @@ function tick(){
   /* السماء وكواكبها ونجومها تتحرّك مع الماشية — الدرب أطول من قطر القبّة
      فكانت السماء تسوَدّ بعد مسافة */
   for(const sfy of skyFollow) sfy.m.position.set(sfy.b.x+camera.position.x,sfy.b.y,sfy.b.z+camera.position.z);
+  updatePalace(dt,tG);
   updateFlies(tG);
   glowPool.forEach(g=>{if(g.life>0){g.life-=dt;g.m.material.opacity=Math.max(0,g.life);if(g.life<=0)g.m.visible=false;}});
   driftClouds.forEach(c2=>{c2.m.position.x+=c2.sp*dt;if(c2.m.position.x>180)c2.m.position.x=-180;});

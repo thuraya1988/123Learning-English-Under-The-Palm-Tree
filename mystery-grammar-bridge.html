@@ -78,6 +78,8 @@
     animation:tt 9s forwards;z-index:25;color:#ece7d8;}
   @keyframes tt{0%,78%{opacity:1}100%{opacity:0;visibility:hidden}}
   @media(pointer:fine){#touchtip{display:none}}
+#fadeout{position:fixed;inset:0;z-index:60;background:#0b0714;opacity:0;pointer-events:none;transition:opacity .55s ease}
+#fadeout.on{opacity:1}
 </style>
 <script type="importmap">
 { "imports": {
@@ -167,14 +169,15 @@
 
 <div id="gameoverOverlay" class="overlay hidden">
   <div class="big">
-    <h2>💔 نفدت القلوب!</h2>
-    <p>سترجع إلى نقطة التفتيش… حاول مجددًا!</p>
-    <button id="btnRetry">🔄 متابعة</button>
+    <h2>💔 نفدت القلوب الثلاثة!</h2>
+    <p>نبدأ الطريق من أوّله ومن جديد — والقلوب ترجع ثلاثة. 🌸</p>
+    <button id="btnRetry">🔄 ابدأ من أوّل الطريق</button>
     <button id="btnMenu2" class="sec">🏠 القائمة</button>
   </div>
 </div>
 
 
+<div id="fadeout"></div>
 <div id="loader"><div style="text-align:center"><div class="fl">🪨</div><p>جارٍ نحت العوالم الستة…</p></div></div>
 
 
@@ -204,6 +207,14 @@ const sfxStep=i=>{tone(NOTES[i%5],.25,'sine',.12);tone(NOTES[i%5]*2,.12,'triangl
 const sfxRed=()=>{tone(150,.4,'sawtooth',.14);tone(110,.5,'sawtooth',.12);};
 const sfxGood=()=>{[660,880,1100].forEach((f,i)=>setTimeout(()=>tone(f,.2),i*110));};
 const sfxFall=()=>{tone(400,.5,'square',.09);};
+/* تووت تووت — تحذير عند لمس البلاطة الخطأ */
+const sfxWarn=()=>{tone(520,.16,'square',.13);tone(392,.16,'square',.11);
+ setTimeout(()=>{tone(520,.16,'square',.13);tone(392,.20,'square',.11);},210);};
+/* تيرا را را — نغمة الإجابة الخاطئة، أربع درجات هابطة */
+function sfxFail(){ if(muted)return;
+ const seq=[[440,.20],[392,.20],[349,.20],[262,.70]];
+ seq.forEach((n,i)=>setTimeout(()=>{tone(n[0],n[1],'sawtooth',.11);tone(n[0]/2,n[1],'triangle',.07);},i*220));
+}
 
 
 const SAVE_KEY='mgb_save_v6';
@@ -212,7 +223,14 @@ try{const s=localStorage.getItem(SAVE_KEY);if(s)save=Object.assign(save,JSON.par
 function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){}}
 
 
-const ing=v=>v.endsWith('e')?v.slice(0,-1)+'ing':v+'ing';
+/* صياغة ing الصحيحة: حذف e الصامتة (dance→dancing)، ومضاعفة الحرف الساكن
+   الأخير في الفعل القصير المسبوق بحرف علّة واحد (run→running، swim→swimming،
+   hop→hopping). قبل هذا كانت تُنتج swiming وruning وhoping وتُعرض كإجابة صحيحة. */
+const ing=v=>{
+ if(v.endsWith('e')&&!v.endsWith('ee')) return v.slice(0,-1)+'ing';
+ if(/^[^aeiou]*[aeiou][^aeiouwxy]$/.test(v)) return v+v.slice(-1)+'ing';
+ return v+'ing';
+};
 function genQuestions(count,seed){
  const R=mulberry32(seed);const out=[];const seen=new Set();
  const SUBJ=['rabbit','cat','dog','bird','bear','monkey','butterfly','fish','turtle','fox','owl','bee','lion','duck','horse','frog'];
@@ -419,12 +437,33 @@ function makeShoe(){const g=new THREE.Group();
  const sock=new THREE.Mesh(new THREE.CylinderGeometry(.06,.07,.24,12),sm);sock.position.set(0,.32,.09);
  const cuff=new THREE.Mesh(new THREE.TorusGeometry(.065,.02,8,16),sm);cuff.rotation.x=Math.PI/2;cuff.position.set(0,.43,.09);
  g.add(sock,cuff);return g;}
-const shoes=new THREE.Group();camera.add(shoes);
+/* الساق: أنبوب ليموني ممتلئ ينتهي برأس مستدير — كما في الصورة المرجع.
+   الحذاء والجورب كما هما تمامًا، الساق تُضاف فوقهما فقط. */
+function makeLeg(){
+ const g=new THREE.Group();
+ g.add(makeShoe());
+ /* إضاءة العوالم غروبيّة تُطفئ الليمونيّ، فنُبقيه مضيئًا من نفسه ليظهر كما في الصورة */
+ const lime=new THREE.MeshStandardMaterial({color:0xd4ec22,roughness:.48,metalness:.02,emissive:0x8fae08,emissiveIntensity:.55});
+ const hem=new THREE.Mesh(new THREE.TorusGeometry(.155,.045,10,20),lime);
+ hem.rotation.x=Math.PI/2;hem.position.set(0,.47,.085);
+ const shin=new THREE.Mesh(new THREE.CapsuleGeometry(.155,.52,8,18),lime);
+ shin.position.set(0,.80,.075);
+ const knee=new THREE.Mesh(new THREE.SphereGeometry(.165,16,12),lime);
+ knee.position.set(0,1.10,.06);
+ const thigh=new THREE.Mesh(new THREE.CapsuleGeometry(.17,.30,8,18),lime);
+ thigh.position.set(0,1.28,.045);
+ const capTop=new THREE.Mesh(new THREE.SphereGeometry(.172,16,12),lime);
+ capTop.position.set(0,1.46,.04);
+ [hem,shin,knee,thigh,capTop].forEach(m=>{m.castShadow=true;g.add(m);});
+ return g;
+}
+/* الشخصيّة تقف في المشهد نفسه، والكاميرا خلفها — لا منظور شخص أوّل */
+const hero=new THREE.Group();scene.add(hero);
 const shoeL=new THREE.Group(),shoeR=new THREE.Group();
-shoeL.add(makeShoe());shoeR.add(makeShoe());
-shoeL.position.set(-.24,-.52,-.62);shoeR.position.set(.24,-.52,-.62);
-shoeL.rotation.set(-.15,0,.06);shoeR.rotation.set(-.15,0,-.06);
-shoes.add(shoeL,shoeR);
+shoeL.add(makeLeg());shoeR.add(makeLeg());
+shoeL.position.set(-.21,.10,0);shoeR.position.set(.21,.10,0);
+hero.add(shoeL,shoeR);
+const CAM_DIST=3.75,CAM_HEIGHT=2.45;
 
 
 let SP=0.5;
@@ -813,7 +852,7 @@ $('btnMenu2').onclick=()=>$('btnMenu').onclick();
 $('btnNext').onclick=()=>{const nx=WORLDS.find(w=>w.id===CFG.id+1);
  $('completeOverlay').classList.add('hidden');
  if(nx)openStart(nx);else $('btnMenu').onclick();};
-$('btnRetry').onclick=()=>{$('gameoverOverlay').classList.add('hidden');hearts=3;setHUD();playerF=checkpoint;state='walk';};
+$('btnRetry').onclick=()=>{$('gameoverOverlay').classList.add('hidden');restartWorld();};
 $('btnSound').onclick=()=>{muted=!muted;$('btnSound').textContent=muted?'🔇':'🔊';};
 
 
@@ -873,15 +912,38 @@ function answer(i){
   tileState[currentTile]='gold';tiles.setColorAt(currentTile,new THREE.Color(0xffd76a));tiles.instanceColor.needsUpdate=true;
   glowAt(currentTile,0xffd76a,1.4);saveProg();
   setTimeout(()=>{$('qOverlay').classList.add('hidden');state='walk';setHUD();},900);
- }else{btns[i].classList.add('bad');btns[q.correct].classList.add('good');sfxRed();
+ }else{btns[i].classList.add('bad');btns[q.correct].classList.add('good');sfxFail();
   $('qFeedback').textContent='❌ الصحيح: '+q.options[q.correct];
   hearts--;cleared++;setHUD();
+  const dead=hearts<=0;
+  /* تيرا را را ثمّ تعتيم الشاشة */
+  setTimeout(()=>{$('fadeout').classList.add('on');},900);
   setTimeout(()=>{$('qOverlay').classList.add('hidden');
    tileState[currentTile]='safe';tiles.setColorAt(currentTile,new THREE.Color(0x7ee0a0));tiles.instanceColor.needsUpdate=true;
-   saveProg();
-   if(hearts<=0){state='gameover';$('gameoverOverlay').classList.remove('hidden');return;}
-   state='fall';fallT=0;respawnAt=Math.max(checkpoint,currentTile-3);sfxFall();
-  },1500);}
+   if(dead){ $('fadeout').classList.remove('on');
+    state='gameover';$('gameoverOverlay').classList.remove('hidden');return; }
+   /* خطأ واحد: يرجع بضع خطوات للوراء فقط */
+   playerF=Math.max(0,currentTile-4);respawnAt=playerF;
+   saveProg();state='walk';
+   setTimeout(()=>$('fadeout').classList.remove('on'),120);
+  },1900);}
+}
+/* نفدت القلوب الثلاثة: البداية من أوّل وجديد */
+function restartWorld(){
+ $('fadeout').classList.add('on');
+ setTimeout(()=>{
+  playerF=0;checkpoint=0;hearts=3;score=0;cleared=0;lastQT=-99;lat=0;latT=0;yaw=0;
+  for(let i=0;i<N;i++){ if(tileState[i]!=='base'){ tileState[i]='base';
+    tiles.setColorAt(i,baseCols[i]); } }
+  tiles.instanceColor.needsUpdate=true;
+  fallAnims.length=0;
+  const d3=new THREE.Object3D();
+  for(let i=0;i<N;i++){ d3.position.copy(plankPos[i]);d3.quaternion.copy(plankQuat[i]);
+   d3.updateMatrix();tiles.setMatrixAt(i,d3.matrix); }
+  tiles.instanceMatrix.needsUpdate=true;
+  setHUD();saveProg();state='walk';
+  setTimeout(()=>$('fadeout').classList.remove('on'),150);
+ },560);
 }
 function saveProg(){const id=CFG.id;save.w[id]=save.w[id]||{};
  Object.assign(save.w[id],{f:Math.floor(playerF),solved:cleared,score,hearts});
@@ -908,23 +970,29 @@ function tick(){
    playerF=Math.min(N-1,playerF+speed*dt/SP);
    const cur=Math.floor(playerF);
    if(cur!==prev&&speed>0){
-    walkPhase+=1;
-    if(tileState[cur]==='base'){
-     if(dangers.has(cur)&&(tG-lastQT)>CFG.cool){
-      lastQT=tG;tileState[cur]='red';
-      tiles.setColorAt(cur,new THREE.Color(0xe5383b));tiles.instanceColor.needsUpdate=true;
-      glowAt(cur,0xff2222,1.6);sfxRed();
-      fallAnims.push({idx:cur,t:0,hold:true});
-      openQ(cur,dangers.get(cur));
-     }else{
-      tileState[cur]='lit';const cc=NOTE_COLS[cur%5];
-      tiles.setColorAt(cur,new THREE.Color(cc).multiplyScalar(1.4));tiles.instanceColor.needsUpdate=true;
-      glowAt(cur,cc,1);sfxStep(cur);
-      setTimeout(()=>{if(tileState[cur]==='lit'){tileState[cur]='base';
-       tiles.setColorAt(cur,baseCols[cur]);tiles.instanceColor.needsUpdate=true;}},450);
+    /* على جهاز بطيء قد يتجاوز الإطار الواحد أكثر من بلاطة، فنمرّ على كلّ
+       بلاطة عبرناها لا على الأخيرة وحدها — وإلّا قُفزت بلاطات الخطر بلا سؤال */
+    for(let cc2=prev+1;cc2<=cur;cc2++){
+     walkPhase+=1;
+     if(tileState[cc2]==='base'){
+      if(dangers.has(cc2)&&(tG-lastQT)>CFG.cool){
+       lastQT=tG;tileState[cc2]='red';
+       tiles.setColorAt(cc2,new THREE.Color(0xe5383b));tiles.instanceColor.needsUpdate=true;
+       glowAt(cc2,0xff2222,2.2);sfxWarn();
+       fallAnims.push({idx:cc2,t:0,hold:true});
+       playerF=cc2;                       /* نقف على بلاطة الخطر لا بعدها */
+       openQ(cc2,dangers.get(cc2));
+       break;
+      }else{
+       tileState[cc2]='lit';const cc=NOTE_COLS[cc2%5];
+       tiles.setColorAt(cc2,new THREE.Color(cc).multiplyScalar(1.4));tiles.instanceColor.needsUpdate=true;
+       glowAt(cc2,cc,1);sfxStep(cc2);
+       setTimeout(()=>{if(tileState[cc2]==='lit'){tileState[cc2]='base';
+        tiles.setColorAt(cc2,baseCols[cc2]);tiles.instanceColor.needsUpdate=true;}},450);
+      }
      }
+     if(cc2%60===0){checkpoint=cc2;saveProg();}
     }
-    if(cur%60===0){checkpoint=cur;saveProg();}
     setHUD();
    }
    if(playerF>=N-2){state='complete';
@@ -954,15 +1022,23 @@ function tick(){
   driftFloaters.forEach(f2=>{f2.m.position.y=f2.baseY+Math.sin(tG*f2.sp+f2.ph)*f2.amp;f2.m.rotation.y=tG*.1+f2.ph;});
   const pos=pathPosAt(playerF),t=pathTanAt(playerF);
   const right=new THREE.Vector3(-t.z,0,t.x);
-  const camY=pos.y+1.55+(state==='fall'?-fallT*fallT*5:Math.sin(walkPhase*.9)*.035);
-  camera.position.set(pos.x+right.x*lat,camY,pos.z+right.z*lat);
-  camera.rotation.set(pitch+(state==='fall'?fallT*2:0),yaw,strafe*-.03);
-  sun.position.set(camera.position.x,14,camera.position.z-40);
-  sun.target.position.copy(camera.position);
+  /* الشخصيّة على الدرب، ووجهها باتّجاه المسير */
+  const hx=pos.x+right.x*lat, hz=pos.z+right.z*lat;
+  const hy=pos.y+(state==='fall'?-fallT*fallT*5:Math.abs(Math.sin(walkPhase*1.4))*.035);
+  hero.position.set(hx,hy,hz);
+  const fwdAng=Math.atan2(t.x,t.z);
+  hero.rotation.set(0,fwdAng,strafe*-.05);
+  /* الكاميرا خلف الشخصيّة؛ السحب يديرها حولها والنظر لأعلى/أسفل يرفعها */
+  const orbit=fwdAng+Math.PI+yaw;
+  const ch=CAM_HEIGHT-pitch*2.2+(state==='fall'?-fallT*fallT*5:0);
+  camera.position.set(hx+Math.sin(orbit)*CAM_DIST, hy+ch, hz+Math.cos(orbit)*CAM_DIST);
+  camera.lookAt(hx,hy+.85,hz);
+  sun.position.set(hx,14,hz-40);
+  sun.target.position.set(hx,hy,hz);
   const sw=moving?Math.sin(walkPhase*1.4):0;
-  shoeL.position.z=-.62+sw*.06;shoeR.position.z=-.62-sw*.06;
-  shoeL.position.y=-.52+Math.max(0,sw)*.03;shoeR.position.y=-.52+Math.max(0,-sw)*.03;
-  shoeL.rotation.x=-.15+sw*.12;shoeR.rotation.x=-.15-sw*.12;
+  shoeL.position.z=sw*.30;shoeR.position.z=-sw*.30;
+  shoeL.position.y=.10+Math.max(0,sw)*.10;shoeR.position.y=.10+Math.max(0,-sw)*.10;
+  shoeL.rotation.x=-sw*.34;shoeR.rotation.x=sw*.34;
  }
  renderer.render(scene,camera);
  if(!loaderDone){loaderDone=true;$('loader').classList.add('hidden');}

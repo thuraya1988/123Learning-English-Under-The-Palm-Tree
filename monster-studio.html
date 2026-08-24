@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>استوديو الوحوش — أصول ألعاب ثلاثية الأبعاد</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@latest/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@latest/700.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@latest/900.css">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; font-family:'Cairo',sans-serif; background:#bfe3da; }
+  #app { position:fixed; inset:0; }
+  canvas { display:block; }
+
+  header{
+    position:fixed; top:14px; right:16px; z-index:10;
+    background:rgba(12,44,40,.72); backdrop-filter:blur(12px);
+    color:#eafff8; border-radius:18px; padding:12px 20px;
+    border:1px solid rgba(255,255,255,.18); box-shadow:0 8px 30px rgba(0,40,35,.25);
+    max-width:min(430px, 60vw);
+  }
+  header h1{ font-size:19px; font-weight:900; letter-spacing:.3px; }
+  header p{ font-size:11.5px; opacity:.85; margin-top:2px; font-weight:400; }
+
+  #panel{
+    position:fixed; top:14px; left:16px; z-index:10; width:250px;
+    background:rgba(12,44,40,.78); backdrop-filter:blur(14px);
+    color:#eafff8; border-radius:18px; padding:14px;
+    border:1px solid rgba(255,255,255,.18); box-shadow:0 8px 30px rgba(0,40,35,.25);
+    max-height:calc(100vh - 28px); overflow-y:auto;
+  }
+  #panel::-webkit-scrollbar{ width:5px; } #panel::-webkit-scrollbar-thumb{ background:#2a6b60; border-radius:4px; }
+  .panel-title{ font-weight:900; font-size:15px; margin-bottom:8px; color:#7ff0d6; }
+  .sec{ font-size:11px; font-weight:700; opacity:.75; margin:10px 0 6px; }
+  .row{ display:flex; gap:6px; flex-wrap:wrap; }
+  .btn{
+    flex:1; background:rgba(255,255,255,.1); color:#eafff8; border:1px solid rgba(255,255,255,.15);
+    border-radius:12px; padding:7px 8px; font-family:'Cairo'; font-size:11.5px; font-weight:700;
+    cursor:pointer; transition:.2s;
+  }
+  .btn:hover{ background:rgba(255,255,255,.2); }
+  .btn.active{ background:#17c3a2; color:#06302a; border-color:#17c3a2; }
+  .btn.accent{ background:#ff7d9c; color:#4a1024; border-color:#ff7d9c; }
+  .btn.accent:hover{ background:#ff95ae; }
+  .anim-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  input[type=range]{ width:100%; accent-color:#17c3a2; }
+  .toggles{ flex-direction:column; gap:6px; }
+  .toggles label{ display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; cursor:pointer; }
+  .toggles input{ accent-color:#17c3a2; width:15px; height:15px; }
+  #info{
+    background:rgba(255,255,255,.07); border:1px dashed rgba(255,255,255,.25);
+    border-radius:12px; padding:9px 10px; font-size:11px; line-height:1.9;
+  }
+  #info b{ color:#7ff0d6; }
+
+  #chips{
+    position:fixed; bottom:14px; right:50%; transform:translateX(50%); z-index:10;
+    display:flex; gap:8px; max-width:92vw; overflow-x:auto; padding:10px 12px;
+    background:rgba(12,44,40,.72); backdrop-filter:blur(12px); border-radius:16px;
+    border:1px solid rgba(255,255,255,.18);
+  }
+  #chips::-webkit-scrollbar{ height:4px; } #chips::-webkit-scrollbar-thumb{ background:#2a6b60; border-radius:4px; }
+  .chip{
+    display:flex; align-items:center; gap:7px; white-space:nowrap;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14);
+    color:#eafff8; border-radius:999px; padding:6px 12px; font-family:'Cairo';
+    font-size:11.5px; font-weight:700; cursor:pointer; transition:.2s;
+  }
+  .chip:hover{ background:rgba(255,255,255,.18); }
+  .chip.active{ background:#17c3a2; color:#06302a; border-color:#17c3a2; }
+  .dot{ width:14px; height:14px; border-radius:50%; border:2px solid rgba(255,255,255,.6); }
+
+  #hint{
+    position:fixed; bottom:14px; right:16px; z-index:9; font-size:10.5px; color:#0e3f38;
+    background:rgba(255,255,255,.45); backdrop-filter:blur(6px); border-radius:10px; padding:6px 10px; font-weight:700;
+  }
+  #loader{
+    position:fixed; inset:0; z-index:50; background:#bfe3da; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; transition:opacity .6s; color:#0e3f38;
+  }
+  #loader .ball{ width:54px; height:54px; border-radius:50%; background:#17c3a2; animation:bnc 1s infinite cubic-bezier(.5,.05,.5,.95); box-shadow:0 6px 18px rgba(0,80,70,.3); }
+  @keyframes bnc{ 0%,100%{ transform:translateY(0) scale(1.15,.85);} 50%{ transform:translateY(-34px) scale(.9,1.1);} }
+  #loader.hide{ opacity:0; pointer-events:none; }
+  @media (max-width:760px){ #panel{ display:none; } header p{ display:none; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<header>
+  <h1>👾 استوديو الوحوش ثلاثية الأبعاد</h1>
+  <p>أصول لعب جاهزة: شخصيات إجرائية عالية الجودة مع أنيميشن وتصدير GLB</p>
+</header>
+
+<aside id="panel">
+  <div class="panel-title">🎮 لوحة تحكم الأصل</div>
+
+  <div class="sec">العرض</div>
+  <div class="row">
+    <button class="btn active" id="btnGrid">🧩 المجموعة</button>
+    <button class="btn" id="btnSingle">🎯 شخصية</button>
+  </div>
+
+  <div class="sec">الأنيميشن</div>
+  <div class="anim-grid">
+    <button class="btn active" data-anim="idle">🧍 خامل</button>
+    <button class="btn" data-anim="jump">🦘 قفز</button>
+    <button class="btn" data-anim="wave">👋 تحية</button>
+    <button class="btn" data-anim="dance">🕺 رقص</button>
+    <button class="btn" data-anim="spin">🌀 دوران</button>
+    <button class="btn" data-anim="look">👀 تلفت</button>
+  </div>
+
+  <div class="sec">سرعة الحركة: <span id="spdVal">1.0x</span></div>
+  <input type="range" id="speed" min="0.3" max="2.5" step="0.1" value="1">
+
+  <div class="sec">خيارات</div>
+  <div class="row toggles">
+    <label><input type="checkbox" id="autoRot" checked> دوران تلقائي للكاميرا</label>
+    <label><input type="checkbox" id="wire"> عرض الأسلاك (Wireframe)</label>
+    <label><input type="checkbox" id="shadows" checked> الظلال الناعمة</label>
+  </div>
+
+  <div class="sec">بيانات الأصل</div>
+  <div id="info"></div>
+
+  <div class="sec"></div>
+  <div class="row">
+    <button class="btn accent" id="btnExport">⬇ تصدير GLB</button>
+    <button class="btn" id="btnShot">📸 لقطة</button>
+  </div>
+</aside>
+
+<div id="chips"></div>
+<div id="hint">اسحب للتدوير • العجلة للتقريب • انقر على وحش لاختياره</div>
+<div id="loader"><div class="ball"></div><div style="font-weight:900">جارٍ بناء الشخصيات…</div></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+/* ---------- المشهد ---------- */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#b7ded4');
+scene.fog = new THREE.Fog('#b7ded4', 20, 46);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 3.6, 12.5);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.5, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.8;
+controls.maxPolarAngle = Math.PI * 0.52;
+controls.minDistance = 3; controls.maxDistance = 26;
+
+/* ---------- إضاءة ---------- */
+scene.add(new THREE.HemisphereLight('#eafff7', '#8fccbe', 0.75));
+const sun = new THREE.DirectionalLight('#ffffff', 1.35);
+sun.position.set(6, 11, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -14;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+const fill = new THREE.DirectionalLight('#bfffe f'.replace(' ',''), 0.25);
+fill.position.set(-6, 4, -6); scene.add(fill);
+
+/* ---------- أرضية ---------- */
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(40, 64),
+  new THREE.MeshStandardMaterial({ color:'#a4d2c7', roughness:0.95 })
+);
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+/* ---------- خامات مشتركة ---------- */
+const matReg = [];
+const M = (c, r=0.45) => { const m = new THREE.MeshStandardMaterial({ color:c, roughness:r, metalness:0.05 }); matReg.push(m); return m; };
+const mats = {
+  white: M('#ffffff', 0.25),
+  black: M('#151515', 0.3),
+  mouth: M('#5e1f2b', 0.6),
+  tongue: M('#ff7d9c', 0.5),
+  tooth: M('#ffffff', 0.3),
+};
+
+/* ---------- إعدادات الوحوش (مستوحاة من الصورة) ---------- */
+const MONSTERS = [
+ { name:'أخضر القرنين',  color:'#8cc94f', horns:1, hornColor:'#8d6e63', eyes:1, iris:'#2ab3a0', topSpike:'#79b93f', mouth:'grin', dots:'#4aa3d8' },
+ { name:'تركواز ضاحك',  color:'#57c9ad', eyes:2, iris:'#20705f', topSpike:'#2fa08a', mouth:'open' },
+ { name:'فحمي ثلاثي العيون', color:'#4c4c58', eyes:3, iris:'#39c6b4', stalks:2, mouth:'grin', dots:'#39c6b4' },
+ { name:'أزرق اليونيكورن', color:'#3f8280', eyes:2, iris:'#eafcf8', topSpike:'#c98a3f', mouth:'grin' },
+ { name:'نعناعي هادئ',  color:'#c9e9de', eyes:1, iris:'#2ab3a0', topSpike:'#f8f8f8', mouth:'small' },
+ { name:'وردي جائع',   color:'#e2697e', eyes:2, iris:'#8a2437', spikes:4, spikeColor:'#f6e8e6', mouth:'open' },
+ { name:'أصفر القرنين', color:'#f2c65b', horns:1, hornColor:'#7a5a52', topSpike:'#e0ae3f', eyes:2, iris:'#2a7f8f', mouth:'open' },
+ { name:'كريمي العين',  color:'#eec063', eyes:1, iris:'#7a4b20', spikes:6, spikeColor:'#f6f1e4', mouth:'small' },
+ { name:'بنفسجي مرح',   color:'#a76fd6', eyes:2, iris:'#3d2a70', spikes:5, spikeColor:'#efe6f7', mouth:'grin', dots:'#4fd6c0' },
+ { name:'بنفسجي فروي',  color:'#8d3ed6', eyes:2, iris:'#2d1650', fuzzy:1, mouth:'grin' },
+];
+
+/* ---------- أدوات بناء ---------- */
+const V3 = (x,y,z)=> new THREE.Vector3(x,y,z);
+
+function makeEye(radius, irisColor){
+  const g = new THREE.Group();
+  const w = new THREE.Mesh(new THREE.SphereGeometry(radius, 24, 16), mats.white);
+  const i = new THREE.Mesh(new THREE.SphereGeometry(radius*0.45, 16, 12), M(irisColor, 0.25));
+  i.position.z = radius*0.78;
+  const p = new THREE.Mesh(new THREE.SphereGeometry(radius*0.2, 12, 10), mats.black);
+  p.position.z = radius*0.98;
+  g.add(w, i, p);
+  return g;
+}
+
+function makeHorn(side, color){
+  const g = new THREE.Group();
+  const m = M(color, 0.55);
+  const pts = [ V3(0.5*side,2.05,0), V3(0.95*side,2.2,0), V3(1.18*side,2.6,0), V3(0.98*side,2.98,0) ];
+  const curve = new THREE.CatmullRomCurve3(pts);
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 16, 0.12, 10), m));
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.32, 10), m);
+  tip.position.copy(curve.getPoint(1));
+  tip.quaternion.setFromUnitVectors(V3(0,1,0), curve.getTangent(1).normalize());
+  g.add(tip);
+  return g;
+}
+
+const SPIKE_POS = [ [-0.42,2.28,0.12],[0,2.44,0.16],[0.42,2.28,0.12],[-0.62,1.98,0.2],[0.62,1.98,0.2],[-0.22,2.4,0.3],[0.22,2.4,0.3],[0,2.32,-0.25] ];
+
+function buildMonster(cfg){
+  const g = new THREE.Group();
+  const bodyMat = M(cfg.color, 0.42);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), bodyMat);
+  body.scale.set(0.95, 1.15, 0.85);
+  body.position.y = 1.3;
+  g.add(body);
+
+  const eyes = [];
+
+  /* العيون */
+  const eyeDefs = cfg.eyes === 1 ? [[0,1.5,0.72,0.42]]
+    : cfg.eyes === 3 ? [[-0.4,1.52,0.62,0.24],[0,1.44,0.76,0.26],[0.4,1.52,0.62,0.24]]
+    : [[-0.36,1.52,0.68,0.27],[0.36,1.52,0.68,0.27]];
+  eyeDefs.forEach(d=>{
+    const e = makeEye(d[3], cfg.iris || '#2ab3a0');
+    e.position.set(d[0], d[1], d[2]);
+    g.add(e); eyes.push(e);
+  });
+
+  /* سويقات العيون */
+  if (cfg.stalks){
+    for (let s=0; s<cfg.stalks; s++){
+      const sd = s===0 ? -1 : 1;
+      const st = new THREE.Group();
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.045,0.55,10), bodyMat);
+      rod.position.y = 0.27;
+      const e = makeEye(0.15, cfg.iris || '#2ab3a0');
+      e.position.y = 0.6;
+      st.add(rod, e); eyes.push(e);
+      st.position.set(0.5*sd, 2.3, 0.1);
+      st.rotation.z = -0.35*sd;
+      g.add(st);
+    }
+  }
+
+  /* قرون الثور */
+  if (cfg.horns){ g.add(makeHorn(1, cfg.hornColor)); g.add(makeHorn(-1, cfg.hornColor)); }
+
+  /* قرن علوي واحد */
+  if (cfg.topSpike){
+    const s = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.72, 12), M(cfg.topSpike, 0.4));
+    s.position.y = 2.62; g.add(s);
+  }
+
+  /* أشواك صغيرة */
+  if (cfg.spikes){
+    const sm = M(cfg.spikeColor || '#ffffff', 0.4);
+    for (let i=0; i<cfg.spikes && i<SPIKE_POS.length; i++){
+      const p = SPIKE_POS[i];
+      const c = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.26, 8), sm);
+      c.position.set(p[0], p[1], p[2]);
+      c.quaternion.setFromUnitVectors(V3(0,1,0), V3(p[0]*0.8, 1, p[2]).normalize());
+      g.add(c);
+    }
+  }
+
+  /* فرو */
+  if (cfg.fuzzy){
+    const fm = M(cfg.color, 0.7);
+    const n = 90, ga = Math.PI * (3 - Math.sqrt(5));
+    for (let i=0; i<n; i++){
+      const y = 1 - (i/(n-1)) * 1.6;
+      if (y < -0.35) continue;
+      const r = Math.sqrt(1 - y*y), th = ga * i;
+      const dir = V3(Math.cos(th)*r, y, Math.sin(th)*r);
+      const c = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.24, 6), fm);
+      c.position.set(dir.x*0.93, 1.3 + dir.y*1.13, dir.z*0.83);
+      c.quaternion.setFromUnitVectors(V3(0,1,0), dir);
+      g.add(c);
+    }
+  }
+
+  /* نقاط زخرفية */
+  if (cfg.dots){
+    const dm = M(cfg.dots, 0.5);
+    [[-0.4,0.75,0.62],[0.1,0.6,0.72],[0.45,0.85,0.55],[-0.15,0.95,0.68],[0.3,0.55,0.66]].forEach(p=>{
+      const d = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), dm);
+      d.position.set(p[0], p[1], p[2]);
+      g.add(d);
+    });
+  }
+
+  /* الفم */
+  if (cfg.mouth === 'open'){
+    const mo = new THREE.Group();
+    const inner = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), mats.mouth);
+    inner.scale.set(0.52, 0.42, 0.28); mo.add(inner);
+    const tg = new THREE.ConeGeometry(0.06, 0.17, 8);
+    for (let i=0; i<5; i++){
+      const x = -0.34 + i*0.17;
+      const t1 = new THREE.Mesh(tg, mats.tooth); t1.rotation.x = Math.PI; t1.position.set(x, 0.3, 0.2); mo.add(t1);
+      const t2 = new THREE.Mesh(tg, mats.tooth); t2.position.set(-x*0.8, -0.3, 0.2); mo.add(t2);
+    }
+    const tg2 = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), mats.tongue);
+    tg2.scale.set(0.26, 0.13, 0.16); tg2.position.set(0, -0.24, 0.22); mo.add(tg2);
+    mo.position.set(0, 1.02, 0.62);
+    g.add(mo);
+  } else if (cfg.mouth === 'grin'){
+    const mo = new THREE.Group();
+    const inner = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), mats.mouth);
+    inner.scale.set(0.5, 0.17, 0.24); mo.add(inner);
+    const tg = new THREE.ConeGeometry(0.05, 0.13, 8);
+    for (let i=0; i<6; i++){
+      const t = new THREE.Mesh(tg, mats.tooth);
+      t.rotation.x = Math.PI;
+      t.position.set(-0.36 + i*0.145, 0.1, 0.2);
+      mo.add(t);
+    }
+    mo.position.set(0, 1.05, 0.66);
+    g.add(mo);
+  } else {
+    const mo = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 10), mats.mouth);
+    mo.scale.set(1, 0.7, 0.6); mo.position.set(0, 1.05, 0.8);
+    g.add(mo);
+  }
+
+  /* أذرع بأكتاف مفصلية */
+  const mkArm = (sd)=>{
+    const a = new THREE.Group();
+    const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.3, 6, 12), bodyMat);
+    mesh.position.y = -0.28;
+    a.add(mesh);
+    a.position.set(0.92*sd, 1.4, 0);
+    a.rotation.z = 0.35*sd;
+    g.add(a);
+    return a;
+  };
+  const armL = mkArm(-1), armR = mkArm(1);
+
+  /* أرجل */
+  [-1, 1].forEach(sd=>{
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.22, 6, 12), bodyMat);
+    leg.position.set(0.36*sd, 0.25, 0);
+    g.add(leg);
+  });
+
+  g.traverse(o=>{ if (o.isMesh){ o.castShadow = true; } });
+
+  /* إحصاءات الأصل */
+  let tris = 0, parts = 0;
+  g.traverse(o=>{ if (o.isMesh){ parts++; const gg = o.geometry; tris += (gg.index ? gg.index.count : gg.attributes.position.count) / 3; } });
+
+  g.userData = { cfg, eyes, armL, armR, tris:Math.round(tris), parts, phase:Math.random()*6 };
+  return g;
+}
+
+/* ---------- إنشاء المجموعة ---------- */
+const monstersGroup = new THREE.Group();
+scene.add(monstersGroup);
+const monsters = MONSTERS.map((cfg, i)=>{
+  const m = buildMonster(cfg);
+  const col = i % 5, row = Math.floor(i / 5);
+  const gx = (col - 2) * 2.7, gz = row === 0 ? 1.8 : -1.6;
+  m.userData.gridPos = V3(gx, 0, gz);
+  m.position.copy(m.userData.gridPos);
+  monstersGroup.add(m);
+  return m;
+});
+
+/* ---------- الحالة ---------- */
+let mode = 'grid';
+let selected = 0;
+let currentAnim = 'idle';
+let speed = 1;
+
+/* ---------- الأنيميشن ---------- */
+function applyAnim(m, time){
+  const u = m.userData;
+  const t = time * speed + u.phase;
+  let y = 0, rotY = 0, sx = 1, sy = 1, sz = 1;
+  let aL = -0.35 + Math.sin(t*2)*0.06, aR = 0.35 - Math.sin(t*2)*0.06;
+  let axL = 0, axR = 0, headTilt = 0;
+
+  switch (currentAnim){
+    case 'idle':
+      y = Math.sin(t*2)*0.05;
+      sy = 1 + Math.sin(t*3)*0.02;
+      break;
+    case 'jump': {
+      const s = Math.sin(t*3);
+      y = Math.max(0, s) * 1.1;
+      const sq = Math.max(0, -s);
+      sy = 1 - sq*0.22 + Math.max(0, s)*0.08;
+      sx = sz = 1 + sq*0.15;
+      aL = -0.6 - Math.max(0,s)*0.8; aR = 0.6 + Math.max(0,s)*0.8;
+      break; }
+    case 'wave':
+      aR = 2.4 + Math.sin(t*8)*0.45;
+      y = Math.sin(t*2)*0.04;
+      headTilt = Math.sin(t*2)*0.06;
+      break;
+    case 'dance':
+      rotY = Math.sin(t*3)*0.5;
+      y = Math.abs(Math.sin(t*3))*0.35;
+      axL = Math.sin(t*3)*1.2; axR = -Math.sin(t*3)*1.2;
+      aL = -0.9; aR = 0.9;
+      break;
+    case 'spin':
+      rotY = t*2.5;
+      y = Math.sin(t*6)*0.06;
+      break;
+    case 'look':
+      rotY = Math.round((Math.sin(t*0.9)+1)/2) * 0.9 - 0.45;
+      y = Math.sin(t*2)*0.04;
+      headTilt = Math.sin(t*0.9)*0.08;
+      break;
+  }
+  m.position.y = m.userData.gridPos.y + y;
+  m.rotation.y = rotY;
+  m.rotation.z = headTilt;
+  m.scale.set(sx, sy, sz);
+  u.armL.rotation.z = aL; u.armR.rotation.z = aR;
+  u.armL.rotation.x = axL; u.armR.rotation.x = axR;
+
+  const b = t % 3.2;
+  const blink = b < 0.12 ? 0.12 : 1;
+  u.eyes.forEach(e=>{ e.scale.y = blink; });
+}
+
+/* ---------- حلقة الرسم ---------- */
+const clock = new THREE.Clock();
+let first = true;
+function tick(){
+  const t = clock.getElapsedTime();
+  monsters.forEach(m=>{ if (m.visible) applyAnim(m, t); });
+  controls.update();
+  renderer.render(scene, camera);
+  if (first){ first = false; document.getElementById('loader').classList.add('hide'); }
+  requestAnimationFrame(tick);
+}
+tick();
+
+/* ---------- واجهة المستخدم ---------- */
+const chipsBox = document.getElementById('chips');
+MONSTERS.forEach((cfg, i)=>{
+  const b = document.createElement('button');
+  b.className = 'chip';
+  b.innerHTML = `<span class="dot" style="background:${cfg.color}"></span>${cfg.name}`;
+  b.onclick = ()=> selectMonster(i);
+  chipsBox.appendChild(b);
+});
+
+function refreshChips(){
+  [...chipsBox.children].forEach((c, i)=> c.classList.toggle('active', i === selected && mode === 'single'));
+}
+function refreshInfo(){
+  const u = monsters[selected].userData;
+  document.getElementById('info').innerHTML =
+    `الاسم: <b>${MONSTERS[selected].name}</b><br>` +
+    `المثلثات: <b>~${u.tris.toLocaleString('en')}</b> • الأجزاء: <b>${u.parts}</b><br>` +
+    `الخامات: <b>PBR Standard</b> • الظلال: <b>✔</b><br>` +
+    `الحركات: خامل/قفز/تحية/رقص/دوران/تلفت<br>` +
+    `الصيغة: <b>GLB</b> جاهز لمحركات الألعاب`;
+}
+refreshInfo();
+
+function setCamera(p, tg){
+  camera.position.set(p[0], p[1], p[2]);
+  controls.target.set(tg[0], tg[1], tg[2]);
+}
+function selectMonster(i){
+  selected = i; mode = 'single';
+  monsters.forEach((m, j)=>{
+    m.visible = j === i;
+    if (j === i) m.position.set(0, 0, 0);
+  });
+  setCamera([0, 2.5, 6.4], [0, 1.4, 0]);
+  document.getElementById('btnGrid').classList.remove('active');
+  document.getElementById('btnSingle').classList.add('active');
+  refreshChips(); refreshInfo();
+}
+function showGrid(){
+  mode = 'grid';
+  monsters.forEach(m=>{ m.visible = true; m.position.copy(m.userData.gridPos); m.rotation.set(0,0,0); });
+  setCamera([0, 3.6, 12.5], [0, 1.5, 0]);
+  document.getElementById('btnSingle').classList.remove('active');
+  document.getElementById('btnGrid').classList.add('active');
+  refreshChips();
+}
+document.getElementById('btnGrid').onclick = showGrid;
+document.getElementById('btnSingle').onclick = ()=> selectMonster(selected);
+
+document.querySelectorAll('[data-anim]').forEach(b=>{
+  b.onclick = ()=>{
+    currentAnim = b.dataset.anim;
+    document.querySelectorAll('[data-anim]').forEach(x=> x.classList.toggle('active', x === b));
+  };
+});
+
+document.getElementById('speed').oninput = e=>{
+  speed = parseFloat(e.target.value);
+  document.getElementById('spdVal').textContent = speed.toFixed(1) + 'x';
+};
+document.getElementById('autoRot').onchange = e=>{ controls.autoRotate = e.target.checked; };
+document.getElementById('wire').onchange = e=>{ matReg.concat(Object.values(mats)).forEach(m=>{ m.wireframe = e.target.checked; }); };
+document.getElementById('shadows').onchange = e=>{ renderer.shadowMap.enabled = e.target.checked; sun.castShadow = e.target.checked; };
+
+/* النقر على وحش في العرض الجماعي */
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let downPos = null;
+renderer.domElement.addEventListener('pointerdown', e=>{ downPos = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e=>{
+  if (!downPos || mode !== 'grid') return;
+  const dx = e.clientX - downPos[0], dy = e.clientY - downPos[1];
+  if (dx*dx + dy*dy > 25) return;
+  ptr.set((e.clientX/innerWidth)*2 - 1, -(e.clientY/innerHeight)*2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(monstersGroup.children, true)[0];
+  if (hit){
+    let o = hit.object;
+    while (o.parent && o.parent !== monstersGroup) o = o.parent;
+    selectMonster(monsters.indexOf(o));
+  }
+});
+
+/* تصدير GLB */
+document.getElementById('btnExport').onclick = ()=>{
+  const exporter = new GLTFExporter();
+  exporter.parse(monsters[selected], (res)=>{
+    const blob = new Blob([res], { type:'application/octet-stream' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `monster_${selected + 1}.glb`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, (err)=> console.error(err), { binary:true });
+};
+
+/* لقطة شاشة */
+document.getElementById('btnShot').onclick = ()=>{
+  renderer.render(scene, camera);
+  const a = document.createElement('a');
+  a.href = renderer.domElement.toDataURL('image/png');
+  a.download = 'monsters_preview.png';
+  a.click();
+};
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

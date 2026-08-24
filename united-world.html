@@ -3233,65 +3233,198 @@ function burst(){
  }
 }
 
-/* ---- الفوضويّون ---- */
-function makeFoeTex(){
- const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
- g.clearRect(0,0,128,128);
- g.fillStyle='#6b6178';
- g.beginPath();
- g.moveTo(20,86);
- for(let i=0;i<=10;i++){const a=Math.PI+i/10*Math.PI;g.lineTo(64+Math.cos(a)*44,86+Math.sin(a)*46);}
- g.quadraticCurveTo(96,104,84,96);g.quadraticCurveTo(72,110,64,96);
- g.quadraticCurveTo(56,110,44,96);g.quadraticCurveTo(32,104,20,86);
- g.closePath();g.fill();
- g.fillStyle='#efe9de';
- g.beginPath();g.ellipse(48,62,12,14,0.2,0,7);g.fill();
- g.beginPath();g.ellipse(82,60,11,13,-0.25,0,7);g.fill();
- g.fillStyle='#241a12';
- g.beginPath();g.arc(50,64,5.5,0,7);g.fill();g.beginPath();g.arc(80,62,5,0,7);g.fill();
- g.strokeStyle='#241a12';g.lineWidth=4;g.lineJoin='round';
- g.beginPath();g.moveTo(46,84);g.lineTo(56,90);g.lineTo(66,83);g.lineTo(76,90);g.lineTo(86,84);g.stroke();
- return new THREE.CanvasTexture(c);
+/* ---- وحوش الفوضى — من «استوديو الوحوش» ---- */
+function capsuleG(r,len,mat){
+ const g=new THREE.Group();
+ const cy=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,12),mat);g.add(cy);
+ const s1=new THREE.Mesh(new THREE.SphereGeometry(r,12,10),mat);s1.position.y=len/2;g.add(s1);
+ const s2=new THREE.Mesh(new THREE.SphereGeometry(r,12,10),mat);s2.position.y=-len/2;g.add(s2);
+ g.traverse(o=>{if(o.isMesh)o.castShadow=true;});
+ return g;
 }
-const foes=[];let foeTex=null;
+const MON_WHITE=new THREE.MeshLambertMaterial({color:0xffffff});
+const MON_BLACK=new THREE.MeshLambertMaterial({color:0x151515});
+const MON_MOUTH=new THREE.MeshLambertMaterial({color:0x5e1f2b});
+const MON_TONGUE=new THREE.MeshLambertMaterial({color:0xff7d9c});
+const MON_TOOTH=new THREE.MeshLambertMaterial({color:0xfffaf2});
+function monMat(c){return new THREE.MeshLambertMaterial({color:c});}
+const MONSTERS=[
+ {name:'أخضر القرنين',      color:0x8cc94f, horns:1, hornColor:0x8d6e63, eyes:1, iris:0x2ab3a0, topSpike:0x79b93f, mouth:'grin', dots:0x4aa3d8},
+ {name:'تركوازيّ ضاحك',     color:0x57c9ad, eyes:2, iris:0x20705f, topSpike:0x2fa08a, mouth:'open'},
+ {name:'فحميّ ثلاثيّ العيون', color:0x4c4c58, eyes:3, iris:0x39c6b4, stalks:2, mouth:'grin', dots:0x39c6b4},
+ {name:'أزرق اليونيكورن',   color:0x3f8280, eyes:2, iris:0xeafcf8, topSpike:0xc98a3f, mouth:'grin'},
+ {name:'نعناعيّ هادئ',      color:0xc9e9de, eyes:1, iris:0x2ab3a0, topSpike:0xf8f8f8, mouth:'small'},
+ {name:'ورديّ جائع',        color:0xe2697e, eyes:2, iris:0x8a2437, spikes:4, spikeColor:0xf6e8e6, mouth:'open'},
+ {name:'أصفر القرنين',      color:0xf2c65b, horns:1, hornColor:0x7a5a52, topSpike:0xe0ae3f, eyes:2, iris:0x2a7f8f, mouth:'open'},
+ {name:'كريميّ العين',      color:0xeec063, eyes:1, iris:0x7a4b20, spikes:6, spikeColor:0xf6f1e4, mouth:'small'},
+ {name:'بنفسجيّ مرح',       color:0xa76fd6, eyes:2, iris:0x3d2a70, spikes:5, spikeColor:0xefe6f7, mouth:'grin', dots:0x4fd6c0},
+ {name:'بنفسجيّ فرويّ',     color:0x8d3ed6, eyes:2, iris:0x2d1650, fuzzy:1, mouth:'grin'}
+];
+const MON_SPIKES=[[-0.42,2.28,0.12],[0,2.44,0.16],[0.42,2.28,0.12],[-0.62,1.98,0.2],[0.62,1.98,0.2],[-0.22,2.4,0.3],[0.22,2.4,0.3],[0,2.32,-0.25]];
+function monEye(radius,iris){
+ const g=new THREE.Group();
+ g.add(new THREE.Mesh(new THREE.SphereGeometry(radius,20,14),MON_WHITE));
+ const ir=new THREE.Mesh(new THREE.SphereGeometry(radius*0.45,14,10),monMat(iris));ir.position.z=radius*0.78;g.add(ir);
+ const pu=new THREE.Mesh(new THREE.SphereGeometry(radius*0.2,10,8),MON_BLACK);pu.position.z=radius*0.98;g.add(pu);
+ return g;
+}
+function monHorn(side,color){
+ const g=new THREE.Group(), m=monMat(color);
+ const pts=[new THREE.Vector3(0.5*side,2.05,0),new THREE.Vector3(0.95*side,2.2,0),
+            new THREE.Vector3(1.18*side,2.6,0),new THREE.Vector3(0.98*side,2.98,0)];
+ const curve=new THREE.CatmullRomCurve3(pts);
+ g.add(new THREE.Mesh(new THREE.TubeGeometry(curve,14,0.12,8),m));
+ const tip=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.32,8),m);
+ tip.position.copy(curve.getPoint(1));
+ tip.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),curve.getTangent(1).normalize());
+ g.add(tip);
+ return g;
+}
+function buildMonster(cfg){
+ const g=new THREE.Group();
+ const bodyMat=monMat(cfg.color);
+ const body=new THREE.Mesh(new THREE.SphereGeometry(1,32,22),bodyMat);
+ body.scale.set(0.95,1.15,0.85);body.position.y=1.3;g.add(body);
+ const eyes=[];
+ const eyeDefs = cfg.eyes===1 ? [[0,1.5,0.72,0.42]]
+   : cfg.eyes===3 ? [[-0.4,1.52,0.62,0.24],[0,1.44,0.76,0.26],[0.4,1.52,0.62,0.24]]
+   : [[-0.36,1.52,0.68,0.27],[0.36,1.52,0.68,0.27]];
+ eyeDefs.forEach(d=>{const e=monEye(d[3],cfg.iris||0x2ab3a0);e.position.set(d[0],d[1],d[2]);g.add(e);eyes.push(e);});
+ if(cfg.stalks){
+  for(let s=0;s<cfg.stalks;s++){
+   const sd=s===0?-1:1, st=new THREE.Group();
+   const rod=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.045,0.55,8),bodyMat);rod.position.y=0.27;
+   const e=monEye(0.15,cfg.iris||0x2ab3a0);e.position.y=0.6;
+   st.add(rod,e);eyes.push(e);
+   st.position.set(0.5*sd,2.3,0.1);st.rotation.z=-0.35*sd;g.add(st);
+  }
+ }
+ if(cfg.horns){g.add(monHorn(1,cfg.hornColor));g.add(monHorn(-1,cfg.hornColor));}
+ if(cfg.topSpike){const s=new THREE.Mesh(new THREE.ConeGeometry(0.1,0.72,10),monMat(cfg.topSpike));s.position.y=2.62;g.add(s);}
+ if(cfg.spikes){
+  const sm=monMat(cfg.spikeColor||0xffffff);
+  for(let i=0;i<cfg.spikes&&i<MON_SPIKES.length;i++){
+   const p=MON_SPIKES[i];
+   const c=new THREE.Mesh(new THREE.ConeGeometry(0.07,0.26,7),sm);
+   c.position.set(p[0],p[1],p[2]);
+   c.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(p[0]*0.8,1,p[2]).normalize());
+   g.add(c);
+  }
+ }
+ if(cfg.fuzzy){
+  const fm=monMat(cfg.color), n=64, ga=Math.PI*(3-Math.sqrt(5));
+  for(let i=0;i<n;i++){
+   const y=1-(i/(n-1))*1.6;
+   if(y<-0.35)continue;
+   const r=Math.sqrt(Math.max(0,1-y*y)), th=ga*i;
+   const dir=new THREE.Vector3(Math.cos(th)*r,y,Math.sin(th)*r);
+   const c=new THREE.Mesh(new THREE.ConeGeometry(0.045,0.24,5),fm);
+   c.position.set(dir.x*0.93,1.3+dir.y*1.13,dir.z*0.83);
+   c.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);
+   g.add(c);
+  }
+ }
+ if(cfg.dots){
+  const dm=monMat(cfg.dots);
+  [[-0.4,0.75,0.62],[0.1,0.6,0.72],[0.45,0.85,0.55],[-0.15,0.95,0.68],[0.3,0.55,0.66]].forEach(p=>{
+   const d=new THREE.Mesh(new THREE.SphereGeometry(0.05,8,6),dm);d.position.set(p[0],p[1],p[2]);g.add(d);});
+ }
+ if(cfg.mouth==='open'){
+  const mo=new THREE.Group();
+  const inner=new THREE.Mesh(new THREE.SphereGeometry(1,20,14),MON_MOUTH);inner.scale.set(0.52,0.42,0.28);mo.add(inner);
+  const tg=new THREE.ConeGeometry(0.06,0.17,6);
+  for(let i=0;i<5;i++){
+   const x=-0.34+i*0.17;
+   const t1=new THREE.Mesh(tg,MON_TOOTH);t1.rotation.x=Math.PI;t1.position.set(x,0.3,0.2);mo.add(t1);
+   const t2=new THREE.Mesh(tg,MON_TOOTH);t2.position.set(-x*0.8,-0.3,0.2);mo.add(t2);
+  }
+  const tg2=new THREE.Mesh(new THREE.SphereGeometry(1,12,10),MON_TONGUE);
+  tg2.scale.set(0.26,0.13,0.16);tg2.position.set(0,-0.24,0.22);mo.add(tg2);
+  mo.position.set(0,1.02,0.62);g.add(mo);
+ }else if(cfg.mouth==='grin'){
+  const mo=new THREE.Group();
+  const inner=new THREE.Mesh(new THREE.SphereGeometry(1,20,14),MON_MOUTH);inner.scale.set(0.5,0.17,0.24);mo.add(inner);
+  const tg=new THREE.ConeGeometry(0.05,0.13,6);
+  for(let i=0;i<6;i++){const t=new THREE.Mesh(tg,MON_TOOTH);t.rotation.x=Math.PI;t.position.set(-0.36+i*0.145,0.1,0.2);mo.add(t);}
+  mo.position.set(0,1.05,0.66);g.add(mo);
+ }else{
+  const mo=new THREE.Mesh(new THREE.SphereGeometry(0.11,12,8),MON_MOUTH);
+  mo.scale.set(1,0.7,0.6);mo.position.set(0,1.05,0.8);g.add(mo);
+ }
+ const mkArm=(sd)=>{
+  const a=new THREE.Group();
+  const arm=capsuleG(0.09,0.3,bodyMat);arm.position.y=-0.28;a.add(arm);
+  a.position.set(0.92*sd,1.4,0);a.rotation.z=0.35*sd;g.add(a);return a;
+ };
+ const armL=mkArm(-1), armR=mkArm(1);
+ const legs=[];
+ [-1,1].forEach(sd=>{const leg=capsuleG(0.14,0.22,bodyMat);leg.position.set(0.36*sd,0.25,0);g.add(leg);legs.push(leg);});
+ g.traverse(o=>{if(o.isMesh)o.castShadow=true;});
+ g.userData={eyes,armL,armR,legs,phase:Math.random()*6};
+ return g;
+}
+const foes=[];
 function buildFoes(){
- foeTex=makeFoeTex();
  const spots=[[10,40],[-40,10],[70,-10],[-70,-40],[100,20],[-100,50],[30,-60],[120,60],[-20,-110],[60,-120]];
  for(let i=0;i<spots.length;i++){
-  const m=new THREE.SpriteMaterial({map:foeTex,transparent:true});
-  const sp=new THREE.Sprite(m);sp.center.set(0.5,0);sp.scale.set(1.7,1.7,1);
-  scene.add(sp);tintMats.push(m);
-  foes.push({sp:sp,mat:m,x:spots[i][0],z:spots[i][1],hx:spots[i][0],hz:spots[i][1],
-             ph:Math.random()*7,alive:true,resp:0,a:Math.random()*7});
+  const cfg=MONSTERS[i%MONSTERS.length];
+  const grp=buildMonster(cfg);
+  grp.scale.setScalar(0.62);
+  scene.add(grp);
+  foes.push({grp:grp,ud:grp.userData,name:cfg.name,
+             x:spots[i][0],z:spots[i][1],hx:spots[i][0],hz:spots[i][1],
+             ph:Math.random()*7,alive:true,resp:0,a:Math.random()*7,face:0,pop:0});
  }
 }
 function killFoe(f){
- f.alive=false;f.resp=12+Math.random()*8;f.sp.visible=false;SFX2.pop();
+ f.alive=false;f.resp=12+Math.random()*8;f.pop=0.42;SFX2.pop();
+ if(Math.random()<0.34)say('f','تبخّر «'+f.name+'»! رأيتَ ذلك؟ أنا فعلتُها. تقريباً.',3.4);
 }
 function updateFoes(dt,live){
  const t=myClock.elapsedTime;
  for(const f of foes){
+  const ud=f.ud;
   if(!f.alive){
+   if(f.pop>0){
+    f.pop-=dt;
+    const k=Math.max(0.001,f.pop/0.42);
+    f.grp.scale.setScalar(0.62*k);
+    f.grp.rotation.y+=dt*14;
+    if(f.pop<=0){f.grp.visible=false;f.grp.scale.setScalar(0.62);}
+   }
    f.resp-=dt;
-   if(f.resp<=0){f.alive=true;f.sp.visible=true;f.x=f.hx;f.z=f.hz;}
+   if(f.resp<=0){f.alive=true;f.grp.visible=true;f.x=f.hx;f.z=f.hz;}
    continue;
   }
   const d=Math.hypot(f.x-FP.x,f.z-FP.z);
-  if(live&&FP.on&&d<26&&d>1.4){
+  let moving=false;
+  if(live&&FP.on&&d<26&&d>1.6){
    const s=2.5*dt/d;
-   const nx=f.x+(FP.x-f.x)*s,nz=f.z+(FP.z-f.z)*s;
-   if(!blocked(nx,nz)){f.x=nx;f.z=nz;}
+   const nx=f.x+(FP.x-f.x)*s, nz=f.z+(FP.z-f.z)*s;
+   if(!blocked(nx,nz)){f.x=nx;f.z=nz;moving=true;}
+   f.face=Math.atan2(FP.x-f.x,FP.z-f.z);
   }else{
    f.a+=dt*0.5;
-   const nx=f.hx+Math.cos(f.a)*7,nz=f.hz+Math.sin(f.a*0.8)*7;
-   if(!blocked(nx,nz)){f.x=nx;f.z=nz;}
+   const nx=f.hx+Math.cos(f.a)*7, nz=f.hz+Math.sin(f.a*0.8)*7;
+   if(!blocked(nx,nz)){f.face=Math.atan2(nx-f.x,nz-f.z);f.x=nx;f.z=nz;moving=true;}
   }
-  f.sp.position.set(f.x,surfaceY(f.x,f.z)+Math.abs(Math.sin(t*2.6+f.ph))*0.45,f.z);
-  f.mat.rotation=Math.sin(t*3+f.ph)*0.09;
-  if(live&&FP.on&&W.started&&d<2.1&&W.hurtCd<=0&&FP.y-surfaceY(FP.x,FP.z)<3.2){
+  const hop=Math.abs(Math.sin(t*(moving?4.4:2.2)+f.ph))*(moving?0.22:0.09);
+  f.grp.position.set(f.x,surfaceY(f.x,f.z)+hop,f.z);
+  f.grp.rotation.y=f.face;
+  f.grp.rotation.z=Math.sin(t*3+f.ph)*0.06;
+  const sw=Math.sin(t*(moving?7:2.4)+f.ph);
+  ud.armL.rotation.z=-0.35-sw*0.5;
+  ud.armR.rotation.z= 0.35+sw*0.5;
+  ud.legs[0].rotation.x= sw*(moving?0.5:0.06);
+  ud.legs[1].rotation.x=-sw*(moving?0.5:0.06);
+  const b=(t+f.ph)%3.2;
+  const blink=b<0.12?0.12:1;
+  for(let e=0;e<ud.eyes.length;e++)ud.eyes[e].scale.y=blink;
+  if(live&&FP.on&&W.started&&d<2.3&&W.hurtCd<=0&&FP.y-surfaceY(FP.x,FP.z)<3.4){
    hurt(1);
-   const a=Math.atan2(FP.x-f.x,FP.z-f.z);
-   const bx=FP.x+Math.sin(a)*4,bz=FP.z+Math.cos(a)*4;
+   say('l','«'+f.name+'» لمسك! أطلق أمنيةً تُبدّد من حولك.',3.6);
+   const a2=Math.atan2(FP.x-f.x,FP.z-f.z);
+   const bx=FP.x+Math.sin(a2)*4,bz=FP.z+Math.cos(a2)*4;
    if(!blocked(bx,bz)){FP.x=bx;FP.z=bz;}
   }
  }
@@ -3637,6 +3770,12 @@ function wonderStep(dt,live){
  }
  /* سقوط في الماء أو خارج العالم */
  if(FP.y<-4){hurt(1);FP.x=W.cp.x;FP.z=W.cp.z;FP.y=surfaceY(FP.x,FP.z)+EYE*W.eye;FP.vy=0;}
+ /* هبوطٌ في الماء بعد انتهاء الطيران — فلفل يسحبك للبرّ */
+ if(W.fly<=0&&FP.ground&&blocked(FP.x,FP.z)){
+  hurt(1);
+  FP.x=W.cp.x;FP.z=W.cp.z;FP.y=surfaceY(FP.x,FP.z)+EYE*W.eye;FP.vy=0;
+  say('f','الماء! الماء! أخرجتُك! لا شكر على واجب.');
+ }
 }
 buildCompanions();
 buildShards();
@@ -3649,7 +3788,7 @@ hudRefresh();
 window.__uw={FP:FP,CHARS:CHARS,
  go:function(x,z,yaw,pitch){FP.x=x;FP.z=z;FP.yaw=yaw||0;FP.pitch=pitch||0;FP.y=surfaceY(x,z)+EYE*W.eye;FP.vy=0;},
  talk:function(){tryTalk();},answer:function(i){answer(i);},
- W:function(){return W;},wish:function(i){castWish(i);},shards:function(){return shards;},
+ W:function(){return W;},wish:function(i){castWish(i);},shards:function(){return shards;},foes:function(){return foes;},
  begin:function(){if(!W.started)beginGame();},give:function(n){for(let i=0;i<n;i++)gainShard();}};
 const origUpdate=controls.update.bind(controls);
 controls.update=function(){

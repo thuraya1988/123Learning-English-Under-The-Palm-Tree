@@ -186,7 +186,10 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+let baseExposure = 0.95;   /* السطوع الأساسيّ — يضبطه شريط «سطوع المشهد» */
+let exposureScale = 1.0;
+function applyExposure(){ renderer.toneMappingExposure = baseExposure * exposureScale; }
+applyExposure();
 document.getElementById('app').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -308,8 +311,8 @@ function makeShamousa(){
   const rl=new THREE.Mesh(legGeo,orangeGlassMat); rl.position.y=-1; rl.rotation.z=-0.3; rlG.add(rl);
   const rf=new THREE.Mesh(new THREE.SphereGeometry(0.12,12,12),orangeGlassMat); rf.position.set(0.6,-2,0); rlG.add(rf);
   const S=0.5; sun.scale.setScalar(S); sun.position.y=3.8*S;
-  const halo=new THREE.PointLight(0xffb45a, 2.0, 18, 1.7); halo.position.set(0, 3.8*S+1.7, 1.5); g.add(halo);
-  const haloBack=new THREE.PointLight(0xffd9a0, 1.1, 12, 1.6); haloBack.position.set(0, 3.8*S+1.2, -1.6); g.add(haloBack);
+  const halo=new THREE.PointLight(0xffb45a, 1.15, 14, 1.8); halo.position.set(0, 3.8*S+1.7, 1.5); g.add(halo);
+  const haloBack=new THREE.PointLight(0xffd9a0, 0.6, 10, 1.7); haloBack.position.set(0, 3.8*S+1.2, -1.6); g.add(haloBack);
   return { g, update(t,moving){
     sun.position.y=3.8*S+Math.sin(t*0.8)*0.08;
     rays.forEach((r,i)=>{ r.rg.rotation.z=r.a+Math.sin(t*0.5+i*0.3)*0.05; r.tip.material.emissiveIntensity=0.3+Math.sin(t*2+i*0.5)*0.3; });
@@ -577,11 +580,11 @@ function buildPanel(cfg){
 function buildOwlWorld(){
   scene.background=new THREE.Color(0x0a1628);
   scene.fog=new THREE.FogExp2(0x0a1628,0.012);
-  const amb=new THREE.AmbientLight(0x1a2040,0.4); scene.add(amb);
-  const moonL=new THREE.DirectionalLight(0xc8d8f0,0.8);
+  const amb=new THREE.AmbientLight(0x1a2040,0.34); scene.add(amb);
+  const moonL=new THREE.DirectionalLight(0xc8d8f0,0.62);
   moonL.position.set(15,20,10); moonL.castShadow=true; moonL.shadow.mapSize.set(2048,2048); scene.add(moonL);
-  const moonGlowL=new THREE.PointLight(0xe8d8b0,1.5,60); moonGlowL.position.set(12,18,8); scene.add(moonGlowL);
-  const fill=new THREE.DirectionalLight(0x3040a0,0.3); fill.position.set(-10,5,-5); scene.add(fill);
+  const moonGlowL=new THREE.PointLight(0xe8d8b0,0.95,55); moonGlowL.position.set(12,18,8); scene.add(moonGlowL);
+  const fill=new THREE.DirectionalLight(0x3040a0,0.22); fill.position.set(-10,5,-5); scene.add(fill);
   const sky=new THREE.Mesh(new THREE.SphereGeometry(200,32,20), new THREE.ShaderMaterial({
     side:THREE.BackSide, depthWrite:false,
     uniforms:{uTop:{value:new THREE.Color(0x0a1628)},uBot:{value:new THREE.Color(0x1a2a4a)}},
@@ -660,13 +663,15 @@ function buildOwlWorld(){
     sliders:[
       {label:'🏃 سرعة شموسة',min:3,max:14,value:7,onInput:v=>charSpeed=v},
       {label:'🌫️ شدة الضباب',min:0,max:100,value:40,onInput:v=>scene.fog.density=v/100*0.03},
-      {label:'🌕 سطوع القمر',min:20,max:100,value:70,onInput:v=>{moonL.intensity=v/100*1.2;moonGlowL.intensity=v/100*2;}},
+      {label:'🌕 سطوع القمر',min:20,max:100,value:70,onInput:v=>{moonL.intensity=v/100*0.88;moonGlowL.intensity=v/100*1.35;}},
+      {label:'☀️ سطوع المشهد',min:45,max:140,value:100,onInput:v=>{exposureScale=v/100;applyExposure();}},
       {label:'🦉 حركة البوم',min:0,max:100,value:50,onInput:v=>anim=v/100}
     ],
     buttons:[
       {label:'🌙 تبديل الليل/الفجر',active:true,onClick(){ isNight=!isNight;
-        if(isNight){ scene.fog.color.setHex(0x0a1628); amb.color.setHex(0x1a2040); amb.intensity=0.4; moonL.color.setHex(0xc8d8f0); renderer.toneMappingExposure=1.15; }
-        else { scene.fog.color.setHex(0x2a3a5a); amb.color.setHex(0x4a5a7a); amb.intensity=0.7; moonL.color.setHex(0xf0d8b0); renderer.toneMappingExposure=1.7; }
+        if(isNight){ scene.fog.color.setHex(0x0a1628); amb.color.setHex(0x1a2040); amb.intensity=0.34; moonL.color.setHex(0xc8d8f0); baseExposure=0.95; }
+        else { scene.fog.color.setHex(0x2a3a5a); amb.color.setHex(0x4a5a7a); amb.intensity=0.52; moonL.color.setHex(0xf0d8b0); baseExposure=1.25; }
+        applyExposure();
         return isNight; }},
       {label:'✨ الجسيمات السحرية',active:true,onClick(){ partOn=!partOn; ff.visible=partOn; return partOn; }},
       {label:'📷 إعادة الكاميرا',onClick(){ camYaw=player.rotation.y+Math.PI; camDist=10; }}
@@ -681,12 +686,12 @@ function buildOwlWorld(){
 function buildCandyWorld(){
   scene.background=new THREE.Color(0x87ceeb);
   scene.fog=new THREE.FogExp2(0x87ceeb,0.008);
-  const amb=new THREE.AmbientLight(0xffffff,0.6); scene.add(amb);
-  const sun=new THREE.DirectionalLight(0xfff5e0,1.2);
+  const amb=new THREE.AmbientLight(0xffffff,0.36); scene.add(amb);
+  const sun=new THREE.DirectionalLight(0xfff5e0,0.92);
   sun.position.set(20,30,15); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
   sun.shadow.camera.left=-40; sun.shadow.camera.right=40; sun.shadow.camera.top=40; sun.shadow.camera.bottom=-40;
   scene.add(sun);
-  const fill=new THREE.DirectionalLight(0xffb6c1,0.4); fill.position.set(-15,10,-10); scene.add(fill);
+  const fill=new THREE.DirectionalLight(0xffb6c1,0.24); fill.position.set(-15,10,-10); scene.add(fill);
   const gGeo=new THREE.PlaneGeometry(120,120,60,60); const gp=gGeo.attributes.position;
   for(let i=0;i<gp.count;i++) gp.setZ(i, Math.sin(gp.getX(i)*0.05)*Math.cos(gp.getY(i)*0.05)*0.3);
   gGeo.computeVertexNormals();
@@ -758,12 +763,14 @@ function buildCandyWorld(){
       {label:'🏃 سرعة شموسة',min:3,max:14,value:7,onInput:v=>charSpeed=v},
       {label:'☁️ كثافة الغيوم',min:0,max:100,value:60,onInput:v=>candyClouds.forEach((c,i)=>c.visible=i<candyClouds.length*v/100)},
       {label:'🎈 حركة العناصر',min:0,max:100,value:50,onInput:v=>anim=v/100},
-      {label:'📷 بُعد الكاميرا',min:5,max:18,value:10,onInput:v=>camDist=v}
+      {label:'📷 بُعد الكاميرا',min:5,max:18,value:10,onInput:v=>camDist=v},
+      {label:'☀️ سطوع المشهد',min:45,max:140,value:100,onInput:v=>{exposureScale=v/100;applyExposure();}}
     ],
     buttons:[
       {label:'🌅 تبديل الوقت',active:true,onClick(){ isDay=!isDay;
-        if(isDay){ scene.background.setHex(0x87ceeb); scene.fog.color.setHex(0x87ceeb); amb.intensity=0.6; sun.intensity=1.2; renderer.toneMappingExposure=1.15; }
-        else { scene.background.setHex(0x1a1a3e); scene.fog.color.setHex(0x1a1a3e); amb.intensity=0.3; sun.intensity=0.4; renderer.toneMappingExposure=0.8; }
+        if(isDay){ scene.background.setHex(0x87ceeb); scene.fog.color.setHex(0x87ceeb); amb.intensity=0.36; sun.intensity=0.92; baseExposure=0.95; }
+        else { scene.background.setHex(0x1a1a3e); scene.fog.color.setHex(0x1a1a3e); amb.intensity=0.2; sun.intensity=0.32; baseExposure=0.7; }
+        applyExposure();
         return isDay; }},
       {label:'🍭 كرات الحلوى',active:true,onClick(){ ballsOn=!ballsOn; candyBalls.forEach(b=>b.visible=ballsOn); return ballsOn; }},
       {label:'📷 إعادة الكاميرا',onClick(){ camYaw=player.rotation.y+Math.PI; camDist=10; }}
@@ -783,13 +790,13 @@ function buildCupcakeWorld(){
     vertexShader:'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
     fragmentShader:'varying vec3 vP; uniform vec3 uTop; uniform vec3 uBot; void main(){ float h=clamp(normalize(vP).y*0.5+0.5,0.,1.); gl_FragColor=vec4(mix(uBot,uTop,pow(h,0.8)),1.0); }'}));
   scene.add(sky);
-  scene.add(new THREE.HemisphereLight(0xeafcff,0xffd9e8,0.95));
-  const sun=new THREE.DirectionalLight(0xfff2e0,1.5);
+  scene.add(new THREE.HemisphereLight(0xeafcff,0xffd9e8,0.58));
+  const sun=new THREE.DirectionalLight(0xfff2e0,1.05);
   sun.position.set(14,24,12); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
   sun.shadow.camera.left=-32; sun.shadow.camera.right=32; sun.shadow.camera.top=32; sun.shadow.camera.bottom=-32;
   sun.shadow.camera.near=2; sun.shadow.camera.far=80; sun.shadow.bias=-0.0004;
   scene.add(sun);
-  const rim=new THREE.DirectionalLight(0xbfe8ff,0.35); rim.position.set(-12,10,-8); scene.add(rim);
+  const rim=new THREE.DirectionalLight(0xbfe8ff,0.24); rim.position.set(-12,10,-8); scene.add(rim);
   const swayArr=[],cloudArr=[],heartArr=[];
   let eyeL=null,eyeR=null,cherryG=null;
   function addM(geo,mtrl,parent,x=0,y=0,z=0){ const m=new THREE.Mesh(geo,mtrl); m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; parent.add(m); return m; }
@@ -883,7 +890,8 @@ function buildCupcakeWorld(){
       {label:'🏃 سرعة شموسة',min:3,max:14,value:7,onInput:v=>charSpeed=v},
       {label:'🍬 كثافة مطر الحلوى',min:5,max:70,value:70,onInput:v=>{rainCount=v;applyRain();}},
       {label:'☁️ حركة الغيوم',min:0,max:100,value:50,onInput:v=>cloudScale=v/50},
-      {label:'🌸 تمايل الأشجار',min:0,max:100,value:50,onInput:v=>swayScale=v/50}
+      {label:'🌸 تمايل الأشجار',min:0,max:100,value:50,onInput:v=>swayScale=v/50},
+      {label:'☀️ سطوع المشهد',min:45,max:140,value:100,onInput:v=>{exposureScale=v/100;applyExposure();}}
     ],
     buttons:[
       {label:'🍬 مطر الحلوى',active:false,onClick(){ rainOn=!rainOn; applyRain(); return rainOn; }},
@@ -926,6 +934,7 @@ function backToMenu(){
   tr.classList.add('active');
   setTimeout(()=>{
     clearWorld();
+    baseExposure=0.95; exposureScale=1.0; applyExposure();
     currentWorld=null; player=null; charRefs=null;
     markerPool=[]; beacon=null;
     scene.background=new THREE.Color(0x0a0a2e);

@@ -31,6 +31,22 @@ canvas{display:block}
 <div class="control-group"><label>الرياح</label><input type="range" class="slider" id="windSlider" min="0" max="100" value="20"></div>
 <div class="control-group"><label>الرطوبة (ضباب)</label><input type="range" class="slider" id="fogSlider" min="0" max="100" value="15"></div>
 </div>
+<script>
+/* جسر مملكة الأمنيات — يُبلّغ اللعبة الأمّ بما يحدث هنا ولا يغيّر شيئاً في العالم */
+window.WK={on:false,boss:false,send:function(){}};
+(function(){
+ try{
+  var q=new URLSearchParams(location.search);
+  window.WK.boss = q.get('boss')==='1';
+  window.WK.on   = q.get('wk')==='1' && window.parent!==window;
+  if(!window.WK.on) return;
+  window.WK.send=function(type,data){
+   try{ var o={wk:1,type:type}; if(data){ for(var k in data) o[k]=data[k]; }
+        parent.postMessage(o,'*'); }catch(e){}
+  };
+ }catch(e){}
+})();
+</script>
 <script src="vendor/three-r128/three.min.js"></script>
 <script src="vendor/three-r128/examples/js/controls/OrbitControls.js"></script>
 <script>
@@ -1878,6 +1894,7 @@ init();
     <button id="gPauseGo" class="gBtnMain">أكمل</button>
     <button id="gPauseTut" class="gBtnAlt">❔ التعليمات</button>
     <button id="gPauseOut" class="gBtnAlt">🛰 عُد للجولة</button>
+    <button id="gPauseMap" class="gBtnAlt" style="display:none">🗺️ خريطة المملكة</button>
   </div>
 </div></div>
 
@@ -2849,7 +2866,7 @@ document.getElementById('gEndBtn').addEventListener('click',()=>{
  for(const ch of CHARS){ch.done=false;ch.qi=0;ch.markMat.opacity=1;}
  done=0;elStars.textContent='⭐ 0 من '+CHARS.length;
  for(const s of shards){s.got=false;s.m.visible=true;s.halo.visible=true;}
- W.shards=0;W.hearts=W.maxHearts;W.bossHP=100;W.bossPhase=1;
+ W.shards=0;W.peak=0;W.hearts=W.maxHearts;W.bossHP=100;W.bossPhase=1;
  clearWishStates();hudRefresh();save();
  document.getElementById('gEnd').style.display='none';
  refreshTask();lockPointer();
@@ -2974,7 +2991,7 @@ function step(dt){
 const SAVE_KEY='unitedWorld_v1';
 const W={
  started:false,paused:false,dead:false,wishOpen:false,
- shards:0,total:12,hearts:5,maxHearts:5,
+ shards:0,peak:0,total:12,hearts:5,maxHearts:5,
  eye:1,spdMul:1,fly:0,bounce:0,fast:0,big:0,small:0,storm:0,
  invert:false,invT:0,hurtCd:0,
  cp:{x:-46,z:94},
@@ -3124,7 +3141,8 @@ function takeShard(s){
  gainShard();
 }
 function gainShard(){
- W.shards++;SFX2.shard();
+ W.shards++;if(W.shards>W.peak)W.peak=W.shards;SFX2.shard();
+ if(WK.on)WK.send('shard',{id:'u'+W.shards});
  hudRefresh();
  save();
  if(W.shards>=W.total&&!W.portal)openPortal();
@@ -3153,7 +3171,7 @@ const WISHES=[
   side:['l','نسي فلفل أن يعلّمك الهبوط. تصرّف.']},
 ];
 const elWish=document.getElementById('gWish'),elWishGrid=document.getElementById('gWishGrid');
-function wishUnlocked(w){return W.shards>=w.need;}
+function wishUnlocked(w){return W.peak>=w.need;}
 function drawWishes(){
  elWishGrid.innerHTML='';
  WISHES.forEach((w,i)=>{
@@ -3434,6 +3452,7 @@ function updateFoes(dt,live){
 function hurt(n){
  if(W.hurtCd>0||W.dead)return;
  W.hearts-=n;W.hurtCd=1.5;SFX2.hurt();flash();
+ if(WK.on)WK.send('hearts',{n:W.hearts});
  hudRefresh();
  if(W.hearts<=0){W.hearts=0;die();}
  else if(W.hearts===1)say('l','قلبٌ واحد. حاول ألّا تعانق الفوضويّين.');
@@ -3446,6 +3465,7 @@ function die(){
 }
 function revive(){
  W.dead=false;W.hearts=3;W.hurtCd=2;
+ if(WK.on)WK.send('hearts',{n:W.hearts});
  clearWishStates();
  FP.x=W.cp.x;FP.z=W.cp.z;FP.y=surfaceY(FP.x,FP.z)+EYE;FP.vy=0;
  if(W.bossOn){W.bossOn=false;document.getElementById('gBoss').style.display='none';}
@@ -3516,8 +3536,9 @@ function startBoss(){
  pickWeak();
 }
 function pickWeak(){
- const pool=WISHES.filter(w=>wishUnlocked(w)).map(w=>w.k);
- bossWeak=pool[Math.floor(Math.random()*pool.length)]||'jump';
+ let pool=WISHES.filter(w=>wishUnlocked(w)).map(w=>w.k);
+ if(!pool.length)pool=['jump'];
+ bossWeak=pool[Math.floor(Math.random()*pool.length)];
 }
 function bossHud(){
  document.getElementById('gBossFill').style.width=Math.max(0,W.bossHP)+'%';
@@ -3534,7 +3555,11 @@ function bossTakeWish(k){
  const d=Math.hypot(FP.x-bossGrp.position.x,FP.z-bossGrp.position.z);
  if(d>110){say('l','بعيدٌ جدّاً. اقترب من رأس الرصيف.');return;}
  let dmg=7;
- if(W.bossPhase===4)dmg=(k===bossWeak)?14:0;
+ if(W.bossPhase===4){
+  const weakOk=WISHES.some(x=>x.k===bossWeak&&wishUnlocked(x));
+  if(!weakOk)bossWeak=k;   /* رحمةً: إن كانت أمنيته مقفلةً عندك فأيّ أمنيةٍ تؤذيه */
+  dmg=(k===bossWeak)?14:0;
+ }
  if(dmg<=0){say('f','لا لا! ليست هذه! انظر إلى التاج — هو يخبرك أيّ أمنية!');return;}
  W.bossHP-=dmg;SFX2.bossHit();
  const old=W.bossPhase;
@@ -3606,12 +3631,13 @@ function winGame(){
   'فلفل يقول إنّه كان يعرف أنّك ستنجح، ولوزة تقول إنّه كان يبكي قبل قليل.';
  document.getElementById('gEnd').style.display='flex';
  save();
+ if(WK.on)WK.send('win',{});
 }
 
 /* ---- الحفظ ---- */
 function save(){
  try{localStorage.setItem(SAVE_KEY,JSON.stringify({
-  s:W.shards,h:W.hearts,c:CHARS.map(c=>c.done?1:0),
+  s:W.shards,p:W.peak,h:W.hearts,c:CHARS.map(c=>c.done?1:0),
   g:shards.map(x=>x.got?1:0)
  }));}catch(e){}
 }
@@ -3619,7 +3645,7 @@ function load(){
  try{
   const d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');
   if(!d)return;
-  W.shards=d.s|0;W.hearts=Math.max(1,Math.min(W.maxHearts,d.h|0||W.maxHearts));
+  W.shards=d.s|0;W.peak=Math.max(W.shards,d.p|0);W.hearts=Math.max(1,Math.min(W.maxHearts,d.h|0||W.maxHearts));
   if(d.c)CHARS.forEach((c,i)=>{if(d.c[i]){c.done=true;done++;c.markMat.opacity=0;}});
   if(d.g)shards.forEach((s,i)=>{if(d.g[i]){s.got=true;s.m.visible=false;s.halo.visible=false;}});
   elStars.textContent='⭐ '+done+' من '+CHARS.length;
@@ -3642,6 +3668,14 @@ function beginGame(){
  elStory.style.display='none';W.started=true;
  if(!isTouch)elHint.style.display='block';
  hudRefresh();lockPointer();
+ if(WK.boss){
+  FP.x=PIER_X;FP.z=PIER_Z1-18;FP.yaw=Math.PI;FP.pitch=0.12;
+  FP.y=surfaceY(FP.x,FP.z)+EYE*W.eye;FP.vy=0;
+  W.shards=Math.max(W.shards,8);W.peak=Math.max(W.peak,7);
+  say('l','ها هو قلب الأمنيات. لا تتراجع الآن — أنا خلفك تماماً. بعيدةً جدّاً خلفك.',6);
+  setTimeout(()=>startBoss(),1100);
+  return;
+ }
  say('f','هيّا! أرى لمعاناً هناك… وهناك… وهناك أيضاً. كلّها لمعان!',5);
  setTimeout(()=>say('l','ابدأ بالأصدقاء الخمسة. البوصلة في الأعلى تدلّك.',5),5400);
 }
@@ -3664,6 +3698,11 @@ document.getElementById('gTutGo').addEventListener('click',()=>{
 document.getElementById('gPauseGo').addEventListener('click',resumeGame);
 document.getElementById('gPauseTut').addEventListener('click',()=>{elPause.style.display='none';showTut();});
 document.getElementById('gPauseOut').addEventListener('click',()=>{resumeGame();exitFP();});
+if(WK.on){
+ const bm=document.getElementById('gPauseMap');
+ bm.style.display='';
+ bm.addEventListener('click',()=>{save();WK.send('exit',{});});
+}
 document.getElementById('gDeadGo').addEventListener('click',revive);
 document.getElementById('gVol').addEventListener('input',e=>{if(MG)MG.gain.value=muted?0:(e.target.value/100);});
 document.getElementById('gSens').addEventListener('input',e=>{W.sens=e.target.value/100;});

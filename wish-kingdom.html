@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>✨ مملكة الأمنيات العجيبة</title>
+<link rel="icon" type="image/png" href="public/favicon.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#0d1020;font-family:'Segoe UI',system-ui,sans-serif;color:#f6f1e4}
+#stage{position:fixed;inset:0}
+#frame{position:absolute;inset:0;width:100%;height:100%;border:0;display:none;background:#0d1020}
+
+/* ===== شريط اللعبة الدائم ===== */
+#bar{position:fixed;top:0;left:0;right:0;z-index:30;display:none;
+  padding:9px 14px;gap:10px;align-items:center;flex-wrap:wrap;
+  background:linear-gradient(180deg,rgba(10,12,24,.86),rgba(10,12,24,0));pointer-events:none}
+#bar>*{pointer-events:auto}
+.pill{background:rgba(16,20,36,.82);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;padding:7px 15px;font-size:13.5px;white-space:nowrap}
+.pill b{color:#ffd76a}
+.bBtn{background:rgba(16,20,36,.82);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.22);
+  color:#f6f1e4;border-radius:999px;padding:7px 15px;font-size:13px;cursor:pointer;font-family:inherit}
+.bBtn:hover{background:rgba(40,46,74,.9);border-color:#ffd76a}
+#barSpacer{flex:1}
+
+/* ===== الشاشات ===== */
+.screen{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;padding:22px;
+  overflow-y:auto;background:radial-gradient(ellipse at 50% 30%,#1d2348 0%,#0d1020 62%,#06070f 100%)}
+.screen.on{display:flex}
+.box{max-width:900px;width:100%;text-align:center}
+h1{font-size:clamp(24px,5.2vw,44px);margin-bottom:8px;
+  text-shadow:0 0 34px rgba(255,200,110,.45),0 0 70px rgba(150,110,255,.3)}
+.sub{font-size:14px;opacity:.72;margin-bottom:18px}
+.story{max-width:620px;margin:0 auto 20px;font-size:14.5px;line-height:2;opacity:.92;text-align:right}
+.story b{color:#ffd76a}
+.who{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:16px 0 22px}
+.whoCard{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:16px;
+  padding:12px 16px;max-width:250px;text-align:right;font-size:12.5px;line-height:1.85}
+.whoCard b{display:block;font-size:15px;color:#ffd76a;margin-bottom:3px}
+.row{display:flex;gap:11px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+.go{background:linear-gradient(135deg,#e0863a,#d9633a);color:#fff;border:0;border-radius:999px;
+  padding:13px 30px;font-size:16px;cursor:pointer;font-family:inherit;box-shadow:0 8px 26px rgba(200,90,40,.4)}
+.go:hover{filter:brightness(1.1)}
+.alt{background:rgba(255,255,255,.09);color:#f6f1e4;border:1px solid rgba(255,255,255,.24);
+  border-radius:999px;padding:13px 24px;font-size:14px;cursor:pointer;font-family:inherit}
+.alt:hover{background:rgba(255,255,255,.17)}
+
+/* ===== خريطة المناطق ===== */
+.regions{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-top:8px}
+.rg{position:relative;text-align:right;border-radius:20px;padding:18px 17px 16px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.18);transition:transform .22s,box-shadow .22s,border-color .22s;
+  min-height:186px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;color:#fff}
+.rg:hover{transform:translateY(-5px);border-color:rgba(255,255,255,.5)}
+.rg .em{position:absolute;top:15px;right:18px;font-size:40px;filter:drop-shadow(0 5px 10px rgba(0,0,0,.4))}
+.rg .nm{font-size:16.5px;font-weight:700;margin-bottom:4px;text-shadow:0 2px 8px rgba(0,0,0,.5)}
+.rg .ds{font-size:11.5px;opacity:.9;line-height:1.75}
+.rg .cnt{margin-top:9px;display:inline-block;background:rgba(0,0,0,.42);border:1px solid rgba(255,215,106,.55);
+  color:#ffd76a;border-radius:999px;padding:3px 12px;font-size:11.5px;font-weight:700}
+.rg.locked{opacity:.62;cursor:not-allowed}
+.rg.locked:hover{transform:none}
+.rg .lock{position:absolute;top:14px;left:14px;background:rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.32);
+  border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;white-space:nowrap}
+.r1{background:linear-gradient(165deg,#2a5f6e 0%,#1d4450 55%,#123039 100%)}
+.r2{background:linear-gradient(165deg,#3aa08c 0%,#2b7f74 55%,#1a5450 100%)}
+.r3{background:linear-gradient(165deg,#5d86ad 0%,#3f6488 55%,#26405c 100%)}
+.r4{background:linear-gradient(165deg,#7a4fb0 0%,#4d2f7d 55%,#2a1a4a 100%)}
+.r5{background:linear-gradient(165deg,#b04a3a 0%,#7a2f28 55%,#3d1614 100%)}
+.hintline{font-size:12.5px;opacity:.62;margin-top:18px;line-height:1.9}
+
+.wishes{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px;margin-top:12px;text-align:right}
+.wsh{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:13px;padding:10px 12px;font-size:12.5px}
+.wsh.off{opacity:.34}
+.wsh .i{font-size:19px;display:block;margin-bottom:3px}
+.wsh .c{display:block;font-size:10.5px;color:#ffd76a;margin-top:4px}
+#toast{position:fixed;top:64px;left:50%;transform:translate(-50%,-14px);z-index:60;opacity:0;pointer-events:none;
+  background:linear-gradient(135deg,#ffd76a,#e0a63a);color:#3a2a10;font-weight:700;font-size:15px;
+  padding:11px 26px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.4);transition:all .45s cubic-bezier(.2,.9,.3,1.3)}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+@media(max-width:620px){.story{font-size:13.5px}.pill{font-size:12px;padding:6px 12px}.bBtn{font-size:12px;padding:6px 12px}}
+</style>
+</head>
+<body>
+
+<div id="stage"><iframe id="frame" allow="pointer-lock; fullscreen; autoplay; gamepad"></iframe></div>
+
+<div id="bar">
+  <button class="bBtn" id="btnMap">🗺️ الخريطة</button>
+  <div class="pill" id="pHearts">❤️❤️❤️❤️❤️</div>
+  <div class="pill">💎 <b id="pShards">0</b> / <span id="pTotal">28</span></div>
+  <div class="pill" id="pRegion"></div>
+  <div id="barSpacer"></div>
+  <button class="bBtn" id="btnWish">✨ الأمنيات</button>
+</div>
+
+<!-- شاشة القصّة -->
+<div class="screen on" id="scStory"><div class="box">
+  <h1>✨ مملكة الأمنيات العجيبة</h1>
+  <div class="sub">مغامرة كوميديّة ثلاثيّة الأبعاد — بمنظور اللاعب، بلا شخصيّة ظاهرة</div>
+  <div class="story">
+    كنتَ تمشي على ساحل العالم الموحّد حين انفتح في الهواء شقٌّ صغير لامع… ومنه سقط كائنان سحريّان فوق رأسك.<br><br>
+    يقولان إنّ <b>ملك الفوضى</b> حطّم <b>قلب الأمنيات</b>، وتناثرت <b>بلّوراته</b> في خمس مناطق.
+    من يجمعها ينال قوّة الأمنيات… لكنّ كلّ أمنيةٍ هنا لها نتيجةٌ غير متوقّعة.
+  </div>
+  <div class="who">
+    <div class="whoCard"><b>فلفل</b>مخلوقٌ متحمّس، سريع الكلام، متهوّر. يعِدك بأشياء لا يستطيعها.</div>
+    <div class="whoCard"><b>لوزة</b>ذكيّة، ساخرة، تُصلح أخطاء فلفل — وتذكّرك أين اللمعان.</div>
+    <div class="whoCard"><b>ملك الفوضى</b>يغيّر قوانين العالم كلّما اقتربتَ منه. أربعة أطوار.</div>
+  </div>
+  <div class="row">
+    <button class="go" id="goStart">🚪 ادخل المملكة</button>
+    <button class="alt" id="goHow">❔ كيف ألعب؟</button>
+    <button class="alt" id="goReset">↺ ابدأ من جديد</button>
+  </div>
+</div></div>
+
+<!-- شاشة التعليمات -->
+<div class="screen" id="scHow"><div class="box">
+  <h1>❔ كيف ألعب</h1>
+  <div class="story">
+    <b>الخريطة</b> تفتح المناطق الخمس. كلّ منطقة تُعطيك <b>بلّورات أمنيات</b> بطريقتها:<br>
+    🌊 <b>العالم الموحّد</b> — أجِب أسئلة يارا وشموسة وطه وأوس وآدم، والتقط البلّورات المخبّأة.<br>
+    🥤 <b>جزيرة الأكواب</b> — انقر على السكّان لتجمع كلماتهم الإنجليزيّة.<br>
+    🏝️ <b>أرخبيل الواحات</b> — ادخل البيوت واكتشف ما فيها.<br>
+    ☀️ <b>عوالم شموسة</b> — حُلّ الألغاز المرتّبة في كلّ عالم.<br>
+    🔥 <b>قلب الأمنيات</b> — تُفتَح عند جمع ما يكفي، وفيها ملك الفوضى.<br><br>
+    شريط اللعبة في الأعلى يبقى معك في كلّ منطقة: قلوبك، بلّوراتك، وزرّ الأمنيات.<br>
+    تقدّمك <b>يُحفَظ تلقائيّاً</b> ولو أغلقتَ الصفحة.
+  </div>
+  <div class="row"><button class="go" id="howBack">فهمت</button></div>
+</div></div>
+
+<!-- خريطة المناطق -->
+<div class="screen" id="scMap"><div class="box">
+  <h1>🗺️ مناطق المملكة</h1>
+  <div class="sub" id="mapSub"></div>
+  <div class="regions" id="regionGrid"></div>
+  <div class="hintline" id="mapHint"></div>
+</div></div>
+
+<!-- عجلة الأمنيات -->
+<div class="screen" id="scWish"><div class="box" style="max-width:660px">
+  <h1>✨ عجلة الأمنيات</h1>
+  <div class="sub">كلّ أمنيةٍ تُفتَح ببلّورات — وكلّ واحدة لها مقلبها</div>
+  <div class="wishes" id="wishGrid"></div>
+  <div class="row"><button class="go" id="wishBack">أغلق</button></div>
+</div></div>
+
+<!-- شاشة الانتصار -->
+<div class="screen" id="scWin"><div class="box">
+  <h1>🏆 عاد قلب الأمنيات</h1>
+  <div class="story" id="winTxt"></div>
+  <div class="row">
+    <button class="go" id="winMap">🗺️ تابع الاستكشاف</button>
+    <button class="alt" id="winReset">↺ مغامرة جديدة</button>
+  </div>
+</div></div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   مملكة الأمنيات العجيبة — اللعبة الواحدة.
+   المناطق مشاهد داخلها، لا ألعاب منفصلة. الحالة واحدة ومحفوظة،
+   والعوالم نفسها لم يُغيَّر فيها شيء — تُبلّغ اللعبة بما يحدث فقط.
+   ============================================================ */
+const SAVE='wishKingdom_v1';
+
+const REGIONS=[
+ {k:'united', cls:'r1', em:'🌊', file:'united-world.html',
+  nm:'العالم الموحّد', ds:'البحر والهضبتان: ميناء وقطار وسكك، وخمسة أصدقاء لكلٍّ أسئلته.',
+  cap:12, need:0},
+ {k:'cups',   cls:'r2', em:'🥤', file:'cup-island.html',
+  nm:'جزيرة النغمات الكبرى', ds:'تسعة بيوت-أكواب مفروشة، وسكّانها يحملون كلماتٍ إنجليزيّة.',
+  cap:6, need:2, per:7},
+ {k:'isles',  cls:'r3', em:'🏝️', file:'alice-palm-isles.html',
+  nm:'أرخبيل الواحات العائمة', ds:'ثمانٍ وعشرون جزيرةً موصولةً بجسورٍ حيّة، وبيوتها تُدخَل.',
+  cap:5, need:5, per:1},
+ {k:'dreams', cls:'r4', em:'☀️', file:'shamousa-dream-worlds.html',
+  nm:'عوالم شموسة الثلاثة', ds:'البوم السحري وعالم الحلوى ووادي الكب كيك — ألغازٌ مرتّبة.',
+  cap:5, need:9, per:6},
+ {k:'heart',  cls:'r5', em:'🔥', file:'united-world.html?boss=1',
+  nm:'قلب الأمنيات', ds:'حيث ينتظر ملك الفوضى بأربعة أطوار. لا تدخلها إلّا مستعدّاً.',
+  cap:0, need:20, boss:true}
+];
+const TOTAL=REGIONS.reduce((a,r)=>a+r.cap,0);
+
+const WISHES=[
+ {i:'⤒', n:'قفزةٌ عالية',  e:'HIGH JUMP',       need:0,  s:'وستظلّ ترتدّ كالكرة.'},
+ {i:'🌙', n:'ليلٌ الآن',    e:'MAKE IT NIGHT',   need:1,  s:'وأنا أخاف الظلام. شكراً.'},
+ {i:'💨', n:'سرعةُ البرق',  e:'LIGHTNING SPEED', need:2,  s:'الانعطاف مشكلتك أنت.'},
+ {i:'🐜', n:'أن أصغُر',     e:'GO TINY',         need:3,  s:'صرتَ بحجم حبّة تمر سعيدة.'},
+ {i:'🌫️', n:'ريحٌ وضباب',  e:'WIND & FOG',      need:4,  s:'الآن لا أرى أنفي.'},
+ {i:'🗿', n:'أن أكبُر',     e:'GO GIANT',        need:5,  s:'انتبه لرأسك… لا سقف، لا بأس.'},
+ {i:'🚗', n:'سيّارة!',      e:'A CAR!',          need:6,  s:'لم تحدّد الحجم. ليس خطئي.'},
+ {i:'🪽', n:'أن أطير',      e:'FLY',             need:7,  s:'نسيتُ أن أعلّمك الهبوط.'}
+];
+
+let S=load();
+function blank(){ return {started:false, hearts:5, bossDone:false, r:{united:0,cups:0,isles:0,dreams:0,heart:0}, marks:{}}; }
+function load(){ try{ const d=JSON.parse(localStorage.getItem(SAVE)); if(d&&d.r) return Object.assign(blank(),d); }catch(e){} return blank(); }
+function save(){ try{ localStorage.setItem(SAVE,JSON.stringify(S)); }catch(e){} }
+function totalShards(){ let n=0; for(const k in S.r) n+=S.r[k]|0; return n; }
+
+const AR=n=>String(n).replace(/[0-9]/g,d=>'٠١٢٣٤٥٦٧٨٩'[d]);
+const $=id=>document.getElementById(id);
+const screens=['scStory','scHow','scMap','scWish','scWin'];
+function show(id){ screens.forEach(s=>$(s).classList.toggle('on', s===id)); }
+function hideAll(){ screens.forEach(s=>$(s).classList.remove('on')); }
+let toastT=null;
+function toast(m){ const e=$('toast'); e.textContent=m; e.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>e.classList.remove('on'),3400); }
+
+/* ---- الشريط ---- */
+function refreshBar(){
+ let h=''; for(let i=0;i<5;i++) h+= i<S.hearts?'❤️':'🤍';
+ $('pHearts').textContent=h;
+ $('pShards').textContent=AR(totalShards());
+ $('pTotal').textContent=AR(TOTAL);
+}
+$('pTotal').textContent=AR(TOTAL);
+
+/* ---- الخريطة ---- */
+function drawMap(){
+ const t=totalShards();
+ $('mapSub').textContent = S.bossDone
+   ? 'أعدتَ قلب الأمنيات — تجوّل في المناطق كما تحبّ.'
+   : 'اجمع بلّورات الأمنيات من المناطق، ثمّ ادخل قلب الأمنيات.';
+ const grid=$('regionGrid'); grid.innerHTML='';
+ REGIONS.forEach(r=>{
+  const open = t>=r.need;
+  const d=document.createElement('div');
+  d.className='rg '+r.cls+(open?'':' locked');
+  const got=S.r[r.k]|0;
+  const cnt = r.boss ? (S.bossDone?'✔ انتهت المعركة':'⚔️ المعركة الأخيرة')
+                     : ('💎 '+AR(got)+' من '+AR(r.cap));
+  d.innerHTML='<span class="em">'+r.em+'</span>'+
+    '<div class="nm">'+r.nm+'</div><div class="ds">'+r.ds+'</div>'+
+    '<span class="cnt">'+cnt+'</span>'+
+    (open?'':'<div class="lock">🔒 يلزم '+AR(r.need)+' 💎</div>');
+  if(open) d.addEventListener('click',()=>enter(r));
+  grid.appendChild(d);
+ });
+ const nxt=REGIONS.find(r=>t<r.need);
+ $('mapHint').textContent = nxt
+   ? ('التالي: «'+nxt.nm+'» تُفتَح عند '+AR(nxt.need)+' بلّورة — معك '+AR(t)+'.')
+   : 'كلّ المناطق مفتوحة.';
+}
+
+/* ---- الأمنيات ---- */
+function drawWishes(){
+ const t=totalShards(), g=$('wishGrid'); g.innerHTML='';
+ WISHES.forEach(w=>{
+  const ok=t>=w.need;
+  const d=document.createElement('div');
+  d.className='wsh'+(ok?'':' off');
+  d.innerHTML='<span class="i">'+w.i+'</span><b>'+w.n+'</b><br><span style="opacity:.5;font-size:10.5px;direction:ltr;display:block;text-align:right">'+w.e+'</span>'+
+   '<span class="c">'+(ok?('«'+w.s+'»'):('تُفتَح عند '+AR(w.need)+' 💎'))+'</span>';
+  g.appendChild(d);
+ });
+}
+
+/* ---- الدخول إلى منطقة ---- */
+let cur=null;
+function enter(r){
+ cur=r;
+ hideAll();
+ $('bar').style.display='flex';
+ $('pRegion').textContent=r.em+' '+r.nm;
+ const f=$('frame');
+ f.style.display='block';
+ f.src=r.file+(r.file.indexOf('?')>=0?'&':'?')+'wk=1';
+ refreshBar();
+}
+function toMap(){
+ const f=$('frame'); f.style.display='none'; f.src='about:blank';
+ cur=null;
+ $('bar').style.display='none';
+ drawMap(); show('scMap');
+}
+
+/* ---- رسائل المناطق ---- */
+addEventListener('message',e=>{
+ const d=e.data;
+ if(!d||d.wk!==1||!cur) return;
+ if(d.type==='shard'){
+  const key=cur.k, was=S.r[key]|0;
+  /* البلّورة الواحدة لا تُحسب مرّتين */
+  if(d.id!=null){ const mk=key+':'+d.id; if(S.marks[mk]) return; S.marks[mk]=1; }
+  if(was>=cur.cap) return;
+  S.r[key]=was+1; save(); refreshBar();
+  const t=totalShards();
+  toast('💎 بلّورة أمنيات — صار معك '+AR(t)+' من '+AR(TOTAL));
+  const just=REGIONS.find(r=>r.need===t);
+  if(just) toast('🔓 فُتحت منطقة: '+just.nm);
+  const w=WISHES.filter(x=>x.need===t)[0];
+  if(w) toast('✨ أمنية جديدة: '+w.n);
+ }
+ else if(d.type==='hearts'){
+  S.hearts=Math.max(0,Math.min(5,d.n|0)); save(); refreshBar();
+ }
+ else if(d.type==='exit'){
+  toMap();
+ }
+ else if(d.type==='win'){
+  S.bossDone=true; save(); win();
+ }
+});
+
+function win(){
+ const f=$('frame'); f.style.display='none'; f.src='about:blank'; cur=null;
+ $('bar').style.display='none';
+ $('winTxt').innerHTML='جمعتَ <b>'+AR(totalShards())+'</b> بلّورة عبر مناطق المملكة، وهزمتَ <b>ملك الفوضى</b> في أطواره الأربعة، '+
+  'وأعدتَ قلب الأمنيات إلى مكانه.<br><br>فلفل يقول إنّه كان يعرف أنّك ستنجح — ولوزة تقول إنّه كان يبكي قبل قليل.';
+ show('scWin');
+}
+
+/* ---- الأزرار ---- */
+$('goStart').onclick=()=>{ S.started=true; save(); drawMap(); show('scMap'); };
+$('goHow').onclick=()=>show('scHow');
+$('howBack').onclick=()=>{ if(S.started){drawMap();show('scMap');} else show('scStory'); };
+$('goReset').onclick=()=>{
+ if(!confirm('تُمحى كلّ البلّورات والتقدّم. متأكّد؟')) return;
+ S=blank(); save(); refreshBar(); toast('↺ بدأت المغامرة من جديد'); show('scStory');
+};
+$('btnMap').onclick=toMap;
+$('btnWish').onclick=()=>{ drawWishes(); show('scWish'); };
+$('wishBack').onclick=()=>{ if(cur){ hideAll(); } else { drawMap(); show('scMap'); } };
+$('winMap').onclick=()=>{ drawMap(); show('scMap'); };
+$('winReset').onclick=()=>{ S=blank(); save(); refreshBar(); show('scStory'); };
+addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('scWish').classList.contains('on')) $('wishBack').click(); });
+
+refreshBar();
+if(S.started){ drawMap(); show('scMap'); }
+</script>
+</body>
+</html>

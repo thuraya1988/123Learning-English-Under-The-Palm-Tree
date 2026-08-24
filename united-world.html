@@ -1893,6 +1893,15 @@ init();
   <div class="gRow"><button id="gDeadGo" class="gBtnMain">انهض وأكمل</button></div>
 </div></div>
 
+<div id="gGate" dir="rtl"><div class="gPanel">
+  <h2 id="gGateName">🌀 بوّابة</h2>
+  <p id="gGateDesc"></p>
+  <div class="gRow">
+    <button id="gGateGo" class="gBtnMain">🌀 ادخل هذا العالم</button>
+    <button id="gGateStay" class="gBtnAlt">ابقَ هنا</button>
+  </div>
+</div></div>
+
 <div id="gChat" dir="rtl"><span id="gChatWho"></span><span id="gChatTxt"></span></div>
 
 <div id="gBoss" dir="rtl">
@@ -1934,7 +1943,7 @@ init();
 #gEndBtn{background:#d97b36;color:#fff;border:0;border-radius:999px;padding:11px 26px;font-size:14px;cursor:pointer;font-family:inherit}
 @media(max-width:820px){#gHint{display:none!important}#gTalkQ{font-size:17px}}
 /* ---- مملكة الأمنيات: قوائم وواجهات ---- */
-#gStory,#gTut,#gPause,#gWish,#gDead{position:fixed;inset:0;z-index:22;display:none;align-items:center;justify-content:center;background:rgba(10,12,8,.74);backdrop-filter:blur(7px);font-family:'Segoe UI',system-ui,sans-serif;padding:20px}
+#gStory,#gTut,#gPause,#gWish,#gDead,#gGate{position:fixed;inset:0;z-index:22;display:none;align-items:center;justify-content:center;background:rgba(10,12,8,.74);backdrop-filter:blur(7px);font-family:'Segoe UI',system-ui,sans-serif;padding:20px}
 .gPanel{background:rgba(28,30,20,.96);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:28px 32px;color:#f7f2e2;max-width:470px;width:100%;max-height:88vh;overflow:auto}
 .gPanel.gWide{max-width:640px}
 .gPanel h2{font-size:22px;margin-bottom:14px;color:#e8b84b}
@@ -2689,6 +2698,7 @@ unlockPointer();
 elEnter.addEventListener('click',enterFP);
 addEventListener('keydown',e=>{
  if(e.code==='Escape'){
+  if(gateNear){leaveGate();return;}
   if(W.wishOpen){closeWishes();return;}
   if(FP.on&&W.started&&!W.dead){if(W.paused)resumeGame();else pauseGame();return;}
   exitFP();return;
@@ -2870,9 +2880,10 @@ function step(dt){
  if(windG)windG.gain.value=0.012+windStrength*0.03;
  gullT-=dt;
  if(gullT<=0){gullT=7+Math.random()*11;if(FP.on&&FP.z>40)SFX.gull();}
- const live=FP.on&&W.started&&!W.paused&&!W.dead&&!W.wishOpen&&!talk.open;
+ const live=FP.on&&W.started&&!W.paused&&!W.dead&&!W.wishOpen&&!talk.open&&!gateNear;
  wonderStep(dt,live);
  if(!FP.on)return;
+ if(gateNear)updateGates(dt,false);
  if(!live){
   camera.position.set(FP.x,FP.y,FP.z);
   camera.rotation.order='YXZ';
@@ -3524,12 +3535,83 @@ document.getElementById('gDeadGo').addEventListener('click',revive);
 document.getElementById('gVol').addEventListener('input',e=>{if(MG)MG.gain.value=muted?0:(e.target.value/100);});
 document.getElementById('gSens').addEventListener('input',e=>{W.sens=e.target.value/100;});
 
+/* ---- بوّابات العوالم الثلاثة على شاطئ العالم الموحّد ---- */
+const GATES=[
+ {ar:'جزيرة النغمات الكبرى', en:'CUP ISLAND', href:'cup-island.html', x:-72, z:95, col:0xe8b84b,
+  desc:'جزيرةٌ عائمة فيها تسعة بيوت-أكواب عملاقة مفروشة من الداخل، وسكّانها يحملون كلماتٍ إنجليزيّة تُجمَع بالنقر — وستّة أحياءٍ للأباريق حولها.'},
+ {ar:'أرخبيل الواحات العائمة', en:'FLOATING OASES', href:'alice-palm-isles.html', x:-38, z:95, col:0x6fd3dd,
+  desc:'ثمانٍ وعشرون جزيرةً عائمة موصولةً بجسورٍ حيّة، بيوتها تُفتَح وتُدخَل، وشلّالاتها تنبع من حافّات الصخر إلى بحر الغيوم.'},
+ {ar:'عوالم شموسة الثلاثة', en:'SHAMOUSA WORLDS', href:'shamousa-dream-worlds.html', x:42, z:95, col:0xf4708a,
+  desc:'عالم البوم السحري، وعالم الحلوى، ووادي الكب كيك — تتحكّم بشموسة وتحلّ في كلّ عالمٍ ستّين لغزاً مرتّبة.'}
+];
+let gateNear=null;
+const elGate=document.getElementById('gGate');
+function makeGateSign(ar,en){
+ const c=document.createElement('canvas');c.width=512;c.height=200;
+ const g=c.getContext('2d');
+ g.fillStyle='#e6d6b0';g.fillRect(0,0,512,200);
+ g.strokeStyle='#7a5230';g.lineWidth=10;g.strokeRect(9,9,494,182);
+ g.textAlign='center';g.fillStyle='#4a3520';
+ g.font='bold 52px "Segoe UI",sans-serif';g.fillText(ar,256,88);
+ g.fillStyle='#8a5a2a';g.font='bold 34px "Segoe UI",sans-serif';g.fillText(en,256,146);
+ return new THREE.CanvasTexture(c);
+}
+function buildGates(){
+ for(const G of GATES){
+  const y=surfaceY(G.x,G.z);
+  const grp=new THREE.Group();grp.position.set(G.x,y,G.z);scene.add(grp);
+  const pil=mergedBoxes([[0.9,6.2,0.9,-2.6,3.1,0],[0.9,6.2,0.9,2.6,3.1,0],[6.6,0.9,0.9,0,6.6,0]]);
+  grp.add(new THREE.Mesh(pil,MAT.wood));
+  const veil=new THREE.Mesh(new THREE.PlaneGeometry(4.6,6),
+   new THREE.MeshBasicMaterial({color:G.col,transparent:true,opacity:0.55,side:THREE.DoubleSide,depthWrite:false}));
+  veil.position.set(0,3.2,0);grp.add(veil);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(2.1,0.16,8,28),new THREE.MeshBasicMaterial({color:G.col}));
+  ring.position.set(0,3.2,0);grp.add(ring);
+  const board=new THREE.Mesh(new THREE.PlaneGeometry(5.2,2.03),
+   new THREE.MeshLambertMaterial({map:makeGateSign(G.ar,G.en),side:THREE.DoubleSide}));
+  board.position.set(0,8.1,0);grp.add(board);
+  grp.add(new THREE.Mesh(mergedBoxes([[5.6,0.28,0.28,0,7.0,0]]),MAT.wood));
+  G.grp=grp;G.veil=veil;G.ring=ring;G.y=y;
+ }
+}
+function updateGates(dt,live){
+ const t=myClock.elapsedTime;
+ for(const G of GATES){
+  if(!G.grp)continue;
+  G.ring.rotation.z+=dt*0.6;
+  G.veil.material.opacity=0.44+0.16*Math.sin(t*1.8+G.x);
+ }
+ if(!live||!FP.on)return;
+ let found=null;
+ for(const G of GATES){ if(Math.hypot(G.x-FP.x,G.z-FP.z)<3.6){found=G;break;} }
+ if(found&&!gateNear&&!W.wishOpen&&!talk.open){
+  gateNear=found;
+  document.getElementById('gGateName').textContent='🌀 '+found.ar;
+  document.getElementById('gGateDesc').textContent=found.desc;
+  elGate.style.display='flex';elHint.style.display='none';unlockPointer();
+  SFX2.portal();
+ }
+}
+function leaveGate(){
+ elGate.style.display='none';
+ if(gateNear){ const g=gateNear; gateNear=null;
+  /* ادفع اللاعب خطوةً للخلف حتى لا تُفتح البوّابة فوراً من جديد */
+  const dz=(FP.z>g.z)?2.6:-2.6; FP.z=g.z+dz*1.8; FP.y=surfaceY(FP.x,FP.z)+EYE*W.eye; }
+ if(FP.on&&!isTouch)elHint.style.display='block';
+ lockPointer();
+}
+document.getElementById('gGateStay').addEventListener('click',leaveGate);
+document.getElementById('gGateGo').addEventListener('click',()=>{
+ if(!gateNear)return; save(); location.href=gateNear.href;
+});
+
 /* ---- خطوة عالم الأمنيات ---- */
 function wonderStep(dt,live){
  updateCompanions(dt);
  updateShards(dt);
  updateFoes(dt,live);
  updateBoss(dt,live);
+ updateGates(dt,live);
  updateGiantCars(dt);
  if(chatT>0){chatT-=dt;if(chatT<=0)elChat.style.display='none';}
  if(W.hurtCd>0)W.hurtCd-=dt;
@@ -3559,6 +3641,7 @@ function wonderStep(dt,live){
 buildCompanions();
 buildShards();
 buildFoes();
+buildGates();
 load();
 hudRefresh();
 

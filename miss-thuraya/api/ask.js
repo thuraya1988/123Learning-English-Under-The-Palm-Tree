@@ -53,7 +53,7 @@ TEACHING BEHAVIOUR
 3) Adapt difficulty from the conversation. If the learner repeatedly gets something wrong, simplify the explanation and contrast the wrong pattern with the correct pattern. If they are consistently correct, make the next example slightly harder.
 4) Never shame the learner. Praise specifically and briefly, not generically.
 5) Keep ordinary answers concise: normally 4–10 short lines. Use headings only when they improve clarity.
-6) For grammar, always name the rule in simple terms and visually highlight the key form using backticks, e.g. `didn't + base verb`.
+6) For grammar, always name the rule in simple terms and visually highlight the key form using backticks, e.g. \`didn't + base verb\`.
 7) For writing, do not only produce a final paragraph. Give a compact model plus a reusable structure (opening / details / ending) when appropriate.
 8) If a question is slightly beyond the exact book but is normal Grade-5 English and helps understand the curriculum, answer briefly and connect it back to the closest curriculum skill. If it is unrelated to English learning, politely redirect to Grade-5 English.
 9) When the learner asks about a page, exercise, or image that you cannot see, say exactly what information you need (for example: "أرسلي صورة السؤال أو اكتبيه هنا") rather than inventing the page content.
@@ -62,7 +62,7 @@ TEACHING BEHAVIOUR
 ACCURACY RULES
 - Do not invent textbook quotations, page numbers, exercise numbers, or official answer keys.
 - Check subject–verb agreement, tense auxiliaries, adjective spelling, punctuation and capitalization carefully.
-- Distinguish `did + base verb` from past-form verbs; distinguish `will + base verb`; distinguish `be + V-ing`.
+- Distinguish \`did + base verb\` from past-form verbs; distinguish \`will + base verb\`; distinguish \`be + V-ing\`.
 - For comparative/superlative forms, explain short vs long adjectives and irregular forms when relevant.
 
 STUDENT SAFETY & PRIVACY
@@ -146,7 +146,8 @@ function buildTutorContext({ question, history, body }) {
   const combined = [...history.slice(-4).map(m => m.content), question].join('\n');
   const unit = Number(body.unit) || detectUnit(combined);
   const skill = String(body.skill || '').trim() || detectSkill(question);
-  const intent = String(body.mode || '').trim() || detectIntent(question);
+  const requestedMode = String(body.mode || '').trim();
+  const intent = requestedMode && requestedMode !== 'tutor' ? requestedMode : detectIntent(question);
 
   const profile = body.student && typeof body.student === 'object'
     ? {

@@ -10,29 +10,38 @@ import Anthropic from '@anthropic-ai/sdk';
 const MAX_QUESTION = 2400;
 const MAX_HISTORY_ITEMS = 16;
 const MAX_HISTORY_CHARS = 2400;
+const MAX_IMAGE_BASE64 = 8_000_000;
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 
 const CURRICULUM = `
 OMAN 5A Activity Book / Team Together — Grade 5, Semester 1, first edition 2026.
 
 WELCOME BACK
-- Revision and classroom language.
+- Revision, classroom language, everyday vocabulary and core structures.
 
 UNIT 1 — TALENT SHOW
 - Vocabulary: appearance and hair, personality adjectives, talents, circus, food, jobs.
 - Grammar/skills: comparative and superlative adjectives; spelling changes (shy→shier, big→bigger); irregular forms good/better/best and bad/worse/worst; be good/great/terrible at + V-ing; time prepositions on/in/at; connectors and/or/but/because/so; before/after/when; present continuous; present simple; pronouns.
+- Skills and writing: police report; family description; good-manners project; graded readers The Baking Day and The Tennis Lesson.
 
 UNIT 2 — THEN AND NOW
 - Vocabulary: technology, common actions and expressions.
 - Grammar/skills: past simple affirmative/negative/questions; regular spelling changes; irregular verbs; could/couldn't and questions.
+- Skills and writing: cardboard science blog; museum report; world-museums project; graded readers At the Technology Museum and The Special Race.
 
 UNIT 3 — LET'S EXPLORE!
 - Vocabulary: space and large numbers.
 - Grammar/skills: will/won't and questions; measurements with How high/deep/far/wide is/are…
+- Skills and writing: ISS reading and blog; ancient-places project; graded readers The Space Race and The New Telescope.
 
 UNIT 4 — OFF TO THE SHOPS
 - Vocabulary: shops and money.
 - Grammar/skills: relative clauses with who/which/where; have to/has to/don't have to/doesn't have to and questions.
+- Skills and writing: Razan's blue-shoes email; shopping-advice email; corner-shop project; graded readers Dates for Dad and The Treasure Chest.
+
+WHOLE-COURSE COVERAGE
+- Use Class Book and Activity Book learning goals together: vocabulary, grammar, functional language, pronunciation/Say it, reading, listening, speaking, writing, projects, review, Progress Path, A1 Movers, verb-list practice and graded-reader activities.
+- Exam practice follows the supplied Grade 5 patterns: listening, vocabulary/grammar, reading and writing. Writing feedback covers task achievement, clarity, organisation, grammar/vocabulary, spelling and punctuation.
 `;
 
 const SYSTEM = `You are "مس ثريا" (Miss Thuraya), an expert Omani English teacher and adaptive tutor for Grade 5 learners aged about 10–11.
@@ -54,13 +63,16 @@ TEACHING BEHAVIOUR
 4) Never shame the learner. Praise specifically and briefly, not generically.
 5) Keep ordinary answers concise: normally 4–10 short lines. Use headings only when they improve clarity.
 6) For grammar, always name the rule in simple terms and visually highlight the key form using backticks, e.g. \`didn't + base verb\`.
-7) For writing, do not only produce a final paragraph. Give a compact model plus a reusable structure (opening / details / ending) when appropriate.
+7) For writing, coach in four stages: plan → learner draft → precise feedback → learner revision. Use the book's genre and organisation as guidance, but do not write the final submission for the learner unless explicitly requested after practice. A short original model is allowed, followed by a reusable structure (opening / details / ending).
 8) If a question is slightly beyond the exact book but is normal Grade-5 English and helps understand the curriculum, answer briefly and connect it back to the closest curriculum skill. If it is unrelated to English learning, politely redirect to Grade-5 English.
 9) When the learner asks about a page, exercise, or image that you cannot see, say exactly what information you need (for example: "أرسلي صورة السؤال أو اكتبيه هنا") rather than inventing the page content.
 10) Never claim you can see a book page, image, score, student record, or previous session unless it is actually present in the current request/history.
+11) For Activity Book work, use hint-first teaching: identify the target skill, give one clue, let the learner try, then check. Reveal a final answer only when explicitly requested or after a genuine attempt.
+12) For listening, create a short ORIGINAL Grade-5 script aligned to the unit, ask one question at a time, and do not reproduce copyrighted recordings. For reading, use short original passages unless the exact supplied text is visible. For speaking, role-play one turn at a time and correct gently.
 
 ACCURACY RULES
 - Do not invent textbook quotations, page numbers, exercise numbers, or official answer keys.
+- Do not infer unreadable text from an image. State what is unclear and ask for a sharper/cropped image or typed question.
 - Check subject–verb agreement, tense auxiliaries, adjective spelling, punctuation and capitalization carefully.
 - Distinguish \`did + base verb\` from past-form verbs; distinguish \`will + base verb\`; distinguish \`be + V-ing\`.
 - For comparative/superlative forms, explain short vs long adjectives and irregular forms when relevant.
@@ -142,6 +154,14 @@ function cleanHistory(input) {
     .filter(m => m.content);
 }
 
+function parseImage(input) {
+  const value = typeof input === 'string' ? input : '';
+  if (!value || value.length > MAX_IMAGE_BASE64) return null;
+  const match = value.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) return null;
+  return { mediaType: match[1], data: match[2] };
+}
+
 function buildTutorContext({ question, history, body }) {
   const combined = [...history.slice(-4).map(m => m.content), question].join('\n');
   const unit = Number(body.unit) || detectUnit(combined);
@@ -207,6 +227,16 @@ export default async function handler(req, res) {
 
     const history = cleanHistory(body.history);
     const meta = buildTutorContext({ question, history, body });
+    const image = parseImage(body.image);
+
+    if (body.image && !image) {
+      res.status(200).json({
+        ok: false,
+        reason: 'invalid-image',
+        message: 'تعذّر فتح الصورة. أرسلي PNG أو JPG أو WebP أوضح، أو اكتبي نص السؤال والاختيارات.'
+      });
+      return;
+    }
 
     const runtimeContext = [
       'RUNTIME TUTOR CONTEXT (inferred; use it as guidance, not as textbook facts):',
@@ -215,11 +245,18 @@ export default async function handler(req, res) {
       `Likely skill: ${meta.skill}`,
       `Learner track: ${meta.profile.level || 'not provided'}`,
       `Preferred language: ${meta.profile.preferredLanguage || 'not provided'}`,
+      `A question image is attached: ${image ? 'yes — inspect it carefully and mention any unreadable part' : 'no'}`,
       '',
       'Important: If the learner is answering an earlier quiz question, evaluate that answer in context before asking the next question.'
     ].join('\n');
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const currentContent = [{ type: 'text', text: question }];
+    if (image) currentContent.unshift({
+      type: 'image',
+      source: { type: 'base64', media_type: image.mediaType, data: image.data }
+    });
 
     const response = await client.messages.create({
       model: MODEL,
@@ -231,7 +268,7 @@ export default async function handler(req, res) {
       ],
       messages: [
         ...history,
-        { role: 'user', content: question }
+        { role: 'user', content: currentContent }
       ]
     });
 

@@ -68,7 +68,8 @@
     // Send lang only — the Space maps it to its installed voice, so the
     // client never 404s when the Space's voice files change quality tier.
     var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
-    var to = ctrl ? setTimeout(function () { ctrl.abort(); }, 45000) : null;
+    var timeoutMs = Math.max(3000, Number(window.PIPER_TIMEOUT_MS) || 45000);
+    var to = ctrl ? setTimeout(function () { ctrl.abort(); }, timeoutMs) : null;
     return nativeFetch(BASE + "/synthesize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -91,7 +92,10 @@
   // reader already uses successfully (2 retries, 6s apart) so every page
   // wired through this shim gets the same forgiving behavior.
   function synth(text, voice, triesLeft) {
-    if (triesLeft == null) triesLeft = 2;
+    if (triesLeft == null) {
+      var configuredRetries = Number(window.PIPER_RETRIES);
+      triesLeft = Number.isFinite(configuredRetries) ? Math.max(0, Math.floor(configuredRetries)) : 2;
+    }
     return synthOnce(text, voice).catch(function (err) {
       if (triesLeft <= 0) throw err;
       return new Promise(function (resolve) { setTimeout(resolve, 6000); })
@@ -148,6 +152,13 @@
   if (ss && typeof ss.speak === "function") {
     var nativeSpeak  = ss.speak.bind(ss);
     var nativeCancel = ss.cancel.bind(ss);
+
+    window.piperNativeSpeak = function (utter) { return nativeSpeak(utter); };
+    window.piperNativeCancel = function () { return nativeCancel(); };
+    window.piperNativeVoices = function () {
+      try { return typeof ss.getVoices === "function" ? ss.getVoices() : []; }
+      catch (e) { return []; }
+    };
 
     // Sequential audio queue so consecutive speak() calls don't overlap.
     var queue = [];

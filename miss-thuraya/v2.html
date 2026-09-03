@@ -176,6 +176,7 @@ footer{min-width:0;max-width:100%;overflow:hidden;border-top:1px solid var(--lin
 </div>
 <iframe id="localTutor" src="classic.html?v=full-grade5-1" title="محرك منهج 5A" hidden aria-hidden="true"></iframe>
 
+<script src="../public/js/piper-client.js?v=20260903"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -220,6 +221,33 @@ function renderText(text=''){
   s = s.replace(/\n/g,'<br>');
   return s;
 }
+function preferredVoiceLang(text=''){
+  const arabic=(String(text).match(/[\u0600-\u06ff]/g)||[]).length;
+  const english=(String(text).match(/[A-Za-z]/g)||[]).length;
+  return arabic>=english?'ar-OM':'en-GB';
+}
+function speakTutorText(text,button){
+  const clean=String(text).replace(/[*`#]/g,'').replace(/\s+/g,' ').trim();
+  if(!clean) return;
+  const lang=preferredVoiceLang(clean);
+  button.disabled=true; button.textContent='⏳'; button.title='Piper يجهّز الصوت…';
+  if('speechSynthesis' in window){
+    speechSynthesis.cancel();
+    const utterance=new SpeechSynthesisUtterance(clean);
+    utterance.lang=lang; utterance.rate=.9;
+    const ready=()=>{button.disabled=false;button.textContent='🔊';button.title='استمعي بصوت Piper';};
+    utterance.onstart=()=>{button.disabled=false;button.textContent='⏹';button.title='الصوت يعمل الآن';};
+    utterance.onend=ready; utterance.onerror=ready;
+    speechSynthesis.speak(utterance);
+    return;
+  }
+  if(typeof window.piperSay==='function'){
+    window.piperSay(clean,lang.startsWith('ar')?'ar':'en').then(audio=>{
+      button.disabled=false;button.textContent='⏹';button.title='الصوت يعمل الآن';
+      audio.onended=()=>{button.textContent='🔊';button.title='استمعي بصوت Piper';};
+    }).catch(()=>{button.disabled=false;button.textContent='🔊';button.title='تعذّر تشغيل الصوت الآن';});
+  }
+}
 function addMessage(role,text,meta,imageUrl){
   const row=document.createElement('div');
   row.className='msg '+(role==='user'?'user':'bot');
@@ -244,12 +272,9 @@ function addMessage(role,text,meta,imageUrl){
     if(meta.intent) m.innerHTML += `<span>${escapeHtml(meta.intent)}</span>`;
     bubble.appendChild(m);
   }
-  if(role==='bot' && 'speechSynthesis' in window && String(text).trim()){
-    const speak=document.createElement('button'); speak.type='button'; speak.className='speak'; speak.title='استمعي للإجابة'; speak.textContent='🔊';
-    speak.addEventListener('click',()=>{
-      speechSynthesis.cancel(); const utterance=new SpeechSynthesisUtterance(String(text).replace(/[*`]/g,''));
-      utterance.lang=/[A-Za-z]/.test(text)?'en-GB':'ar-OM'; utterance.rate=.88; speechSynthesis.speak(utterance);
-    });
+  if(role==='bot' && (typeof window.piperSay==='function' || 'speechSynthesis' in window) && String(text).trim()){
+    const speak=document.createElement('button'); speak.type='button'; speak.className='speak'; speak.title='استمعي بصوت Piper'; speak.textContent='🔊';
+    speak.addEventListener('click',()=>speakTutorText(text,speak));
     bubble.appendChild(speak);
   }
   row.append(face,bubble); chat.appendChild(row); chat.scrollTop=chat.scrollHeight;

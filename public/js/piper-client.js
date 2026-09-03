@@ -28,15 +28,72 @@
   window.__piperShimInstalled = true;
   if (window.PIPER_DISABLED) return;
 
-  var DEFAULT_BASE = "https://thursday88-palmtts.hf.space";
-  var BASE = (window.PIPER_BASE || DEFAULT_BASE).replace(/\/+$/, "");
+  // Thuraya has had more than one TTS Space over time and the old one now
+  // answers 503. Rather than hard-coding a single host, try each known Space
+  // and keep the first that is genuinely OUR Piper server.
+  var CANDIDATES = (window.PIPER_BASES || [
+    window.PIPER_BASE,
+    "https://thursday88-palmtts.hf.space",
+    "https://thursday88-piper-tts-api.hf.space",
+    "https://thursday88-palm-tree-tts.hf.space"
+  ]).filter(Boolean).map(function (u) { return String(u).replace(/\/+$/, ""); });
+
+  var BASE = CANDIDATES[0];
   var VOICE_EN = "en_GB-alan-medium";
   var VOICE_AR = "ar_JO-kareem-medium";
-
-  if (!window.PIPER_TTS_ENDPOINT) window.PIPER_TTS_ENDPOINT = BASE + "/synthesize";
-  if (!window.__piperEndpoint)   window.__piperEndpoint   = BASE + "/synthesize";
+  var CACHE_KEY = "piperBase_v1";
 
   var nativeFetch = window.fetch.bind(window);
+
+  function setBase(b) {
+    BASE = b;
+    window.PIPER_TTS_ENDPOINT = b + "/synthesize";
+    window.__piperEndpoint = b + "/synthesize";
+    window.PIPER_BASE_ACTIVE = b;
+  }
+  setBase(BASE);
+
+  try {
+    var cached = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+    if (cached && cached.base && Date.now() - cached.t < 864e5 &&
+        CANDIDATES.indexOf(cached.base) >= 0) setBase(cached.base);
+  } catch (e) {}
+
+  // A Space only counts as ours if it answers like our FastAPI app does.
+  // Thuraya also runs an unrelated chat Space (Lateefa); this check makes
+  // sure we never fire synthesis requests at something that is not a TTS API.
+  function looksLikeOurs(base) {
+    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var to = ctrl ? setTimeout(function () { ctrl.abort(); }, 9000) : null;
+    return nativeFetch(base + "/", {
+      cache: "no-store", signal: ctrl ? ctrl.signal : undefined
+    }).then(function (r) {
+      if (to) clearTimeout(to);
+      if (!r.ok) throw new Error("probe " + r.status);
+      return r.json();
+    }).then(function (j) {
+      if (!j || (!Array.isArray(j.voices) && j.status !== "ready")) throw new Error("not-piper");
+      return base;
+    }, function (e) { if (to) clearTimeout(to); throw e; });
+  }
+
+  var basePromise = null;
+  function ensureBase() {
+    if (window.PIPER_BASE) return Promise.resolve(BASE);   // pinned by the page
+    if (basePromise) return basePromise;
+    basePromise = CANDIDATES.reduce(function (chain, cand) {
+      return chain.catch(function () { return looksLikeOurs(cand); });
+    }, Promise.reject(new Error("start"))).then(function (found) {
+      setBase(found);
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ base: found, t: Date.now() })); } catch (e) {}
+      return found;
+    }, function () {
+      basePromise = null;      // all down — rediscover on the next attempt
+      return BASE;             // caller will surface the real error
+    });
+    return basePromise;
+  }
+  ensureBase();
 
   function isArabic(text) {
     return /[؀-ۿ]/.test(text || "");
@@ -76,11 +133,13 @@
     var payload = { text: text, lang: lang };
     var pinned = lang === "ar" ? window.PIPER_VOICE_AR : window.PIPER_VOICE_EN;
     if (pinned) payload.voice = pinned;
-    return nativeFetch(BASE + "/synthesize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: ctrl ? ctrl.signal : undefined,
+    return ensureBase().then(function (base) {
+      return nativeFetch(base + "/synthesize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: ctrl ? ctrl.signal : undefined,
+      });
     }).then(function (res) {
       if (to) clearTimeout(to);
       if (!res.ok) throw new Error("piper http " + res.status);

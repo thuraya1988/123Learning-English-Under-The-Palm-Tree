@@ -10,6 +10,9 @@ mkdir -p "${VOICES_DIR}"
 declare -A VOICES=(
     ["en_GB-alan-medium.onnx"]="en/en_GB/alan/medium/en_GB-alan-medium.onnx"
     ["en_GB-alan-medium.onnx.json"]="en/en_GB/alan/medium/en_GB-alan-medium.onnx.json"
+    # صوتٌ نسائيّ بريطانيّ — مس ثريا معلّمة، فصوتها أنثى
+    ["en_GB-cori-medium.onnx"]="en/en_GB/cori/medium/en_GB-cori-medium.onnx"
+    ["en_GB-cori-medium.onnx.json"]="en/en_GB/cori/medium/en_GB-cori-medium.onnx.json"
     ["ar_JO-kareem-medium.onnx"]="ar/ar_JO/kareem/medium/ar_JO-kareem-medium.onnx"
     ["ar_JO-kareem-medium.onnx.json"]="ar/ar_JO/kareem/medium/ar_JO-kareem-medium.onnx.json"
 )

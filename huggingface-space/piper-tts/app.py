@@ -83,12 +83,33 @@ def healthz():
     return Response("ok", media_type="text/plain")
 
 
+def installed(name: str) -> bool:
+    return (VOICES_DIR / f"{name}.onnx").exists() and (VOICES_DIR / f"{name}.onnx.json").exists()
+
+
 def resolve_voice(req: SynthRequest) -> str:
-    if req.voice:
-        return req.voice
-    if req.lang:
-        return LANG_VOICE_MAP.get(req.lang.lower(), DEFAULT_VOICE)
-    return DEFAULT_VOICE
+    """Pick a voice that actually exists on disk.
+
+    A page may ask for a specific voice (Miss Thuraya asks for a female one).
+    If this Space has not been rebuilt since that voice was added, fall back
+    to the language default and then to anything installed, so a page gets
+    audio instead of a 404 and a silent button.
+    """
+    wanted = req.voice or (
+        LANG_VOICE_MAP.get(req.lang.lower(), DEFAULT_VOICE) if req.lang else DEFAULT_VOICE
+    )
+    if installed(wanted):
+        return wanted
+    lang = "ar" if wanted.startswith("ar") else "en"
+    fallback = LANG_VOICE_MAP.get(lang, DEFAULT_VOICE)
+    if installed(fallback):
+        return fallback
+    for name in available_voices():
+        if name.startswith(lang):
+            return name
+    if not available_voices():
+        raise HTTPException(status_code=503, detail="no voices installed")
+    return available_voices()[0]
 
 
 @app.post("/synthesize")

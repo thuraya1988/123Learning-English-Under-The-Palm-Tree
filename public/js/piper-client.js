@@ -70,10 +70,16 @@
     var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
     var timeoutMs = Math.max(3000, Number(window.PIPER_TIMEOUT_MS) || 45000);
     var to = ctrl ? setTimeout(function () { ctrl.abort(); }, timeoutMs) : null;
+    // A page may pin a specific voice (Miss Thuraya pins a female one) via
+    // window.PIPER_VOICE_EN / PIPER_VOICE_AR. Pages that set neither keep the
+    // old lang-only body, so the other pages on the site are unaffected.
+    var payload = { text: text, lang: lang };
+    var pinned = lang === "ar" ? window.PIPER_VOICE_AR : window.PIPER_VOICE_EN;
+    if (pinned) payload.voice = pinned;
     return nativeFetch(BASE + "/synthesize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text, lang: lang }),
+      body: JSON.stringify(payload),
       signal: ctrl ? ctrl.signal : undefined,
     }).then(function (res) {
       if (to) clearTimeout(to);

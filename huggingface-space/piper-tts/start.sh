@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 VOICES_DIR="${VOICES_DIR:-/voices}"
 HF_BASE="https://huggingface.co/rhasspy/piper-voices/resolve/main"
@@ -17,15 +17,27 @@ declare -A VOICES=(
     ["ar_JO-kareem-medium.onnx.json"]="ar/ar_JO/kareem/medium/ar_JO-kareem-medium.onnx.json"
 )
 
+# A single failed download must NOT kill the Space. Before, `set -e` plus a
+# failing curl meant the container exited and every page got 503 forever —
+# one unreachable voice took the whole tutor offline. Now we log it, drop the
+# half-written file, and start with whatever voices did arrive.
 for fname in "${!VOICES[@]}"; do
     out="${VOICES_DIR}/${fname}"
     if [[ ! -s "${out}" ]]; then
         echo "Downloading ${fname}..."
-        curl -fsSL "${HF_BASE}/${VOICES[$fname]}" -o "${out}"
+        if ! curl -fsSL --retry 3 --retry-delay 2 --max-time 300 \
+                 "${HF_BASE}/${VOICES[$fname]}" -o "${out}"; then
+            echo "WARNING: could not download ${fname} — continuing without it."
+            rm -f "${out}"
+        fi
     fi
 done
 
 echo "Voices ready in ${VOICES_DIR}:"
-ls -lh "${VOICES_DIR}"
+ls -lh "${VOICES_DIR}" || true
+
+if ! ls "${VOICES_DIR}"/*.onnx >/dev/null 2>&1; then
+    echo "ERROR: no voice models available — /synthesize will answer 503."
+fi
 
 exec uvicorn app:app --host 0.0.0.0 --port "${PORT:-7860}"

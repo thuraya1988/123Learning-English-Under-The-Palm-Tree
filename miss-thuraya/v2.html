@@ -392,7 +392,7 @@ function piperFetch(endpoint,text,lang,plan,onWake){
   const attempt=()=>{
     if(i>=budgets.length) return Promise.reject(lastErr||new Error('piper-failed'));
     const ms=budgets[i++];
-    if(onWake) onWake(i,budgets.length,piperAwake);
+    if(onWake) onWake(i,budgets.length,piperAwake,lastErr);
     return piperOnce(endpoint,text,lang,plan,ms).catch(err=>{
       lastErr=err;
       if(i>=budgets.length) throw err;
@@ -506,10 +506,12 @@ function speakTutorText(text,button){
   const lang=preferredVoiceLang(clean).startsWith('ar')?'ar':'en';
   button.disabled=true; button.textContent='⏳'; button.title='Piper يجهّز الصوت…';
   ttsNote(button,'');
-  const onWake=(n,total,awake)=>{
+  const onWake=(n,total,awake,lastErr)=>{
     if(awake) return;
+    const booting=/http-503/.test(String(lastErr&&lastErr.message||''));
     ttsNote(button, n===1 ? '⏳ أوقظ خادم صوت Piper… قد يأخذ دقيقةً في أوّل مرّة.'
-                          : '⏳ ما زال الخادم يستيقظ… المحاولة '+n+' من '+total+'.');
+                  : booting ? '⏳ مساحة Piper تُقلِع الآن… المحاولة '+n+' من '+total+'.'
+                            : '⏳ ما زال الخادم يستيقظ… المحاولة '+n+' من '+total+'.');
   };
   piperPlan(lang).then(plan=>playTutorPiper(clean,lang,plan,onWake)).then(audio=>{
     button.disabled=false; button.textContent='⏹';
@@ -520,8 +522,12 @@ function speakTutorText(text,button){
   }).catch(err=>{
     button.disabled=false;
     const why=String(err&&err.message||err||'');
-    const reason = /http-(\d+)/.test(why) ? ('خادم Piper ردّ بالرمز '+why.match(/http-(\d+)/)[1])
-                 : /abort/i.test(why)      ? 'خادم Piper لم يردّ — يبدو أنّه متوقّف'
+    const code=(why.match(/http-(\d+)/)||[])[1];
+    /* ٥٠٣ من HuggingFace تعني أنّ المساحة متوقّفةٌ أو ما زالت تُقلِع */
+    const reason = code==='503' ? 'مساحة Piper على HuggingFace متوقّفة — تحتاج تشغيلاً من صفحتها'
+                 : code==='404' ? 'الصوت المطلوب غير مثبَّتٍ على خادم Piper'
+                 : code         ? ('خادم Piper ردّ بالرمز '+code)
+                 : /abort/i.test(why) ? 'خادم Piper لم يردّ خلال دقيقتين'
                  : 'تعذّر الوصول إلى خادم Piper';
     if(speakDevice(clean,lang)){
       button.textContent='🔊';

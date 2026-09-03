@@ -193,7 +193,7 @@ footer{min-width:0;max-width:100%;overflow:hidden;border-top:1px solid var(--lin
 <iframe id="localTutor" src="classic.html?v=full-grade5-1" title="محرك منهج 5A" hidden aria-hidden="true"></iframe>
 
 <script>window.PIPER_FEMININE_AR=true;window.PIPER_FEMININE_RATE=1.16;window.PIPER_TIMEOUT_MS=20000;window.PIPER_RETRIES=0;</script>
-<script src="../public/js/piper-client.js?v=20260903-piper-ios-retry1"></script>
+<script src="../public/js/piper-client.js?v=20260903-piper-subdomain"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -211,7 +211,7 @@ function setAvatarPose(pose='welcome', resetMs=0){
   if(resetMs) avatarResetTimer=setTimeout(()=>setAvatarPose('welcome'),resetMs);
 }
 setAvatarPose('welcome');
-if(typeof window.piperWarmup==='function') setTimeout(()=>window.piperWarmup(),350);
+setTimeout(warmPiperServer,350);
 const STORE = 'missThurayaTutorV2';
 let aiReady = false;
 let mode = 'tutor';
@@ -339,18 +339,88 @@ function preferredVoiceLang(text=''){
   const english=(String(text).match(/[A-Za-z]/g)||[]).length;
   return arabic>=english?'ar-OM':'en-GB';
 }
+let piperWarmPromise=null;
+function warmPiperServer(){
+  const endpoint=window.PIPER_TTS_ENDPOINT||window.__piperEndpoint;
+  if(!endpoint) return Promise.resolve();
+  if(piperWarmPromise) return piperWarmPromise;
+  piperWarmPromise=fetch(endpoint,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text:'Ready',lang:'en'})
+  }).then(r=>{
+    if(!r.ok) throw new Error('piper warmup '+r.status);
+    return r.arrayBuffer();
+  }).catch(()=>{piperWarmPromise=null;});
+  return piperWarmPromise;
+}
+function makeTutorSilentWav(durationMs=1500){
+  const sampleRate=8000;
+  const samples=Math.max(800,Math.round(sampleRate*durationMs/1000));
+  const buffer=new ArrayBuffer(44+samples*2);
+  const view=new DataView(buffer);
+  const write=(offset,value)=>{for(let i=0;i<value.length;i++)view.setUint8(offset+i,value.charCodeAt(i));};
+  write(0,'RIFF'); view.setUint32(4,36+samples*2,true); write(8,'WAVE'); write(12,'fmt ');
+  view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
+  view.setUint32(24,sampleRate,true); view.setUint32(28,sampleRate*2,true);
+  view.setUint16(32,2,true); view.setUint16(34,16,true); write(36,'data');
+  view.setUint32(40,samples*2,true);
+  return URL.createObjectURL(new Blob([buffer],{type:'audio/wav'}));
+}
+function playTutorPiper(text,lang){
+  const endpoint=window.PIPER_TTS_ENDPOINT||window.__piperEndpoint;
+  if(!endpoint) return Promise.reject(new Error('Piper endpoint unavailable'));
+  const audio=new Audio();
+  audio.setAttribute('playsinline','');
+  audio.preload='auto';
+  const unlockUrl=makeTutorSilentWav();
+  let unlockStarted=Promise.resolve();
+  try{
+    audio.src=unlockUrl;
+    audio.loop=true;
+    audio.volume=.01;
+    const firstPlay=audio.play();
+    if(firstPlay&&firstPlay.catch) unlockStarted=firstPlay.catch(()=>{});
+  }catch(_){}
+  const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
+  const timer=ctrl?setTimeout(()=>ctrl.abort(),20000):null;
+  return fetch(endpoint,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text,lang}),
+    signal:ctrl?ctrl.signal:undefined
+  }).then(r=>{
+    if(timer) clearTimeout(timer);
+    if(!r.ok) throw new Error('Piper '+r.status);
+    return r.blob();
+  },err=>{if(timer)clearTimeout(timer);throw err;}).then(blob=>unlockStarted.then(()=>{
+    try{audio.pause();}catch(_){}
+    audio.loop=false;
+    URL.revokeObjectURL(unlockUrl);
+    const spokenUrl=URL.createObjectURL(blob);
+    audio.src=spokenUrl;
+    audio.volume=1;
+    audio.currentTime=0;
+    if(lang==='ar'){
+      audio.preservesPitch=false;
+      audio.mozPreservesPitch=false;
+      audio.webkitPreservesPitch=false;
+      audio.playbackRate=1.16;
+    }
+    audio.addEventListener('ended',()=>URL.revokeObjectURL(spokenUrl),{once:true});
+    return audio.play().then(()=>audio);
+  })).catch(err=>{
+    try{audio.pause();}catch(_){}
+    URL.revokeObjectURL(unlockUrl);
+    throw err;
+  });
+}
 function speakTutorText(text,button){
   const clean=String(text).replace(/[*`#]/g,'').replace(/\s+/g,' ').trim();
   if(!clean) return;
-  const lang=preferredVoiceLang(clean);
-  if(typeof window.piperSay!=='function'){
-    button.disabled=false; button.textContent='⚠️';
-    button.title='Piper غير متاح الآن';
-    setTimeout(()=>{button.textContent='🔊';button.title='استمعي بصوت Piper';},1800);
-    return;
-  }
+  const lang=preferredVoiceLang(clean).startsWith('ar')?'ar':'en';
   button.disabled=true; button.textContent='⏳'; button.title='Piper يجهّز الصوت…';
-  window.piperSay(clean,lang.startsWith('ar')?'ar':'en').then(audio=>{
+  playTutorPiper(clean,lang).then(audio=>{
     button.disabled=false; button.textContent='⏹'; button.title='صوت Piper يعمل الآن';
     audio.onended=()=>{button.textContent='🔊';button.title='استمعي بصوت Piper';};
     audio.onerror=()=>{button.textContent='⚠️';button.title='تعذّر تشغيل Piper';};

@@ -88,6 +88,21 @@ footer{min-width:0;max-width:100%;overflow:hidden;border-top:1px solid var(--lin
 .typing i:nth-child(2){animation-delay:.16s}.typing i:nth-child(3){animation-delay:.32s}
 @keyframes bounce{0%,70%,100%{transform:translateY(0);opacity:.35}35%{transform:translateY(-4px);opacity:1}}
 
+
+/* ===== Wordwall practice hub ===== */
+.practice-hub{align-self:stretch;margin:2px auto 12px;width:min(820px,96%);border:1px solid var(--line);border-radius:22px;background:rgba(255,250,242,.97);box-shadow:var(--shadow);overflow:hidden}
+.practice-head{padding:16px 16px 12px;background:linear-gradient(135deg,rgba(122,31,61,.10),rgba(234,214,187,.58))}
+.practice-head h2{font-size:17px;color:var(--gold);margin-bottom:5px}.practice-head p{font-size:11px;color:var(--muted);line-height:1.7}
+.practice-tabs{display:flex;gap:7px;overflow-x:auto;padding:11px 14px 3px;scrollbar-width:none}.practice-tabs::-webkit-scrollbar{display:none}
+.practice-unit{border:1px solid var(--line);background:#fff8ee;color:var(--text);border-radius:999px;padding:7px 13px;white-space:nowrap;font-size:12px}
+.practice-unit.active{border-color:var(--gold);background:var(--gold);color:#fff}
+.practice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 14px}
+.practice-card{border:1px solid var(--line);border-radius:16px;background:#fffdf8;padding:12px}.practice-card h3{font-size:13px;color:var(--gold);margin-bottom:9px}
+.practice-links{display:grid;gap:7px}.practice-link{display:flex;align-items:center;justify-content:space-between;gap:10px;text-decoration:none;border:1px solid rgba(122,31,61,.18);border-radius:12px;padding:9px 10px;background:#fff8ee;color:var(--text);font-size:12px;transition:.18s ease}
+.practice-link:hover{border-color:var(--gold);transform:translateY(-1px);box-shadow:0 6px 15px rgba(122,31,61,.10)}.practice-link b{color:var(--gold)}
+.practice-credit{padding:0 14px 14px;text-align:center;font-size:10.5px;color:var(--muted)}.practice-credit strong{color:var(--gold)}
+@media(max-width:560px){.practice-grid{grid-template-columns:1fr}.practice-hub{width:98%}}
+
 @media(max-width:760px){
   header{padding-inline:10px}.top{gap:8px}.avatar{width:54px;height:54px}.identity p{display:none}.online{display:none}
   main{width:100%;min-width:0;grid-template-columns:minmax(0,1fr)} aside{display:none}
@@ -112,6 +127,7 @@ footer{min-width:0;max-width:100%;overflow:hidden;border-top:1px solid var(--lin
     <button class="pill active" data-mode="tutor">🧠 تلقائي</button>
     <button class="pill" data-mode="explain">📘 شرح</button>
     <button class="pill" data-mode="quiz">🎯 اختبار</button>
+    <button class="pill" type="button" id="practiceHubBtn">🎮 تدرّبي الآن</button>
     <button class="pill" data-mode="correct">✍️ تصحيح</button>
     <button class="pill" data-mode="hint">💡 تلميح</button>
     <button class="pill" data-mode="reading">📖 قراءة</button>
@@ -199,7 +215,102 @@ const STORE = 'missThurayaTutorV2';
 let aiReady = false;
 let mode = 'tutor';
 let state = loadState();
+
 let pendingImage = null;
+
+const PRACTICE_ACTIVITIES = Object.freeze({
+  "1":{
+    Vocabulary:[
+      "https://wordwall.net/resource/29715354?wwmethod=link",
+      "https://wordwall.net/resource/79904756?wwmethod=link"
+    ],
+    Grammar:[
+      "https://wordwall.net/resource/115182694?wwmethod=link",
+      "https://wordwall.net/resource/79294958?wwmethod=link",
+      "https://wordwall.net/resource/79295328?wwmethod=link"
+    ]
+  },
+  "2":{
+    Vocabulary:[
+      "https://wordwall.net/resource/118279386?wwmethod=link",
+      "https://wordwall.net/resource/118280462?wwmethod=link"
+    ],
+    Grammar:[
+      "https://wordwall.net/resource/118281632?wwmethod=link",
+      "https://wordwall.net/resource/118282825?wwmethod=link"
+    ]
+  },
+  "3":{
+    Vocabulary:[
+      "https://wordwall.net/resource/118284056?wwmethod=link",
+      "https://wordwall.net/resource/118290532?wwmethod=link"
+    ],
+    Grammar:[
+      "https://wordwall.net/resource/118289179?wwmethod=link",
+      "https://wordwall.net/resource/118289704?wwmethod=link",
+      "https://wordwall.net/resource/118292555?wwmethod=link"
+    ]
+  },
+  "4":{
+    Vocabulary:[
+      "https://wordwall.net/resource/118294945?wwmethod=link",
+      "https://wordwall.net/resource/118295397?wwmethod=link",
+      "https://wordwall.net/resource/118295652?wwmethod=link"
+    ],
+    Grammar:[
+      "https://wordwall.net/resource/118293787?wwmethod=link",
+      "https://wordwall.net/resource/83865728?wwmethod=link",
+      "https://wordwall.net/resource/118296125?wwmethod=link",
+      "https://wordwall.net/resource/118296383?wwmethod=link"
+    ]
+  }
+});
+
+function showPracticeHub(startUnit){
+  const old=$("practiceHub");
+  if(old) old.remove();
+
+  const selected=PRACTICE_ACTIVITIES[String(startUnit)] ? String(startUnit) : "1";
+  const panel=document.createElement("section");
+  panel.id="practiceHub";
+  panel.className="practice-hub";
+  panel.setAttribute("aria-label","أنشطة تدريب Wordwall");
+  panel.innerHTML=`
+    <div class="practice-head">
+      <h2>🎮 تدرّبي مع مس ثريا</h2>
+      <p>اختاري الوحدة، ثم تدربي على المفردات والقواعد بالترتيب. بعد كل نشاط ارجعي لمس ثريا إذا احتجتِ شرحًا أو تصحيحًا.</p>
+    </div>
+    <div class="practice-tabs" role="tablist">
+      ${Object.keys(PRACTICE_ACTIVITIES).map(u=>`<button type="button" class="practice-unit" data-practice-unit="${u}">Unit ${u}</button>`).join("")}
+    </div>
+    <div class="practice-grid" id="practiceGrid"></div>
+    <div class="practice-credit">الأنشطة من إعداد: <strong>أ. بيان العبرية — Ms. Bayan Al Abri</strong></div>
+  `;
+  chat.appendChild(panel);
+
+  const renderPractice=unitNumber=>{
+    panel.querySelectorAll("[data-practice-unit]").forEach(b=>b.classList.toggle("active",b.dataset.practiceUnit===unitNumber));
+    const data=PRACTICE_ACTIVITIES[unitNumber];
+    const makeCard=(title,icon,links)=>`
+      <div class="practice-card">
+        <h3>${icon} ${title}</h3>
+        <div class="practice-links">
+          ${links.map((url,i)=>`<a class="practice-link" href="${url}" target="_blank" rel="noopener noreferrer"><span>نشاط ${i+1}</span><b>ابدئي ←</b></a>`).join("")}
+        </div>
+      </div>
+    `;
+    $("practiceGrid").innerHTML=makeCard("Vocabulary","🌟",data.Vocabulary)+makeCard("Grammar","✍️",data.Grammar);
+  };
+
+  panel.querySelector(".practice-tabs").addEventListener("click",e=>{
+    const b=e.target.closest("[data-practice-unit]");
+    if(!b) return;
+    renderPractice(b.dataset.practiceUnit);
+  });
+  renderPractice(selected);
+  panel.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
 
 function defaultState(){ return {history:[],questions:0,skills:{},lastUnit:null}; }
 function loadState(){
@@ -452,6 +563,11 @@ form.addEventListener('submit',async e=>{
     addMessage('bot','تعذّر الاتصال بمس ثريا الآن. جرّبي مرة أخرى.');
   }
   finally{ send.disabled=false; $('voice').disabled=false; $('attach').disabled=false; saveState(); input.focus(); }
+});
+
+$("practiceHubBtn").addEventListener("click",()=>{
+  showPracticeHub(unit.value || "1");
+  setAvatarPose("success",1400);
 });
 
 $('modeBar').addEventListener('click',e=>{

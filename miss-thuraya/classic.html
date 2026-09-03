@@ -55,6 +55,18 @@ input[type=text]:focus{border-color:var(--gold)}
 button.send{background:linear-gradient(135deg,#ffd479,#e0a03a);border:0;border-radius:50%;width:46px;height:46px;
   font-size:19px;cursor:pointer;flex:none;color:#3a2a10}
 button.send:disabled{opacity:.5}
+/* النُّطق */
+.say{border:1px solid var(--line);background:rgba(79,214,192,.10);color:var(--teal);border-radius:999px;
+  padding:1px 7px;font-size:12px;cursor:pointer;font-family:inherit;margin:0 4px;vertical-align:middle;line-height:1.6}
+.say:hover{border-color:var(--teal)}
+.say.on{background:var(--teal);color:#06231e}
+#vpanel{display:none;flex:none;border-bottom:1px solid var(--line);background:var(--bg2);padding:10px 14px;font-size:12.5px}
+#vpanel.open{display:block}
+#vpanel .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#vpanel .vb{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;
+  padding:6px 13px;font-size:12.5px;cursor:pointer;font-family:inherit}
+#vpanel .vb.sel{border-color:var(--teal);color:var(--teal)}
+#vnote{color:var(--dim);margin-top:7px;line-height:1.8}
 .typing span{display:inline-block;width:6px;height:6px;margin:0 1.5px;border-radius:50%;background:var(--dim);
   animation:bl 1.2s infinite}
 .typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
@@ -71,8 +83,19 @@ button.send:disabled{opacity:.5}
     <p>معلّمة الإنجليزيّة — الصفّ الخامس · منهج عُمان 5A</p>
   </div>
   <div class="spacer"></div>
+  <button class="mode" id="vtoggle" type="button" aria-label="إعدادات النطق">🔊 النطق</button>
   <div class="mode" id="mode">📘 وضع الكتاب</div>
 </header>
+
+<div id="vpanel">
+  <div class="row">
+    <span>نُطق الإنجليزيّة:</span>
+    <button class="vb" id="vpiper" type="button">🎙️ صوت Piper</button>
+    <button class="vb" id="vweb" type="button">🔈 صوت الجهاز</button>
+    <button class="vb" id="vtest" type="button">▶ جرّب</button>
+  </div>
+  <div id="vnote"></div>
+</div>
 
 <div id="chat"></div>
 
@@ -83,6 +106,8 @@ button.send:disabled{opacity:.5}
   <button class="send" type="submit" aria-label="إرسال">➤</button>
 </form>
 
+<script>window.PIPER_TIMEOUT_MS=25000;window.PIPER_RETRIES=1;</script>
+<script src="../public/js/piper-client.js?v=miss-thuraya-1"></script>
 <script src="grade5-knowledge.js?v=1"></script>
 <script>
 "use strict";
@@ -342,14 +367,35 @@ function fmt(s){
                .replace(/&lt;code&gt;/g,'<code>').replace(/&lt;\/code&gt;/g,'</code>')
                .replace(/&lt;i&gt;/g,'<i>').replace(/&lt;\/i&gt;/g,'</i>')
                .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
-               .replace(/`([^`]+)`/g,'<code>$1</code>');
+               .replace(/`([^`]+)`/g,'<code>$1</code>')
+               .replace(/&lt;say&gt;(.+?)&lt;\/say&gt;/g,
+                 (m,w)=>'<button type="button" class="say" data-t="'+w.replace(/"/g,'&quot;')+'">\ud83d\udd0a اسمعها</button>');
 }
 function bubble(who,html){
   const d=document.createElement('div');
   d.className='msg '+(who==='me'?'me':'her');
   d.innerHTML='<div class="pic">'+(who==='me'?'🧒':'👩‍🏫')+'</div><div class="bub">'+html+'</div>';
+  if(who!=='me') addSayButtons(d);
   chat.appendChild(d); chat.scrollTop=chat.scrollHeight; return d;
 }
+/* زرّ نطقٍ بجانب كلّ نصٍّ إنجليزيّ — لا يظهر على العربيّة ولا على أرقام الصفحات */
+function addSayButtons(root){
+  root.querySelectorAll('code').forEach(c=>{
+    const txt=c.textContent.trim();
+    if(!/[A-Za-z]{3,}/.test(txt)) return;
+    if(txt.length>160) return;
+    if(c.nextElementSibling&&c.nextElementSibling.classList.contains('say')) return;
+    const b=document.createElement('button');
+    b.type='button'; b.className='say'; b.textContent='🔊';
+    b.setAttribute('aria-label','استمع إلى: '+txt);
+    b.dataset.t=txt;
+    c.insertAdjacentElement('afterend',b);
+  });
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.say'); if(!b) return;
+  speak(b.dataset.t,b);
+});
 function say(text){ return bubble('her',fmt(text)); }
 function typing(){
   const d=bubble('her','<span class="typing"><span></span><span></span><span></span></span>');
@@ -386,6 +432,63 @@ const HOME_CHIPS=[
   {t:'📝 نماذج الكتابة',q:'نماذج الكتابة'},
   {t:'📖 الأفعال الشاذّة',q:'الأفعال الشاذة'}
 ];
+
+
+/* ---------- ٤-ب) النُّطق ---------- */
+/* piper-client.js يعترض speechSynthesis.speak ويحوّلها إلى خادم Piper،
+   ويرجع وحده إلى صوت الجهاز إن أخفق. فنكتفي نحن بنداءٍ واحدٍ قياسيّ،
+   ونترك للمستخدم خيار فرض صوت الجهاز عبر piperNativeSpeak.        */
+const V={engine:'piper',cur:null};
+try{ V.engine=localStorage.getItem('mt_voice')||'piper'; }catch(e){}
+
+const vPanel=document.getElementById('vpanel'), vNote=document.getElementById('vnote');
+const vWeb=document.getElementById('vweb'), vPiper=document.getElementById('vpiper');
+const vNote_=s=>{ if(vNote) vNote.innerHTML=s; };
+function vPaint(){
+  if(vWeb)   vWeb.classList.toggle('sel',V.engine==='web');
+  if(vPiper) vPiper.classList.toggle('sel',V.engine==='piper');
+}
+function piperOn(){ return !!window.__piperShimInstalled; }
+function webVoice(){
+  if(!('speechSynthesis' in window)) return null;
+  const list=(window.piperNativeVoices?window.piperNativeVoices():speechSynthesis.getVoices())||[];
+  return list.find(v=>v.lang==='en-GB') || list.find(v=>/^en-GB/i.test(v.lang))
+      || list.find(v=>/^en[-_]/i.test(v.lang)) || list.find(v=>/^en/i.test(v.lang)) || null;
+}
+function speak(text,btn){
+  if(!text) return;
+  if(!('speechSynthesis' in window)){ vNote_('متصفّحك لا يدعم النطق. جرّب Chrome.'); return; }
+  if(V.cur&&V.cur!==btn) V.cur.classList.remove('on');
+  V.cur=btn||null; if(btn) btn.classList.add('on');
+  try{ speechSynthesis.cancel(); }catch(e){}
+
+  const u=new SpeechSynthesisUtterance(text);
+  const v=webVoice(); if(v){ u.voice=v; u.lang=v.lang; } else u.lang='en-GB';
+  u.rate=.9;                                  /* أبطأ قليلاً — الطالب يتعلّم */
+  const off=()=>{ if(btn) btn.classList.remove('on'); };
+  u.onend=off; u.onerror=off;
+  if(V.engine==='web' && window.piperNativeSpeak) window.piperNativeSpeak(u);
+  else speechSynthesis.speak(u);              /* الشيم يحوّلها إلى Piper */
+  setTimeout(off,12000);                      /* شبكة أمان لو لم يصل حدث النهاية */
+}
+
+if(document.getElementById('vtoggle')) document.getElementById('vtoggle').onclick=()=>{
+  vPanel.classList.toggle('open');
+  if(vPanel.classList.contains('open')&&!vNote.innerHTML){
+    const v=webVoice();
+    vNote_( (piperOn()?'صوت <b>Piper</b> موصولٌ بالموقع.':'⚠️ لم يُحمَّل ملفّ Piper — سيُستعمل صوت الجهاز.')
+      + '<br>' + (v?('صوت جهازك الاحتياطيّ: <b>'+v.name+'</b> ('+v.lang+')')
+                   :'لم أجد صوتاً إنجليزيّاً في جهازك.') );
+  }
+};
+if(vPiper) vPiper.onclick=()=>{ V.engine='piper'; try{localStorage.setItem('mt_voice','piper');}catch(e){}
+  vPaint(); vNote_(piperOn()?'صوت <b>Piper</b> — أوّل نطقٍ قد يتأخّر ثوانيَ حتّى يستيقظ الخادم، ثمّ يصير سريعاً.'
+                           :'⚠️ ملفّ Piper غير محمَّل في هذه الصفحة.'); };
+if(vWeb) vWeb.onclick=()=>{ V.engine='web'; try{localStorage.setItem('mt_voice','web');}catch(e){}
+  vPaint(); vNote_('صوت الجهاز — فوريّ ويعمل بلا إنترنت.'); };
+if(document.getElementById('vtest')) document.getElementById('vtest').onclick=()=>
+  speak('Hello! I am Miss Thuraya. Let us learn English together.',null);
+vPaint();
 
 /* ---------- ٥) الدماغ المحلّي ---------- */
 const norm=s=>s.toLowerCase().replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/[ًٌٍَُِّْ]/g,'').trim();
@@ -597,7 +700,7 @@ function lookupWord(q){
 
 function wordCard(d){
   const c=comparative(d.w), p=pastSimple(d.w);
-  let s=`${d.em} <b>${d.w}</b> — ${d.ar}\n\n`;
+  let s=`${d.em} <b>${d.w}</b> <say>${d.w}</say> — ${d.ar}\n\n`;
   s+=`<b>في جملة</b>\n<code>${d.ex}</code>\n${d.ea}\n\n`;
   s+=`<b>من</b> Unit ${d.u} — ${(UNITS.find(u=>u.n===d.u)||{}).name} · قائمة «${d.cat}» · <code>ص ${(UNITS.find(u=>u.n===d.u)||{}).pages}</code>`;
   if(IRREGULAR[d.w.toLowerCase()])

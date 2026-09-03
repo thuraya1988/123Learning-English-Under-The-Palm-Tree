@@ -250,22 +250,89 @@
 
   // ---------- direct helper ----------------------------------------------
 
+  var warmupPromise = null;
+  window.piperWarmup = function () {
+    if (warmupPromise) return warmupPromise;
+    warmupPromise = synthOnce("Ready", VOICE_EN)
+      .then(function (res) {
+        if (!res.ok) throw new Error("piper warmup " + res.status);
+        return res.arrayBuffer();
+      })
+      .catch(function () { warmupPromise = null; });
+    return warmupPromise;
+  };
+
+  function makeSilentWavUrl(durationMs) {
+    var sampleRate = 8000;
+    var samples = Math.max(800, Math.round(sampleRate * (durationMs || 1200) / 1000));
+    var buffer = new ArrayBuffer(44 + samples * 2);
+    var view = new DataView(buffer);
+    function writeText(offset, value) {
+      for (var i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
+    }
+    writeText(0, "RIFF");
+    view.setUint32(4, 36 + samples * 2, true);
+    writeText(8, "WAVE");
+    writeText(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeText(36, "data");
+    view.setUint32(40, samples * 2, true);
+    return URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
+  }
+
   window.piperSay = function (text, langOrVoice) {
     var voice = VOICE_EN;
     if (langOrVoice === "ar" || /ar/i.test(langOrVoice || "") || isArabic(text)) voice = VOICE_AR;
+
+    // Start a silent loop synchronously from the student's tap. Reusing this
+    // already-playing element lets iOS Safari accept the Piper audio after
+    // the asynchronous synthesis request completes.
+    var audio = new Audio();
+    audio.setAttribute("playsinline", "");
+    audio.preload = "auto";
+    var unlockUrl = makeSilentWavUrl(1500);
+    var unlockStarted = Promise.resolve();
+    try {
+      audio.src = unlockUrl;
+      audio.loop = true;
+      audio.volume = 0.01;
+      var initialPlay = audio.play();
+      if (initialPlay && initialPlay.catch) unlockStarted = initialPlay.catch(function () {});
+    } catch (e) {}
+
     return synth(text, voice).then(function (res) {
       if (!res.ok) throw new Error("piper " + res.status);
       return res.blob();
     }).then(function (blob) {
-      var url = URL.createObjectURL(blob);
-      var audio = new Audio(url);
-      if (voice === VOICE_AR && window.PIPER_FEMININE_AR) {
-        audio.preservesPitch = false;
-        audio.mozPreservesPitch = false;
-        audio.webkitPreservesPitch = false;
-        audio.playbackRate = Math.max(1.08, Math.min(1.24, Number(window.PIPER_FEMININE_RATE) || 1.16));
-      }
-      return audio.play().then(function () { return audio; });
+      return unlockStarted.then(function () {
+        try { audio.pause(); } catch (e) {}
+        audio.loop = false;
+        URL.revokeObjectURL(unlockUrl);
+        var spokenUrl = URL.createObjectURL(blob);
+        audio.src = spokenUrl;
+        audio.volume = 1;
+        audio.currentTime = 0;
+        if (voice === VOICE_AR && window.PIPER_FEMININE_AR) {
+          audio.preservesPitch = false;
+          audio.mozPreservesPitch = false;
+          audio.webkitPreservesPitch = false;
+          audio.playbackRate = Math.max(1.08, Math.min(1.24, Number(window.PIPER_FEMININE_RATE) || 1.16));
+        }
+        if (audio.addEventListener) {
+          audio.addEventListener("ended", function () { URL.revokeObjectURL(spokenUrl); }, { once: true });
+        }
+        return audio.play().then(function () { return audio; });
+      });
+    }).catch(function (err) {
+      try { audio.pause(); } catch (e) {}
+      URL.revokeObjectURL(unlockUrl);
+      throw err;
     });
   };
 })();

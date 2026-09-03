@@ -192,8 +192,8 @@ footer{min-width:0;max-width:100%;overflow:hidden;border-top:1px solid var(--lin
 </div>
 <iframe id="localTutor" src="classic.html?v=full-grade5-1" title="محرك منهج 5A" hidden aria-hidden="true"></iframe>
 
-<script>window.PIPER_FEMININE_AR=true;window.PIPER_FEMININE_RATE=1.16;window.PIPER_TIMEOUT_MS=7000;window.PIPER_RETRIES=0;</script>
-<script src="../public/js/piper-client.js?v=20260903-fast-audio"></script>
+<script>window.PIPER_FEMININE_AR=true;window.PIPER_FEMININE_RATE=1.16;window.PIPER_TIMEOUT_MS=20000;window.PIPER_RETRIES=0;</script>
+<script src="../public/js/piper-client.js?v=20260903-piper-ios"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -211,6 +211,7 @@ function setAvatarPose(pose='welcome', resetMs=0){
   if(resetMs) avatarResetTimer=setTimeout(()=>setAvatarPose('welcome'),resetMs);
 }
 setAvatarPose('welcome');
+if(typeof window.piperWarmup==='function') setTimeout(()=>window.piperWarmup(),350);
 const STORE = 'missThurayaTutorV2';
 let aiReady = false;
 let mode = 'tutor';
@@ -338,55 +339,25 @@ function preferredVoiceLang(text=''){
   const english=(String(text).match(/[A-Za-z]/g)||[]).length;
   return arabic>=english?'ar-OM':'en-GB';
 }
-function nativeTutorVoice(lang){
-  const list=typeof window.piperNativeVoices==='function'
-    ? window.piperNativeVoices()
-    : (typeof speechSynthesis!=='undefined' && speechSynthesis.getVoices ? speechSynthesis.getVoices() : []);
-  const isAr=String(lang).toLowerCase().startsWith('ar');
-  const matching=list.filter(v=>String(v.lang||'').toLowerCase().startsWith(isAr?'ar':'en'));
-  const female=/laila|layla|hala|mariam|maryam|salma|female|samantha|serena|kate|martha|moira|fiona|susan|zira/i;
-  return matching.find(v=>female.test(v.name||'')) || matching[0] || null;
-}
-function speakNativeTutor(clean,lang,button){
-  if(typeof SpeechSynthesisUtterance==='undefined'){
-    button.disabled=false; button.textContent='🔊'; button.title='الصوت غير متاح على هذا الجهاز';
-    return;
-  }
-  try{
-    if(typeof window.piperNativeCancel==='function') window.piperNativeCancel();
-    else if(typeof speechSynthesis!=='undefined') speechSynthesis.cancel();
-    const utterance=new SpeechSynthesisUtterance(clean);
-    utterance.lang=lang;
-    utterance.rate=lang.startsWith('ar') ? 0.94 : 0.9;
-    utterance.pitch=lang.startsWith('ar') ? 1.12 : 1.04;
-    const chosen=nativeTutorVoice(lang); if(chosen) utterance.voice=chosen;
-    const ready=()=>{button.disabled=false;button.textContent='🔊';button.title='استمعي للإجابة';};
-    utterance.onstart=()=>{button.disabled=false;button.textContent='⏹';button.title='الصوت يعمل الآن';};
-    utterance.onend=ready; utterance.onerror=ready;
-    if(typeof window.piperNativeSpeak==='function') window.piperNativeSpeak(utterance);
-    else speechSynthesis.speak(utterance);
-  }catch(_){
-    button.disabled=false; button.textContent='🔊'; button.title='تعذّر تشغيل الصوت الآن';
-  }
-}
 function speakTutorText(text,button){
   const clean=String(text).replace(/[*`#]/g,'').replace(/\s+/g,' ').trim();
   if(!clean) return;
   const lang=preferredVoiceLang(clean);
-  const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
-
-  if(isIOS || typeof window.piperSay!=='function'){
-    speakNativeTutor(clean,lang,button);
+  if(typeof window.piperSay!=='function'){
+    button.disabled=false; button.textContent='⚠️';
+    button.title='Piper غير متاح الآن';
+    setTimeout(()=>{button.textContent='🔊';button.title='استمعي بصوت Piper';},1800);
     return;
   }
-
-  button.disabled=true; button.textContent='⏳'; button.title='جاري تجهيز الصوت…';
+  button.disabled=true; button.textContent='⏳'; button.title='Piper يجهّز الصوت…';
   window.piperSay(clean,lang.startsWith('ar')?'ar':'en').then(audio=>{
-    button.disabled=false; button.textContent='⏹'; button.title='الصوت يعمل الآن';
-    audio.onended=()=>{button.textContent='🔊';button.title='استمعي للإجابة';};
-    audio.onerror=()=>speakNativeTutor(clean,lang,button);
-  }).catch(()=>speakNativeTutor(clean,lang,button));
+    button.disabled=false; button.textContent='⏹'; button.title='صوت Piper يعمل الآن';
+    audio.onended=()=>{button.textContent='🔊';button.title='استمعي بصوت Piper';};
+    audio.onerror=()=>{button.textContent='⚠️';button.title='تعذّر تشغيل Piper';};
+  }).catch(()=>{
+    button.disabled=false; button.textContent='⚠️'; button.title='تعذّر اتصال Piper — اضغطي مرة ثانية';
+    setTimeout(()=>{button.textContent='🔊';button.title='استمعي بصوت Piper';},2200);
+  });
 }
 function addMessage(role,text,meta,imageUrl){
   const row=document.createElement('div');

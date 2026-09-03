@@ -192,7 +192,9 @@ footer{min-width:0;max-width:100%;overflow:hidden;border-top:1px solid var(--lin
 </div>
 <iframe id="localTutor" src="classic.html?v=full-grade5-1" title="محرك منهج 5A" hidden aria-hidden="true"></iframe>
 
-<script>window.PIPER_FEMININE_AR=true;window.PIPER_FEMININE_RATE=1.16;window.PIPER_TIMEOUT_MS=20000;window.PIPER_RETRIES=0;</script>
+<script>window.PIPER_FEMININE_AR=true;window.PIPER_FEMININE_RATE=1.16;window.PIPER_TIMEOUT_MS=20000;window.PIPER_RETRIES=0;
+/* مس ثريا معلّمة — فصوتها أنثى. cori صوتٌ نسائيّ بريطانيّ. */
+window.PIPER_VOICE_EN="en_GB-cori-medium";</script>
 <script src="../public/js/piper-client.js?v=20260903-piper-subdomain"></script>
 <script>
 'use strict';
@@ -347,7 +349,9 @@ function warmPiperServer(){
   piperWarmPromise=fetch(endpoint,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({text:'Ready',lang:'en'})
+    /* نُسخّن الصوت الذي سنطلبه فعلاً (النسائيّ)، لا صوتاً آخر */
+    body:JSON.stringify(window.PIPER_VOICE_EN
+      ?{text:'Ready',lang:'en',voice:window.PIPER_VOICE_EN}:{text:'Ready',lang:'en'})
   }).then(r=>{
     if(!r.ok) throw new Error('piper warmup '+r.status);
     return r.arrayBuffer();
@@ -387,7 +391,8 @@ function playTutorPiper(text,lang){
   return fetch(endpoint,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({text,lang}),
+    body:JSON.stringify(lang==='en'&&window.PIPER_VOICE_EN
+      ?{text,lang,voice:window.PIPER_VOICE_EN}:{text,lang}),
     signal:ctrl?ctrl.signal:undefined
   }).then(r=>{
     if(timer) clearTimeout(timer);
@@ -415,17 +420,64 @@ function playTutorPiper(text,lang){
     throw err;
   });
 }
+/* الخادم لا يحمل إلّا أصواتاً رجاليّةً ما لم يُعَد بناؤه، فنسأله عن قائمته
+   مرّةً واحدة. وإن لم يكن فيها صوتُنا النسائيّ — أو كان نائماً — نطقنا بصوت
+   الجهاز النسائيّ بدل أن نسكت أو نتكلّم بصوت رجل. */
+let femOk=null, femAsked=false;
+function ttsBase(){
+  return String(window.PIPER_TTS_ENDPOINT||window.__piperEndpoint||'').replace(/\/(synthesize|tts)$/,'');
+}
+function femaleReady(lang){
+  if(lang!=='en') return Promise.resolve(true);   /* العربيّة: kareem مع رفع الطبقة */
+  if(femOk!==null || femAsked) return Promise.resolve(femOk);
+  const base=ttsBase();
+  if(!base || !window.PIPER_VOICE_EN) return Promise.resolve(femOk=false);
+  femAsked=true;
+  const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
+  const t=ctrl?setTimeout(()=>ctrl.abort(),8000):null;
+  return fetch(base+'/',{cache:'no-store',signal:ctrl?ctrl.signal:undefined})
+    .then(r=>r.json())
+    .then(j=>{ femOk=Array.isArray(j.voices)&&j.voices.indexOf(window.PIPER_VOICE_EN)>=0; })
+    .catch(()=>{ femOk=false; })
+    .then(()=>{ if(t)clearTimeout(t); femAsked=false; return femOk; });
+}
+const FEM_NAME=/female|samantha|karen|serena|moira|tessa|fiona|victoria|allison|ava|susan|zira|hazel|sonia|libby|martha|catherine|amelie|nicky|kate|emma|joanna|hoda|laila|salma/i;
+function speakDevice(text,lang){
+  if(!('speechSynthesis' in window)) return false;
+  const want=lang==='ar'?/^ar/i:/^en/i;
+  const list=(speechSynthesis.getVoices()||[]).filter(v=>want.test(v.lang));
+  const v=list.find(x=>FEM_NAME.test(x.name))||list[0];
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    if(v){u.voice=v;u.lang=v.lang;} else u.lang=lang==='ar'?'ar-OM':'en-GB';
+    u.rate=.92;
+    (window.piperNativeSpeak||speechSynthesis.speak.bind(speechSynthesis))(u);
+    return true;
+  }catch(e){ return false; }
+}
 function speakTutorText(text,button){
   const clean=String(text).replace(/[*`#]/g,'').replace(/\s+/g,' ').trim();
   if(!clean) return;
   const lang=preferredVoiceLang(clean).startsWith('ar')?'ar':'en';
   button.disabled=true; button.textContent='⏳'; button.title='Piper يجهّز الصوت…';
-  playTutorPiper(clean,lang).then(audio=>{
+  femaleReady(lang).then(ok=>{
+    if(!ok) throw new Error('piper-voice-not-female');
+    return playTutorPiper(clean,lang);
+  }).then(audio=>{
     button.disabled=false; button.textContent='⏹'; button.title='صوت Piper يعمل الآن';
     audio.onended=()=>{button.textContent='🔊';button.title='استمعي بصوت Piper';};
     audio.onerror=()=>{button.textContent='⚠️';button.title='تعذّر تشغيل Piper';};
   }).catch(()=>{
-    button.disabled=false; button.textContent='⚠️'; button.title='تعذّر اتصال Piper — اضغطي مرة ثانية';
+    button.disabled=false;
+    if(speakDevice(clean,lang)){
+      button.textContent='🔊';
+      button.title=(femOk===false&&lang==='en')
+        ? 'صوت جهازك النسائيّ — صوت Piper النسائيّ يحتاج إعادة بناء المساحة'
+        : 'صوت جهازك — لم أصل إلى خادم Piper';
+      return;
+    }
+    button.textContent='⚠️'; button.title='تعذّر تشغيل الصوت — اضغطي مرة ثانية';
     setTimeout(()=>{button.textContent='🔊';button.title='استمعي بصوت Piper';},2200);
   });
 }

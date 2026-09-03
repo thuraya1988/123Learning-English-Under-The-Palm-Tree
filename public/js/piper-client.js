@@ -224,15 +224,18 @@
       }).then(function (blob) {
         var url = URL.createObjectURL(blob);
         var audio = new Audio(url);
-        var feminineArabic = voice === VOICE_AR && window.PIPER_FEMININE_AR;
-        if (feminineArabic) {
-          // Piper's bundled Arabic voice is male. Pages may opt into a
-          // brighter teacher voice by raising pitch only for Arabic audio.
+        var isAr = voice === VOICE_AR;
+        // Piper's bundled voices are both male. A page whose narrator is a
+        // woman (Miss Thuraya) can opt into a brighter voice by raising the
+        // pitch — per language, so the games keep the voice they have.
+        var feminine = isAr ? window.PIPER_FEMININE_AR : window.PIPER_FEMININE_EN;
+        if (feminine) {
           audio.preservesPitch = false;
           audio.mozPreservesPitch = false;
           audio.webkitPreservesPitch = false;
-          var feminineRate = Number(window.PIPER_FEMININE_RATE) || 1.16;
-          audio.playbackRate = Math.max(1.08, Math.min(1.24, feminineRate));
+          var feminineRate = Number(isAr ? window.PIPER_FEMININE_RATE
+                                         : window.PIPER_FEMININE_RATE_EN) || (isAr ? 1.16 : 1.12);
+          audio.playbackRate = Math.max(1.06, Math.min(1.24, feminineRate));
         } else if (utter.rate && utter.rate > 0) {
           audio.playbackRate = utter.rate;
         }

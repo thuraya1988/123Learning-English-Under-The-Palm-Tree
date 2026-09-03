@@ -350,8 +350,7 @@ function warmPiperServer(){
     method:'POST',
     headers:{'Content-Type':'application/json'},
     /* نُسخّن الصوت الذي سنطلبه فعلاً (النسائيّ)، لا صوتاً آخر */
-    body:JSON.stringify(window.PIPER_VOICE_EN
-      ?{text:'Ready',lang:'en',voice:window.PIPER_VOICE_EN}:{text:'Ready',lang:'en'})
+    body:JSON.stringify({text:'Ready',lang:'en'})
   }).then(r=>{
     if(!r.ok) throw new Error('piper warmup '+r.status);
     return r.arrayBuffer();
@@ -371,7 +370,7 @@ function makeTutorSilentWav(durationMs=1500){
   view.setUint32(40,samples*2,true);
   return URL.createObjectURL(new Blob([buffer],{type:'audio/wav'}));
 }
-function playTutorPiper(text,lang){
+function playTutorPiper(text,lang,plan){
   const endpoint=window.PIPER_TTS_ENDPOINT||window.__piperEndpoint;
   if(!endpoint) return Promise.reject(new Error('Piper endpoint unavailable'));
   const audio=new Audio();
@@ -391,8 +390,7 @@ function playTutorPiper(text,lang){
   return fetch(endpoint,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(lang==='en'&&window.PIPER_VOICE_EN
-      ?{text,lang,voice:window.PIPER_VOICE_EN}:{text,lang}),
+    body:JSON.stringify(plan&&plan.voice?{text,lang,voice:plan.voice}:{text,lang}),
     signal:ctrl?ctrl.signal:undefined
   }).then(r=>{
     if(timer) clearTimeout(timer);
@@ -406,11 +404,15 @@ function playTutorPiper(text,lang){
     audio.src=spokenUrl;
     audio.volume=1;
     audio.currentTime=0;
-    if(lang==='ar'){
+    if(plan&&plan.femPitch){
+      /* رفع الطبقة يُؤنّث الصوت الرجاليّ. للإنجليزيّة نرفعها أقلّ، لأنّ
+         الرفع يُسرع الكلام والطالب يحتاج أن يسمع الحروف واضحة. */
       audio.preservesPitch=false;
       audio.mozPreservesPitch=false;
       audio.webkitPreservesPitch=false;
-      audio.playbackRate=1.16;
+      audio.playbackRate = lang==='ar'
+        ? (Number(window.PIPER_FEMININE_RATE)||1.16)
+        : (Number(window.PIPER_FEMININE_RATE_EN)||1.12);
     }
     audio.addEventListener('ended',()=>URL.revokeObjectURL(spokenUrl),{once:true});
     return audio.play().then(()=>audio);
@@ -423,23 +425,38 @@ function playTutorPiper(text,lang){
 /* الخادم لا يحمل إلّا أصواتاً رجاليّةً ما لم يُعَد بناؤه، فنسأله عن قائمته
    مرّةً واحدة. وإن لم يكن فيها صوتُنا النسائيّ — أو كان نائماً — نطقنا بصوت
    الجهاز النسائيّ بدل أن نسكت أو نتكلّم بصوت رجل. */
-let femOk=null, femAsked=false;
+let voicePlan=null, planPromise=null;   /* {voice, femPitch} أو null إن تعذّر الخادم */
 function ttsBase(){
   return String(window.PIPER_TTS_ENDPOINT||window.__piperEndpoint||'').replace(/\/(synthesize|tts)$/,'');
 }
-function femaleReady(lang){
-  if(lang!=='en') return Promise.resolve(true);   /* العربيّة: kareem مع رفع الطبقة */
-  if(femOk!==null || femAsked) return Promise.resolve(femOk);
-  const base=ttsBase();
-  if(!base || !window.PIPER_VOICE_EN) return Promise.resolve(femOk=false);
-  femAsked=true;
+function fetchVoices(ms){
+  const base=ttsBase(); if(!base) return Promise.resolve(null);
   const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
-  const t=ctrl?setTimeout(()=>ctrl.abort(),8000):null;
+  const t=ctrl?setTimeout(()=>ctrl.abort(),ms):null;
   return fetch(base+'/',{cache:'no-store',signal:ctrl?ctrl.signal:undefined})
-    .then(r=>r.json())
-    .then(j=>{ femOk=Array.isArray(j.voices)&&j.voices.indexOf(window.PIPER_VOICE_EN)>=0; })
-    .catch(()=>{ femOk=false; })
-    .then(()=>{ if(t)clearTimeout(t); femAsked=false; return femOk; });
+    .then(r=>r.json()).then(j=>Array.isArray(j.voices)?j.voices:null)
+    .catch(()=>null).then(v=>{ if(t)clearTimeout(t); return v; });
+}
+/* لا ننتظر الخادم ليخبرنا بأصواته: نبدأ فوراً بصوته الافتراضيّ مرفوعَ
+   الطبقة — صوتُ Piper مؤنَّثاً — ونسأله في الخلفيّة. فإن تبيّن أنّ عنده
+   صوتاً نسائيّاً حقيقيّاً ارتقينا إليه في النداء التالي. هكذا لا يسمع
+   الطالب صوتاً رجاليّاً، ولا ينتظر مساحةً نائمة.                        */
+const PITCH_PLAN={voice:null,femPitch:true};
+function probeVoices(){
+  if(voicePlan||planPromise) return;
+  planPromise = fetchVoices(12000)
+    .then(v=>v||fetchVoices(25000))
+    .then(v=>{
+      planPromise=null;
+      if(v && window.PIPER_VOICE_EN && v.indexOf(window.PIPER_VOICE_EN)>=0)
+        voicePlan={voice:window.PIPER_VOICE_EN,femPitch:false};
+      else if(v) voicePlan=PITCH_PLAN;
+    });
+}
+function piperPlan(lang){
+  if(lang!=='en') return Promise.resolve(PITCH_PLAN);   /* العربيّة: kareem مرفوع الطبقة */
+  probeVoices();
+  return Promise.resolve(voicePlan||PITCH_PLAN);
 }
 const FEM_NAME=/female|samantha|karen|serena|moira|tessa|fiona|victoria|allison|ava|susan|zira|hazel|sonia|libby|martha|catherine|amelie|nicky|kate|emma|joanna|hoda|laila|salma/i;
 function speakDevice(text,lang){
@@ -461,20 +478,16 @@ function speakTutorText(text,button){
   if(!clean) return;
   const lang=preferredVoiceLang(clean).startsWith('ar')?'ar':'en';
   button.disabled=true; button.textContent='⏳'; button.title='Piper يجهّز الصوت…';
-  femaleReady(lang).then(ok=>{
-    if(!ok) throw new Error('piper-voice-not-female');
-    return playTutorPiper(clean,lang);
-  }).then(audio=>{
-    button.disabled=false; button.textContent='⏹'; button.title='صوت Piper يعمل الآن';
+  piperPlan(lang).then(plan=>playTutorPiper(clean,lang,plan)).then(audio=>{
+    button.disabled=false; button.textContent='⏹';
+    button.title=(voicePlan&&voicePlan.voice)?'صوت Piper النسائيّ':'صوت Piper — طبقةٌ مرفوعة';
     audio.onended=()=>{button.textContent='🔊';button.title='استمعي بصوت Piper';};
     audio.onerror=()=>{button.textContent='⚠️';button.title='تعذّر تشغيل Piper';};
   }).catch(()=>{
     button.disabled=false;
     if(speakDevice(clean,lang)){
       button.textContent='🔊';
-      button.title=(femOk===false&&lang==='en')
-        ? 'صوت جهازك النسائيّ — صوت Piper النسائيّ يحتاج إعادة بناء المساحة'
-        : 'صوت جهازك — لم أصل إلى خادم Piper';
+      button.title='صوت جهازك — لم أصل إلى خادم Piper';
       return;
     }
     button.textContent='⚠️'; button.title='تعذّر تشغيل الصوت — اضغطي مرة ثانية';

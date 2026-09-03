@@ -109,7 +109,9 @@ button.send:disabled{opacity:.5}
 <script>window.PIPER_TIMEOUT_MS=25000;window.PIPER_RETRIES=1;
 /* مس ثريا معلّمة — فصوتها أنثى. cori صوتٌ نسائيّ بريطانيّ.
    وإن لم يكن مثبّتاً على الخادم بعدُ ردّ الخادمُ بأقرب صوتٍ موجود. */
-window.PIPER_VOICE_EN="en_GB-cori-medium";</script>
+window.PIPER_FEMININE_EN=true;window.PIPER_FEMININE_RATE_EN=1.12;
+/* لا نثبّت الاسم قبل أن نتأكّد أنّ الخادم يحمله — وإلّا ردّ 404 وصمت الزرّ */
+window.PIPER_VOICE_WANTED="en_GB-cori-medium";</script>
 <script src="../public/js/piper-client.js?v=miss-thuraya-1"></script>
 <script src="grade5-knowledge.js?v=1"></script>
 <script>
@@ -453,33 +455,28 @@ function vPaint(){
 }
 function piperOn(){ return !!window.__piperShimInstalled; }
 
-/* هل الصوت النسائيّ مثبَّتٌ فعلاً على الخادم؟
-   إن لم يكن، فالخادم يردّ بصوت alan الرجاليّ — ومس ثريا لا تتكلّم بصوت رجل.
-   فنسأله مرّةً عن قائمة أصواته، وإن لم يكن فيها صوتُنا استعملنا صوت الجهاز. */
-let femOk=null, femAsked=false, femWhy='';
+/* أصوات Piper المثبَّتة كلّها رجاليّة ما لم تُعَد بناء المساحة، فنرفع
+   الطبقة لتصير أنثى. ونسأل الخادم في الخلفيّة: إن وجدنا صوتاً نسائيّاً
+   حقيقيّاً ثبّتناه وأوقفنا رفع الطبقة. ولا ننتظر الجواب — الطالب يضغط
+   الزرّ فيسمع فوراً.                                                     */
+let femOk=null, femAsked=false;
 function piperBase(){ return String(window.PIPER_TTS_ENDPOINT||'').replace(/\/synthesize$/,''); }
-async function checkFemale(){
-  if(femOk!==null) return femOk;
-  if(femAsked) return null;
+function probeFemale(){
+  if(femOk!==null||femAsked||!piperOn()) return;
   femAsked=true;
-  try{
-    const base=piperBase(); if(!base) throw 0;
-    const c=new AbortController(); const t=setTimeout(()=>c.abort(),8000);
-    const r=await fetch(base+'/',{cache:'no-store',signal:c.signal});
-    clearTimeout(t);
-    const j=await r.json();
-    femOk = Array.isArray(j.voices) && j.voices.indexOf(window.PIPER_VOICE_EN)>=0;
-    femWhy = femOk?'':'missing';
-  }catch(e){ femOk=false; femWhy='offline'; }
-  finally{ femAsked=false; }
-  if(femOk===false && V.engine==='piper')
-    vNote_( (femWhy==='offline'
-        ? 'لم أصل إلى خادم Piper (قد يكون نائماً)، '
-        : 'الصوت النسائيّ غير مثبَّتٍ على خادم Piper بعد — أعيدي بناء المساحة على HuggingFace، ')
-      + 'فاستعملتُ صوت جهازك النسائيّ.');
-  return femOk;
+  const base=piperBase(); if(!base){ femAsked=false; return; }
+  const c=new AbortController(); const t=setTimeout(()=>c.abort(),12000);
+  fetch(base+'/',{cache:'no-store',signal:c.signal})
+    .then(r=>r.json())
+    .then(j=>{
+      clearTimeout(t); femAsked=false;
+      const has=Array.isArray(j.voices)&&j.voices.indexOf(window.PIPER_VOICE_WANTED)>=0;
+      femOk=has;
+      if(has){ window.PIPER_VOICE_EN=window.PIPER_VOICE_WANTED; window.PIPER_FEMININE_EN=false; }
+    })
+    .catch(()=>{ clearTimeout(t); femAsked=false; });
 }
-if(piperOn()) checkFemale();
+if(piperOn()) probeFemale();
 /* أسماء الأصوات النسائيّة الشائعة في الأجهزة — مس ثريا لا تتكلّم بصوت رجل */
 const FEM=/female|samantha|karen|serena|moira|tessa|fiona|victoria|allison|ava|susan|zira|hazel|sonia|libby|martha|catherine|amelie|nicky|kate|emma|joanna/i;
 function webVoice(){
@@ -502,11 +499,9 @@ function speak(text,btn){
   u.rate=.9;                                  /* أبطأ قليلاً — الطالب يتعلّم */
   const off=()=>{ if(btn) btn.classList.remove('on'); };
   u.onend=off; u.onerror=off;
-  /* لا نمرّ على Piper إلّا إذا تأكّدنا أنّ صوته النسائيّ موجود */
-  const usePiper = V.engine==='piper' && femOk===true;
-  if(!usePiper && window.piperNativeSpeak) window.piperNativeSpeak(u);
+  if(V.engine==='web' && window.piperNativeSpeak) window.piperNativeSpeak(u);
   else speechSynthesis.speak(u);              /* الشيم يحوّلها إلى Piper */
-  if(V.engine==='piper' && femOk===null) checkFemale();
+  probeFemale();
   setTimeout(off,12000);                      /* شبكة أمان لو لم يصل حدث النهاية */
 }
 
@@ -515,8 +510,7 @@ if(document.getElementById('vtoggle')) document.getElementById('vtoggle').onclic
   if(vPanel.classList.contains('open')&&!vNote.innerHTML){
     const v=webVoice();
     vNote_( (piperOn()? (femOk===true?'صوت <b>Piper</b> النسائيّ (cori) جاهز.'
-                        :femOk===false?'خادم Piper لا يحمل الصوت النسائيّ بعد — أستعمل صوت جهازك النسائيّ.'
-                        :'أتحقّق من صوت Piper النسائيّ…')
+                        :'صوت <b>Piper</b> بطبقةٍ مرفوعة — الصوت النسائيّ الحقيقيّ يحتاج إعادة بناء المساحة.')
                      :'⚠️ لم يُحمَّل ملفّ Piper — سيُستعمل صوت الجهاز.')
       + '<br>' + (v?('صوت جهازك الاحتياطيّ: <b>'+v.name+'</b> ('+v.lang+')')
                    :'لم أجد صوتاً إنجليزيّاً في جهازك.') );
@@ -525,7 +519,7 @@ if(document.getElementById('vtoggle')) document.getElementById('vtoggle').onclic
 if(vPiper) vPiper.onclick=()=>{ V.engine='piper'; try{localStorage.setItem('mt_voice','piper');}catch(e){}
   vPaint(); vNote_(piperOn()?'صوت <b>Piper</b> النسائيّ — أوّل نطقٍ قد يتأخّر ثوانيَ حتّى يستيقظ الخادم، ثمّ يصير سريعاً.'
                            :'⚠️ ملفّ Piper غير محمَّل في هذه الصفحة.');
-  femOk=null; checkFemale(); };
+  femOk=null; probeFemale(); };
 if(vWeb) vWeb.onclick=()=>{ V.engine='web'; try{localStorage.setItem('mt_voice','web');}catch(e){}
   vPaint(); vNote_('صوت الجهاز — فوريّ ويعمل بلا إنترنت.'); };
 if(document.getElementById('vtest')) document.getElementById('vtest').onclick=()=>

@@ -31,11 +31,18 @@
   // Thuraya has had more than one TTS Space over time and the old one now
   // answers 503. Rather than hard-coding a single host, try each known Space
   // and keep the first that is genuinely OUR Piper server.
+  // Thuraya owns several Spaces and more than one is titled "Palm Tree TTS";
+  // the pinned one is in a runtime error while another is running. We cannot
+  // know which subdomain is which from here, so probe them all at once and
+  // keep whichever actually answers like our Piper server.
   var CANDIDATES = (window.PIPER_BASES || [
     window.PIPER_BASE,
     "https://thursday88-palmtts.hf.space",
+    "https://thursday88-palm-tree-tts.hf.space",
+    "https://thursday88-palmtreetts.hf.space",
     "https://thursday88-piper-tts-api.hf.space",
-    "https://thursday88-palm-tree-tts.hf.space"
+    "https://thursday88-palm-tree-tts-api.hf.space",
+    "https://thursday88-tts.hf.space"
   ]).filter(Boolean).map(function (u) { return String(u).replace(/\/+$/, ""); });
 
   var BASE = CANDIDATES[0];
@@ -81,9 +88,20 @@
   function ensureBase() {
     if (window.PIPER_BASE) return Promise.resolve(BASE);   // pinned by the page
     if (basePromise) return basePromise;
-    basePromise = CANDIDATES.reduce(function (chain, cand) {
-      return chain.catch(function () { return looksLikeOurs(cand); });
-    }, Promise.reject(new Error("start"))).then(function (found) {
+    // Race them: probing one after another would take a minute before the
+    // first word is spoken. First valid answer wins; ties go to list order.
+    basePromise = new Promise(function (resolve, reject) {
+      var left = CANDIDATES.length, best = null, bestIdx = 1e9;
+      CANDIDATES.forEach(function (cand, idx) {
+        looksLikeOurs(cand).then(function () {
+          if (idx < bestIdx) { best = cand; bestIdx = idx; }
+          resolve(best);
+        }, function () {}).then(function () {
+          if (--left === 0) { if (best) resolve(best); else reject(new Error("no-piper-space")); }
+        });
+      });
+      if (!CANDIDATES.length) reject(new Error("no-candidates"));
+    }).then(function (found) {
       setBase(found);
       try { localStorage.setItem(CACHE_KEY, JSON.stringify({ base: found, t: Date.now() })); } catch (e) {}
       return found;

@@ -207,7 +207,18 @@
       }).then(function (blob) {
         var url = URL.createObjectURL(blob);
         var audio = new Audio(url);
-        if (utter.rate && utter.rate > 0) audio.playbackRate = utter.rate;
+        var feminineArabic = voice === VOICE_AR && window.PIPER_FEMININE_AR;
+        if (feminineArabic) {
+          // Piper's bundled Arabic voice is male. Pages may opt into a
+          // brighter teacher voice by raising pitch only for Arabic audio.
+          audio.preservesPitch = false;
+          audio.mozPreservesPitch = false;
+          audio.webkitPreservesPitch = false;
+          var feminineRate = Number(window.PIPER_FEMININE_RATE) || 1.16;
+          audio.playbackRate = Math.max(1.08, Math.min(1.24, feminineRate));
+        } else if (utter.rate && utter.rate > 0) {
+          audio.playbackRate = utter.rate;
+        }
         if (utter.volume != null) audio.volume = Math.max(0, Math.min(1, utter.volume));
         queue.push({ audio: audio, utter: utter });
         playNext();
@@ -237,6 +248,12 @@
     }).then(function (blob) {
       var url = URL.createObjectURL(blob);
       var audio = new Audio(url);
+      if (voice === VOICE_AR && window.PIPER_FEMININE_AR) {
+        audio.preservesPitch = false;
+        audio.mozPreservesPitch = false;
+        audio.webkitPreservesPitch = false;
+        audio.playbackRate = Math.max(1.08, Math.min(1.24, Number(window.PIPER_FEMININE_RATE) || 1.16));
+      }
       return audio.play().then(function () { return audio; });
     });
   };

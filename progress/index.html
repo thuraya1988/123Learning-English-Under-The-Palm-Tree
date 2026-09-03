@@ -66,7 +66,7 @@ table{width:100%;border-collapse:collapse;margin-top:10px;min-width:650px}th,td{
       <p class="school">مدرسة ملتقى المعارف للتعليم الأساسي (١–٦)</p>
       <p class="motto">نرصد التقدّم، ندعم الاحتياج، ونصنع لكل طالبة طريقًا نحو التميّز.</p>
       <div class="teachers">💐 إعداد ومتابعة: ثرياء الناعبية • سارة • عاتكة</div>
-      <div class="actions" style="margin-top:14px"><button class="btn white" id="rosterBtn">📋 استيراد القوائم</button><button class="btn white" id="exportBtn">⬇️ تصدير التقرير</button></div>
+      <div class="actions" style="margin-top:14px"><a class="btn white" href="./activities/" style="text-decoration:none">🎮 روابط الأنشطة</a><button class="btn white" id="rosterBtn">📋 استيراد القوائم</button><button class="btn white" id="exportBtn">⬇️ تصدير التقرير</button></div>
     </div>
     <div class="heroImage"><img src="https://image.qwenlm.ai/public_source/f94940f9-014d-402c-a6eb-5286da613965/110b63f83-f8b2-4797-bd57-fd13ea5f029e.png" alt="المعلمات مع طالبات الصف الخامس"></div>
   </header>
@@ -142,10 +142,10 @@ async function fetchAll(){
   finally{$('#loadBtn').disabled=false;$('#loadBtn').textContent='🔄 تحديث النتائج'}
 }
 function build(){
-  const map=new Map();
-  roster.forEach(r=>map.set(String(r.id||('name:'+norm(r.name)+'|'+norm(r.cls))),{id:String(r.id||''),name:r.name||'',cls:r.cls||'',level:r.level||'support',attempts:[]}));
-  submissions.forEach(a=>{let x=map.get(String(a.id));if(!x){x={id:String(a.id),name:a.name,cls:a.cls,level:a.level,attempts:[]};map.set(String(a.id),x)}x.attempts.push(a)});
-  students=[...map.values()].map(s=>{
+  const map=new Map(),aliases=new Map();
+  roster.forEach(r=>{const nameKey='name:'+norm(r.name)+'|'+norm(r.cls),key=String(r.id||nameKey),student={id:String(r.id||''),name:r.name||'',cls:r.cls||'',level:r.level||'support',attempts:[]};map.set(key,student);aliases.set(nameKey,student)});
+  submissions.forEach(a=>{const nameKey='name:'+norm(a.name)+'|'+norm(a.cls);let x=map.get(String(a.id))||aliases.get(nameKey);if(!x){x={id:String(a.id),name:a.name,cls:a.cls,level:a.level,attempts:[]};map.set(String(a.id),x);aliases.set(nameKey,x)}x.attempts.push(a)});
+  students=[...new Set(map.values())].map(s=>{
     s.attempts.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
     s.level=normalizeLevel(s.attempts.at(-1)?.level||s.level||'support');
     s.best=s.attempts.length?Math.max(...s.attempts.map(a=>a.score)):0;

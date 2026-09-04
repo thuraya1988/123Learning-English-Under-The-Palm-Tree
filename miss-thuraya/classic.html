@@ -422,14 +422,21 @@ fetch(CLIP_BASE+'manifest.json',{cache:'no-store'})
   })
   .catch(()=>{});
 
+/* الحرفُ الملاصق: إن كان حرفَ لغةٍ فالمطابقة داخل كلمةٍ أخرى لا عندها.
+   بدونها كان «ill» يُنطق داخل «still» و«skilled» — فتقرأ ثريا كلماتٍ
+   لا وجود لها في النصّ. */
+const LETTER=/[A-Za-z\u0621-\u064A]/;
 function clipsIn(text,L){
   const V=CLIPS[L]; if(!V) return [];
   const taken=[], found=[];
   for(const k of V.keys){
+    const headL=LETTER.test(k[0]), tailL=LETTER.test(k[k.length-1]);
     let from=0, i;
     while((i=text.indexOf(k,from))>=0){
       const j=i+k.length;
-      if(!taken.some(([a,b])=>i<b&&j>a)){ taken.push([i,j]); found.push([i,V.map[k]]); }
+      const okStart=!headL || !LETTER.test(text[i-1]||' ');
+      const okEnd  =!tailL || !LETTER.test(text[j]||' ');
+      if(okStart&&okEnd&&!taken.some(([a,b])=>i<b&&j>a)){ taken.push([i,j]); found.push([i,V.map[k]]); }
       from=i+1;
     }
   }
@@ -440,20 +447,27 @@ function setPlayLabel(b,label){
     b.innerHTML='<img class="mo" src="'+MOHAMMED_IMG+'" alt=""> '+label.replace('🤖 ','');
   } else b.textContent=label;
 }
+/* لكلّ تشغيلٍ رقمُه. المتصفّح قد يُنهي مقطعاً قديماً بعد أن بدأ تشغيلٌ
+   جديد، فيسحب من طابور الجديد فيتداخل صوتان ويتقطّعان. فنتجاهل كلّ
+   نداءٍ لا يحمل الرقم الجاري. */
 function stopClips(){
+  CLIPS.gen=(CLIPS.gen||0)+1;
   CLIPS.queue.length=0;
-  if(CLIPS.audio){ try{CLIPS.audio.pause();}catch(e){} CLIPS.audio=null; }
+  if(CLIPS.audio){ const a=CLIPS.audio; a.onended=a.onerror=null;
+    try{a.pause();}catch(e){} CLIPS.audio=null; }
   if(CLIPS.btn){ setPlayLabel(CLIPS.btn,CLIPS.btn.dataset.label); CLIPS.btn=null; }
 }
-function playQueue(){
+function playQueue(gen){
+  if(gen!==CLIPS.gen) return;            /* تشغيلٌ قديمٌ تجاوزه غيرُه */
   const f=CLIPS.queue.shift();
   if(!f){ if(CLIPS.btn){setPlayLabel(CLIPS.btn,CLIPS.btn.dataset.label);CLIPS.btn=null;} return; }
   const a=new Audio(CLIPS.dir+f);
   a.setAttribute('playsinline','');
+  a.preload='auto';
   CLIPS.audio=a;
-  a.onended=playQueue;
-  a.onerror=playQueue;          /* مقطعٌ ناقصٌ لا يوقف البقيّة */
-  a.play().catch(()=>playQueue());
+  a.onended=()=>playQueue(gen);
+  a.onerror=()=>playQueue(gen);          /* مقطعٌ ناقصٌ لا يوقف البقيّة */
+  a.play().catch(()=>{ if(gen===CLIPS.gen) playQueue(gen); });
 }
 function addPlay(bubble){
   if(!bubble || bubble.querySelector('.play')) return;
@@ -474,7 +488,7 @@ function addPlay(bubble){
       stopClips();
       CLIPS.btn=b; setPlayLabel(b,'⏹ إيقاف');
       CLIPS.queue=list.slice();
-      playQueue();
+      playQueue(CLIPS.gen);
     };
     bubble.appendChild(b);
   });

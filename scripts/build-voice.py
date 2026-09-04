@@ -37,13 +37,26 @@ def die(msg):
     sys.exit(1)
 
 
-def encode(wav_bytes, dest, semitones, rate):
-    """WAV -> MP3, optionally shifting pitch without changing the tempo."""
-    args = ["ffmpeg", "-loglevel", "error", "-y", "-f", "wav", "-i", "pipe:0"]
+def encode(wav_bytes, dest, semitones, rate, dur=0.0):
+    """WAV -> MP3, optionally shifting pitch without changing the tempo.
+
+    Clips play back to back, and a clip that starts on a non-zero sample
+    clicks at the join — which is what a listener hears as crackle. Measured
+    on a real clip: the old encode began at amplitude 11 and ended at 24.
+    So fade a few milliseconds in and out and pad both ends with silence.
+    """
+    chain = []
     if semitones:
         r = 2 ** (semitones / 12)
-        args += ["-af", f"asetrate={rate}*{r},aresample={rate},atempo={1/r}"]
-    args += ["-c:a", "libmp3lame", "-b:a", "48k", "-ar", "22050", "-ac", "1", str(dest)]
+        chain.append(f"asetrate={rate}*{r},aresample={rate},atempo={1/r}")
+    chain.append("afade=t=in:st=0:d=0.02")
+    if dur > 0.12:
+        chain.append("afade=t=out:st=%.3f:d=0.04" % max(0.0, dur - 0.04))
+    chain.append("adelay=35|35")
+    chain.append("apad=pad_dur=0.07")
+    args = ["ffmpeg", "-loglevel", "error", "-y", "-f", "wav", "-i", "pipe:0",
+            "-af", ",".join(chain),
+            "-c:a", "libmp3lame", "-b:a", "64k", "-ar", "22050", "-ac", "1", str(dest)]
     p = subprocess.run(args, input=wav_bytes, stdout=subprocess.DEVNULL,
                        stderr=subprocess.PIPE)
     if p.returncode != 0:
@@ -119,7 +132,10 @@ def main():
         buf = io.BytesIO()
         with wave.open(buf, "wb") as wf:
             voices[lang]["synth"](text, wf)
-        encode(buf.getvalue(), dest, pitches[lang], voices[lang]["rate"])
+        raw = buf.getvalue()
+        with wave.open(io.BytesIO(raw)) as r:
+            dur = r.getnframes() / float(r.getframerate() or 1)
+        encode(raw, dest, pitches[lang], voices[lang]["rate"], dur)
         made += 1
         if made % 50 == 0:
             print("  %d/%d lines…" % (i, len(lines)), flush=True)

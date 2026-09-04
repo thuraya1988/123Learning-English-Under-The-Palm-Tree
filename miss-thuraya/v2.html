@@ -29,9 +29,6 @@ header{min-width:0;max-width:100%;padding:12px 14px;border-bottom:1px solid var(
 .avatar.busy{animation:avatarFloat 1.4s ease-in-out infinite}
 @keyframes avatarFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 .identity{min-width:0}.identity h1{font-size:17px;white-space:nowrap}.identity p{font-size:11.5px;color:var(--muted);margin-top:2px}
-.ttsnote{margin-top:6px;font-size:11.5px;line-height:1.7;color:var(--muted)}
-.ttsnote[data-kind="warn"]{color:#a8442f}
-.ttsnote a{color:inherit;font-weight:700}
 .online{margin-inline-start:auto;border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:11px;color:var(--muted);white-space:nowrap;background:rgba(255,255,255,.45)}
 .online.on{border-color:rgba(122,31,61,.45);color:var(--gold);background:rgba(122,31,61,.06)}
 .controls{width:100%;min-width:0;display:flex;gap:7px;overflow-x:auto;margin-top:10px;padding-bottom:1px;scrollbar-width:none}
@@ -85,7 +82,6 @@ footer{min-width:0;max-width:100%;overflow:hidden;border-top:1px solid var(--lin
 .attachment{display:none;align-items:center;gap:8px;margin:7px 50px 0 0;padding:7px 10px;border:1px solid var(--line);border-radius:12px;background:#fff8ee;color:var(--muted);font-size:11px}
 .attachment.show{display:flex}.attachment img{width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
 .attachment button{margin-inline-start:auto;border:0;background:transparent;color:var(--gold);font-size:18px}
-.speak{display:inline-grid;place-items:center;width:27px;height:27px;margin-top:7px;border:1px solid var(--line);border-radius:9px;background:#fff8ee;color:var(--gold);font-size:13px}
 .typing{display:inline-flex;gap:4px;padding:3px 0}
 .typing i{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:bounce 1s infinite}
 .typing i:nth-child(2){animation-delay:.16s}.typing i:nth-child(3){animation-delay:.32s}
@@ -195,10 +191,6 @@ footer{min-width:0;max-width:100%;overflow:hidden;border-top:1px solid var(--lin
 </div>
 <iframe id="localTutor" src="classic.html?v=full-grade5-1" title="محرك منهج 5A" hidden aria-hidden="true"></iframe>
 
-<script>window.PIPER_FEMININE_AR=true;window.PIPER_FEMININE_RATE=1.16;window.PIPER_TIMEOUT_MS=30000;window.PIPER_RETRIES=2;
-/* مس ثريا معلّمة — فصوتها أنثى. cori صوتٌ نسائيّ بريطانيّ. */
-window.PIPER_VOICE_EN="en_GB-cori-medium";</script>
-<script src="../public/js/piper-client.js?v=20260904-space-fix2"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -216,7 +208,6 @@ function setAvatarPose(pose='welcome', resetMs=0){
   if(resetMs) avatarResetTimer=setTimeout(()=>setAvatarPose('welcome'),resetMs);
 }
 setAvatarPose('welcome');
-setTimeout(warmPiperServer,350);
 const STORE = 'missThurayaTutorV2';
 let aiReady = false;
 let mode = 'tutor';
@@ -339,238 +330,6 @@ function renderText(text=''){
   s = s.replace(/\n/g,'<br>');
   return s;
 }
-function preferredVoiceLang(text=''){
-  const arabic=(String(text).match(/[\u0600-\u06ff]/g)||[]).length;
-  const english=(String(text).match(/[A-Za-z]/g)||[]).length;
-  return arabic>=english?'ar-OM':'en-GB';
-}
-let piperWarmPromise=null;
-function warmPiperServer(){
-  const endpoint=window.PIPER_TTS_ENDPOINT||window.__piperEndpoint;
-  if(!endpoint) return Promise.resolve();
-  if(piperWarmPromise) return piperWarmPromise;
-  /* نوقظ المساحة فور فتح الصفحة، فحين يضغط الطالب تكون صاحية */
-  piperWarmPromise=piperFetch(endpoint,'Ready','en',null,null)
-    .catch(()=>{piperWarmPromise=null;});
-  return piperWarmPromise;
-}
-function makeTutorSilentWav(durationMs=1500){
-  const sampleRate=8000;
-  const samples=Math.max(800,Math.round(sampleRate*durationMs/1000));
-  const buffer=new ArrayBuffer(44+samples*2);
-  const view=new DataView(buffer);
-  const write=(offset,value)=>{for(let i=0;i<value.length;i++)view.setUint8(offset+i,value.charCodeAt(i));};
-  write(0,'RIFF'); view.setUint32(4,36+samples*2,true); write(8,'WAVE'); write(12,'fmt ');
-  view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
-  view.setUint32(24,sampleRate,true); view.setUint32(28,sampleRate*2,true);
-  view.setUint16(32,2,true); view.setUint16(34,16,true); write(36,'data');
-  view.setUint32(40,samples*2,true);
-  return URL.createObjectURL(new Blob([buffer],{type:'audio/wav'}));
-}
-/* مساحة HuggingFace المجّانيّة تنام إذا خملت، وإيقاظها يأخذ دقيقةً أحياناً.
-   المهلة القديمة كانت عشرين ثانيةً بلا إعادة، فكانت أوّل محاولةٍ تفشل دائماً
-   ويسقط النطق إلى صوت ويندوز الآليّ. فنُمهلها ثلاث محاولاتٍ متصاعدة، ونخبر
-   الطالب أنّنا نوقظ الخادم بدل أن نصمت. وبعد أوّل نجاحٍ نعود إلى مهلةٍ قصيرة. */
-let piperAwake=false;
-function piperOnce(endpoint,text,lang,plan,ms){
-  const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
-  const timer=ctrl?setTimeout(()=>ctrl.abort(),ms):null;
-  /* الشيم يعرف أيّ مساحةٍ حيّة وبأيّ لغةٍ تتكلّم — REST أو Gradio — فندعه
-     يجلب الصوت. ولا نعود إلى نداء fetch المباشر إلّا إن غاب الشيم.       */
-  if(typeof window.piperSynthBlob==='function'){
-    const t=setTimeout(()=>{ if(ctrl) ctrl.abort(); },ms);
-    return window.piperSynthBlob(text,lang).then(b=>{ clearTimeout(t); piperAwake=true; return b; },
-      e=>{ clearTimeout(t); if(timer) clearTimeout(timer); throw e; });
-  }
-  const url=String(window.PIPER_TTS_ENDPOINT||endpoint);
-  return fetch(url,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(plan&&plan.voice?{text,lang,voice:plan.voice}:{text,lang}),
-    signal:ctrl?ctrl.signal:undefined
-  }).then(r=>{
-    if(timer) clearTimeout(timer);
-    if(!r.ok) throw new Error('piper-http-'+r.status);
-    piperAwake=true;
-    return r.blob();
-  },err=>{ if(timer)clearTimeout(timer); throw err; });
-}
-function piperFetch(endpoint,text,lang,plan,onWake){
-  const budgets = piperAwake ? [25000] : [25000,45000,60000];
-  let i=0, lastErr=null;
-  const attempt=()=>{
-    if(i>=budgets.length) return Promise.reject(lastErr||new Error('piper-failed'));
-    const ms=budgets[i++];
-    if(onWake) onWake(i,budgets.length,piperAwake,lastErr);
-    return piperOnce(endpoint,text,lang,plan,ms).catch(err=>{
-      lastErr=err;
-      /* إن لم توجد مساحةُ نطقٍ أصلاً فلا شيء نوقظه — لا نُصمت الزرّ دقائق */
-      if(/no-tts-space/.test(String(err&&err.message||''))) throw err;
-      if(i>=budgets.length) throw err;
-      return new Promise(z=>setTimeout(z,4000)).then(attempt);
-    });
-  };
-  return attempt();
-}
-function playTutorPiper(text,lang,plan,onWake){
-  const endpoint=window.PIPER_TTS_ENDPOINT||window.__piperEndpoint;
-  if(!endpoint) return Promise.reject(new Error('Piper endpoint unavailable'));
-  const audio=new Audio();
-  audio.setAttribute('playsinline','');
-  audio.preload='auto';
-  const unlockUrl=makeTutorSilentWav();
-  let unlockStarted=Promise.resolve();
-  try{
-    audio.src=unlockUrl;
-    audio.loop=true;
-    audio.volume=.01;
-    const firstPlay=audio.play();
-    if(firstPlay&&firstPlay.catch) unlockStarted=firstPlay.catch(()=>{});
-  }catch(_){}
-  return piperFetch(endpoint,text,lang,plan,onWake).then(blob=>unlockStarted.then(()=>{
-    try{audio.pause();}catch(_){}
-    audio.loop=false;
-    URL.revokeObjectURL(unlockUrl);
-    const spokenUrl=URL.createObjectURL(blob);
-    audio.src=spokenUrl;
-    audio.volume=1;
-    audio.currentTime=0;
-    if(plan&&plan.femPitch){
-      /* رفع الطبقة يُؤنّث الصوت الرجاليّ. للإنجليزيّة نرفعها أقلّ، لأنّ
-         الرفع يُسرع الكلام والطالب يحتاج أن يسمع الحروف واضحة. */
-      audio.preservesPitch=false;
-      audio.mozPreservesPitch=false;
-      audio.webkitPreservesPitch=false;
-      audio.playbackRate = lang==='ar'
-        ? (Number(window.PIPER_FEMININE_RATE)||1.16)
-        : (Number(window.PIPER_FEMININE_RATE_EN)||1.12);
-    }
-    audio.addEventListener('ended',()=>URL.revokeObjectURL(spokenUrl),{once:true});
-    return audio.play().then(()=>audio);
-  })).catch(err=>{
-    try{audio.pause();}catch(_){}
-    URL.revokeObjectURL(unlockUrl);
-    throw err;
-  });
-}
-/* الخادم لا يحمل إلّا أصواتاً رجاليّةً ما لم يُعَد بناؤه، فنسأله عن قائمته
-   مرّةً واحدة. وإن لم يكن فيها صوتُنا النسائيّ — أو كان نائماً — نطقنا بصوت
-   الجهاز النسائيّ بدل أن نسكت أو نتكلّم بصوت رجل. */
-let voicePlan=null, planPromise=null;   /* {voice, femPitch} أو null إن تعذّر الخادم */
-function ttsBase(){
-  return String(window.PIPER_BASE_ACTIVE||window.PIPER_TTS_ENDPOINT||window.__piperEndpoint||'')
-    .replace(/\/(synthesize|tts)$/,'');
-}
-function fetchVoices(ms){
-  const base=ttsBase(); if(!base) return Promise.resolve(null);
-  const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
-  const t=ctrl?setTimeout(()=>ctrl.abort(),ms):null;
-  return fetch(base+'/',{cache:'no-store',signal:ctrl?ctrl.signal:undefined})
-    .then(r=>r.json()).then(j=>Array.isArray(j.voices)?j.voices:null)
-    .catch(()=>null).then(v=>{ if(t)clearTimeout(t); return v; });
-}
-/* لا ننتظر الخادم ليخبرنا بأصواته: نبدأ فوراً بصوته الافتراضيّ مرفوعَ
-   الطبقة — صوتُ Piper مؤنَّثاً — ونسأله في الخلفيّة. فإن تبيّن أنّ عنده
-   صوتاً نسائيّاً حقيقيّاً ارتقينا إليه في النداء التالي. هكذا لا يسمع
-   الطالب صوتاً رجاليّاً، ولا ينتظر مساحةً نائمة.                        */
-const PITCH_PLAN={voice:null,femPitch:true};
-function probeVoices(){
-  if(voicePlan||planPromise) return;
-  planPromise = fetchVoices(12000)
-    .then(v=>v||fetchVoices(25000))
-    .catch(()=>null)
-    .then(v=>{
-      planPromise=null;
-      if(v && window.PIPER_VOICE_EN && v.indexOf(window.PIPER_VOICE_EN)>=0)
-        voicePlan={voice:window.PIPER_VOICE_EN,femPitch:false};
-      else if(v) voicePlan=PITCH_PLAN;
-    });
-}
-function piperPlan(lang){
-  if(lang!=='en') return Promise.resolve(PITCH_PLAN);   /* العربيّة: kareem مرفوع الطبقة */
-  probeVoices();
-  return Promise.resolve(voicePlan||PITCH_PLAN);
-}
-const FEM_NAME=/female|samantha|karen|serena|moira|tessa|fiona|victoria|allison|ava|susan|zira|hazel|heera|linda|hayley|sonia|libby|martha|catherine|amelie|nicky|kate|emma|joanna|hoda|laila|salma/i;
-function speakDevice(text,lang){
-  if(!('speechSynthesis' in window)) return false;
-  const want=lang==='ar'?/^ar/i:/^en/i;
-  const list=(speechSynthesis.getVoices()||[]).filter(v=>want.test(v.lang));
-  const v=list.find(x=>FEM_NAME.test(x.name))||list[0];
-  try{
-    speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(text);
-    if(v){u.voice=v;u.lang=v.lang;} else u.lang=lang==='ar'?'ar-OM':'en-GB';
-    u.rate=.92;
-    (window.piperNativeSpeak||speechSynthesis.speak.bind(speechSynthesis))(u);
-    return true;
-  }catch(e){ return false; }
-}
-const SPACE_PAGE='https://huggingface.co/spaces/Thursday88/palmtts';
-function ttsNote(button,msg,kind,link){
-  const bubble=button.closest('.bubble'); if(!bubble) return;
-  let n=bubble.querySelector('.ttsnote');
-  if(!msg){ if(n) n.remove(); return; }
-  if(!n){ n=document.createElement('div'); n.className='ttsnote'; bubble.appendChild(n); }
-  /* الرسالة النهائيّة تُقفل السطر، فلا تطمسها رسالةُ انتظارٍ متأخّرة */
-  if(n.dataset.final==='1' && kind!=='warn') return;
-  if(kind==='warn') n.dataset.final='1';
-  n.textContent=msg; n.setAttribute('data-kind',kind||'');
-  if(link){
-    n.appendChild(document.createTextNode(' '));
-    const a=document.createElement('a');
-    a.href=link; a.target='_blank'; a.rel='noopener';
-    a.textContent='افتحي صفحة المساحة وشغّليها ↗';
-    n.appendChild(a);
-  }
-}
-function speakTutorText(text,button){
-  const clean=String(text).replace(/[*`#]/g,'').replace(/\s+/g,' ').trim();
-  if(!clean) return;
-  const lang=preferredVoiceLang(clean).startsWith('ar')?'ar':'en';
-  button.disabled=true; button.textContent='⏳'; button.title='Piper يجهّز الصوت…';
-  ttsNote(button,'');
-  let settled=false;
-  const onWake=(n,total,awake,lastErr)=>{
-    if(awake||settled) return;   /* لا نطمس الرسالة النهائيّة بمحاولةٍ متأخّرة */
-    const booting=/http-503/.test(String(lastErr&&lastErr.message||''));
-    ttsNote(button, n===1 ? '⏳ أوقظ خادم صوت Piper… قد يأخذ دقيقةً في أوّل مرّة.'
-                  : booting ? '⏳ مساحة Piper تُقلِع الآن… المحاولة '+n+' من '+total+'.'
-                            : '⏳ ما زال الخادم يستيقظ… المحاولة '+n+' من '+total+'.');
-  };
-  piperPlan(lang).then(plan=>playTutorPiper(clean,lang,plan,onWake)).then(audio=>{
-    settled=true;
-    button.disabled=false; button.textContent='⏹';
-    button.title=(voicePlan&&voicePlan.voice)?'صوت Piper النسائيّ':'صوت Piper — طبقةٌ مرفوعة';
-    ttsNote(button,'');
-    audio.onended=()=>{button.textContent='🔊';button.title='استمعي بصوت Piper';};
-    audio.onerror=()=>{button.textContent='⚠️';button.title='تعذّر تشغيل Piper';};
-  }).catch(err=>{
-    settled=true;
-    button.disabled=false;
-    const why=String(err&&err.message||err||'');
-    const code=(why.match(/http-(\d+)/)||[])[1];
-    /* ٥٠٣ من HuggingFace تعني أنّ المساحة متوقّفةٌ أو ما زالت تُقلِع */
-    const noSpace=/no-tts-space/.test(why);
-    const reason = code==='503' ? 'مساحة Piper على HuggingFace متوقّفة — تحتاج تشغيلاً من صفحتها'
-                 : code==='405' ? 'المساحة تعمل لكنّها ليست خادم النطق الذي ننتظره'
-                 : code==='404' ? 'الصوت المطلوب غير مثبَّتٍ على خادم Piper'
-                 : code         ? ('خادم Piper ردّ بالرمز '+code)
-                 : noSpace      ? 'لم أجد مساحة نطقٍ تعمل'
-                 : /abort/i.test(why) ? 'خادم Piper لم يردّ خلال دقيقتين'
-                 : 'تعذّر الوصول إلى خادم Piper';
-    if(speakDevice(clean,lang)){
-      button.textContent='🔊';
-      button.title=reason+' — نطقتُ بصوت جهازك';
-      /* في كلّ أعطال الخادم الطريقُ واحد: صفحة المساحة */
-      const serverDown = noSpace || !code || code==='503' || code==='405';
-      ttsNote(button,'⚠️ '+reason+'، فنطقتُ بصوت جهازك.','warn', serverDown?SPACE_PAGE:'');
-      return;
-    }
-    button.textContent='⚠️'; button.title='تعذّر تشغيل الصوت — اضغطي مرة ثانية';
-    setTimeout(()=>{button.textContent='🔊';button.title='استمعي بصوت Piper';},2200);
-  });
-}
 function addMessage(role,text,meta,imageUrl){
   const row=document.createElement('div');
   row.className='msg '+(role==='user'?'user':'bot');
@@ -594,11 +353,6 @@ function addMessage(role,text,meta,imageUrl){
     if(meta.skill && meta.skill!=='general-english') m.innerHTML += `<span>${escapeHtml(meta.skill)}</span>`;
     if(meta.intent) m.innerHTML += `<span>${escapeHtml(meta.intent)}</span>`;
     bubble.appendChild(m);
-  }
-  if(role==='bot' && (typeof window.piperSay==='function' || 'speechSynthesis' in window) && String(text).trim()){
-    const speak=document.createElement('button'); speak.type='button'; speak.className='speak'; speak.title='استمعي بصوت Piper'; speak.textContent='🔊';
-    speak.addEventListener('click',()=>speakTutorText(text,speak));
-    bubble.appendChild(speak);
   }
   row.append(face,bubble); chat.appendChild(row); chat.scrollTop=chat.scrollHeight;
   return row;
@@ -722,10 +476,6 @@ async function askLocal(question,image){
     const replies=localChat.querySelectorAll('.msg.her');
     if(replies.length>before){
       const bubble=replies[replies.length-1].querySelector('.bub');
-      /* أزرار النطق في المحرّك المخفيّ نصُّها «🔊 اسمعها» — نزيلها قبل
-         القراءة وإلّا تسرّبت داخل جواب مس ثريا. الإطار مخفيٌّ أصلاً
-         فلا يرى أحدٌ هذه الإزالة. */
-      if(bubble) bubble.querySelectorAll('.say').forEach(n=>n.remove());
       const answer=cleanLocalAnswer(bubble?.innerText||bubble?.textContent||'');
       if(answer) return {
         ok:true,

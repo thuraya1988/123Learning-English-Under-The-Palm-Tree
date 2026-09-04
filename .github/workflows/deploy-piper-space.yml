@@ -1,0 +1,56 @@
+name: Deploy Piper TTS to Hugging Face
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "huggingface-space/piper-tts/**"
+      - ".github/workflows/deploy-piper-space.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-piper-space
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the website repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Hugging Face Hub
+        run: python -m pip install --upgrade huggingface_hub
+
+      - name: Verify Hugging Face token
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "::error::Add a repository secret named HF_TOKEN with write access to Thursday88/palmtts."
+            exit 1
+          fi
+
+      - name: Upload Piper Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          HfApi(token=os.environ["HF_TOKEN"]).upload_folder(
+              repo_id="Thursday88/palmtts",
+              repo_type="space",
+              folder_path="huggingface-space/piper-tts",
+              commit_message="Deploy Piper TTS from Under The Palm Tree",
+          )
+          PY

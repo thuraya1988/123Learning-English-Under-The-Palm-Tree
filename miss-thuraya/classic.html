@@ -412,6 +412,7 @@ const CLIPS={ dir:CLIP_BASE, en:null, ar:null, audio:null, queue:[], btn:null };
 fetch(CLIP_BASE+'manifest.json',{cache:'no-store'})
   .then(r=>r.ok?r.json():null)
   .then(m=>{ if(!m) return;
+    CLIPS.words=m.words||null;
     ['en','ar'].forEach(L=>{
       const map=m[L];
       if(map&&Object.keys(map).length)
@@ -426,6 +427,15 @@ fetch(CLIP_BASE+'manifest.json',{cache:'no-store'})
    بدونها كان «ill» يُنطق داخل «still» و«skilled» — فتقرأ ثريا كلماتٍ
    لا وجود لها في النصّ. */
 const LETTER=/[A-Za-z\u0621-\u064A]/;
+/* كلمةٌ مفردةٌ تُنطق إذا كانت كلمةَ قاموس — بطاقةُ «count» يريد الطالب
+   سماعَها. أمّا الكلمةُ نفسُها داخل فقرة شرحٍ فشظيّةٌ تُسمع كحرفٍ مقطوع.
+   والفرق مُسجَّلٌ في الدليل عند التوليد، فلا نخمّنه من الطول. */
+function speakable(k){
+  const letters=k.replace(/[^A-Za-z\u0621-\u064A]/g,'').length;
+  if(letters>=8 || k.trim().split(/\s+/).length>=2) return true;
+  return !!(CLIPS.words && CLIPS.words[k]);
+}
+
 function clipsIn(text,L){
   const V=CLIPS[L]; if(!V) return [];
   const taken=[], found=[];
@@ -436,7 +446,8 @@ function clipsIn(text,L){
       const j=i+k.length;
       const okStart=!headL || !LETTER.test(text[i-1]||' ');
       const okEnd  =!tailL || !LETTER.test(text[j]||' ');
-      if(okStart&&okEnd&&!taken.some(([a,b])=>i<b&&j>a)){ taken.push([i,j]); found.push([i,V.map[k]]); }
+      if(okStart&&okEnd&&speakable(k)&&!taken.some(([a,b])=>i<b&&j>a)){
+        taken.push([i,j]); found.push([i,V.map[k]]); }
       from=i+1;
     }
   }
@@ -999,6 +1010,20 @@ function answerQuiz(txt){
   return s;
 }
 
+/* قائمةُ القواعد — يسألها الطالب حين لا يعرف اسم القاعدة، وزرُّ
+   «اشرحي قاعدة ثانية» في الواجهة يقود إليها. */
+function grammarMenu(){
+  const order=['comparative','superlative','goodat','prep','connect','beforeafter','whenc',
+               'prescont','pressimple','pronouns','past','could','will','measure','relative','haveto'];
+  const seen={};
+  let s='📚 <b>قواعد الكتاب — اختر واحدة</b>\n\n';
+  order.forEach(k=>{ if(!G[k]||seen[k]) return; seen[k]=1;
+    s+='• <b>'+G[k].title.split('(')[0].trim()+'</b>\n'; });
+  for(const k in G) if(!seen[k]) { seen[k]=1; s+='• <b>'+G[k].title.split('(')[0].trim()+'</b>\n'; }
+  s+='\nاكتب <b>اشرحي</b> ومعها اسم القاعدة — مثل <b>اشرحي الماضي البسيط</b>.\n';
+  s+='أو اكتب <b>تمارين</b> لتتدرّب، أو <b>اختبريني</b> لاختبارٍ سريع.';
+  return s;
+}
 function localBrain(raw){
   const t=norm(raw);
   /* الخروج من تمرينٍ جارٍ — بكلمة خروج، أو ببدء أمرٍ جديد */
@@ -1088,6 +1113,11 @@ function localBrain(raw){
   }
   m=raw.match(/(?:ing|اي ان جي)\s+([A-Za-z]+)/i);
   if(m) return `<code>${m[1]} → ${ing(m[1])}</code>\nبعد <code>at</code> أو مع الاستمرار نستعمل هذه الصيغة.`;
+
+  /* «اشرحي قاعدة ثانية» أو «قاعدة» بلا تسمية: أعرض القائمة بدل أن أعتذر */
+  if(has(t,'قاعده ثانيه','قاعده ثانية','قاعده اخرى','قاعده اخري','قاعده ثانيه','قواعد الكتاب','ايش القواعد','وش القواعد','اي قاعده','قائمه القواعد')
+     || /^(اشرحي|اشرح|شرح)?\s*(لي\s*)?(قاعده|قاعدة)\s*(ثانيه|ثانية|اخرى|اخري|جديده|جديدة)?\s*$/.test(t))
+    return grammarMenu();
 
   /* شروح القواعد */
   if(has(t,'مقارنه','تفضيل','comparative','superlative','er ','the most','more than')) return G.comparative.title+'\n\n'+G.comparative.body;

@@ -90,7 +90,7 @@ function runs(t) {
   return out;
 }
 
-function keep(t, lang) {
+function keep(t, lang, fromSplit) {
   const t2 = t.replace(/^[\s،.:()«»\[\]{}·—–\-→+|]+|[\s،:()«»\[\]{}·—–\-→+|]+$/g, '').trim();
   if (!t2) return null;
   const ar = (t2.match(AR) || []).length;
@@ -100,42 +100,62 @@ function keep(t, lang) {
   // so that run is simply not given a voice.
   if (lang === 'ar' && en) return null;
   if (lang === 'en' && ar) return null;
-  if ((lang === 'ar' ? ar : en) < 2) return null;
+  const letters = lang === 'ar' ? ar : en;
+  if (letters < 2) return null;
+
+  // A whole line that happens to be one word — a vocabulary entry like "shy"
+  // — is worth speaking. A shred left over from splitting a bilingual line is
+  // not: reading «at», «ing», «be», «و» aloud one after another is the
+  // chopped, letter-by-letter noise Thuraya reported. So anything born of a
+  // split has to stand on its own as a phrase.
+  if (fromSplit && (letters < 8 || t2.split(/\s+/).length < 2)) return null;
   return t2;
 }
 
-function add(raw) {
+/* kind: 'word' for a dictionary entry, 'line' for a line of prose.
+ * A one-word clip is worth speaking when it IS the vocabulary item — the card
+ * shows «count — يَعُدّ» and the student wants to hear "count". The same clip
+ * heard inside a paragraph is a shred. The player needs to tell them apart,
+ * so the difference is recorded here rather than guessed at from length. */
+function add(raw, kind) {
   const line = strip(raw);
   if (!line) return;
-  for (const r of runs(line)) {
-    const t = keep(r.text, r.lang);
-    if (!t || seen.has(t)) continue;
+  const rs = runs(line);
+  const split = rs.length > 1;
+  for (const r of rs) {
+    const t = keep(r.text, r.lang, split);
+    if (!t) continue;
+    if (seen.has(t)) { if (kind === 'word') seen.get(t).kind = 'word'; continue; }
     const id = crypto.createHash('sha1').update(t).digest('hex').slice(0, 10);
-    seen.set(t, { id: r.lang[0] + '-' + id, text: t, lang: r.lang });
+    seen.set(t, { id: r.lang[0] + '-' + id, text: t, lang: r.lang, kind: kind || 'line' });
   }
 }
+const addWord = raw => add(raw, 'word');
 
 /* every line of a multi-line block */
-const addLines = s => String(s).split(/\n+/).forEach(add);
+const addLines = s => String(s).split(/\n+/).forEach(x => add(x));
 
 for (const u in VOCAB) for (const cat in VOCAB[u]) VOCAB[u][cat].forEach(row => {
   const p = row.split('|');
-  add(p[0]); add(p[3]); add(p[2]); add(p[4]);
+  addWord(p[0]); add(p[3]); addWord(p[2]); add(p[4]);
 });
 
 for (const g of [G, EXTRA]) for (const k in g) { add(g[k].title); addLines(g[k].body); }
 
 UNITS.forEach(u => {
   add(u.name); add(u.ar);
-  for (const k in u.vocab) { add(k); u.vocab[k].forEach(add); }
+  for (const k in u.vocab) { add(k); u.vocab[k].forEach(x => addWord(x)); }
 });
 
 for (const k in WRITING) {
   const w = WRITING[k];
-  add(w.t); add(w.ar); (w.q || []).forEach(add); addLines(w.model);
+  add(w.t); add(w.ar); (w.q || []).forEach(x => add(x)); addLines(w.model);
 }
 
-Object.keys(IRREGULAR).forEach(v => add(v + ' — ' + IRREGULAR[v] + ' — ' + PARTICIPLE[v]));
+// The table is printed with «·» between the three forms; the clip text must
+// match what the page shows, or the player never finds it.
+add('Infinitive · Past · Participle');
+Object.keys(IRREGULAR).forEach(v => add(v + ' · ' + IRREGULAR[v] + ' · ' + PARTICIPLE[v]));
 
 QBANK.forEach(q => { add(q.q); add(q.a); add(q.hint); });
 

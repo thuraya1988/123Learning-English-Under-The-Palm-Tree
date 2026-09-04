@@ -112,9 +112,12 @@ def main():
     # The page matches the text it is about to show against this map, so the
     # manifest is keyed by the exact string rather than by an internal id.
     manifest = {"en": {}, "ar": {}}
+    words = {}
     made, skipped, missing = 0, 0, 0
     for i, row in enumerate(lines, 1):
         lang, text, name = row["lang"], row["text"], row["id"] + ".mp3"
+        if row.get("kind") == "word":
+            words[text] = 1
         if lang not in voices:
             # This language was not rendered in this run; keep whatever the
             # previous run produced so building one language never silently
@@ -146,6 +149,7 @@ def main():
         try: meta = json.loads(mf.read_text(encoding="utf-8"))
         except Exception: meta = {}
     meta.update(manifest)
+    meta["words"] = words
     for lang in voices:
         meta["voice_" + lang] = voices[lang]["name"]
         meta["pitch_" + lang] = pitches[lang]

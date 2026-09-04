@@ -351,6 +351,7 @@ const CLIPS={ dir:CLIP_BASE, en:null, ar:null, audio:null, queue:[], btn:null };
 fetch(CLIP_BASE+'manifest.json',{cache:'no-store'})
   .then(r=>r.ok?r.json():null)
   .then(m=>{ if(!m) return;
+    CLIPS.words=m.words||null;
     ['en','ar'].forEach(L=>{
       const map=m[L];
       if(map&&Object.keys(map).length)
@@ -365,6 +366,15 @@ fetch(CLIP_BASE+'manifest.json',{cache:'no-store'})
    بدونها كان «ill» يُنطق داخل «still» و«skilled» — فتقرأ ثريا كلماتٍ
    لا وجود لها في النصّ. */
 const LETTER=/[A-Za-z\u0621-\u064A]/;
+/* كلمةٌ مفردةٌ تُنطق إذا كانت كلمةَ قاموس — بطاقةُ «count» يريد الطالب
+   سماعَها. أمّا الكلمةُ نفسُها داخل فقرة شرحٍ فشظيّةٌ تُسمع كحرفٍ مقطوع.
+   والفرق مُسجَّلٌ في الدليل عند التوليد، فلا نخمّنه من الطول. */
+function speakable(k){
+  const letters=k.replace(/[^A-Za-z\u0621-\u064A]/g,'').length;
+  if(letters>=8 || k.trim().split(/\s+/).length>=2) return true;
+  return !!(CLIPS.words && CLIPS.words[k]);
+}
+
 function clipsIn(text,L){
   const V=CLIPS[L]; if(!V) return [];
   const taken=[], found=[];
@@ -375,7 +385,8 @@ function clipsIn(text,L){
       const j=i+k.length;
       const okStart=!headL || !LETTER.test(text[i-1]||' ');
       const okEnd  =!tailL || !LETTER.test(text[j]||' ');
-      if(okStart&&okEnd&&!taken.some(([a,b])=>i<b&&j>a)){ taken.push([i,j]); found.push([i,V.map[k]]); }
+      if(okStart&&okEnd&&speakable(k)&&!taken.some(([a,b])=>i<b&&j>a)){
+        taken.push([i,j]); found.push([i,V.map[k]]); }
       from=i+1;
     }
   }

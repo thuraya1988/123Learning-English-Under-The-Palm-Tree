@@ -64,19 +64,55 @@ const strip = s => String(s)
 
 const AR = /[؀-ۿ]/g;
 const EN = /[A-Za-z]/g;
+const AR_ONE = /[؀-ۿ]/;
+const EN_ONE = /[A-Za-z]/;
+
+/* Split a line at every switch between Arabic and Latin letters. Neutral
+ * characters — digits, arrows, brackets, spaces — stay with the run they
+ * follow.
+ *
+ * The tutor writes bilingually: «مثال الكتاب: Zaid is kinder than Qais.»
+ * Classifying that whole line by its majority script handed it to one voice,
+ * which then had to pronounce the other language — Kareem reading English and
+ * Cori reading Arabic. That is the garble. Measured on the real content: 83
+ * of 884 lines were mixed. So each language's share becomes its own clip.
+ */
+function runs(t) {
+  const out = [];
+  let cur = '', lang = null;
+  for (const ch of t) {
+    const l = AR_ONE.test(ch) ? 'ar' : (EN_ONE.test(ch) ? 'en' : null);
+    if (l && lang && l !== lang) { out.push({ lang, text: cur }); cur = ''; }
+    if (l) lang = l;
+    cur += ch;
+  }
+  if (cur.trim() && lang) out.push({ lang, text: cur });
+  return out;
+}
+
+function keep(t, lang) {
+  const t2 = t.replace(/^[\s،.:()«»\[\]{}·—–\-→+|]+|[\s،:()«»\[\]{}·—–\-→+|]+$/g, '').trim();
+  if (!t2) return null;
+  const ar = (t2.match(AR) || []).length;
+  const en = (t2.match(EN) || []).length;
+  // A run must be wholly in its own script. Anything left over from the other
+  // one — a stray "y" inside an Arabic spelling note — would be mispronounced,
+  // so that run is simply not given a voice.
+  if (lang === 'ar' && en) return null;
+  if (lang === 'en' && ar) return null;
+  if ((lang === 'ar' ? ar : en) < 2) return null;
+  return t2;
+}
 
 function add(raw) {
-  const t = strip(raw);
-  if (!t || t.length < 2 || seen.has(t)) return;
-  const ar = (t.match(AR) || []).length;
-  const en = (t.match(EN) || []).length;
-  if (ar + en < 2) return;                       // digits / punctuation only
-  if (en && !ar && !/[A-Za-z]{2}/.test(t)) return;
-  const lang = ar >= en ? 'ar' : 'en';
-  // A blank line like "I ____ the race." is spoken as a gap; keep it, the
-  // student is meant to hear the sentence and fill it in.
-  const id = crypto.createHash('sha1').update(t).digest('hex').slice(0, 10);
-  seen.set(t, { id: lang[0] + '-' + id, text: t, lang });
+  const line = strip(raw);
+  if (!line) return;
+  for (const r of runs(line)) {
+    const t = keep(r.text, r.lang);
+    if (!t || seen.has(t)) continue;
+    const id = crypto.createHash('sha1').update(t).digest('hex').slice(0, 10);
+    seen.set(t, { id: r.lang[0] + '-' + id, text: t, lang: r.lang });
+  }
 }
 
 /* every line of a multi-line block */

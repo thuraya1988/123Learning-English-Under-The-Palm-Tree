@@ -42,9 +42,9 @@
     "https://thursday88-palm-tree-tts.hf.space",
     "https://thursday88-palmtts.hf.space",
     "https://thursday88-palmtreetts.hf.space",
-    "https://thursday88-piper-tts-api.hf.space",
-    "https://thursday88-palm-tree-tts-api.hf.space",
-    "https://thursday88-tts.hf.space"
+    "https://thursday88-palm-tree-tts-api.hf.space"
+    // NOT thursday88-piper-tts-api — that is Lateefa, a chat Space. Now that
+    // we know what it is we never contact it at all, not even to probe.
   ]).filter(Boolean).map(function (u) { return String(u).replace(/\/+$/, ""); });
 
   var BASE = CANDIDATES[0];
@@ -68,6 +68,138 @@
         CANDIDATES.indexOf(cached.base) >= 0) setBase(cached.base);
   } catch (e) {}
 
+
+  // ---------- Gradio transport ------------------------------------------
+  //
+  // Thuraya's live Space (Thursday88/palm-tree-tts) is a Gradio app, not the
+  // FastAPI service this shim was written for — POSTing /synthesize at it
+  // answers 405. Gradio publishes its own signature at /gradio_api/info, so
+  // instead of hard-coding an endpoint we read that description and drive
+  // whichever function takes text and returns audio.
+
+  function gradioInfo(base) {
+    var paths = ["/gradio_api/info", "/info", "/api/info"];
+    var i = 0;
+    function next() {
+      if (i >= paths.length) return Promise.reject(new Error("no-gradio-info"));
+      var url = base + paths[i++];
+      var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      var to = ctrl ? setTimeout(function () { ctrl.abort(); }, 12000) : null;
+      return nativeFetch(url, { cache: "no-store", signal: ctrl ? ctrl.signal : undefined })
+        .then(function (r) { if (to) clearTimeout(to); if (!r.ok) throw new Error("info " + r.status); return r.json(); })
+        .catch(function () { if (to) clearTimeout(to); return next(); });
+    }
+    return next();
+  }
+
+  function isAudio(x) {
+    var s = ((x && (x.component || x.type || x.python_type && x.python_type.type)) || "") + "";
+    return /audio/i.test(s) || /filepath/i.test(s) && /audio/i.test((x && x.label) || "");
+  }
+  function isText(x) {
+    var c = ((x && x.component) || "") + "";
+    var t = ((x && x.type) || "") + "";
+    return /textbox|text/i.test(c) || t === "string";
+  }
+
+  // Pick the endpoint that turns text into audio.
+  function pickEndpoint(info) {
+    var named = (info && (info.named_endpoints || info.dependencies)) || {};
+    var best = null;
+    Object.keys(named).forEach(function (name) {
+      var ep = named[name];
+      var params = ep.parameters || ep.inputs || [];
+      var rets = ep.returns || ep.outputs || [];
+      if (!params.some(isText)) return;
+      if (!rets.some(isAudio)) return;
+      var score = /synth|tts|speak|generate|predict/i.test(name) ? 2 : 1;
+      if (!best || score > best.score) best = { name: name, ep: ep, score: score };
+    });
+    return best;
+  }
+
+  // Build the argument list from the declared parameters: the text goes in the
+  // first text field, dropdowns get a choice (preferring English / female when
+  // the Space offers a voice list), everything else keeps its declared default.
+  function buildArgs(ep, text, lang) {
+    var params = ep.parameters || ep.inputs || [];
+    var usedText = false;
+    return params.map(function (p) {
+      if (!usedText && isText(p)) { usedText = true; return text; }
+      var choices = p.choices || (p.example_input && p.example_input.choices);
+      if (choices && choices.length) {
+        var want = lang === "ar" ? /ar|arab|kareem|عرب/i : /en|gb|us|female|cori|amy|alan/i;
+        var fem = lang === "ar" ? null : choices.filter(function (c) { return /female|cori|amy|jenny|alba/i.test(String(c)); })[0];
+        var hit = fem || choices.filter(function (c) { return want.test(String(c)); })[0];
+        return hit !== undefined ? hit : choices[0];
+      }
+      if (p.parameter_default !== undefined) return p.parameter_default;
+      if (p.example_input !== undefined) return p.example_input;
+      if (/number|slider/i.test((p.component || "") + "")) return 1;
+      if (/checkbox/i.test((p.component || "") + "")) return false;
+      return null;
+    });
+  }
+
+  function readSSE(text) {
+    // The final "complete" event carries the output array.
+    var out = null;
+    text.split(/\n\n/).forEach(function (chunk) {
+      var ev = (chunk.match(/^event:\s*(.+)$/m) || [])[1];
+      var dat = (chunk.match(/^data:\s*(.+)$/m) || [])[1];
+      if (!dat) return;
+      if (ev === "error") throw new Error("gradio-error");
+      if (ev === "complete" || out === null) {
+        try { var v = JSON.parse(dat); if (Array.isArray(v)) out = v; } catch (e) {}
+      }
+    });
+    if (!out) throw new Error("gradio-no-output");
+    return out;
+  }
+
+  function audioUrlFrom(out, base) {
+    var found = null;
+    (function walk(v) {
+      if (found || v == null) return;
+      if (typeof v === "string") {
+        if (/^https?:\/\//.test(v) && /\.(wav|mp3|ogg|m4a|flac)(\?|$)/i.test(v)) found = v;
+        return;
+      }
+      if (Array.isArray(v)) return v.forEach(walk);
+      if (typeof v === "object") {
+        if (v.url) { found = /^https?:/.test(v.url) ? v.url : base + v.url; return; }
+        if (v.path) { found = base + "/gradio_api/file=" + v.path; return; }
+        if (v.name) { found = base + "/file=" + v.name; return; }
+        Object.keys(v).forEach(function (k) { walk(v[k]); });
+      }
+    })(out);
+    if (!found) throw new Error("gradio-no-audio");
+    return found;
+  }
+
+  function gradioSynth(base, ep, text, lang) {
+    var api = ep.name.replace(/^\//, "");
+    var body = JSON.stringify({ data: buildArgs(ep.ep, text, lang) });
+    return nativeFetch(base + "/gradio_api/call/" + api, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: body
+    }).then(function (r) {
+      if (!r.ok) throw new Error("gradio-call-" + r.status);
+      return r.json();
+    }).then(function (j) {
+      var id = j && (j.event_id || j.hash);
+      if (!id) throw new Error("gradio-no-event");
+      return nativeFetch(base + "/gradio_api/call/" + api + "/" + id);
+    }).then(function (r) {
+      if (!r.ok) throw new Error("gradio-poll-" + r.status);
+      return r.text();
+    }).then(function (t) {
+      return nativeFetch(audioUrlFrom(readSSE(t), base));
+    }).then(function (r) {
+      if (!r.ok) throw new Error("gradio-audio-" + r.status);
+      return r.blob();
+    });
+  }
+
   // A Space only counts as ours if it answers like our FastAPI app does.
   // Thuraya also runs an unrelated chat Space (Lateefa); this check makes
   // sure we never fire synthesis requests at something that is not a TTS API.
@@ -82,21 +214,30 @@
       return r.json();
     }).then(function (j) {
       if (!j || (!Array.isArray(j.voices) && j.status !== "ready")) throw new Error("not-piper");
-      return base;
-    }, function (e) { if (to) clearTimeout(to); throw e; });
+      return { base: base, kind: "rest" };
+    }, function (e) {
+      if (to) clearTimeout(to);
+      // Not our FastAPI. It may still be a Gradio TTS Space — accept it only
+      // if it declares a function that takes text and gives back audio.
+      return gradioInfo(base).then(function (info) {
+        var ep = pickEndpoint(info);
+        if (!ep) throw new Error("gradio-not-tts");
+        return { base: base, kind: "gradio", ep: ep };
+      });
+    });
   }
 
-  var basePromise = null;
+  var basePromise = null, TRANSPORT = { base: null, kind: "rest", ep: null };
   function ensureBase() {
-    if (window.PIPER_BASE) return Promise.resolve(BASE);   // pinned by the page
+    if (window.PIPER_BASE) return Promise.resolve({ base: BASE, kind: "rest" });
     if (basePromise) return basePromise;
     // Race them: probing one after another would take a minute before the
     // first word is spoken. First valid answer wins; ties go to list order.
     basePromise = new Promise(function (resolve, reject) {
       var left = CANDIDATES.length, best = null, bestIdx = 1e9;
       CANDIDATES.forEach(function (cand, idx) {
-        looksLikeOurs(cand).then(function () {
-          if (idx < bestIdx) { best = cand; bestIdx = idx; }
+        looksLikeOurs(cand).then(function (t) {
+          if (idx < bestIdx) { best = t; bestIdx = idx; }
           resolve(best);
         }, function () {}).then(function () {
           if (--left === 0) { if (best) resolve(best); else reject(new Error("no-piper-space")); }
@@ -104,12 +245,15 @@
       });
       if (!CANDIDATES.length) reject(new Error("no-candidates"));
     }).then(function (found) {
-      setBase(found);
-      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ base: found, t: Date.now() })); } catch (e) {}
+      TRANSPORT = found;
+      setBase(found.base);
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ base: found.base, t: Date.now() })); } catch (e) {}
       return found;
     }, function () {
       basePromise = null;      // all down — rediscover on the next attempt
-      return BASE;             // caller will surface the real error
+      // Do NOT fall through to a default host: posting speech at a Space that
+      // never identified itself is how we ended up with a confusing 405.
+      throw new Error("no-tts-space");
     });
     return basePromise;
   }
@@ -153,8 +297,12 @@
     var payload = { text: text, lang: lang };
     var pinned = lang === "ar" ? window.PIPER_VOICE_AR : window.PIPER_VOICE_EN;
     if (pinned) payload.voice = pinned;
-    return ensureBase().then(function (base) {
-      return nativeFetch(base + "/synthesize", {
+    return ensureBase().then(function (t) {
+      if (t.kind === "gradio")
+        return gradioSynth(t.base, t.ep, text, lang).then(function (blob) {
+          return new Response(blob, { status: 200, headers: { "Content-Type": "audio/wav" } });
+        });
+      return nativeFetch(t.base + "/synthesize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -169,6 +317,11 @@
       throw err;
     });
   }
+
+  // Any page can ask for audio without caring which transport won.
+  window.piperSynthBlob = function (text, lang) {
+    return synth(text, lang === "ar" ? VOICE_AR : VOICE_EN).then(function (r) { return r.blob(); });
+  };
 
   // The Hugging Face Space this all runs on sleeps when idle and can take a
   // few seconds to wake up. Without a retry, that cold start looks exactly

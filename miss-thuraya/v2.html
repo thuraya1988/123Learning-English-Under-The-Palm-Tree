@@ -198,7 +198,7 @@ footer{min-width:0;max-width:100%;overflow:hidden;border-top:1px solid var(--lin
 <script>window.PIPER_FEMININE_AR=true;window.PIPER_FEMININE_RATE=1.16;window.PIPER_TIMEOUT_MS=30000;window.PIPER_RETRIES=2;
 /* مس ثريا معلّمة — فصوتها أنثى. cori صوتٌ نسائيّ بريطانيّ. */
 window.PIPER_VOICE_EN="en_GB-cori-medium";</script>
-<script src="../public/js/piper-client.js?v=20260904-space-discovery"></script>
+<script src="../public/js/piper-client.js?v=20260904-gradio"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -375,7 +375,13 @@ let piperAwake=false;
 function piperOnce(endpoint,text,lang,plan,ms){
   const ctrl=typeof AbortController!=='undefined'?new AbortController():null;
   const timer=ctrl?setTimeout(()=>ctrl.abort(),ms):null;
-  /* الشيم قد يكتشف مساحةً أخرى حيّةً بعد تحميل الصفحة، فنقرأ العنوان الآن */
+  /* الشيم يعرف أيّ مساحةٍ حيّة وبأيّ لغةٍ تتكلّم — REST أو Gradio — فندعه
+     يجلب الصوت. ولا نعود إلى نداء fetch المباشر إلّا إن غاب الشيم.       */
+  if(typeof window.piperSynthBlob==='function'){
+    const t=setTimeout(()=>{ if(ctrl) ctrl.abort(); },ms);
+    return window.piperSynthBlob(text,lang).then(b=>{ clearTimeout(t); piperAwake=true; return b; },
+      e=>{ clearTimeout(t); if(timer) clearTimeout(timer); throw e; });
+  }
   const url=String(window.PIPER_TTS_ENDPOINT||endpoint);
   return fetch(url,{
     method:'POST',

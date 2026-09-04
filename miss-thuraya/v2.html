@@ -538,6 +538,62 @@ function cleanLocalAnswer(value=''){
     .replace(/\n{3,}/g,'\n\n')
     .trim();
 }
+
+/* ---------- ما يعنيه كلّ وضعٍ بلا إنترنت ----------
+   أزرار الأوضاع كانت تُغيّر ملامح الصورة والاقتراح فقط، وتُرسل اسم الوضع
+   إلى /api/ask. وهذا الملفّ لا يعمل على صفحات GitHub، فكانت الأزرار الأحد
+   عشر تعطي الجواب نفسه: يضغط الطالب «اختبار» فيأتيه شرح.
+   هنا نترجم الوضع إلى أمرٍ يفهمه محرّك الكتاب، ونضع فوق الجواب سطراً
+   يقول ماذا فعلنا — وإن كان الوضع لا يقابله شيءٌ في المحرّك قلناها. */
+const MODE_HEAD={
+  explain:'📘 شرح', quiz:'🎯 اختبار', correct:'✍️ تصحيح', hint:'💡 تلميح',
+  reading:'📖 قراءة', listening:'🎧 استماع', speaking:'🗣️ تحدث',
+  writing:'📝 كتابة', activity:'📚 نشاط'
+};
+function modeQuery(q,m,unitVal){
+  const u=(unitVal&&unitVal!=='welcome')?unitVal:'1';
+  const bare=!q.trim();
+  const has=re=>re.test(q);
+  switch(m){
+    case 'explain':
+      if(bare) return 'الوحدة '+u;
+      return has(/اشرح|شرح|قاعد|يعني|معنى/) ? q : 'اشرحي '+q;
+    case 'quiz':
+      return has(/تمارين/) ? q : 'اختبرني';
+    case 'correct':
+      /* المحرّك يحلّ الفراغات: يحتاج ____ والكلمة بين قوسين */
+      return q;
+    case 'hint':
+      return bare ? 'تمارين' : q;
+    case 'listening':
+      /* الاستماع صار له معنى: كلمات الوحدة ومعها زرّا الصوت */
+      return bare||has(/وحد|كلمات/) ? 'كلمات الوحدة '+u : q;
+    case 'speaking':
+      return bare ? 'كلمات الوحدة '+u : q;
+    case 'reading':
+      return bare ? 'نماذج الكتابة' : q;
+    case 'writing':
+      return has(/نموذج/) ? q : (bare ? 'نماذج الكتابة' : 'نماذج الكتابة');
+    case 'activity':
+      return bare ? 'الوحدة '+u : q;
+    default:
+      return q;
+  }
+}
+function modeNote(m,q){
+  switch(m){
+    case 'quiz':      return 'أجيبي عن السؤال ثمّ أرسلي إجابتك — أصحّح لك فوراً.';
+    case 'listening':return 'اضغطي 🔊 لتسمعي الكلمات من مس ثريا، و🤖 ليشرحها محمد.';
+    case 'speaking': return 'اسمعي الكلمة بـ🔊 ثمّ أعيديها بصوتك — كرّري حتّى تضبط النطق.';
+    case 'reading':  return 'اقرئي النموذج بصوتٍ عالٍ، ثمّ اكتبي مثله عن نفسك.';
+    case 'correct':  return /____|\.\.\.\./.test(q) ? '' :
+      'للتصحيح اكتبي الجملة والفراغ والكلمة بين قوسين، مثل:\nZaid is ____ (kind) than Qais.';
+    case 'hint':     return 'هذا تلميح — جرّبي الحلّ بنفسك أوّلاً، ثمّ اسأليني عن الإجابة.';
+    case 'activity': return 'اكتبي رقم النشاط ونصّه وأساعدك خطوةً خطوة.';
+    default: return '';
+  }
+}
+
 async function askLocal(question,image){
   if(image && !question.trim()) return {ok:true,answer:'وصلتني الصورة 🌿 لكن قراءة الصور تحتاج اتصال محرك الذكاء. اكتبي نص السؤال والاختيارات هنا، أو أرسلي الصورة مع سؤال قصير مثل: «اشرحي رقم 3». لن أخمّن أي كلمة غير واضحة.',meta:{intent:'activity-help',skill:'Activity Book',unit:unit.value||null,engine:'local'},suggestions:['سأكتب نص السؤال','ساعديني بتلميح','اشرحي القاعدة أولًا']};
   const ready=await waitForLocalTutor();
@@ -547,14 +603,22 @@ async function askLocal(question,image){
   const localForm=doc.getElementById('f');
   const localInput=doc.getElementById('q');
   const before=localChat.querySelectorAll('.msg.her').length;
-  localInput.value=question;
+  /* أثناء اختبارٍ أو تمرينٍ جارٍ، رسالةُ الطالب إجابةٌ لا أمر — فلا نترجمها،
+     وإلّا أعاد وضعُ «اختبار» بدءَ الاختبار عند كلّ ردّ. */
+  let busy=false; try{ busy=!!(win.G5_BUSY&&win.G5_BUSY()); }catch(_){}
+  localInput.value = busy ? question : modeQuery(question,mode,unit.value);
   localForm.dispatchEvent(new win.Event('submit',{bubbles:true,cancelable:true}));
   for(let i=0;i<80;i++){
     await new Promise(resolve=>setTimeout(resolve,50));
     const replies=localChat.querySelectorAll('.msg.her');
     if(replies.length>before){
       const bubble=replies[replies.length-1].querySelector('.bub');
-      const answer=cleanLocalAnswer(bubble?.innerText||bubble?.textContent||'');
+      let answer=cleanLocalAnswer(bubble?.innerText||bubble?.textContent||'');
+      if(answer && !busy){
+        const head=MODE_HEAD[mode], note=modeNote(mode,question);
+        if(head) answer=head+'\n\n'+answer;
+        if(note) answer=answer+'\n\n'+note;
+      }
       if(answer) return {
         ok:true,
         answer,
@@ -616,6 +680,9 @@ $("practiceHubBtn").addEventListener("click",()=>{
 $('modeBar').addEventListener('click',e=>{
   const b=e.target.closest('[data-mode]'); if(!b) return;
   mode=b.dataset.mode; document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));
+  /* تبديلُ الوضع يُنهي أيّ اختبارٍ أو تمرينٍ جارٍ في المحرّك، وإلّا فسّر
+     الرسالة التالية على أنّها إجابةٌ عن سؤالٍ لم يعد معروضاً. */
+  try{ localTutor.contentWindow?.G5_EXIT?.(); }catch(_){}
   const poseByMode={tutor:'welcome',explain:'working',quiz:'success',correct:'thinking',hint:'thinking',reading:'working',listening:'thinking',speaking:'welcome',writing:'working',activity:'thinking'};
   setAvatarPose(poseByMode[mode]||'welcome',1400);
   const selectedUnit=unit.value||'1';

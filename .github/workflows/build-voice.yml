@@ -1,0 +1,103 @@
+name: بناء صوت مس ثريا
+
+# اضغطي Run workflow في تبويب Actions فيجري كلّ شيءٍ وحده:
+# يُنزّل صوت Piper من HuggingFace، ويُولّد مقاطع الكلمات والجمل، ويرفعها
+# إلى المستودع. لا يحتاج منك تنزيلاً ولا رفعاً ولا مفتاحاً — خادم GitHub
+# يملك إنترنتاً مفتوحاً ويستعمل مفتاح المستودع نفسه.
+
+on:
+  workflow_dispatch:
+    inputs:
+      voice:
+        description: "اسم صوت Piper"
+        required: true
+        default: en_GB-cori-medium
+        type: choice
+        options:
+          - en_GB-cori-medium              # امرأة بريطانيّة — المقترَح
+          - en_GB-southern_english_female-low
+          - en_GB-jenny_dioco-medium
+          - en_GB-alba-medium
+          - en_US-amy-medium
+          - en_US-hfc_female-medium
+          - en_GB-alan-medium              # رجل
+      pitch:
+        description: "رفع الطبقة بأنصاف النغمات (اتركيه صفراً مع صوت امرأة)"
+        required: false
+        default: "0"
+      force:
+        description: "إعادة توليد كلّ المقاطع من جديد"
+        required: false
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: تثبيت الأدوات
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq espeak-ng ffmpeg
+          python3 -m pip install --quiet piper-tts
+
+      - name: تنزيل الصوت من HuggingFace
+        env:
+          VOICE: ${{ inputs.voice }}
+        run: |
+          set -euo pipefail
+          # المسار في مستودع rhasspy مبنيٌّ من اسم الصوت: en_GB-cori-medium
+          # -> en/en_GB/cori/medium
+          lang="${VOICE%%-*}"                 # en_GB
+          rest="${VOICE#*-}"                  # cori-medium
+          name="${rest%-*}"                   # cori
+          qual="${rest##*-}"                  # medium
+          fam="${lang%%_*}"                   # en
+          base="https://huggingface.co/rhasspy/piper-voices/resolve/main/$fam/$lang/$name/$qual/$VOICE"
+          mkdir -p voice
+          echo "downloading $base"
+          curl -fL --retry 3 --retry-delay 3 "$base.onnx"      -o "voice/$VOICE.onnx"
+          curl -fL --retry 3 --retry-delay 3 "$base.onnx.json" -o "voice/$VOICE.onnx.json"
+          ls -lh voice
+
+      - name: توليد المقاطع
+        env:
+          VOICE: ${{ inputs.voice }}
+          PITCH: ${{ inputs.pitch }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          extra=""
+          if [ "$FORCE" = "true" ]; then extra="--force"; fi
+          python3 scripts/build-voice.py --voice "voice/$VOICE" --pitch "${PITCH:-0}" $extra
+
+      - name: رفع النتيجة إلى المستودع
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/tts-audio
+          if git diff --cached --quiet; then
+            echo "لا جديد — المقاطع كما هي."
+          else
+            git commit -m "صوت مس ثريا: توليد المقاطع بصوت ${{ inputs.voice }}"
+            git push
+          fi
+
+      - name: الخلاصة
+        run: |
+          {
+            echo "### 🔊 صوت مس ثريا"
+            echo ""
+            echo "- الصوت: \`${{ inputs.voice }}\`"
+            echo "- عدد المقاطع: $(ls public/tts-audio/*.mp3 2>/dev/null | wc -l)"
+            echo "- الحجم: $(du -sh public/tts-audio 2>/dev/null | cut -f1)"
+            echo ""
+            echo "افتحي مس ثريا بعد دقيقةٍ وستجدين أزرار 🔊 تعمل."
+          } >> "$GITHUB_STEP_SUMMARY"

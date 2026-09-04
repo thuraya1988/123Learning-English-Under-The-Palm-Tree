@@ -55,6 +55,9 @@ input[type=text]:focus{border-color:var(--gold)}
 button.send{background:linear-gradient(135deg,#ffd479,#e0a03a);border:0;border-radius:50%;width:46px;height:46px;
   font-size:19px;cursor:pointer;flex:none;color:#3a2a10}
 button.send:disabled{opacity:.5}
+.play{border:1px solid var(--line);background:rgba(79,214,192,.10);color:var(--teal);border-radius:999px;
+  padding:2px 9px;font-size:12.5px;cursor:pointer;font-family:inherit;margin-top:6px;display:inline-block}
+.play:hover{border-color:var(--teal)}
 .typing span{display:inline-block;width:6px;height:6px;margin:0 1.5px;border-radius:50%;background:var(--dim);
   animation:bl 1.2s infinite}
 .typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
@@ -348,6 +351,7 @@ function bubble(who,html){
   const d=document.createElement('div');
   d.className='msg '+(who==='me'?'me':'her');
   d.innerHTML='<div class="pic">'+(who==='me'?'🧒':'👩‍🏫')+'</div><div class="bub">'+html+'</div>';
+  if(who!=='me') addPlay(d.querySelector('.bub'));
   chat.appendChild(d); chat.scrollTop=chat.scrollHeight; return d;
 }
 function say(text){ return bubble('her',fmt(text)); }
@@ -387,6 +391,71 @@ const HOME_CHIPS=[
   {t:'📖 الأفعال الشاذّة',q:'الأفعال الشاذة'}
 ];
 
+
+const CLIP_BASE='../public/tts-audio/';
+const BUBBLE_SEL='.msg.her .bub';
+
+/* ---------- النطق من مقاطع جاهزة ----------
+   لا خادم ولا انتظار: المقاطع مُولَّدةٌ مسبقاً بصوت Piper ومرفوعةٌ مع الموقع.
+   إن لم تكن قد وُلِّدت بعد فلا يظهر زرٌّ أصلاً — لا زرَّ يعد بما لا يفي به. */
+const CLIPS={ map:null, dir:'', audio:null, queue:[], btn:null };
+fetch(CLIP_BASE+'manifest.json',{cache:'no-store'})
+  .then(r=>r.ok?r.json():null)
+  .then(m=>{ if(m&&m.byText&&Object.keys(m.byText).length){
+      CLIPS.map=m.byText; CLIPS.dir=CLIP_BASE;
+      /* أطولُ العباراتِ أوّلاً حتّى تُلتقط الجملةُ كاملةً لا كلمةٌ داخلها */
+      CLIPS.keys=Object.keys(m.byText).sort((a,b)=>b.length-a.length);
+      document.querySelectorAll(BUBBLE_SEL).forEach(addPlay);
+    } })
+  .catch(()=>{});
+
+/* العباراتُ المعروفةُ داخل نصٍّ، بترتيب ظهورها وبلا تداخل */
+function clipsIn(text){
+  if(!CLIPS.map) return [];
+  const taken=[], found=[];
+  for(const k of CLIPS.keys){
+    let from=0, i;
+    while((i=text.indexOf(k,from))>=0){
+      const j=i+k.length;
+      if(!taken.some(([a,b])=>i<b&&j>a)){ taken.push([i,j]); found.push([i,CLIPS.map[k]]); }
+      from=i+1;
+    }
+  }
+  return found.sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+}
+function stopClips(){
+  CLIPS.queue.length=0;
+  if(CLIPS.audio){ try{CLIPS.audio.pause();}catch(e){} CLIPS.audio=null; }
+  if(CLIPS.btn){ CLIPS.btn.textContent='🔊'; CLIPS.btn=null; }
+}
+function playQueue(){
+  const f=CLIPS.queue.shift();
+  if(!f){ if(CLIPS.btn){CLIPS.btn.textContent='🔊';CLIPS.btn=null;} return; }
+  const a=new Audio(CLIPS.dir+f);
+  a.setAttribute('playsinline','');
+  CLIPS.audio=a;
+  a.onended=playQueue;
+  a.onerror=playQueue;          /* مقطعٌ ناقصٌ لا يوقف البقيّة */
+  a.play().catch(()=>playQueue());
+}
+function addPlay(bubble){
+  if(!CLIPS.map || bubble.querySelector('.play')) return;
+  const list=clipsIn(bubble.innerText||bubble.textContent||'');
+  if(!list.length) return;
+  const b=document.createElement('button');
+  b.type='button'; b.className='play'; b.textContent='🔊';
+  b.title='استمعي إلى الإنجليزيّة';
+  b.setAttribute('aria-label','استمعي إلى الإنجليزيّة');
+  b.onclick=e=>{
+    e.stopPropagation();
+    if(CLIPS.btn===b){ stopClips(); return; }
+    stopClips();
+    CLIPS.btn=b; b.textContent='⏹';
+    CLIPS.queue=list.slice();
+    playQueue();
+  };
+  bubble.appendChild(b);
+}
 
 /* ---------- ٥) الدماغ المحلّي ---------- */
 const norm=s=>s.toLowerCase().replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/[ًٌٍَُِّْ]/g,'').trim();

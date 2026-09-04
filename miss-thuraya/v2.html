@@ -29,6 +29,8 @@ header{min-width:0;max-width:100%;padding:12px 14px;border-bottom:1px solid var(
 .avatar.busy{animation:avatarFloat 1.4s ease-in-out infinite}
 @keyframes avatarFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 .identity{min-width:0}.identity h1{font-size:17px;white-space:nowrap}.identity p{font-size:11.5px;color:var(--muted);margin-top:2px}
+.play{border:1px solid var(--line);background:#fff8ee;color:var(--gold);border-radius:9px;
+  padding:3px 10px;font-size:12.5px;cursor:pointer;font-family:inherit;margin-top:7px;display:inline-block}
 .online{margin-inline-start:auto;border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:11px;color:var(--muted);white-space:nowrap;background:rgba(255,255,255,.45)}
 .online.on{border-color:rgba(122,31,61,.45);color:var(--gold);background:rgba(122,31,61,.06)}
 .controls{width:100%;min-width:0;display:flex;gap:7px;overflow-x:auto;margin-top:10px;padding-bottom:1px;scrollbar-width:none}
@@ -330,6 +332,71 @@ function renderText(text=''){
   s = s.replace(/\n/g,'<br>');
   return s;
 }
+const CLIP_BASE='../public/tts-audio/';
+const BUBBLE_SEL='.msg.bot .bubble';
+
+/* ---------- النطق من مقاطع جاهزة ----------
+   لا خادم ولا انتظار: المقاطع مُولَّدةٌ مسبقاً بصوت Piper ومرفوعةٌ مع الموقع.
+   إن لم تكن قد وُلِّدت بعد فلا يظهر زرٌّ أصلاً — لا زرَّ يعد بما لا يفي به. */
+const CLIPS={ map:null, dir:'', audio:null, queue:[], btn:null };
+fetch(CLIP_BASE+'manifest.json',{cache:'no-store'})
+  .then(r=>r.ok?r.json():null)
+  .then(m=>{ if(m&&m.byText&&Object.keys(m.byText).length){
+      CLIPS.map=m.byText; CLIPS.dir=CLIP_BASE;
+      /* أطولُ العباراتِ أوّلاً حتّى تُلتقط الجملةُ كاملةً لا كلمةٌ داخلها */
+      CLIPS.keys=Object.keys(m.byText).sort((a,b)=>b.length-a.length);
+      document.querySelectorAll(BUBBLE_SEL).forEach(addPlay);
+    } })
+  .catch(()=>{});
+
+/* العباراتُ المعروفةُ داخل نصٍّ، بترتيب ظهورها وبلا تداخل */
+function clipsIn(text){
+  if(!CLIPS.map) return [];
+  const taken=[], found=[];
+  for(const k of CLIPS.keys){
+    let from=0, i;
+    while((i=text.indexOf(k,from))>=0){
+      const j=i+k.length;
+      if(!taken.some(([a,b])=>i<b&&j>a)){ taken.push([i,j]); found.push([i,CLIPS.map[k]]); }
+      from=i+1;
+    }
+  }
+  return found.sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+}
+function stopClips(){
+  CLIPS.queue.length=0;
+  if(CLIPS.audio){ try{CLIPS.audio.pause();}catch(e){} CLIPS.audio=null; }
+  if(CLIPS.btn){ CLIPS.btn.textContent='🔊'; CLIPS.btn=null; }
+}
+function playQueue(){
+  const f=CLIPS.queue.shift();
+  if(!f){ if(CLIPS.btn){CLIPS.btn.textContent='🔊';CLIPS.btn=null;} return; }
+  const a=new Audio(CLIPS.dir+f);
+  a.setAttribute('playsinline','');
+  CLIPS.audio=a;
+  a.onended=playQueue;
+  a.onerror=playQueue;          /* مقطعٌ ناقصٌ لا يوقف البقيّة */
+  a.play().catch(()=>playQueue());
+}
+function addPlay(bubble){
+  if(!CLIPS.map || bubble.querySelector('.play')) return;
+  const list=clipsIn(bubble.innerText||bubble.textContent||'');
+  if(!list.length) return;
+  const b=document.createElement('button');
+  b.type='button'; b.className='play'; b.textContent='🔊';
+  b.title='استمعي إلى الإنجليزيّة';
+  b.setAttribute('aria-label','استمعي إلى الإنجليزيّة');
+  b.onclick=e=>{
+    e.stopPropagation();
+    if(CLIPS.btn===b){ stopClips(); return; }
+    stopClips();
+    CLIPS.btn=b; b.textContent='⏹';
+    CLIPS.queue=list.slice();
+    playQueue();
+  };
+  bubble.appendChild(b);
+}
+
 function addMessage(role,text,meta,imageUrl){
   const row=document.createElement('div');
   row.className='msg '+(role==='user'?'user':'bot');
@@ -354,6 +421,7 @@ function addMessage(role,text,meta,imageUrl){
     if(meta.intent) m.innerHTML += `<span>${escapeHtml(meta.intent)}</span>`;
     bubble.appendChild(m);
   }
+  if(role==='bot') addPlay(bubble);
   row.append(face,bubble); chat.appendChild(row); chat.scrollTop=chat.scrollHeight;
   return row;
 }

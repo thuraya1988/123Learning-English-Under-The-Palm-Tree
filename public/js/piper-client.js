@@ -35,19 +35,16 @@
   // the pinned one is in a runtime error while another is running. We cannot
   // know which subdomain is which from here, so probe them all at once and
   // keep whichever actually answers like our Piper server.
-  var CANDIDATES = (window.PIPER_BASES || [
-    window.PIPER_BASE,
-    // Thuraya confirmed this one is Running (huggingface.co/spaces/Thursday88/palm-tree-tts);
-    // the pinned "palmtts" Space is in a runtime error, so try the live one first.
-    "https://thursday88-palm-tree-tts.hf.space",
-    "https://thursday88-palmtts.hf.space",
-    "https://thursday88-palmtreetts.hf.space",
-    "https://thursday88-palm-tree-tts-api.hf.space"
-    // NOT thursday88-piper-tts-api — that is Lateefa, a chat Space. Now that
-    // we know what it is we never contact it at all, not even to probe.
-  ]).filter(Boolean).map(function (u) { return String(u).replace(/\/+$/, ""); });
+  // Every Space that ever served this site is down: palmtts errors, the live
+  // palm-tree-tts is a Gradio app, and probing them cost four failed requests
+  // on every page load across the whole site. So nothing is probed unless a
+  // page names a server itself — audio falls straight through to the device
+  // voice, which is what was happening anyway, only now without the wait.
+  var CANDIDATES = (window.PIPER_BASES ||
+    (window.PIPER_BASE ? [window.PIPER_BASE] : [])
+  ).filter(Boolean).map(function (u) { return String(u).replace(/\/+$/, ""); });
 
-  var BASE = CANDIDATES[0];
+  var BASE = CANDIDATES[0] || "";
   var VOICE_EN = "en_GB-alan-medium";
   var VOICE_AR = "ar_JO-kareem-medium";
   var CACHE_KEY = "piperBase_v1";
@@ -229,6 +226,7 @@
 
   var basePromise = null, TRANSPORT = { base: null, kind: "rest", ep: null };
   function ensureBase() {
+    if (!CANDIDATES.length) return Promise.reject(new Error("no-tts-space"));
     if (window.PIPER_BASE) return Promise.resolve({ base: BASE, kind: "rest" });
     if (basePromise) return basePromise;
     // Race them: probing one after another would take a minute before the

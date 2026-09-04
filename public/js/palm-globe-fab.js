@@ -10,6 +10,18 @@
  * Opt out per page: <script>window.PALM_GLOBE_FAB_DISABLED = true;</script>
  */
 (function () {
+  // The texture used to be addressed relative to the page. That is correct at
+  // the site root and wrong everywhere else — every page under public/ asked
+  // for public/new-version/public/textures/... and got a 404, so the globe
+  // showed as a flat blue disc. Derive it from this script's own URL instead.
+  var TEX = (function () {
+    try {
+      var me = document.currentScript && document.currentScript.src;
+      if (me) return me.replace(/\/js\/palm-globe-fab\.js.*$/, '/textures/globe/earth_atmos_2048.jpg');
+    } catch (e) {}
+    return '/public/textures/globe/earth_atmos_2048.jpg';
+  })();
+
   if (window.__palmGlobeFab) return;
   window.__palmGlobeFab = true;
   if (window.PALM_GLOBE_FAB_DISABLED) return;
@@ -57,7 +69,7 @@
       // Big shaded sphere with the earth texture panning around it.
       '.pgf-earth{width:56px;height:56px;border-radius:50%;flex-shrink:0;' +
       // النسخة المحليّة: نفس الصورة موجودة في المستودع، فلا نعتمد على مستودع خارجيّ
-      'background:#1c4e8a url(public/textures/globe/earth_atmos_2048.jpg) repeat-x;' +
+      'background:#1c4e8a url(' + TEX + ') repeat-x;' +
       'background-size:auto 100%;' +
       'animation:pgfRotate 18s linear infinite,pgfGlow 3.2s ease-in-out infinite;}' +
       '@keyframes pgfRotate{from{background-position-x:0}to{background-position-x:-112px}}' +

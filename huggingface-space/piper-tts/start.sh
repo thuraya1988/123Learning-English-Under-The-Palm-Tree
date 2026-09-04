@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-VOICES_DIR="${VOICES_DIR:-/voices}"
+VOICES_DIR="${VOICES_DIR:-/data/voices}"
 HF_BASE="https://huggingface.co/rhasspy/piper-voices/resolve/main"
 
-mkdir -p "${VOICES_DIR}"
+# Fall back to a directory we can certainly write. Persistent storage is not
+# enabled on every Space, and an unwritable voices directory used to kill the
+# container on boot.
+if ! mkdir -p "${VOICES_DIR}" 2>/dev/null || [[ ! -w "${VOICES_DIR}" ]]; then
+    echo "WARNING: ${VOICES_DIR} is not writable — using /tmp/voices instead."
+    VOICES_DIR="/tmp/voices"
+    mkdir -p "${VOICES_DIR}"
+fi
+export VOICES_DIR
 
 # Medium-quality voices — much more natural than "low".
 declare -A VOICES=(

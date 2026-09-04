@@ -198,7 +198,7 @@ footer{min-width:0;max-width:100%;overflow:hidden;border-top:1px solid var(--lin
 <script>window.PIPER_FEMININE_AR=true;window.PIPER_FEMININE_RATE=1.16;window.PIPER_TIMEOUT_MS=30000;window.PIPER_RETRIES=2;
 /* مس ثريا معلّمة — فصوتها أنثى. cori صوتٌ نسائيّ بريطانيّ. */
 window.PIPER_VOICE_EN="en_GB-cori-medium";</script>
-<script src="../public/js/piper-client.js?v=20260904-gradio"></script>
+<script src="../public/js/piper-client.js?v=20260904-space-fix2"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -404,6 +404,8 @@ function piperFetch(endpoint,text,lang,plan,onWake){
     if(onWake) onWake(i,budgets.length,piperAwake,lastErr);
     return piperOnce(endpoint,text,lang,plan,ms).catch(err=>{
       lastErr=err;
+      /* إن لم توجد مساحةُ نطقٍ أصلاً فلا شيء نوقظه — لا نُصمت الزرّ دقائق */
+      if(/no-tts-space/.test(String(err&&err.message||''))) throw err;
       if(i>=budgets.length) throw err;
       return new Promise(z=>setTimeout(z,4000)).then(attempt);
     });
@@ -476,6 +478,7 @@ function probeVoices(){
   if(voicePlan||planPromise) return;
   planPromise = fetchVoices(12000)
     .then(v=>v||fetchVoices(25000))
+    .catch(()=>null)
     .then(v=>{
       planPromise=null;
       if(v && window.PIPER_VOICE_EN && v.indexOf(window.PIPER_VOICE_EN)>=0)
@@ -509,6 +512,9 @@ function ttsNote(button,msg,kind,link){
   let n=bubble.querySelector('.ttsnote');
   if(!msg){ if(n) n.remove(); return; }
   if(!n){ n=document.createElement('div'); n.className='ttsnote'; bubble.appendChild(n); }
+  /* الرسالة النهائيّة تُقفل السطر، فلا تطمسها رسالةُ انتظارٍ متأخّرة */
+  if(n.dataset.final==='1' && kind!=='warn') return;
+  if(kind==='warn') n.dataset.final='1';
   n.textContent=msg; n.setAttribute('data-kind',kind||'');
   if(link){
     n.appendChild(document.createTextNode(' '));
@@ -524,33 +530,41 @@ function speakTutorText(text,button){
   const lang=preferredVoiceLang(clean).startsWith('ar')?'ar':'en';
   button.disabled=true; button.textContent='⏳'; button.title='Piper يجهّز الصوت…';
   ttsNote(button,'');
+  let settled=false;
   const onWake=(n,total,awake,lastErr)=>{
-    if(awake) return;
+    if(awake||settled) return;   /* لا نطمس الرسالة النهائيّة بمحاولةٍ متأخّرة */
     const booting=/http-503/.test(String(lastErr&&lastErr.message||''));
     ttsNote(button, n===1 ? '⏳ أوقظ خادم صوت Piper… قد يأخذ دقيقةً في أوّل مرّة.'
                   : booting ? '⏳ مساحة Piper تُقلِع الآن… المحاولة '+n+' من '+total+'.'
                             : '⏳ ما زال الخادم يستيقظ… المحاولة '+n+' من '+total+'.');
   };
   piperPlan(lang).then(plan=>playTutorPiper(clean,lang,plan,onWake)).then(audio=>{
+    settled=true;
     button.disabled=false; button.textContent='⏹';
     button.title=(voicePlan&&voicePlan.voice)?'صوت Piper النسائيّ':'صوت Piper — طبقةٌ مرفوعة';
     ttsNote(button,'');
     audio.onended=()=>{button.textContent='🔊';button.title='استمعي بصوت Piper';};
     audio.onerror=()=>{button.textContent='⚠️';button.title='تعذّر تشغيل Piper';};
   }).catch(err=>{
+    settled=true;
     button.disabled=false;
     const why=String(err&&err.message||err||'');
     const code=(why.match(/http-(\d+)/)||[])[1];
     /* ٥٠٣ من HuggingFace تعني أنّ المساحة متوقّفةٌ أو ما زالت تُقلِع */
+    const noSpace=/no-tts-space/.test(why);
     const reason = code==='503' ? 'مساحة Piper على HuggingFace متوقّفة — تحتاج تشغيلاً من صفحتها'
+                 : code==='405' ? 'المساحة تعمل لكنّها ليست خادم النطق الذي ننتظره'
                  : code==='404' ? 'الصوت المطلوب غير مثبَّتٍ على خادم Piper'
                  : code         ? ('خادم Piper ردّ بالرمز '+code)
+                 : noSpace      ? 'لم أجد مساحة نطقٍ تعمل'
                  : /abort/i.test(why) ? 'خادم Piper لم يردّ خلال دقيقتين'
                  : 'تعذّر الوصول إلى خادم Piper';
     if(speakDevice(clean,lang)){
       button.textContent='🔊';
       button.title=reason+' — نطقتُ بصوت جهازك';
-      ttsNote(button,'⚠️ '+reason+'، فنطقتُ بصوت جهازك.','warn', code==='503'?SPACE_PAGE:'');
+      /* في كلّ أعطال الخادم الطريقُ واحد: صفحة المساحة */
+      const serverDown = noSpace || !code || code==='503' || code==='405';
+      ttsNote(button,'⚠️ '+reason+'، فنطقتُ بصوت جهازك.','warn', serverDown?SPACE_PAGE:'');
       return;
     }
     button.textContent='⚠️'; button.title='تعذّر تشغيل الصوت — اضغطي مرة ثانية';

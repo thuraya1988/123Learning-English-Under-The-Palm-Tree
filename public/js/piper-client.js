@@ -257,7 +257,7 @@
     });
     return basePromise;
   }
-  ensureBase();
+  ensureBase().catch(function () {});   // discovery runs early; failure is reported per call
 
   function isArabic(text) {
     return /[؀-ۿ]/.test(text || "");

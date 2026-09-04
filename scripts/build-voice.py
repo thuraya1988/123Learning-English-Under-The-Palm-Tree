@@ -98,50 +98,45 @@ def main():
 
     # The page matches the text it is about to show against this map, so the
     # manifest is keyed by the exact string rather than by an internal id.
-    old = {}
+    manifest = {"en": {}, "ar": {}}
+    made, skipped, missing = 0, 0, 0
+    for i, row in enumerate(lines, 1):
+        lang, text, name = row["lang"], row["text"], row["id"] + ".mp3"
+        if lang not in voices:
+            # This language was not rendered in this run; keep whatever the
+            # previous run produced so building one language never silently
+            # drops the other.
+            if (OUT / name).exists():
+                manifest[lang][text] = name
+            else:
+                missing += 1
+            continue
+        dest = OUT / name
+        manifest[lang][text] = name
+        if dest.exists() and not args.force:
+            skipped += 1
+            continue
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as wf:
+            voices[lang]["synth"](text, wf)
+        encode(buf.getvalue(), dest, pitches[lang], voices[lang]["rate"])
+        made += 1
+        if made % 50 == 0:
+            print("  %d/%d lines…" % (i, len(lines)), flush=True)
+
+    meta = {}
     mf = OUT / "manifest.json"
     if mf.exists():
-        try: old = json.loads(mf.read_text(encoding="utf-8"))
-        except Exception: old = {}
-
-    manifest = {"en": dict(old.get("en", {})), "ar": dict(old.get("ar", {}))}
-    # A manifest written before Arabic existed keyed everything under "byText".
-    # Rendering only one language must not drop the other's mapping, so fold
-    # the old shape in rather than starting from an empty map.
-    if old.get("byText"):
-        manifest["en"].update(old["byText"])
-    made, skipped = 0, 0
-    plan = (("en", "w", "word"), ("en", "s", "sentence"),
-            ("ar", "m", "ar"),   ("ar", "t", "arSentence"))
-    for i, row in enumerate(lines, 1):
-        for lang, kind, field in plan:
-            text = (row.get(field) or "").strip()
-            if not text or lang not in voices:
-                continue
-            name = "%s-%s.mp3" % (kind, row["id"])
-            dest = OUT / name
-            manifest[lang][text] = name
-            if dest.exists() and not args.force:
-                skipped += 1
-                continue
-            buf = io.BytesIO()
-            with wave.open(buf, "wb") as wf:
-                voices[lang]["synth"](text, wf)
-            encode(buf.getvalue(), dest, pitches[lang], voices[lang]["rate"])
-            made += 1
-        if i % 20 == 0:
-            print("  %d/%d entries…" % (i, len(lines)), flush=True)
-
-    meta = dict(old)
-    if old.get("voice") and not old.get("voice_en"):
-        meta["voice_en"] = old["voice"]
-        meta["pitch_en"] = old.get("pitch", 0)
+        try: meta = json.loads(mf.read_text(encoding="utf-8"))
+        except Exception: meta = {}
     meta.update(manifest)
     for lang in voices:
         meta["voice_" + lang] = voices[lang]["name"]
         meta["pitch_" + lang] = pitches[lang]
     meta.pop("byText", None); meta.pop("voice", None); meta.pop("pitch", None)
     mf.write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
+    if missing:
+        print("note: %d %s lines have no clip yet" % (missing, "other-language"))
 
     total = sum(f.stat().st_size for f in OUT.glob("*.mp3"))
     for lang in voices:

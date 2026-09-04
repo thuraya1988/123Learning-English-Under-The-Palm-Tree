@@ -154,6 +154,16 @@ def main():
     if missing:
         print("note: %d %s lines have no clip yet" % (missing, "other-language"))
 
+    # A line that changes its wording gets a new fingerprint, so its old clip
+    # is left behind with nothing pointing at it. Sweep those away, or the
+    # folder grows with every edit — 101 had piled up by the seventh build.
+    keep = {f for L in ("en", "ar") for f in manifest[L].values()}
+    dead = [f for f in OUT.glob("*.mp3") if f.name not in keep]
+    for f in dead:
+        f.unlink()
+    if dead:
+        print("swept %d orphaned clip(s)" % len(dead))
+
     total = sum(f.stat().st_size for f in OUT.glob("*.mp3"))
     for lang in voices:
         print("%s: %s (pitch %+g)" % (lang, voices[lang]["name"], pitches[lang]))

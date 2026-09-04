@@ -37,8 +37,10 @@
   // keep whichever actually answers like our Piper server.
   var CANDIDATES = (window.PIPER_BASES || [
     window.PIPER_BASE,
-    "https://thursday88-palmtts.hf.space",
+    // Thuraya confirmed this one is Running (huggingface.co/spaces/Thursday88/palm-tree-tts);
+    // the pinned "palmtts" Space is in a runtime error, so try the live one first.
     "https://thursday88-palm-tree-tts.hf.space",
+    "https://thursday88-palmtts.hf.space",
     "https://thursday88-palmtreetts.hf.space",
     "https://thursday88-piper-tts-api.hf.space",
     "https://thursday88-palm-tree-tts-api.hf.space",

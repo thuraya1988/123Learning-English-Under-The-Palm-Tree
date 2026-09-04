@@ -8,8 +8,8 @@ name: بناء صوت مس ثريا
 on:
   workflow_dispatch:
     inputs:
-      voice:
-        description: "اسم صوت Piper"
+      voice_en:
+        description: "الصوت الإنجليزيّ"
         required: true
         default: en_GB-cori-medium
         type: choice
@@ -21,8 +21,17 @@ on:
           - en_US-amy-medium
           - en_US-hfc_female-medium
           - en_GB-alan-medium              # رجل
-      pitch:
-        description: "رفع الطبقة بأنصاف النغمات (اتركيه صفراً مع صوت امرأة)"
+      voice_ar:
+        description: "الصوت العربيّ (Piper ليس فيه صوت امرأة عربيّ)"
+        required: true
+        default: ar_JO-kareem-medium
+        type: choice
+        options:
+          - ar_JO-kareem-medium
+          - ar_JO-kareem-low
+          - none                            # بلا عربيّ
+      pitch_ar:
+        description: "رفع طبقة الصوت العربيّ بأنصاف النغمات (٠ = كما هو، ٣ = أخفّ)"
         required: false
         default: "0"
       force:
@@ -47,35 +56,43 @@ jobs:
           sudo apt-get install -y -qq espeak-ng ffmpeg
           python3 -m pip install --quiet piper-tts
 
-      - name: تنزيل الصوت من HuggingFace
+      - name: تنزيل الأصوات من HuggingFace
         env:
-          VOICE: ${{ inputs.voice }}
+          VOICE_EN: ${{ inputs.voice_en }}
+          VOICE_AR: ${{ inputs.voice_ar }}
         run: |
           set -euo pipefail
-          # المسار في مستودع rhasspy مبنيٌّ من اسم الصوت: en_GB-cori-medium
-          # -> en/en_GB/cori/medium
-          lang="${VOICE%%-*}"                 # en_GB
-          rest="${VOICE#*-}"                  # cori-medium
-          name="${rest%-*}"                   # cori
-          qual="${rest##*-}"                  # medium
-          fam="${lang%%_*}"                   # en
-          base="https://huggingface.co/rhasspy/piper-voices/resolve/main/$fam/$lang/$name/$qual/$VOICE"
           mkdir -p voice
-          echo "downloading $base"
-          curl -fL --retry 3 --retry-delay 3 "$base.onnx"      -o "voice/$VOICE.onnx"
-          curl -fL --retry 3 --retry-delay 3 "$base.onnx.json" -o "voice/$VOICE.onnx.json"
+          # المسار في مستودع rhasspy مبنيٌّ من اسم الصوت:
+          # en_GB-cori-medium -> en/en_GB/cori/medium
+          fetch () {
+            local V="$1"
+            [ -z "$V" ] || [ "$V" = "none" ] && return 0
+            local lang="${V%%-*}" rest="${V#*-}"
+            local name="${rest%-*}" qual="${rest##*-}" fam="${lang%%_*}"
+            local base="https://huggingface.co/rhasspy/piper-voices/resolve/main/$fam/$lang/$name/$qual/$V"
+            echo "downloading $V"
+            curl -fL --retry 3 --retry-delay 3 "$base.onnx"      -o "voice/$V.onnx"
+            curl -fL --retry 3 --retry-delay 3 "$base.onnx.json" -o "voice/$V.onnx.json"
+          }
+          fetch "$VOICE_EN"
+          fetch "$VOICE_AR"
           ls -lh voice
 
       - name: توليد المقاطع
         env:
-          VOICE: ${{ inputs.voice }}
-          PITCH: ${{ inputs.pitch }}
+          VOICE_EN: ${{ inputs.voice_en }}
+          VOICE_AR: ${{ inputs.voice_ar }}
+          PITCH_AR: ${{ inputs.pitch_ar }}
           FORCE: ${{ inputs.force }}
         run: |
           set -euo pipefail
-          extra=""
-          if [ "$FORCE" = "true" ]; then extra="--force"; fi
-          python3 scripts/build-voice.py --voice "voice/$VOICE" --pitch "${PITCH:-0}" $extra
+          args=()
+          [ -n "$VOICE_EN" ] && [ "$VOICE_EN" != "none" ] && args+=(--voice-en "voice/$VOICE_EN")
+          [ -n "$VOICE_AR" ] && [ "$VOICE_AR" != "none" ] && args+=(--voice-ar "voice/$VOICE_AR")
+          args+=(--pitch-ar "${PITCH_AR:-0}")
+          [ "$FORCE" = "true" ] && args+=(--force)
+          python3 scripts/build-voice.py "${args[@]}"
 
       - name: رفع النتيجة إلى المستودع
         run: |
@@ -86,7 +103,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "لا جديد — المقاطع كما هي."
           else
-            git commit -m "صوت مس ثريا: توليد المقاطع بصوت ${{ inputs.voice }}"
+            git commit -m "صوت مس ثريا: توليد المقاطع — ${{ inputs.voice_en }} و ${{ inputs.voice_ar }}"
             git push
           fi
 
@@ -95,7 +112,8 @@ jobs:
           {
             echo "### 🔊 صوت مس ثريا"
             echo ""
-            echo "- الصوت: \`${{ inputs.voice }}\`"
+            echo "- الإنجليزيّ: \`${{ inputs.voice_en }}\`"
+            echo "- العربيّ: \`${{ inputs.voice_ar }}\` (رفع ${{ inputs.pitch_ar }})"
             echo "- عدد المقاطع: $(ls public/tts-audio/*.mp3 2>/dev/null | wc -l)"
             echo "- الحجم: $(du -sh public/tts-audio 2>/dev/null | cut -f1)"
             echo ""

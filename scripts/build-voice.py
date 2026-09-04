@@ -11,7 +11,8 @@ small MP3 and writes a manifest the page can look words up in. Run it whenever
 the dictionary changes; the workflow in .github/workflows/build-voice.yml does
 it on demand with a voice fetched straight from Hugging Face.
 
-    python3 scripts/build-voice.py --voice public/tts-voices/en_GB-cori-medium
+    python3 scripts/build-voice.py --voice-en .../en_GB-cori-medium \
+                                   --voice-ar .../ar_JO-kareem-medium
 
 Existing clips are skipped, so a re-run after adding ten words costs ten clips.
 """
@@ -51,61 +52,100 @@ def encode(wav_bytes, dest, semitones, rate):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--voice", required=True,
-                    help="path to the .onnx voice, with or without the extension")
-    ap.add_argument("--pitch", type=float, default=0.0,
-                    help="semitones to raise the voice (only for a male model)")
+    ap.add_argument("--voice-en", help="path to the English .onnx voice")
+    ap.add_argument("--voice-ar", help="path to the Arabic .onnx voice")
+    ap.add_argument("--pitch-en", type=float, default=0.0,
+                    help="semitones to raise the English voice")
+    ap.add_argument("--pitch-ar", type=float, default=0.0,
+                    help="semitones to raise the Arabic voice (Piper has no female Arabic)")
     ap.add_argument("--force", action="store_true", help="re-render existing clips")
     args = ap.parse_args()
+    if not args.voice_en and not args.voice_ar:
+        die("give --voice-en and/or --voice-ar")
 
     if shutil.which("ffmpeg") is None:
         die("ffmpeg is not installed")
     if not LINES.exists():
         die("missing %s" % LINES)
 
-    base = str(args.voice)
-    if base.endswith(".onnx"):
-        base = base[:-5]
-    onnx, cfg = Path(base + ".onnx"), Path(base + ".onnx.json")
-    for f in (onnx, cfg):
-        if not f.exists():
-            die("missing voice file %s" % f)
-
     from piper import PiperVoice
-    voice = PiperVoice.load(str(onnx), config_path=str(cfg))
-    synth = getattr(voice, "synthesize_wav", None) or voice.synthesize
 
-    with open(cfg, encoding="utf-8") as f:
-        rate = json.load(f).get("audio", {}).get("sample_rate", 22050)
+    def load(path):
+        base = str(path)
+        if base.endswith(".onnx"):
+            base = base[:-5]
+        onnx, cfg = Path(base + ".onnx"), Path(base + ".onnx.json")
+        for f in (onnx, cfg):
+            if not f.exists():
+                die("missing voice file %s" % f)
+        v = PiperVoice.load(str(onnx), config_path=str(cfg))
+        with open(cfg, encoding="utf-8") as f:
+            rate = json.load(f).get("audio", {}).get("sample_rate", 22050)
+        return {"name": onnx.stem,
+                "synth": getattr(v, "synthesize_wav", None) or v.synthesize,
+                "rate": rate}
+
+    # Two voices, because a card shows the English word and its Arabic meaning
+    # side by side and a student needs to hear both. Piper ships no female
+    # Arabic voice, so --pitch-ar exists to lighten the male one if wanted.
+    voices = {}
+    if args.voice_en: voices["en"] = load(args.voice_en)
+    if args.voice_ar: voices["ar"] = load(args.voice_ar)
+    pitches = {"en": args.pitch_en, "ar": args.pitch_ar}
 
     lines = json.loads(LINES.read_text(encoding="utf-8"))
     OUT.mkdir(parents=True, exist_ok=True)
 
-    # The page matches the English it is about to show against this map, so
-    # the manifest is keyed by the exact text rather than by an internal id.
-    manifest, made, skipped = {}, 0, 0
+    # The page matches the text it is about to show against this map, so the
+    # manifest is keyed by the exact string rather than by an internal id.
+    old = {}
+    mf = OUT / "manifest.json"
+    if mf.exists():
+        try: old = json.loads(mf.read_text(encoding="utf-8"))
+        except Exception: old = {}
+
+    manifest = {"en": dict(old.get("en", {})), "ar": dict(old.get("ar", {}))}
+    # A manifest written before Arabic existed keyed everything under "byText".
+    # Rendering only one language must not drop the other's mapping, so fold
+    # the old shape in rather than starting from an empty map.
+    if old.get("byText"):
+        manifest["en"].update(old["byText"])
+    made, skipped = 0, 0
+    plan = (("en", "w", "word"), ("en", "s", "sentence"),
+            ("ar", "m", "ar"),   ("ar", "t", "arSentence"))
     for i, row in enumerate(lines, 1):
-        for kind, text in (("w", row["word"]), ("s", row["sentence"])):
+        for lang, kind, field in plan:
+            text = (row.get(field) or "").strip()
+            if not text or lang not in voices:
+                continue
             name = "%s-%s.mp3" % (kind, row["id"])
             dest = OUT / name
-            manifest[text] = name
+            manifest[lang][text] = name
             if dest.exists() and not args.force:
                 skipped += 1
                 continue
             buf = io.BytesIO()
             with wave.open(buf, "wb") as wf:
-                synth(text, wf)
-            encode(buf.getvalue(), dest, args.pitch, rate)
+                voices[lang]["synth"](text, wf)
+            encode(buf.getvalue(), dest, pitches[lang], voices[lang]["rate"])
             made += 1
         if i % 20 == 0:
             print("  %d/%d entries…" % (i, len(lines)), flush=True)
 
-    (OUT / "manifest.json").write_text(
-        json.dumps({"voice": onnx.stem, "pitch": args.pitch, "byText": manifest},
-                   ensure_ascii=False, indent=1), encoding="utf-8")
+    meta = dict(old)
+    if old.get("voice") and not old.get("voice_en"):
+        meta["voice_en"] = old["voice"]
+        meta["pitch_en"] = old.get("pitch", 0)
+    meta.update(manifest)
+    for lang in voices:
+        meta["voice_" + lang] = voices[lang]["name"]
+        meta["pitch_" + lang] = pitches[lang]
+    meta.pop("byText", None); meta.pop("voice", None); meta.pop("pitch", None)
+    mf.write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
 
     total = sum(f.stat().st_size for f in OUT.glob("*.mp3"))
-    print("voice   : %s (pitch %+g)" % (onnx.stem, args.pitch))
+    for lang in voices:
+        print("%s: %s (pitch %+g)" % (lang, voices[lang]["name"], pitches[lang]))
     print("rendered: %d   skipped: %d" % (made, skipped))
     print("clips   : %d   total: %.1f MB" % (len(list(OUT.glob('*.mp3'))), total / 1e6))
 

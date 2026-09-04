@@ -29,6 +29,7 @@ header{min-width:0;max-width:100%;padding:12px 14px;border-bottom:1px solid var(
 .avatar.busy{animation:avatarFloat 1.4s ease-in-out infinite}
 @keyframes avatarFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 .identity{min-width:0}.identity h1{font-size:17px;white-space:nowrap}.identity p{font-size:11.5px;color:var(--muted);margin-top:2px}
+.play-ar{opacity:.92}
 .play{border:1px solid var(--line);background:#fff8ee;color:var(--gold);border-radius:9px;
   padding:3px 10px;font-size:12.5px;cursor:pointer;font-family:inherit;margin-top:7px;display:inline-block}
 .online{margin-inline-start:auto;border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:11px;color:var(--muted);white-space:nowrap;background:rgba(255,255,255,.45)}
@@ -337,27 +338,31 @@ const BUBBLE_SEL='.msg.bot .bubble';
 
 /* ---------- النطق من مقاطع جاهزة ----------
    لا خادم ولا انتظار: المقاطع مُولَّدةٌ مسبقاً بصوت Piper ومرفوعةٌ مع الموقع.
-   إن لم تكن قد وُلِّدت بعد فلا يظهر زرٌّ أصلاً — لا زرَّ يعد بما لا يفي به. */
-const CLIPS={ map:null, dir:'', audio:null, queue:[], btn:null };
+   لغتان: الإنجليزيّة للكلمة وجملتها، والعربيّة للمعنى وترجمة الجملة —
+   لأنّ البطاقة تعرضهما معاً والطالب يحتاج أن يسمعهما معاً.
+   وإن لم تُولَّد لغةٌ بعد فلا يظهر زرّها. */
+const CLIPS={ dir:CLIP_BASE, en:null, ar:null, audio:null, queue:[], btn:null };
 fetch(CLIP_BASE+'manifest.json',{cache:'no-store'})
   .then(r=>r.ok?r.json():null)
-  .then(m=>{ if(m&&m.byText&&Object.keys(m.byText).length){
-      CLIPS.map=m.byText; CLIPS.dir=CLIP_BASE;
-      /* أطولُ العباراتِ أوّلاً حتّى تُلتقط الجملةُ كاملةً لا كلمةٌ داخلها */
-      CLIPS.keys=Object.keys(m.byText).sort((a,b)=>b.length-a.length);
-      document.querySelectorAll(BUBBLE_SEL).forEach(addPlay);
-    } })
+  .then(m=>{ if(!m) return;
+    ['en','ar'].forEach(L=>{
+      const map=m[L];
+      if(map&&Object.keys(map).length)
+        /* أطولُ العباراتِ أوّلاً حتّى تُلتقط الجملةُ كاملةً لا كلمةٌ داخلها */
+        CLIPS[L]={map:map, keys:Object.keys(map).sort((a,b)=>b.length-a.length)};
+    });
+    if(CLIPS.en||CLIPS.ar) document.querySelectorAll(BUBBLE_SEL).forEach(addPlay);
+  })
   .catch(()=>{});
 
-/* العباراتُ المعروفةُ داخل نصٍّ، بترتيب ظهورها وبلا تداخل */
-function clipsIn(text){
-  if(!CLIPS.map) return [];
+function clipsIn(text,L){
+  const V=CLIPS[L]; if(!V) return [];
   const taken=[], found=[];
-  for(const k of CLIPS.keys){
+  for(const k of V.keys){
     let from=0, i;
     while((i=text.indexOf(k,from))>=0){
       const j=i+k.length;
-      if(!taken.some(([a,b])=>i<b&&j>a)){ taken.push([i,j]); found.push([i,CLIPS.map[k]]); }
+      if(!taken.some(([a,b])=>i<b&&j>a)){ taken.push([i,j]); found.push([i,V.map[k]]); }
       from=i+1;
     }
   }
@@ -366,11 +371,11 @@ function clipsIn(text){
 function stopClips(){
   CLIPS.queue.length=0;
   if(CLIPS.audio){ try{CLIPS.audio.pause();}catch(e){} CLIPS.audio=null; }
-  if(CLIPS.btn){ CLIPS.btn.textContent='🔊 استمعي'; CLIPS.btn=null; }
+  if(CLIPS.btn){ CLIPS.btn.textContent=CLIPS.btn.dataset.label; CLIPS.btn=null; }
 }
 function playQueue(){
   const f=CLIPS.queue.shift();
-  if(!f){ if(CLIPS.btn){CLIPS.btn.textContent='🔊 استمعي';CLIPS.btn=null;} return; }
+  if(!f){ if(CLIPS.btn){CLIPS.btn.textContent=CLIPS.btn.dataset.label;CLIPS.btn=null;} return; }
   const a=new Audio(CLIPS.dir+f);
   a.setAttribute('playsinline','');
   CLIPS.audio=a;
@@ -379,22 +384,25 @@ function playQueue(){
   a.play().catch(()=>playQueue());
 }
 function addPlay(bubble){
-  if(!CLIPS.map || bubble.querySelector('.play')) return;
-  const list=clipsIn(bubble.innerText||bubble.textContent||'');
-  if(!list.length) return;
-  const b=document.createElement('button');
-  b.type='button'; b.className='play'; b.textContent='🔊 استمعي';
-  b.title='استمعي إلى الإنجليزيّة بصوت المعلّمة';
-  b.setAttribute('aria-label','استمعي إلى الإنجليزيّة');
-  b.onclick=e=>{
-    e.stopPropagation();
-    if(CLIPS.btn===b){ stopClips(); return; }
-    stopClips();
-    CLIPS.btn=b; b.textContent='⏹ إيقاف';
-    CLIPS.queue=list.slice();
-    playQueue();
-  };
-  bubble.appendChild(b);
+  if(!bubble || bubble.querySelector('.play')) return;
+  const text=bubble.innerText||bubble.textContent||'';
+  [['en','🔊 استمعي','استمعي إلى الإنجليزيّة'],
+   ['ar','🗣️ بالعربي','استمعي إلى الشرح بالعربيّة']].forEach(([L,label,title])=>{
+    const list=clipsIn(text,L);
+    if(!list.length) return;
+    const b=document.createElement('button');
+    b.type='button'; b.className='play play-'+L; b.textContent=label;
+    b.dataset.label=label; b.title=title; b.setAttribute('aria-label',title);
+    b.onclick=e=>{
+      e.stopPropagation();
+      if(CLIPS.btn===b){ stopClips(); return; }
+      stopClips();
+      CLIPS.btn=b; b.textContent='⏹ إيقاف';
+      CLIPS.queue=list.slice();
+      playQueue();
+    };
+    bubble.appendChild(b);
+  });
 }
 
 function addMessage(role,text,meta,imageUrl){

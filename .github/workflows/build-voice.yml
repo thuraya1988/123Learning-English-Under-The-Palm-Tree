@@ -102,13 +102,35 @@ jobs:
           set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A public/tts-audio
-          if git diff --cached --quiet; then
-            echo "لا جديد — المقاطع كما هي."
-          else
+
+          # التوليد يأخذ دقائق، وقد يُدفَع إلى main شيءٌ في أثنائها فيُرفض
+          # الدفع وتضيع كلُّ المقاطع — وهذا ما حدث في التشغيلة الثانية.
+          # فنُبقي المقاطع جانباً، ونتحرّك إلى آخر main، ثمّ نُعيدها ونُعيد
+          # المحاولة. المقاطع مُولَّدةٌ فهي الأحدث، ولا معنى لدمجها مع أقدم.
+          tmp="$(mktemp -d)"
+          cp -a public/tts-audio/. "$tmp/"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            mkdir -p public/tts-audio
+            rm -f public/tts-audio/*.mp3 public/tts-audio/manifest.json
+            cp -a "$tmp/." public/tts-audio/
+            git add -A public/tts-audio
+            if git diff --cached --quiet; then
+              echo "لا جديد — المقاطع كما هي."
+              exit 0
+            fi
             git commit -m "صوت مس ثريا: توليد المقاطع — ${{ inputs.voice_en }} و ${{ inputs.voice_ar }}"
-            git push
-          fi
+            if git push origin HEAD:main; then
+              echo "رُفعت في المحاولة $attempt."
+              exit 0
+            fi
+            echo "دُفع شيءٌ إلى main في أثناء البناء — أُعيد المحاولة ($attempt)."
+            sleep 5
+          done
+          echo "::error::تعذّر الرفع بعد خمس محاولات."
+          exit 1
 
       - name: الخلاصة
         run: |

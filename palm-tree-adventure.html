@@ -3910,14 +3910,80 @@ function waterTex(){
 var WATERTEX=waterTex();
 
 /* ============ ground ============ */
+/* كانت الأرض والممشى لونين مسطّحين بلا أيّ نقش — وهما أكبر سطحين في
+   المشهد، فيبدو العالم كورقةٍ ملوّنة. نرسم لهما نقشاً في الصفحة نفسها
+   (لا ملفَّ يُحمَّل)، ونضيف خريطة خشونةٍ ليتغيّر انعكاس الضوء عليهما. */
+function grassTex(){
+  var c=document.createElement('canvas'); c.width=c.height=512;
+  var x=c.getContext('2d');
+  x.fillStyle='#59803C'; x.fillRect(0,0,512,512);
+  /* بقعٌ عريضةٌ تكسر الاستواء */
+  for(var i=0;i<70;i++){
+    var r=40+Math.random()*120;
+    x.fillStyle='rgba('+(70+Math.random()*40|0)+','+(110+Math.random()*45|0)+',' +
+                (45+Math.random()*30|0)+','+(0.05+Math.random()*0.10).toFixed(2)+')';
+    x.beginPath(); x.arc(Math.random()*512,Math.random()*512,r,0,6.284); x.fill();
+  }
+  /* شعيراتُ عشب */
+  for(var j=0;j<2600;j++){
+    var px=Math.random()*512, py=Math.random()*512, h=2+Math.random()*5;
+    x.strokeStyle='rgba('+(95+Math.random()*70|0)+','+(140+Math.random()*60|0)+',' +
+                  (60+Math.random()*35|0)+','+(0.20+Math.random()*0.35).toFixed(2)+')';
+    x.lineWidth=1; x.beginPath(); x.moveTo(px,py);
+    x.lineTo(px+(Math.random()-0.5)*2.2,py-h); x.stroke();
+  }
+  var t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(60,60);
+  t.encoding=THREE.sRGBEncoding; t.anisotropy=4;
+  return t;
+}
+function sandTex(){
+  var c=document.createElement('canvas'); c.width=c.height=512;
+  var x=c.getContext('2d');
+  x.fillStyle='#C2AC85'; x.fillRect(0,0,512,512);
+  for(var i=0;i<40;i++){                       /* موجاتُ رملٍ خفيفة */
+    x.strokeStyle='rgba(150,128,96,'+(0.05+Math.random()*0.08).toFixed(2)+')';
+    x.lineWidth=3+Math.random()*9; x.beginPath();
+    var y=Math.random()*512; x.moveTo(0,y);
+    x.bezierCurveTo(170,y+(Math.random()-0.5)*26,340,y+(Math.random()-0.5)*26,512,y); x.stroke();
+  }
+  for(var j=0;j<9000;j++){                     /* حبيباتٌ وحصى */
+    var g=Math.random();
+    x.fillStyle=g>0.94 ? 'rgba(120,104,80,0.40)'
+             : g>0.5   ? 'rgba(214,198,168,0.30)' : 'rgba(160,140,108,0.22)';
+    x.fillRect(Math.random()*512,Math.random()*512,1+ (g>0.94?1:0),1+(g>0.94?1:0));
+  }
+  var t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(70,1.2);
+  t.encoding=THREE.sRGBEncoding; t.anisotropy=4;
+  return t;
+}
+/* خريطةُ خشونةٍ من النقش نفسه: الفاتح أملس والداكن خشن */
+function roughFrom(tex,rx,ry){
+  var src=tex.image, c=document.createElement('canvas');
+  c.width=src.width; c.height=src.height;
+  var x=c.getContext('2d'); x.drawImage(src,0,0);
+  var d=x.getImageData(0,0,c.width,c.height), a=d.data;
+  for(var i=0;i<a.length;i+=4){
+    var v=255-((a[i]*0.3+a[i+1]*0.6+a[i+2]*0.1)|0);
+    a[i]=a[i+1]=a[i+2]=140+(v>>2);
+  }
+  x.putImageData(d,0,0);
+  var t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rx,ry);
+  return t;
+}
+var GRASS=grassTex(), SAND=sandTex();
 var ground=new THREE.Mesh(new THREE.PlaneGeometry(900,900),
-  new THREE.MeshStandardMaterial({color:0x59803C,roughness:1}));   /* عشب أعمق */
+  new THREE.MeshStandardMaterial({map:GRASS,roughnessMap:roughFrom(GRASS,60,60),
+                                  color:0xFFFFFF,roughness:1}));
 ground.rotation.x=-Math.PI/2; ground.position.set(X1/2,0,-40);
 ground.receiveShadow=true; scene.add(ground);
 
 /* ============ الممشى ============ */
 var walk=new THREE.Mesh(new THREE.PlaneGeometry(X1+40,5.4),
-  new THREE.MeshStandardMaterial({color:0xC2AC85,roughness:1}));
+  new THREE.MeshStandardMaterial({map:SAND,roughnessMap:roughFrom(SAND,70,1.2),
+                                  color:0xFFFFFF,roughness:1}));
 walk.rotation.x=-Math.PI/2; walk.position.set(X1/2,0.03,Z_WALK);
 walk.receiveShadow=true; scene.add(walk);
 

@@ -130,6 +130,23 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;b
 .btn-add{background:linear-gradient(135deg,#a54362,#711f3d);box-shadow:0 6px 18px rgba(113,31,61,.25)}
 .btn-add:hover{filter:brightness(1.1)}
 
+/* ===== Sunday details ===== */
+.sunday-extra{margin-top:22px;border-top:1px dashed var(--border);padding-top:20px}
+.sunday-extra[hidden]{display:none}
+.sunday-extra h3{font-size:16px;font-weight:900;color:var(--gold);margin:0 0 12px}
+.plan-list{display:flex;flex-direction:column;gap:7px;margin-bottom:22px}
+.plan-item{display:grid;grid-template-columns:78px 1fr;gap:10px;align-items:center;background:#f6eadc;border:1px solid rgba(113,31,61,.10);border-radius:12px;padding:9px 12px;font-size:13px;font-weight:700}
+.plan-time{direction:ltr;text-align:center;background:var(--gold);color:#fffaf1;border-radius:9px;padding:5px 7px;font-weight:900;font-variant-numeric:tabular-nums}
+.plan-item.note{background:rgba(123,31,66,.045);color:#684052}
+.plan-item.note .plan-time{background:transparent;color:var(--gold);font-size:17px;padding:0}
+.assign-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:18px}
+.assign{display:flex;align-items:center;gap:10px;background:#f6eadc;border:1px solid rgba(113,31,61,.12);border-radius:11px;padding:8px 10px;font-size:13px;font-weight:700}
+.assign-class{direction:ltr;min-width:44px;text-align:center;background:var(--gold);color:#fffaf1;border-radius:8px;padding:3px 7px;font-weight:900}
+.duty-details{background:rgba(123,31,66,.045);border:1px solid var(--border);border-radius:14px;padding:12px 14px}
+.duty-details summary{cursor:pointer;color:var(--gold);font-weight:900;font-size:14px}
+.duty-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:12px}
+.duty-name{background:#f6eadc;border-radius:9px;padding:7px 9px;font-size:12px;font-weight:700;text-align:center}
+
 /* ===== Overlay ===== */
 .overlay{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:radial-gradient(circle at center,rgba(251,245,234,.96),rgba(113,31,61,.96));backdrop-filter:blur(8px)}
 .overlay.show{display:flex;animation:ovIn .35s ease}
@@ -162,6 +179,8 @@ footer{margin-top:26px;text-align:center;font-size:12px;color:var(--muted)}
   .row .row-en{grid-area:enable;justify-self:end}.row .del{grid-area:del}
   .add-form{grid-template-columns:1fr 1fr}.add-form .btn-add{grid-column:1/-1}
   .clock-time{font-size:44px}.ov-name{font-size:32px}
+  .assign-grid{grid-template-columns:1fr}.duty-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .plan-item{grid-template-columns:68px 1fr}
 }
 </style>
 </head>
@@ -230,6 +249,7 @@ footer{margin-top:26px;text-align:center;font-size:12px;color:var(--muted)}
         <select class="ev-sound" id="addSound"></select>
         <button type="submit" class="btn btn-add">➕ إضافة</button>
       </form>
+      <div class="sunday-extra" id="sundayExtras" hidden></div>
     </section>
   </main>
 
@@ -284,6 +304,31 @@ function sundayDefaults(){
   ];
   return d.map(x=>({id:uid(),name:x[0],time:x[1],sound:x[2],enabled:true}));
 }
+const SUNDAY_PLAN=[
+  ['10:45','حضور المعلمات'],
+  ['', 'المناوبة الجماعية في الصباح تشمل الكادر الإداري والتدريسي'],
+  ['12:10','بدء الطابور'],
+  ['', 'تتواجد كل معلمة مع الفصل الدراسي المحدد لها وفق الملف المرفق في أرض الطابور'],
+  ['', 'التأكد من تواجد الطلبة وفقًا لقائمة الفصل وتنظيمهم'],
+  ['', 'بعد تنظيم الطلبة تبدأ فعاليات فريق شبكة سفراء الإنسانية'],
+  ['13:00','تنتهي فعاليات الفريق على أرض الطابور'],
+  ['', 'ثم يتوجه الفريق لصفوف الحلقة الأولى للرسم على الوجوه وتوزيع الفشار'],
+  ['', 'ذهاب الطلبة مع معلماتهم إلى فصولهم الدراسية'],
+  ['', 'التأكد من أسماء الطلبة وفق قائمة الفصل'],
+  ['13:10','تسليم الكتب لطالبات الحلقة الثانية'],
+  ['13:20','فسحة الحلقة الأولى'],
+  ['13:40','فسحة الحلقة الثانية'],
+  ['14:15','انصراف الطلبة']
+];
+const CLASS_ASSIGNMENTS=[
+  ['1/1','الغيد المشرفية'],['1/2','إيناس البهلولية'],['1/3','ريهام العريمية'],
+  ['2/1','رزان السوطية'],['2/2','بثينة المسرورية'],['2/3','شهلاء الكاسبية'],['2/4','فاطمة السيابية'],['2/5','سالمة الراسبية'],
+  ['3/1','عهود الضبارية'],['3/2','ذهيب الجعفرية'],['3/3','حفصة السلمية'],['3/4','شريفة البروانية'],
+  ['4/1','علياء الشحيمية'],['4/2','موزة الهنائية'],['4/3','أثير العامرية'],['4/4','فاطمة الحضرمية'],['4/5','سارة النبهانية'],
+  ['5/1','منى الريامية'],['5/2','زينب الجهضمية'],['5/3','هبة الرمحية'],['5/4','سارة الجعفرية'],['5/5','كوثر الخروصية'],['5/6','عاتكة الوردية'],['5/7','انتصار الرواحية'],
+  ['6/1','بدرية الجابرية'],['6/2','ميساء الجهورية'],['6/3','مي الرحبية'],['6/4','تهاني حجازي'],['6/5','أماني السيابية'],['6/6','عاتكة العامرية'],['6/7','ثرياء الناعبية']
+];
+const EVENING_DUTY=['دلال الهنائية','كاذية الكندية','بشرى الحديدية','صبحاء العامرية','سهير الرواحية','صفية الرواحية','رقية العامرية','شيماء السليمية','سارة الكاسبية','لمياء فتحي','مارية الصارمية','إيمان المنورية','سلامة الحارثية','سارة الكاسبية','لمياء فتحي','مارية الصارمية','زينب الحبسية','منى الصايغية','أفراح الرواحية','مارية البلوشية','شمسة العامرية','مروة الراشدية','هدى البريكية','هدية اليعربية','ميساء الجابرية','عبير المسلمية','أصيلة الوهيبية','وسن العامرية','يازية الغيالنية','إخلاص المحرزية','الزهراء الراشدية'];
 function uid(){return 'e'+Math.random().toString(36).slice(2,9)}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function iconFor(n){
@@ -302,6 +347,9 @@ function iconFor(n){
 
 const SPECIAL_YEAR=2026,SPECIAL_MONTH=8,SPECIAL_DAY=6;
 function isSpecialSunday(d){return d.getFullYear()===SPECIAL_YEAR&&d.getMonth()===SPECIAL_MONTH&&d.getDate()===SPECIAL_DAY}
+function shouldShowSunday(d){
+  return isSpecialSunday(d)||(d.getFullYear()===2026&&d.getMonth()===8&&d.getDate()===5);
+}
 
 const LS_NORMAL='bell_schedule_v2_normal',LS_SUNDAY='bell_schedule_v2_sunday',LS_C='bell_settings_v2',LS_L='bell_log_v2';
 let normalSchedule=[],sundaySchedule=[],settings={enabled:true,volume:80},logArr=[],rung=new Set();
@@ -313,10 +361,14 @@ if(!Array.isArray(normalSchedule)||!normalSchedule.length)normalSchedule=normalD
 if(!Array.isArray(sundaySchedule)||!sundaySchedule.length)sundaySchedule=sundayDefaults();
 let activeDateKey='',schedule=[];
 function dateKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-function scheduleForDate(d){return isSpecialSunday(d)?sundaySchedule:normalSchedule}
+function scheduleForDate(d){
+  if(isSpecialSunday(d))return sundaySchedule;
+  const day=d.getDay();
+  return day>=0&&day<=4?normalSchedule:[];
+}
 function selectActiveSchedule(d){
   const key=dateKey(d);if(key===activeDateKey&&schedule.length)return false;
-  activeDateKey=key;schedule=scheduleForDate(d);
+  activeDateKey=key;schedule=shouldShowSunday(d)?sundaySchedule:scheduleForDate(d);
   return true;
 }
 function saveS(){localStorage.setItem(LS_NORMAL,JSON.stringify(normalSchedule));localStorage.setItem(LS_SUNDAY,JSON.stringify(sundaySchedule))}
@@ -387,7 +439,7 @@ $('addSound').innerHTML=soundOptions('royal');
 
 /* ================= Render schedule ================= */
 function renderSchedule(){
-  const special=isSpecialSunday(new Date());
+  const special=shouldShowSunday(new Date());
   $('scheduleTitle').textContent=special?'🗓️ جدول الأحد الاستثنائي':'🗓️ جدول اليوم الدراسي';
   $('scheduleMode').textContent=special?'الأحد 6/9/2026 — أول يوم دراسي':'يمكنك تعديل الاسم والوقت والنغمة مباشرة';
   rowsEl.innerHTML='';
@@ -405,7 +457,14 @@ function renderSchedule(){
       <label class="switch row-en"><input type="checkbox" class="t-en" ${ev.enabled?'checked':''}><span class="slider"></span></label>
       <button class="icon-btn del" title="حذف">✕</button>`;
     rowsEl.appendChild(row);
-  });updateHighlights();
+  });renderSundayExtras(special);updateHighlights();
+}
+function renderSundayExtras(show){
+  const box=$('sundayExtras');box.hidden=!show;if(!show){box.innerHTML='';return}
+  const plan=SUNDAY_PLAN.map(x=>`<div class="plan-item ${x[0]?'':'note'}"><span class="plan-time">${x[0]||'•'}</span><span>${esc(x[1])}</span></div>`).join('');
+  const assignments=CLASS_ASSIGNMENTS.map(x=>`<div class="assign"><span class="assign-class">${esc(x[0])}</span><span>${esc(x[1])}</span></div>`).join('');
+  const duty=EVENING_DUTY.map(x=>`<div class="duty-name">${esc(x)}</div>`).join('');
+  box.innerHTML=`<h3>📌 البرنامج الكامل ليوم الأحد</h3><div class="plan-list">${plan}</div><h3>👩‍🏫 المعلمات المسؤولات عن الفصول</h3><div class="assign-grid">${assignments}</div><details class="duty-details"><summary>المناوبة المسائية ليوم الأحد</summary><div class="duty-grid">${duty}</div></details>`;
 }
 
 rowsEl.addEventListener('change',e=>{
@@ -422,7 +481,7 @@ rowsEl.addEventListener('input',e=>{
 rowsEl.addEventListener('click',e=>{
   const row=e.target.closest('.row');if(!row)return;const ev=schedule.find(x=>x.id===row.dataset.id);if(!ev)return;
   if(e.target.closest('.btn-listen')){try{playSound(ev.sound);vibrateAlert(true);toast('🎵 معاينة: '+SOUNDS[ev.sound].name)}catch(err){toast('اضغط في أي مكان أولًا لتفعيل الصوت')}}
-  if(e.target.closest('.del')){schedule=schedule.filter(x=>x.id!==ev.id);if(isSpecialSunday(new Date()))sundaySchedule=schedule;else normalSchedule=schedule;saveS();renderSchedule();toast('🗑️ تم حذف: '+ev.name)}
+  if(e.target.closest('.del')){schedule=schedule.filter(x=>x.id!==ev.id);if(shouldShowSunday(new Date()))sundaySchedule=schedule;else normalSchedule=schedule;saveS();renderSchedule();toast('🗑️ تم حذف: '+ev.name)}
 });
 
 $('addForm').addEventListener('submit',e=>{
@@ -431,7 +490,7 @@ $('addForm').addEventListener('submit',e=>{
 });
 $('resetBtn').addEventListener('click',()=>{
   if(!confirm('هل تريد استعادة جدول هذا اليوم الافتراضي؟'))return;
-  if(isSpecialSunday(new Date())){sundaySchedule=sundayDefaults();schedule=sundaySchedule}else{normalSchedule=normalDefaults();schedule=normalSchedule}
+  if(shouldShowSunday(new Date())){sundaySchedule=sundayDefaults();schedule=sundaySchedule}else{normalSchedule=normalDefaults();schedule=normalSchedule}
   saveS();renderSchedule();toast('↩️ تمت الاستعادة');
 });
 

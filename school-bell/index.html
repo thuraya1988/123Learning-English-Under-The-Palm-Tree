@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#711f3d">
+<title>نظام الجرس المدرسي الذكي</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.1.1/arabic-400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.1.1/arabic-600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.1.1/arabic-700.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/cairo@5.1.1/arabic-900.css">
+<style>
+:root{
+  --bg1:#fbf5ea; --bg2:#ead7c3;
+  --card:rgba(255,250,241,.82);
+  --border:rgba(113,31,61,.20);
+  --text:#4b172a; --muted:#80606b;
+  --gold:#7b1f42; --gold2:#a54362; --teal:#8e4a62; --red:#8b233f;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Cairo',system-ui,sans-serif;color:var(--text);min-height:100vh;
+  background:radial-gradient(1200px 800px at 85% -10%,rgba(123,31,66,.18) 0%,transparent 60%),
+             radial-gradient(1000px 700px at -10% 110%,rgba(165,67,98,.14) 0%,transparent 55%),
+             linear-gradient(160deg,var(--bg1),var(--bg2));
+  background-attachment:fixed;overflow-x:hidden;
+}
+.orb{position:fixed;border-radius:50%;filter:blur(90px);opacity:.20;pointer-events:none;z-index:0}
+.orb1{width:420px;height:420px;background:#7b1f42;top:-140px;left:-100px;animation:float 14s ease-in-out infinite}
+.orb2{width:380px;height:380px;background:#a54362;bottom:-120px;right:-80px;animation:float 18s ease-in-out infinite reverse}
+.orb3{width:300px;height:300px;background:#d3ad9b;top:40%;left:55%;opacity:.20;animation:float 22s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(40px) scale(1.08)}}
+
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:22px 18px 60px}
+
+/* ===== Header ===== */
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px;animation:fadeDown .7s ease both}
+.brand{display:flex;align-items:center;gap:14px}
+.bell-logo{width:62px;height:62px;border-radius:18px;display:grid;place-items:center;font-size:30px;
+  background:linear-gradient(135deg,#fff8ec,#e5c9b1 55%,#b98675);
+  box-shadow:0 10px 30px rgba(113,31,61,.20),inset 0 2px 6px rgba(255,255,255,.75);transform-origin:top center}
+.bell-logo.swing{animation:swing 1s ease-in-out infinite}
+@keyframes swing{0%,100%{transform:rotate(0)}20%{transform:rotate(16deg)}45%{transform:rotate(-13deg)}70%{transform:rotate(8deg)}}
+.brand h1{font-size:24px;font-weight:900;background:linear-gradient(90deg,#4b172a,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand p{font-size:13px;color:var(--muted);font-weight:600}
+.sysbox{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 16px;backdrop-filter:blur(12px)}
+.sysbox span{font-size:13px;font-weight:700;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:#bda9a0;transition:.3s}
+.dot.on{background:#7b1f42;box-shadow:0 0 12px rgba(123,31,66,.75);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.5}}
+
+/* ===== Switch ===== */
+.switch{position:relative;display:inline-block;width:52px;height:28px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:rgba(113,31,61,.14);border-radius:34px;cursor:pointer;transition:.3s;border:1px solid var(--border)}
+.slider::before{content:"";position:absolute;width:20px;height:20px;right:3px;top:3px;background:#fffaf1;border-radius:50%;transition:.3s;box-shadow:0 2px 5px rgba(75,23,42,.18)}
+.switch input:checked + .slider{background:linear-gradient(135deg,var(--gold),var(--gold2));border-color:transparent}
+.switch input:checked + .slider::before{transform:translateX(-24px)}
+
+/* ===== Layout ===== */
+main{display:grid;grid-template-columns:390px 1fr;gap:18px;align-items:start}
+.col-side{display:flex;flex-direction:column;gap:18px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:22px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 12px 40px rgba(75,23,42,.14);animation:fadeUp .7s ease both}
+.card:nth-child(2){animation-delay:.08s}.card:nth-child(3){animation-delay:.16s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+
+/* ===== Clock ===== */
+.clock-time{font-size:56px;font-weight:900;text-align:center;letter-spacing:2px;line-height:1.1;font-variant-numeric:tabular-nums;direction:ltr;text-shadow:0 0 30px rgba(123,31,66,.20)}
+.clock-sec{font-size:26px;color:var(--gold)}
+.clock-date{text-align:center;color:var(--muted);font-size:14px;font-weight:600;margin-top:4px}
+.now-chip{margin:16px auto 0;width:fit-content;max-width:100%;padding:8px 18px;border-radius:100px;font-size:14px;font-weight:700;background:rgba(123,31,66,.09);border:1px solid rgba(123,31,66,.28);color:#6c1a39;text-align:center}
+.next-box{margin-top:18px;background:rgba(255,250,241,.58);border:1px dashed rgba(123,31,66,.38);border-radius:16px;padding:16px;text-align:center}
+.next-box .lbl{font-size:12px;font-weight:700;color:var(--muted)}
+.next-box .nm{font-size:22px;font-weight:900;color:var(--gold);margin:2px 0}
+.next-box .tm{font-size:13px;color:var(--muted);font-weight:700;direction:ltr;display:inline-block}
+.countdown{font-size:34px;font-weight:900;direction:ltr;font-variant-numeric:tabular-nums;margin-top:6px;color:#4b172a;text-shadow:0 0 20px rgba(123,31,66,.18)}
+.countdown.warn{color:var(--gold);animation:pulse 1s infinite}
+
+/* ===== Controls ===== */
+.card h2{font-size:16px;font-weight:900;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.vol-row{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.vol-row label{font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
+input[type=range]{flex:1;appearance:none;height:6px;border-radius:6px;background:rgba(113,31,61,.15);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#d8b8a5,var(--gold2));box-shadow:0 0 12px rgba(123,31,66,.35);cursor:pointer}
+.vol-val{font-size:13px;font-weight:800;color:var(--gold);min-width:38px;text-align:center}
+.btn{border:none;cursor:pointer;font-family:inherit;font-weight:800;border-radius:14px;padding:12px 18px;font-size:15px;transition:.2s;display:inline-flex;align-items:center;justify-content:center;gap:8px;color:#fffaf1}
+.btn:active{transform:scale(.96)}
+.btn-gold{background:linear-gradient(135deg,#9b3c5b,var(--gold) 60%,#5a162f);color:#fffaf1;box-shadow:0 8px 24px rgba(123,31,66,.28);width:100%;font-size:18px;padding:15px}
+.btn-gold:hover{filter:brightness(1.08);transform:translateY(-2px)}
+.btn-ghost{background:rgba(123,31,66,.07);border:1px solid var(--border);color:var(--text);font-size:13px;padding:9px 14px}
+.btn-ghost:hover{background:rgba(123,31,66,.13)}
+.hint{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.8;text-align:center}
+
+/* ===== Log ===== */
+.log{list-style:none;display:flex;flex-direction:column;gap:8px}
+.log li{display:flex;align-items:center;gap:10px;background:rgba(123,31,66,.05);border-radius:12px;padding:9px 12px;font-size:13px;font-weight:700;animation:fadeUp .4s ease both}
+.log li .lt{margin-inline-start:auto;color:var(--muted);font-size:12px;direction:ltr}
+.log-empty{color:var(--muted);font-size:13px;text-align:center;padding:8px}
+
+/* ===== Schedule ===== */
+.sched-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.sched-head h2{margin:0}
+.rows{display:flex;flex-direction:column;gap:10px}
+.row{display:grid;grid-template-columns:104px 42px 1fr 168px 42px 52px 36px;gap:8px;align-items:center;background:rgba(123,31,66,.045);border:1px solid transparent;border-radius:14px;padding:10px 12px;transition:.25s;animation:fadeUp .4s ease both}
+.row:hover{background:rgba(123,31,66,.08)}
+.row.next{border-color:rgba(123,31,66,.50);background:rgba(123,31,66,.08);box-shadow:0 0 24px rgba(123,31,66,.10)}
+.row.current{border-color:rgba(142,74,98,.46);background:rgba(142,74,98,.07)}
+.row.ringing{animation:ringFlash .6s ease-in-out infinite}
+@keyframes ringFlash{50%{background:rgba(123,31,66,.20);border-color:var(--gold)}}
+.row input[type=time]{background:#f6eadc;border:1px solid var(--border);color:#4b172a;border-radius:10px;padding:7px 8px;font-family:inherit;font-weight:800;font-size:14px;text-align:center;direction:ltr;width:100%}
+.row input[type=time]::-webkit-calendar-picker-indicator{filter:none;cursor:pointer}
+.ev-icon{font-size:22px;text-align:center}
+.ev-name{background:transparent;border:none;border-bottom:1px dashed transparent;color:#4b172a;font-family:inherit;font-weight:800;font-size:15px;padding:4px 6px;width:100%;outline:none;transition:.2s}
+.ev-name:focus{border-bottom-color:var(--gold);background:rgba(123,31,66,.06);border-radius:8px}
+.ev-sound{background:#f6eadc;border:1px solid var(--border);color:#5c2237;border-radius:10px;padding:7px 8px;font-family:inherit;font-weight:700;font-size:12.5px;width:100%;cursor:pointer;outline:none}
+.ev-sound option{background:#fbf5ea;color:#4b172a}
+.icon-btn{background:rgba(123,31,66,.07);border:1px solid var(--border);border-radius:10px;color:#5c2237;width:36px;height:36px;cursor:pointer;font-size:15px;transition:.2s;display:grid;place-items:center}
+.icon-btn:hover{background:rgba(123,31,66,.15);transform:translateY(-1px)}
+.icon-btn.del:hover{background:rgba(139,35,63,.18);border-color:var(--red)}
+.badge{display:none;font-size:10px;font-weight:900;padding:2px 9px;border-radius:100px;margin-inline-start:6px;vertical-align:middle}
+.row.next .badge.b-next{display:inline-block;background:var(--gold);color:#fffaf1}
+.row.current .badge.b-now{display:inline-block;background:var(--teal);color:#fffaf1}
+
+/* ===== Add form ===== */
+.add-form{display:grid;grid-template-columns:1fr 110px 150px auto;gap:8px;margin-top:16px;border-top:1px dashed var(--border);padding-top:16px}
+.add-form input[type=text]{background:#f6eadc;border:1px solid var(--border);color:#4b172a;border-radius:10px;padding:9px 12px;font-family:inherit;font-weight:700;outline:none}
+.add-form input:focus{border-color:var(--gold)}
+.btn-add{background:linear-gradient(135deg,#a54362,#711f3d);box-shadow:0 6px 18px rgba(113,31,61,.25)}
+.btn-add:hover{filter:brightness(1.1)}
+
+/* ===== Overlay ===== */
+.overlay{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:radial-gradient(circle at center,rgba(251,245,234,.96),rgba(113,31,61,.96));backdrop-filter:blur(8px)}
+.overlay.show{display:flex;animation:ovIn .35s ease}
+@keyframes ovIn{from{opacity:0}to{opacity:1}}
+.ov-inner{text-align:center;cursor:pointer;padding:20px}
+.ov-bell{position:relative;width:190px;height:190px;margin:0 auto 26px;display:grid;place-items:center;font-size:84px;filter:drop-shadow(0 0 40px rgba(113,31,61,.55))}
+.ov-bell .b{animation:swing .9s ease-in-out infinite;transform-origin:top center;display:inline-block}
+.rp{position:absolute;inset:0;border:3px solid #f5dfcb;border-radius:50%;animation:ripple 2s ease-out infinite;opacity:0}
+.rp:nth-child(2){animation-delay:.5s}.rp:nth-child(3){animation-delay:1s}
+@keyframes ripple{0%{transform:scale(.55);opacity:.9}100%{transform:scale(1.9);opacity:0}}
+.ov-name{font-size:46px;font-weight:900;color:#fff6e8;text-shadow:0 0 40px rgba(75,23,42,.45);margin-bottom:8px}
+.ov-sub{font-size:18px;color:#f7e9dc;font-weight:700;margin-bottom:26px}
+.ov-sub .tm{direction:ltr;display:inline-block;color:#fffaf1}
+.btn-stop{background:rgba(255,250,241,.12);border:1px solid #f8e5d2;color:#fff7ea;border-radius:100px;padding:12px 34px;font-size:16px}
+.btn-stop:hover{background:rgba(255,250,241,.22)}
+.ov-tip{margin-top:16px;font-size:12px;color:#ead5c7}
+
+/* ===== Toast ===== */
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(90px);z-index:60;background:linear-gradient(135deg,#7b1f42,#4b172a);border:1px solid rgba(255,250,241,.25);color:#fffaf1;padding:13px 26px;border-radius:100px;font-weight:800;font-size:14px;box-shadow:0 14px 40px rgba(75,23,42,.35);transition:transform .4s cubic-bezier(.2,1.4,.4,1);pointer-events:none;max-width:90vw;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+footer{margin-top:26px;text-align:center;font-size:12px;color:var(--muted)}
+
+/* ===== Responsive ===== */
+@media(max-width:980px){main{grid-template-columns:1fr}}
+@media(max-width:760px){
+  .row{grid-template-columns:96px 36px 1fr 42px 36px;grid-template-areas:"time icon name listen del" "sound sound sound enable enable"}
+  .row input[type=time]{grid-area:time}.row .ev-icon{grid-area:icon}.row .ev-name{grid-area:name}
+  .row .ev-sound{grid-area:sound}.row .btn-listen{grid-area:listen}
+  .row .row-en{grid-area:enable;justify-self:end}.row .del{grid-area:del}
+  .add-form{grid-template-columns:1fr 1fr}.add-form .btn-add{grid-column:1/-1}
+  .clock-time{font-size:44px}.ov-name{font-size:32px}
+}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="bell-logo" id="bellLogo">🔔</div>
+      <div>
+        <h1>نظام الجرس المدرسي الذكي</h1>
+        <p>جدول اليوم يرن تلقائيًا بنغمات جميلة</p>
+      </div>
+    </div>
+    <div class="sysbox">
+      <div class="dot" id="sysDot"></div>
+      <span id="sysLabel">النظام متوقف</span>
+      <label class="switch"><input type="checkbox" id="sysToggle"><span class="slider"></span></label>
+    </div>
+  </header>
+
+  <main>
+    <div class="col-side">
+      <section class="card">
+        <div class="clock-time" id="clockTime">--:--<span class="clock-sec">:--</span></div>
+        <div class="clock-date" id="clockDate"></div>
+        <div class="now-chip" id="nowChip">—</div>
+        <div class="next-box">
+          <div class="lbl">⏳ الجرس القادم</div>
+          <div class="nm" id="nextName">—</div>
+          <div class="tm" id="nextTime">--:--</div>
+          <div class="countdown" id="countdown">--:--:--</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>🎛️ لوحة التحكم</h2>
+        <div class="vol-row">
+          <label>🔉 الصوت</label>
+          <input type="range" id="volume" min="0" max="100" value="80">
+          <span class="vol-val" id="volVal">80%</span>
+        </div>
+        <button class="btn btn-gold" id="shotBtn">💥 طلقه (رنين تجريبي)</button>
+        <p class="hint">💡 اضغط مرة واحدة لتفعيل الصوت. يهتز الجهاز فعليًا عند الرنين إذا كان المتصفح يدعم الاهتزاز.</p>
+      </section>
+
+      <section class="card">
+        <h2>📜 سجل الرنين</h2>
+        <ul class="log" id="logList"><div class="log-empty">لا يوجد رنين بعد</div></ul>
+        <div style="text-align:center;margin-top:14px">
+          <button class="btn btn-ghost" id="resetBtn">↩️ استعادة الجدول الافتراضي</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="sched-head">
+        <h2 id="scheduleTitle">🗓️ جدول اليوم الدراسي</h2>
+        <span id="scheduleMode" style="font-size:12px;color:var(--muted);font-weight:700">يمكنك تعديل الاسم والوقت والنغمة مباشرة</span>
+      </div>
+      <div class="rows" id="rows"></div>
+      <form class="add-form" id="addForm">
+        <input type="text" id="addName" placeholder="اسم الحدث الجديد…" required>
+        <input type="time" id="addTime" required>
+        <select class="ev-sound" id="addSound"></select>
+        <button type="submit" class="btn btn-add">➕ إضافة</button>
+      </form>
+    </section>
+  </main>
+
+  <footer>🔔 نظام الجرس المدرسي الذكي — يعمل تلقائيًا ويبقى الجدول محفوظًا في جهازك</footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="ov-inner" id="ovInner">
+    <div class="ov-bell"><span class="rp"></span><span class="rp"></span><span class="rp"></span><span class="b" id="ovIcon">🔔</span></div>
+    <div class="ov-name" id="ovName"></div>
+    <div class="ov-sub" id="ovSub"></div>
+    <button class="btn btn-stop" id="ovStop">⏹ إيقاف الرنين</button>
+    <div class="ov-tip">أو اضغط في أي مكان للإيقاف</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= Data ================= */
+const SOUNDS = {
+  royal : {name:'جرس مدرسي قوي',gain:1,strikes:[[76,0,2.8],[76,.58,2.7],[76,1.16,3.1]]},
+  prayer: {name:'جرس هادئ',gain:.72,strikes:[[74,0,3.5],[77,1.15,3.2],[74,2.3,4]]},
+  breakS: {name:'جرس الفسحة',gain:1,strikes:[[79,0,2.3],[83,.35,2.3],[86,.7,3],[79,1.55,2.3],[83,1.9,2.3],[86,2.25,3.2]]},
+  gentle: {name:'تنبيه لطيف',gain:.58,strikes:[[77,0,3.6],[72,.9,4.2]]},
+  off   : {name:'جرس الانصراف',gain:.88,strikes:[[79,0,2.8],[76,.7,3],[72,1.4,3.2],[67,2.1,4.2]]},
+  shot  : {name:'طلقة الجرس',gain:1.15,strikes:[]}
+};
+
+function normalDefaults(){
+  const d=[
+    ['طابور الصباح','06:45','royal'],['صلاة','07:05','prayer'],['الحصة الأولى','07:20','royal'],
+    ['الحصة الثانية','08:05','royal'],['الحصة الثالثة','08:50','royal'],['فسحة','09:35','breakS'],
+    ['وضوء لصلاة العصر','10:00','gentle'],['الحصة الرابعة والخامسة','10:20','royal'],
+    ['الحصة السادسة','11:50','royal'],['صلاة العصر','12:35','prayer'],['الحصة السابعة','13:00','royal'],
+    ['إطفاء كل شيء','13:50','off']
+  ];
+  return d.map(x=>({id:uid(),name:x[0],time:x[1],sound:x[2],enabled:true}));
+}
+function sundayDefaults(){
+  const d=[
+    ['حضور المعلمات','10:45','gentle'],
+    ['بدء الطابور','12:10','royal'],
+    ['انتهاء فعاليات الفريق على أرض الطابور','13:00','gentle'],
+    ['تسليم الكتب لطالبات الحلقة الثانية','13:10','royal'],
+    ['فسحة الحلقة الأولى','13:20','breakS'],
+    ['فسحة الحلقة الثانية','13:40','breakS'],
+    ['انصراف الطلبة','14:15','off']
+  ];
+  return d.map(x=>({id:uid(),name:x[0],time:x[1],sound:x[2],enabled:true}));
+}
+function uid(){return 'e'+Math.random().toString(36).slice(2,9)}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function iconFor(n){
+  n=n||'';
+  if(n.includes('وضوء')) return '💧';
+  if(n.includes('صلاة')||n.includes('صلاه')) return '🕌';
+  if(n.includes('طابور')) return '🎖️';
+  if(n.includes('فسحة')) return '🥪';
+  if(n.includes('انصراف')||n.includes('إطفاء')||n.includes('اطفاء')) return '🏠';
+  if(n.includes('معلمات')) return '👩‍🏫';
+  if(n.includes('كتب')) return '📚';
+  if(n.includes('فعاليات')) return '🤝';
+  if(n.includes('حصة')||n.includes('حصه')) return '📖';
+  return '🔔';
+}
+
+const SPECIAL_YEAR=2026,SPECIAL_MONTH=8,SPECIAL_DAY=6;
+function isSpecialSunday(d){return d.getFullYear()===SPECIAL_YEAR&&d.getMonth()===SPECIAL_MONTH&&d.getDate()===SPECIAL_DAY}
+
+const LS_NORMAL='bell_schedule_v2_normal',LS_SUNDAY='bell_schedule_v2_sunday',LS_C='bell_settings_v2',LS_L='bell_log_v2';
+let normalSchedule=[],sundaySchedule=[],settings={enabled:true,volume:80},logArr=[],rung=new Set();
+try{normalSchedule=JSON.parse(localStorage.getItem(LS_NORMAL))||JSON.parse(localStorage.getItem('bell_schedule_v1'))||normalDefaults()}catch(e){normalSchedule=normalDefaults()}
+try{sundaySchedule=JSON.parse(localStorage.getItem(LS_SUNDAY))||sundayDefaults()}catch(e){sundaySchedule=sundayDefaults()}
+try{Object.assign(settings,JSON.parse(localStorage.getItem(LS_C))||JSON.parse(localStorage.getItem('bell_settings_v1'))||{})}catch(e){}
+try{logArr=JSON.parse(localStorage.getItem(LS_L))||JSON.parse(localStorage.getItem('bell_log_v1'))||[]}catch(e){}
+if(!Array.isArray(normalSchedule)||!normalSchedule.length)normalSchedule=normalDefaults();
+if(!Array.isArray(sundaySchedule)||!sundaySchedule.length)sundaySchedule=sundayDefaults();
+let activeDateKey='',schedule=[];
+function dateKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function scheduleForDate(d){return isSpecialSunday(d)?sundaySchedule:normalSchedule}
+function selectActiveSchedule(d){
+  const key=dateKey(d);if(key===activeDateKey&&schedule.length)return false;
+  activeDateKey=key;schedule=scheduleForDate(d);
+  return true;
+}
+function saveS(){localStorage.setItem(LS_NORMAL,JSON.stringify(normalSchedule));localStorage.setItem(LS_SUNDAY,JSON.stringify(sundaySchedule))}
+function saveC(){localStorage.setItem(LS_C,JSON.stringify(settings))}
+function saveL(){localStorage.setItem(LS_L,JSON.stringify(logArr))}
+
+/* ================= Realistic Audio Engine ================= */
+let ctx=null,master=null,delaySend=null,currentBus=null;
+function vol(){return Math.pow(settings.volume/100,1.4)*.78}
+function ensureAudio(){
+  if(!ctx){
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)throw new Error('AudioContext unavailable');
+    ctx=new AC();master=ctx.createGain();master.gain.value=vol();master.connect(ctx.destination);
+    const dl=ctx.createDelay(1);dl.delayTime.value=.19;
+    const fb=ctx.createGain();fb.gain.value=.24;
+    const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3200;
+    dl.connect(fb);fb.connect(lp);lp.connect(dl);
+    const wet=ctx.createGain();wet.gain.value=.18;dl.connect(wet);wet.connect(master);delaySend=dl;
+  }
+  if(ctx.state==='suspended')ctx.resume();
+}
+function stopCurrent(){
+  if('vibrate' in navigator)navigator.vibrate(0);
+  if(!currentBus||!ctx)return;
+  const bus=currentBus;currentBus=null;
+  try{bus.gain.cancelScheduledValues(ctx.currentTime);bus.gain.setTargetAtTime(0,ctx.currentTime,.025);bus.sources.forEach(o=>{try{o.stop(ctx.currentTime+.18)}catch(e){}});setTimeout(()=>{try{bus.disconnect()}catch(e){}},500)}catch(e){}
+}
+function metallicStrike(bus,midi,t,dur,gainMul){
+  const f=440*Math.pow(2,(midi-69)/12);
+  const partials=[[1,1],[2.03,.62],[2.71,.43],[3.98,.29],[5.43,.17],[6.82,.1]];
+  partials.forEach((p,i)=>{
+    const o=ctx.createOscillator();o.type=i<2?'sine':'triangle';o.frequency.value=f*p[0];o.detune.value=(Math.random()-.5)*7;
+    const og=ctx.createGain(),peak=p[1]*gainMul*.38;
+    og.gain.setValueAtTime(.0001,t);og.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),t+.006);og.gain.exponentialRampToValueAtTime(.0001,t+dur*(1-i*.055));
+    o.connect(og);og.connect(bus);const send=ctx.createGain();send.gain.value=.24;og.connect(send);send.connect(delaySend);
+    o.start(t);o.stop(t+dur+.08);bus.sources.push(o);
+  });
+  const len=Math.max(1,Math.floor(ctx.sampleRate*.032)),buf=ctx.createBuffer(1,len,ctx.sampleRate),data=buf.getChannelData(0);
+  for(let i=0;i<len;i++)data[i]=(Math.random()*2-1)*Math.pow(1-i/len,3);
+  const noise=ctx.createBufferSource(),hp=ctx.createBiquadFilter(),ng=ctx.createGain();noise.buffer=buf;hp.type='highpass';hp.frequency.value=1400;ng.gain.setValueAtTime(gainMul*.13,t);ng.gain.exponentialRampToValueAtTime(.0001,t+.045);noise.connect(hp);hp.connect(ng);ng.connect(bus);noise.start(t);bus.sources.push(noise);
+}
+function impactShot(bus,t){
+  const len=Math.floor(ctx.sampleRate*1.3),buf=ctx.createBuffer(1,len,ctx.sampleRate),data=buf.getChannelData(0);
+  for(let i=0;i<len;i++){const x=i/ctx.sampleRate;data[i]=(Math.random()*2-1)*Math.exp(-x*8.5)}
+  const src=ctx.createBufferSource(),lp=ctx.createBiquadFilter(),g=ctx.createGain();src.buffer=buf;lp.type='lowpass';lp.frequency.setValueAtTime(6000,t);lp.frequency.exponentialRampToValueAtTime(280,t+1.2);g.gain.value=.72;src.connect(lp);lp.connect(g);g.connect(bus);src.start(t);bus.sources.push(src);
+  [62,50].forEach((m,i)=>metallicStrike(bus,m,t+i*.015,2.8,1.05));
+}
+function playSound(key){
+  ensureAudio();stopCurrent();const s=SOUNDS[key]||SOUNDS.royal;
+  const bus=ctx.createGain();bus.gain.value=1;bus.connect(master);bus.sources=[];const t0=ctx.currentTime+.05;let end=0;
+  if(key==='shot'){impactShot(bus,t0);end=2.8}else{s.strikes.forEach(n=>{metallicStrike(bus,n[0],t0+n[1],n[2],s.gain);end=Math.max(end,n[1]+n[2])})}
+  currentBus=bus;return end+.7;
+}
+function vibrateAlert(manual){
+  if(!('vibrate' in navigator))return false;
+  return navigator.vibrate(manual?[180,80,260]:[500,160,500,160,850]);
+}
+
+/* ================= DOM refs ================= */
+const $=id=>document.getElementById(id);
+const rowsEl=$('rows'),clockTime=$('clockTime'),clockDate=$('clockDate'),nowChip=$('nowChip'),nextName=$('nextName'),nextTime=$('nextTime'),countdown=$('countdown'),overlay=$('overlay'),ovName=$('ovName'),ovSub=$('ovSub'),ovIcon=$('ovIcon'),bellLogo=$('bellLogo'),toastEl=$('toast'),logList=$('logList');
+let toastTimer=null;
+function toast(msg){toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2600)}
+
+function soundOptions(sel){return Object.keys(SOUNDS).map(k=>`<option value="${k}" ${k===sel?'selected':''}>${SOUNDS[k].name}</option>`).join('')}
+$('addSound').innerHTML=soundOptions('royal');
+
+/* ================= Render schedule ================= */
+function renderSchedule(){
+  const special=isSpecialSunday(new Date());
+  $('scheduleTitle').textContent=special?'🗓️ جدول الأحد الاستثنائي':'🗓️ جدول اليوم الدراسي';
+  $('scheduleMode').textContent=special?'الأحد 6/9/2026 — أول يوم دراسي':'يمكنك تعديل الاسم والوقت والنغمة مباشرة';
+  rowsEl.innerHTML='';
+  schedule.forEach((ev,i)=>{
+    const row=document.createElement('div');row.className='row';row.dataset.id=ev.id;row.style.animationDelay=(i*.03)+'s';
+    row.innerHTML=`
+      <input type="time" class="t-time" value="${esc(ev.time)}">
+      <span class="ev-icon">${iconFor(ev.name)}</span>
+      <div style="display:flex;align-items:center;min-width:0">
+        <input type="text" class="ev-name" value="${esc(ev.name)}">
+        <span class="badge b-next">التالي</span><span class="badge b-now">الآن</span>
+      </div>
+      <select class="ev-sound">${soundOptions(ev.sound)}</select>
+      <button class="icon-btn btn-listen" title="استمع للنغمة">🔊</button>
+      <label class="switch row-en"><input type="checkbox" class="t-en" ${ev.enabled?'checked':''}><span class="slider"></span></label>
+      <button class="icon-btn del" title="حذف">✕</button>`;
+    rowsEl.appendChild(row);
+  });updateHighlights();
+}
+
+rowsEl.addEventListener('change',e=>{
+  const row=e.target.closest('.row');if(!row)return;const ev=schedule.find(x=>x.id===row.dataset.id);if(!ev)return;
+  if(e.target.classList.contains('t-time')){ev.time=e.target.value;toast('⏰ تم تعديل الوقت إلى '+ev.time)}
+  if(e.target.classList.contains('ev-sound'))ev.sound=e.target.value;
+  if(e.target.classList.contains('t-en')){ev.enabled=e.target.checked;toast(ev.enabled?'✅ تم تفعيل: '+ev.name:'⏸️ تم إيقاف: '+ev.name)}
+  saveS();updateHighlights();
+});
+rowsEl.addEventListener('input',e=>{
+  if(!e.target.classList.contains('ev-name'))return;const row=e.target.closest('.row'),ev=schedule.find(x=>x.id===row.dataset.id);if(!ev)return;
+  ev.name=e.target.value;row.querySelector('.ev-icon').textContent=iconFor(ev.name);saveS();
+});
+rowsEl.addEventListener('click',e=>{
+  const row=e.target.closest('.row');if(!row)return;const ev=schedule.find(x=>x.id===row.dataset.id);if(!ev)return;
+  if(e.target.closest('.btn-listen')){try{playSound(ev.sound);vibrateAlert(true);toast('🎵 معاينة: '+SOUNDS[ev.sound].name)}catch(err){toast('اضغط في أي مكان أولًا لتفعيل الصوت')}}
+  if(e.target.closest('.del')){schedule=schedule.filter(x=>x.id!==ev.id);if(isSpecialSunday(new Date()))sundaySchedule=schedule;else normalSchedule=schedule;saveS();renderSchedule();toast('🗑️ تم حذف: '+ev.name)}
+});
+
+$('addForm').addEventListener('submit',e=>{
+  e.preventDefault();const name=$('addName').value.trim(),time=$('addTime').value,sound=$('addSound').value;if(!name||!time)return;
+  schedule.push({id:uid(),name,time,sound,enabled:true});schedule.sort((a,b)=>a.time.localeCompare(b.time));saveS();renderSchedule();$('addName').value='';$('addTime').value='';toast('✅ تمت إضافة: '+name);
+});
+$('resetBtn').addEventListener('click',()=>{
+  if(!confirm('هل تريد استعادة جدول هذا اليوم الافتراضي؟'))return;
+  if(isSpecialSunday(new Date())){sundaySchedule=sundayDefaults();schedule=sundaySchedule}else{normalSchedule=normalDefaults();schedule=normalSchedule}
+  saveS();renderSchedule();toast('↩️ تمت الاستعادة');
+});
+
+const sysToggle=$('sysToggle'),sysDot=$('sysDot'),sysLabel=$('sysLabel');sysToggle.checked=settings.enabled;
+function sysUI(){sysDot.classList.toggle('on',settings.enabled);sysLabel.textContent=settings.enabled?'النظام مفعّل':'النظام متوقف'}
+sysToggle.addEventListener('change',()=>{settings.enabled=sysToggle.checked;saveC();sysUI();if(settings.enabled){try{ensureAudio()}catch(e){}}toast(settings.enabled?'🔔 تم تفعيل النظام — الجرس جاهز':'⏸️ تم إيقاف النظام')});sysUI();
+
+const volumeEl=$('volume'),volVal=$('volVal');volumeEl.value=settings.volume;volVal.textContent=settings.volume+'%';
+volumeEl.addEventListener('input',()=>{settings.volume=+volumeEl.value;volVal.textContent=settings.volume+'%';if(master)master.gain.value=vol();saveC()});
+$('shotBtn').addEventListener('click',()=>ringEvent({name:'طلقة تجريبية',time:null,sound:'shot',icon:'💥'},true));
+document.addEventListener('pointerdown',function unlock(){try{ensureAudio()}catch(e){}document.removeEventListener('pointerdown',unlock)});
+
+/* ================= Overlay ================= */
+let ovTimer=null;
+function showOverlay(ev,dur,manual){
+  ovIcon.textContent=manual?'💥':iconFor(ev.name);ovName.textContent=ev.name;
+  ovSub.innerHTML=(ev.time?('الوقت: <span class="tm">'+esc(ev.time)+'</span> — '):'')+'النغمة: '+SOUNDS[ev.sound].name;
+  overlay.classList.add('show');bellLogo.classList.add('swing');const rowEl=rowsEl.querySelector(`[data-id="${ev.id}"]`);if(rowEl)rowEl.classList.add('ringing');clearTimeout(ovTimer);ovTimer=setTimeout(hideOverlay,dur*1000);
+}
+function hideOverlay(){clearTimeout(ovTimer);overlay.classList.remove('show');bellLogo.classList.remove('swing');rowsEl.querySelectorAll('.ringing').forEach(r=>r.classList.remove('ringing'));stopCurrent()}
+overlay.addEventListener('click',hideOverlay);$('ovStop').addEventListener('click',e=>{e.stopPropagation();hideOverlay()});
+
+/* ================= Ring ================= */
+function ringEvent(ev,manual){
+  let dur=4;try{dur=playSound(manual?'shot':ev.sound)}catch(e){toast('⚠️ اضغط في أي مكان أولًا لتفعيل الصوت')}
+  vibrateAlert(!!manual);showOverlay(ev,dur,!!manual);
+  if(!manual){logArr.unshift({name:ev.name,time:hmNow()});if(logArr.length>8)logArr.length=8;saveL();renderLog();toast('🔔 رنّ الجرس: '+ev.name)}
+}
+function renderLog(){if(!logArr.length){logList.innerHTML='<div class="log-empty">لا يوجد رنين بعد</div>';return}logList.innerHTML=logArr.map(l=>`<li><span>${iconFor(l.name)}</span><span>${esc(l.name)}</span><span class="lt">${esc(l.time)}</span></li>`).join('')}
+function hmNow(){const n=new Date();return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')}
+
+/* ================= Clock & logic ================= */
+const dayFmt=new Intl.DateTimeFormat('ar-EG-u-nu-latn',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+const weekdayFmt=new Intl.DateTimeFormat('ar-EG',{weekday:'long'});
+function timeParts(t){const p=t.split(':').map(Number);return {h:p[0],m:p[1],s:p[2]||0}}
+function fmt(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return [h,m,s].map(x=>String(x).padStart(2,'0')).join(':')}
+function getNext(now){
+  let best=null;
+  for(let dayOffset=0;dayOffset<8;dayOffset++){
+    const d=new Date(now);d.setHours(0,0,0,0);d.setDate(d.getDate()+dayOffset);const list=scheduleForDate(d);
+    list.forEach(ev=>{if(!ev.enabled)return;const p=timeParts(ev.time),when=new Date(d);when.setHours(p.h,p.m,p.s,0);const diff=(when-now)/1000;if(diff<0)return;if(!best||diff<best.diff)best={ev,diff,date:d,sameDay:dayOffset===0}});
+    if(best)break;
+  }
+  return best;
+}
+function getCurrent(now){
+  const list=scheduleForDate(now);let cur=null,ns=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+  list.forEach(ev=>{const p=timeParts(ev.time),es=p.h*3600+p.m*60+p.s;if(ev.enabled&&es<=ns)cur=ev});return cur;
+}
+function updateHighlights(){
+  const now=new Date(),nxt=getNext(now),cur=getCurrent(now);
+  rowsEl.querySelectorAll('.row').forEach(r=>{r.classList.toggle('next',!!nxt&&nxt.sameDay&&r.dataset.id===nxt.ev.id);r.classList.toggle('current',!!cur&&r.dataset.id===cur.id)});
+  if(cur)nowChip.textContent='الآن: '+cur.name+' '+iconFor(cur.name);else nowChip.textContent='☀️ لم يبدأ اليوم الدراسي بعد';
+  if(nxt){nextName.textContent=nxt.ev.name+(nxt.sameDay?'':' — '+weekdayFmt.format(nxt.date));nextTime.textContent=nxt.ev.time;countdown.textContent=fmt(nxt.diff);countdown.classList.toggle('warn',nxt.diff<=60)}
+  else{nextName.textContent='لا توجد أحداث';nextTime.textContent='--:--';countdown.textContent='--:--:--'}
+}
+
+let lastMin='';
+function tick(){
+  const n=new Date();if(selectActiveSchedule(n))renderSchedule();
+  clockTime.innerHTML=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+'<span class="clock-sec">:'+String(n.getSeconds()).padStart(2,'0')+'</span>';clockDate.textContent=dayFmt.format(n);updateHighlights();
+  const hm=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  if(settings.enabled&&hm!==lastMin){lastMin=hm;const dayKey=dateKey(n);scheduleForDate(n).forEach(ev=>{if(!ev.enabled||ev.time!==hm)return;const k=dayKey+'|'+ev.id+'|'+ev.time;if(rung.has(k))return;rung.add(k);if(rung.size>300)rung.clear();ringEvent(ev,false)})}
+}
+
+/* ================= Init ================= */
+selectActiveSchedule(new Date());renderSchedule();renderLog();tick();setInterval(tick,400);
+})();
+</script>
+</body>
+</html>

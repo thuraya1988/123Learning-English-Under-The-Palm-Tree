@@ -56,7 +56,7 @@ button.send{background:linear-gradient(135deg,#ffd479,#e0a03a);border:0;border-r
   font-size:19px;cursor:pointer;flex:none;color:#3a2a10}
 button.send:disabled{opacity:.5}
 .play .mo{width:17px;height:17px;vertical-align:-4px;margin-inline-end:2px}
-.play-ar{opacity:1;border-color:rgba(120,140,190,.55);color:#7f93c4;background:rgba(120,140,190,.10)}
+.play-en{opacity:1;border-color:rgba(120,140,190,.55);color:#7f93c4;background:rgba(120,140,190,.10)}
 .play{border:1px solid var(--line);background:rgba(79,214,192,.10);color:var(--teal);border-radius:999px;
   padding:2px 9px;font-size:12.5px;cursor:pointer;font-family:inherit;margin-top:6px;display:inline-block}
 .play:hover{border-color:var(--teal)}
@@ -423,46 +423,69 @@ fetch(CLIP_BASE+'manifest.json',{cache:'no-store'})
   })
   .catch(()=>{});
 
+/* لا صورةَ لمتحدّثٍ في هذه الصفحة، فلا شيءَ يُبدَّل — والدالّتان موجودتان
+   ليبقى المشغّل نسخةً واحدةً في الصفحتين. */
+function showReader(){} function resetReaders(){}
+
 /* الحرفُ الملاصق: إن كان حرفَ لغةٍ فالمطابقة داخل كلمةٍ أخرى لا عندها.
    بدونها كان «ill» يُنطق داخل «still» و«skilled» — فتقرأ ثريا كلماتٍ
    لا وجود لها في النصّ. */
-const LETTER=/[A-Za-z\u0621-\u064A]/;
-/* كلمةٌ مفردةٌ تُنطق إذا كانت كلمةَ قاموس — بطاقةُ «count» يريد الطالب
-   سماعَها. أمّا الكلمةُ نفسُها داخل فقرة شرحٍ فشظيّةٌ تُسمع كحرفٍ مقطوع.
-   والفرق مُسجَّلٌ في الدليل عند التوليد، فلا نخمّنه من الطول. */
-function speakable(k){
-  const letters=k.replace(/[^A-Za-z\u0621-\u064A]/g,'').length;
-  if(letters>=8 || k.trim().split(/\s+/).length>=2) return true;
-  return !!(CLIPS.words && CLIPS.words[k]);
+const LETTER=/[A-Za-zء-ي]/;
+const SCRIPT={en:/[A-Za-z]/g, ar:/[ء-ي]/g};
+/* كلمةٌ مفردةٌ تُنطق إذا كانت هي كلَّ ما في سطرها من لغتها — بطاقةُ
+   «🔢 count — يَعُدّ» يريد الطالب سماعَ count فيها. أمّا «tidy» داخل
+   «tidy → tidier → the tidiest» فشظيّةٌ تُسمع مقطوعةً بلا معنى، فتُترك.
+   والعبارةُ من كلمتين فأكثر تُنطق حيثما وقعت. */
+function speakable(k,text,at,L){
+  if(k.trim().split(/\s+/).length>=2) return true;
+  const letters=k.replace(/[^A-Za-zء-ي]/g,'').length;
+  if(!(CLIPS.words&&CLIPS.words[k])) return letters>=8;
+  if(text==null) return true;
+  const from=text.lastIndexOf('\n',at)+1;
+  const to=(text.indexOf('\n',at)+1||text.length+1)-1;
+  const line=text.slice(from,to);
+  const mine=(line.match(SCRIPT[L])||[]).length;
+  return !mine || (k.match(SCRIPT[L])||[]).length/mine>=0.6;
 }
 
-function clipsIn(text,L){
-  const V=CLIPS[L]; if(!V) return [];
-  const taken=[], found=[];
-  for(const k of V.keys){
-    const headL=LETTER.test(k[0]), tailL=LETTER.test(k[k.length-1]);
-    let from=0, i;
-    while((i=text.indexOf(k,from))>=0){
-      const j=i+k.length;
-      const okStart=!headL || !LETTER.test(text[i-1]||' ');
-      const okEnd  =!tailL || !LETTER.test(text[j]||' ');
-      if(okStart&&okEnd&&speakable(k)&&!taken.some(([a,b])=>i<b&&j>a)){
-        taken.push([i,j]); found.push([i,V.map[k]]); }
-      from=i+1;
+/* البطاقةُ تُقرأ مرّةً واحدةً بترتيبها على الشاشة: الإنجليزيّة بصوت مس
+   ثريا والعربيّة بصوت محمد، كلٌّ في موضعه. كان لكلّ لغةٍ زرٌّ منفصل،
+   فيسمع الطالبُ نصفَ البطاقة مبعثراً: أمثلةً إنجليزيّةً بلا شرحها، ثمّ
+   عناوينَ عربيّةً بلا أمثلتها — «مثال الكتاب… مثال الكتاب…». */
+function clipsIn(text,only){
+  const taken=[], out=[];
+  ['en','ar'].forEach(L=>{
+    if(only&&L!==only) return;
+    const V=CLIPS[L]; if(!V) return;
+    for(const k of V.keys){
+      const headL=LETTER.test(k[0]), tailL=LETTER.test(k[k.length-1]);
+      let from=0, i;
+      while((i=text.indexOf(k,from))>=0){
+        const j=i+k.length;
+        if(!taken.some(([a,b])=>i<b&&j>a)
+           && (!headL||!LETTER.test(text[i-1]||' '))
+           && (!tailL||!LETTER.test(text[j]||' '))
+           && speakable(k,text,i,L)){
+          taken.push([i,j]); out.push({i:i,f:V.map[k],L:L});
+        }
+        from=i+1;
+      }
     }
-  }
-  return found.sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+  });
+  return out.sort((a,b)=>a.i-b.i);
 }
+
 function setPlayLabel(b,label){
-  if(b.classList.contains('play-ar')&&label===b.dataset.label){
-    b.innerHTML='<img class="mo" src="'+MOHAMMED_IMG+'" alt=""> '+label.replace('🤖 ','');
-  } else b.textContent=label;
+  if(label===b.dataset.label && b.dataset.mo)
+    b.innerHTML='<img class="mo" src="'+MOHAMMED_IMG+'" alt=""> '+label;
+  else b.textContent=label;
 }
 /* لكلّ تشغيلٍ رقمُه. المتصفّح قد يُنهي مقطعاً قديماً بعد أن بدأ تشغيلٌ
    جديد، فيسحب من طابور الجديد فيتداخل صوتان ويتقطّعان. فنتجاهل كلّ
    نداءٍ لا يحمل الرقم الجاري. */
 function stopClips(){
   CLIPS.gen=(CLIPS.gen||0)+1;
+  resetReaders();
   CLIPS.queue.length=0;
   if(CLIPS.audio){ const a=CLIPS.audio; a.onended=a.onerror=null;
     try{a.pause();}catch(e){} CLIPS.audio=null; }
@@ -470,9 +493,12 @@ function stopClips(){
 }
 function playQueue(gen){
   if(gen!==CLIPS.gen) return;            /* تشغيلٌ قديمٌ تجاوزه غيرُه */
-  const f=CLIPS.queue.shift();
-  if(!f){ if(CLIPS.btn){setPlayLabel(CLIPS.btn,CLIPS.btn.dataset.label);CLIPS.btn=null;} return; }
-  const a=new Audio(CLIPS.dir+f);
+  const c=CLIPS.queue.shift();
+  if(!c){ if(CLIPS.btn){setPlayLabel(CLIPS.btn,CLIPS.btn.dataset.label);CLIPS.btn=null;}
+          resetReaders(); return; }
+  /* وجهُ الرسالة يتبع من ينطق الآن، فيُعرف صاحبُ الصوت في أثناء القراءة */
+  if(CLIPS.bubble) showReader(CLIPS.bubble, c.L==='ar');
+  const a=new Audio(CLIPS.dir+c.f);
   a.setAttribute('playsinline','');
   a.preload='auto';
   CLIPS.audio=a;
@@ -480,29 +506,34 @@ function playQueue(gen){
   a.onerror=()=>playQueue(gen);          /* مقطعٌ ناقصٌ لا يوقف البقيّة */
   a.play().catch(()=>{ if(gen===CLIPS.gen) playQueue(gen); });
 }
+function mkPlay(bubble,kind,label,title,list,mo){
+  const b=document.createElement('button');
+  b.type='button'; b.className='play play-'+kind;
+  b.dataset.label=label; b.title=title; b.setAttribute('aria-label',title);
+  if(mo) b.dataset.mo='1';
+  setPlayLabel(b,label);
+  b.onclick=e=>{
+    e.stopPropagation();
+    if(CLIPS.btn===b){ stopClips(); return; }
+    stopClips();
+    CLIPS.btn=b; CLIPS.bubble=bubble; setPlayLabel(b,'⏹ إيقاف');
+    CLIPS.queue=list.slice();
+    playQueue(CLIPS.gen);
+  };
+  bubble.appendChild(b);
+}
 function addPlay(bubble){
   if(!bubble || bubble.querySelector('.play')) return;
-  const text=bubble.innerText||bubble.textContent||'';
-  /* الإنجليزيّة بصوت مس ثريا، والعربيّة بصوت محمد — صوت Piper العربيّ
-     الوحيد صوتُ رجل، فجعلناه شخصيّةً مستقلّةً بدل أن يُنسب إليها. */
-  [['en','🔊 استمعي','مس ثريا تنطق الإنجليزيّة'],
-   ['ar','🤖 محمد يشرح','الروبوت محمد يقرأ الشرح بالعربيّة']].forEach(([L,label,title])=>{
-    const list=clipsIn(text,L);
-    if(!list.length) return;
-    const b=document.createElement('button');
-    b.type='button'; b.className='play play-'+L;
-    b.dataset.label=label; b.title=title; b.setAttribute('aria-label',title);
-    setPlayLabel(b,label);
-    b.onclick=e=>{
-      e.stopPropagation();
-      if(CLIPS.btn===b){ stopClips(); return; }
-      stopClips();
-      CLIPS.btn=b; setPlayLabel(b,'⏹ إيقاف');
-      CLIPS.queue=list.slice();
-      playQueue(CLIPS.gen);
-    };
-    bubble.appendChild(b);
-  });
+  const all=clipsIn(bubble.innerText||bubble.textContent||'');
+  if(!all.length) return;
+  const en=all.filter(c=>c.L==='en'), hasAr=all.length>en.length;
+  /* صورةُ محمد على الزرّ حين يكون في البطاقة عربيّ: يعرف الطالبُ أنّ
+     صوتين سيقرآن لا صوتاً واحداً. */
+  mkPlay(bubble,'all',hasAr?'استمعي':'🔊 استمعي',
+         hasAr?'مس ثريا ومحمد يقرآن البطاقة بالترتيب':'مس ثريا تقرأ البطاقة',all,hasAr);
+  /* وزرٌّ للإنجليزيّة وحدها: تدريبُ النطق يحتاج سماعَها متتابعةً بلا شرح */
+  if(hasAr&&en.length)
+    mkPlay(bubble,'en','🔊 الإنجليزيّة','مس ثريا تنطق الإنجليزيّة وحدها',en,false);
 }
 
 /* ---------- ٥) الدماغ المحلّي ---------- */
@@ -1234,7 +1265,7 @@ form.addEventListener('submit',async e=>{
 
 /* ---------- ٧) الإقلاع ---------- */
 setChips(HOME_CHIPS);
-say('أهلاً بك 🌷 أنا <b>مس ثريا</b>، معلّمة الإنجليزيّة للصفّ الخامس.\n\nأعرف منهج <b>5A</b> كاملاً: وحداته الأربع، و'+DICT.length+' كلمةً بمعانيها وصورها، وقواعده، ونماذج الكتابة، والأفعال الشاذّة.\n\n<b>أستطيع أن</b>\n• أعطيك معنى أيّ كلمة وأضعها في جملة — جرّب: <b>ويش يعني count</b>\n• أعرض كلمات أيّ وحدة — جرّب: <b>كلمات الوحدة ١</b>\n• أشرح أيّ قاعدة بالعربيّة مع أمثلة الكتاب\n• أحلّ أسئلة الفراغات وأشرح لماذا\n• أدرّبك بـ<b>بطاقات</b> الكلمات و<b>تمارين</b> القواعد\n• أختبرك باختبارٍ سريع\n\n🔊 تحت كلّ إجابةٍ زرّان: <b>استمعي</b> أنطق لك الإنجليزيّة، و<b>🤖 محمد يشرح</b> صديقي الروبوت محمد يقرأ لك العربيّة.\n\nاختر من الأزرار تحت، أو اكتب سؤالك.');
+say('أهلاً بك 🌷 أنا <b>مس ثريا</b>، معلّمة الإنجليزيّة للصفّ الخامس.\n\nأعرف منهج <b>5A</b> كاملاً: وحداته الأربع، و'+DICT.length+' كلمةً بمعانيها وصورها، وقواعده، ونماذج الكتابة، والأفعال الشاذّة.\n\n<b>أستطيع أن</b>\n• أعطيك معنى أيّ كلمة وأضعها في جملة — جرّب: <b>ويش يعني count</b>\n• أعرض كلمات أيّ وحدة — جرّب: <b>كلمات الوحدة ١</b>\n• أشرح أيّ قاعدة بالعربيّة مع أمثلة الكتاب\n• أحلّ أسئلة الفراغات وأشرح لماذا\n• أدرّبك بـ<b>بطاقات</b> الكلمات و<b>تمارين</b> القواعد\n• أختبرك باختبارٍ سريع\n\n🔊 تحت كلّ إجابةٍ زرّ <b>استمعي</b>: أقرأ لك البطاقة كاملةً بترتيبها — أنا أنطق الإنجليزيّة، وصديقي الروبوت 🤖 محمد يقرأ العربيّة في موضعها. وزرّ <b>الإنجليزيّة</b> يُسمعك الإنجليزيّة وحدها لتتدرّب على النطق.\n\nاختر من الأزرار تحت، أو اكتب سؤالك.');
 
 fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:'ping'})})
   .then(r=>r.json()).then(j=>{ if(j && j.ok){ aiOn=true; modeEl.textContent='✨ وضع ذكيّ'; modeEl.classList.add('on'); } })

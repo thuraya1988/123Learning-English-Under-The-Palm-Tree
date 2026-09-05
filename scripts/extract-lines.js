@@ -56,10 +56,13 @@ const EX = (() => {
 })();
 
 const seen = new Map();
+// Runs of spaces are kept. The page aligns some lines into columns —
+// «I  + am  + verb-ing» — and the player matches clip text against the screen
+// character for character, so collapsing them here left those lines mute.
 const strip = s => String(s)
   .replace(/<[^>]+>/g, '')
   .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
-  .replace(/\s+/g, ' ')
+  .replace(/[\t\r\n]+/g, ' ')
   .trim();
 
 const AR = /[؀-ۿ]/g;
@@ -135,10 +138,15 @@ const addWord = raw => add(raw, 'word');
 /* every line of a multi-line block */
 const addLines = s => String(s).split(/\n+/).forEach(x => add(x));
 
-for (const u in VOCAB) for (const cat in VOCAB[u]) VOCAB[u][cat].forEach(row => {
-  const p = row.split('|');
-  addWord(p[0]); add(p[3]); addWord(p[2]); add(p[4]);
-});
+for (const u in VOCAB) for (const cat in VOCAB[u]) {
+  // The category name is printed in every word card's footer — «قائمة
+  // «المواهب والأفعال»» — so it needs a clip or the card ends mid-sentence.
+  add(cat);
+  VOCAB[u][cat].forEach(row => {
+    const p = row.split('|');
+    addWord(p[0]); add(p[3]); addWord(p[2]); add(p[4]);
+  });
+}
 
 for (const g of [G, EXTRA]) for (const k in g) { add(g[k].title); addLines(g[k].body); }
 
@@ -160,6 +168,86 @@ Object.keys(IRREGULAR).forEach(v => add(v + ' · ' + IRREGULAR[v] + ' · ' + PAR
 QBANK.forEach(q => { add(q.q); add(q.a); add(q.hint); });
 
 for (const k in EX) { add(EX[k].t); (EX[k].items || []).forEach(it => { add(it[0]); add(it[1]); }); }
+
+/* Why a word conjugates the way it does. The engines answer «صرّفي big» with a
+ * generated form plus a fixed reason, and the reason is the part worth hearing
+ * — without these the whole card was silent. */
+[...html.matchAll(/why:\s*'((?:\\.|[^'])*)'/g)]
+  .forEach(m => add(m[1].replace(/\\'/g, "'")));
+
+/* What the tutor says in her own words.
+ *
+ * Everything above is curriculum — the words, the rules, the exercises. But
+ * half of what a student reads is the tutor talking: the greeting, the menu
+ * of rules, «اختبار سريع — ٦ أسئلة», the apology when a question falls
+ * outside the book. None of that lives in a data structure, so none of it
+ * had a clip — say «مرحبا» to her and the answer was silent, which is the
+ * first thing anyone tries.
+ *
+ * These are the fixed parts of those replies, copied from where the page
+ * prints them. Only the fixed parts: a sentence finished at runtime («الإجابة:
+ * <code>…</code>») can be matched no further than its seam, so it stops there.
+ * Add a line here whenever the tutor learns something new to say.
+ */
+[
+  'أهلاً بك 🌷 أنا مس ثريا، معلّمة الإنجليزيّة للصفّ الخامس.',
+  'أهلاً 🌿 أنا مس ثريا V2، معلّمة الصف الخامس لمنهج عُمان 5A.',
+  'أستطيع أن',
+  '• أعطيك معنى أيّ كلمة وأضعها في جملة — جرّب: ويش يعني count',
+  '• أعرض كلمات أيّ وحدة — جرّب: كلمات الوحدة ١',
+  '• أشرح أيّ قاعدة بالعربيّة مع أمثلة الكتاب',
+  '• أحلّ أسئلة الفراغات وأشرح لماذا',
+  '• أدرّبك بـبطاقات الكلمات وتمارين القواعد',
+  '• أختبرك باختبارٍ سريع',
+  '🔊 تحت كلّ إجابةٍ زرّ استمعي: أقرأ لك البطاقة كاملةً بترتيبها — أنا أنطق الإنجليزيّة، وصديقي الروبوت 🤖 محمد يقرأ العربيّة في موضعها. وزرّ الإنجليزيّة يُسمعك الإنجليزيّة وحدها لتتدرّب على النطق.',
+  'اختر من الأزرار تحت، أو اكتب سؤالك.',
+  'أدربك سؤالًا سؤالًا، وفي الأنشطة أعطي تلميحًا أولًا.',
+  'إذا لم يكن السؤال واضحًا أطلب صورته أو نصّه ولا أخمّن.',
+  'وعليكم السلام 🌷 أنا مس ثريا، معلّمتك للصفّ الخامس.',
+  'أشرح القواعد، وأحلّ أسئلة الكتاب، وأجيب عن كلّ ما يخصّ المنهج.',
+  'اختر من الأزرار تحت، أو اسألني مباشرة.',
+  'أيّ وحدةٍ تريد كلماتها؟ اكتب مثلاً كلمات الوحدة ١ أو كلمات يونت ون.',
+  'أو اكتب أيّ كلمةٍ إنجليزيّة وأعطيك معناها مع جملةٍ عليها.',
+  'هذا السؤال خارج ما أحفظه من الكتاب 📘',
+  'جرّب أن تسألني عن:',
+  '• قاعدة من قواعد الوحدات الأربع',
+  '• كلمة من كلمات الكتاب',
+  '• تصريف صفة أو فعل — مثل صرّفي big أو ماضي write',
+  '• أو اكتب اختبريني',
+  '📚 قواعد الكتاب — اختر واحدة',
+  'اكتب اشرحي ومعها اسم القاعدة — مثل اشرحي الماضي البسيط.',
+  'أو اكتب تمارين لتتدرّب، أو اختبريني لاختبارٍ سريع.',
+  '🧠 اختبار سريع — ٦ أسئلة',
+  'اكتب الإجابة فقط.',
+  '✅ صحيح!',
+  '❌ ليس بعد. الإجابة:',
+  '👍 خرجنا من التمرين. اسألني عن أيّ كلمةٍ أو قاعدة.',
+  '✏️ التمارين — اختر واحداً:',
+  'أو اكتب اختبريني لاختبارٍ شاملٍ من كلّ الوحدات.',
+  'اكتب الكلمة الصحيحة فقط.',
+  '📘 كتاب النشاط — الصفّ الخامس · الفصل الأوّل (5A)',
+  'وفي آخر الكتاب: نماذج الكتابة (ص ٦٦) · الإملاء (ص ٧٠) · الأفعال الشاذّة (ص ٧٤) · قصص القراءة (ص ٧٦).',
+  'اكتب مثلاً: الوحدة ٢ لأعرض لك كلماتها وقواعدها.',
+  '📖 الأفعال الشاذّة — صفحة ٧٤',
+  'اكتب ماضي ثمّ أيّ فعل وأصرّفه لك.',
+  '📝 نماذج الكتابة — صفحة ٦٦',
+  'اكتب نموذج ٢ مثلاً لتقرأ النموذج كاملاً مع أسئلته.',
+  'أسئلة تساعدك',
+  'تذكّر: حرف كبير في أوّل كلّ جملة · نقطة في آخرها · استعمل كلمات الربط (and, but, because, so) · تحقّق من الإملاء والخطّ.',
+  'في جملة',
+  'ما معناها بالعربيّة؟ اكتب معناها، أو اكتب الجواب.',
+  'اكتب أيّ كلمةٍ منها لأضعها لك في جملة، أو اكتب بطاقات',
+  'اكتب كلمات الوحدة ١ (أو ٢ أو ٣ أو ٤) لترى كلّ كلمات الكتاب بمعانيها.',
+  'هل تقصد؟',
+  'أرسل الجملة ومعها الكلمة بين قوسين، مثل:',
+  'وسأحلّها وأشرح القاعدة.',
+  'أو اكتب اختبريني لنتمرّن معاً.',
+  'التصريف الثالث:',
+  'فعل شاذّ',
+  'فعل شاذّ من قائمة صفحة ٧٤.',
+  'تعذّر الاتّصال الآن.',
+  'تعذّر الاتّصال بالإنترنت. الدماغ المحلّي ما زال يعمل — جرّب سؤالاً من الكتاب.'
+].forEach(x => add(x));
 
 const rows = [...seen.values()];
 const byLang = rows.reduce((m, r) => (m[r.lang] = (m[r.lang] || 0) + 1, m), {});

@@ -237,7 +237,7 @@
 
 ---
 
-## 🌟 عصر النهضة | THE RENAISSANCE (1970-Present)
+## 🌴 عصر النهضة | THE RENAISSANCE (1970-Present)
 
 ### 1970 AD - THE MOST IMPORTANT DATE
 **السلطان قابوس يتولى الحكم | Sultan Qaboos Takes Power**

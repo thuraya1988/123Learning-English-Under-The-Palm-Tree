@@ -212,7 +212,7 @@ const TarotCards = {
     16: { id: 16, name: "The Tower", nameAr: "البرج", emoji: "🌩️", num: "XVI",
           meaning: "Sudden change, upheaval, revelation. Destruction precedes creation.",
           meaningAr: "تغيير مفاجئ، اضطراب، كشف. الهدم يسبق البناء." },
-    17: { id: 17, name: "The Star", nameAr: "النجمة", emoji: "⭐", num: "XVII",
+    17: { id: 17, name: "The Star", nameAr: "النجمة", emoji: "🌴", num: "XVII",
           meaning: "Hope, faith, purpose. The darkness is behind you.",
           meaningAr: "أمل، إيمان، هدف. الظلام وراك." },
     18: { id: 18, name: "The Moon", nameAr: "القمر", emoji: "🌙", num: "XVIII",

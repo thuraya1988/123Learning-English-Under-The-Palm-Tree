@@ -103,7 +103,7 @@ omani-tarot-hand/
 
 ---
 
-## 🌟 Features
+## 🌴 Features
 
 - ✅ Hand gesture control (no mouse needed)
 - ✅ Real-time hand skeleton visualization

@@ -102,7 +102,7 @@ numbers: { ar:"الأعداد", en:"Numbers", items:[
 
 shapes: { ar:"الأشكال", en:"Shapes", items:[
   {en:"circle",ar:"دائرة",e:"⭕"},{en:"square",ar:"مربع",e:"🟦"},{en:"triangle",ar:"مثلث",e:"🔺"},
-  {en:"rectangle",ar:"مستطيل",e:"▬"},{en:"star",ar:"نجمة",e:"⭐"},{en:"heart",ar:"قلب",e:"❤️"},
+  {en:"rectangle",ar:"مستطيل",e:"▬"},{en:"star",ar:"نجمة",e:"🌴"},{en:"heart",ar:"قلب",e:"❤️"},
   {en:"line",ar:"خط",e:"➖"},{en:"point",ar:"نقطة",e:"⚫"},{en:"cube",ar:"مكعّب",e:"🧊"},
   {en:"ball",ar:"كرة",e:"⚽"},{en:"ring",ar:"حلقة",e:"⭕"},{en:"arrow",ar:"سهم",e:"➡️"}
 ]},
@@ -186,7 +186,7 @@ nature: { ar:"الطبيعة", en:"Nature", items:[
   {en:"cave",ar:"كهف",e:"🕳️"},{en:"desert",ar:"صحراء",e:"🏜️"},{en:"sand",ar:"رمل",e:"🏖️"},
   {en:"stone",ar:"حجر",e:"🪨"},{en:"falaj",ar:"فلج",e:"💧"},{en:"spring",ar:"عين ماء",e:"⛲"},
   {en:"oasis",ar:"واحة",e:"🌴"},{en:"sky",ar:"سماء",e:"🌌"},{en:"sun",ar:"شمس",e:"☀️"},
-  {en:"moon",ar:"قمر",e:"🌙"},{en:"star",ar:"نجمة",e:"⭐"}
+  {en:"moon",ar:"قمر",e:"🌙"},{en:"star",ar:"نجمة",e:"🌴"}
 ]},
 
 weather: { ar:"الطقس", en:"Weather", items:[

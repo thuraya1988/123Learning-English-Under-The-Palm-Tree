@@ -195,7 +195,7 @@
     const prompts={1:['Describe an important person.','What does he/she look like?','What is he/she like?'],2:['Talk about a museum visit.','Where did you go?','What did you see and learn?'],3:["Imagine you are on the ISS.",'What will you eat, wear or do?','How is it different from Earth?'],4:['Talk about shopping.','Where do you like to shop?','What do you buy there and why?']};
     return `🗣️ <b>Speaking - Unit ${n}</b><br>${u.speaking}<br><br><b>تحدثي عن:</b>${list(prompts[n])}<b>طريقة التدريب:</b> قولي 3 جمل، ثم أعيديها مع سبب باستخدام <code>because</code>. يمكنك كتابة ما ستقولينه هنا وسأصححه.`;
   }
-  function project(n){const u=UNITS[n];return u?`🌟 <b>مشروع Unit ${n}</b><br>${u.project}<br><br>خطوات العمل: اختاري الفكرة - اجمعي معلومات قصيرة - اكتبي مسودة - أضيفي عنوانًا وصورًا - راجعي اللغة - قدمي المشروع شفهيًا.`:'حددي الوحدة.';}
+  function project(n){const u=UNITS[n];return u?`🌴 <b>مشروع Unit ${n}</b><br>${u.project}<br><br>خطوات العمل: اختاري الفكرة - اجمعي معلومات قصيرة - اكتبي مسودة - أضيفي عنوانًا وصورًا - راجعي اللغة - قدمي المشروع شفهيًا.`:'حددي الوحدة.';}
   function examGuide(){
     return `🎯 <b>تدريب اختبار الصف الخامس</b><br><br>من نماذج الاختبارات المرفقة، التقييم يدور حول:<br>`+
       list(['Listening: فهم الفكرة والتفاصيل','Vocabulary and Grammar: مفردات الوحدات والقواعد','Reading: اختيار، مطابقة، صح/خطأ وفهم التفاصيل','Writing: الحروف الكبيرة والترقيم، جمل واضحة، ثم مهمة كتابة منظمة'])+

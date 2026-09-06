@@ -24,17 +24,42 @@ const OUT = path.join(ROOT, 'checklist.html');
 
 const rows = JSON.parse(fs.readFileSync(DATA, 'utf8'));
 
+/* الفحصُ الأوّل سأل «هل ترمي خطأً؟» فأجاب «لا» عن مئةٍ وثلاث صفحاتٍ من
+   مئةٍ وأربع — ولم يقل شيئاً عن إمكان اللعب. فأُضيف فحصٌ ثانٍ يضغط زرَّ
+   البدء وينظر: هل تغيّرت الشاشة؟ هل تستجيب اللمساتُ؟ هل الصورُ موجودة؟
+   وحكمُه هو المعروض هنا. */
+const PLAY = (() => {
+  const p = path.join(ROOT, 'audit', 'playable.json');
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch (e) { return {}; }
+})();
+
 const esc = s => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;')
   .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /* A page is "healthy" when it opens, throws nothing, and asks for no file that
  * is not there. Everything else needs a decision, which is what the list is for. */
-const health = r => r.fail ? 'fail' : (r.errs && r.errs.length ? 'err'
-                 : (r.http && r.http.length ? 'miss' : 'ok'));
-
-const HEALTH = { ok: ['✅', 'تعمل'], err: ['❌', 'خطأ جافاسكربت'],
-                 miss: ['⚠️', 'ملفٌّ ناقص'], fail: ['🚫', 'لا تفتح'] };
+const VERDICT = {
+  'تُلعَب':            ['✅', 'ok'],
+  'ملفٌّ ناقص':        ['⚠️', 'miss'],
+  'صورٌ مكسورة':       ['⚠️', 'miss'],
+  'خطأ برمجيّ':        ['❌', 'err'],
+  'لا تستجيب للّمس':   ['❌', 'err'],
+  'زرُّ البدء لا يعمل': ['❌', 'err'],
+  'صفحةٌ شبه فارغة':   ['❌', 'err'],
+  'لا تفتح':           ['🚫', 'fail']
+};
+/* المعتمَدةُ لها حكمُ اللعب، وغيرُها لم تُفحَص هذا الفحصَ بعدُ فيبقى
+   لها الفحصُ الأوّل: هل رمت خطأً أو طلبت ملفّاً ناقصاً. */
+function verdictOf(r) {
+  const v = PLAY[r.f] && PLAY[r.f].verdict;
+  if (v) return v;
+  if (r.fail) return 'لا تفتح';
+  if (r.errs && r.errs.length) return 'خطأ برمجيّ';
+  if (r.http && r.http.length) return 'ملفٌّ ناقص';
+  return 'لم تُفحَص للّعب';
+}
+const health = r => (VERDICT[verdictOf(r)] || ['◽', 'ok'])[1];
 
 const kpi = (label, n, cls) =>
   `<div class="kpi ${cls || ''}"><b>${n}</b><span>${label}</span></div>`;
@@ -43,7 +68,9 @@ const ap = rows.filter(r => r.approved), un = rows.filter(r => !r.approved);
 const count = (g, f) => g.filter(f).length;
 
 const row = r => {
-  const h = health(r), [ico, htxt] = HEALTH[h];
+  const htxt = verdictOf(r), h = health(r);
+  const ico = (VERDICT[htxt] || ['◽'])[0];
+  const pl = PLAY[r.f] || {};
   const gaps = [];
   if (!r.instr) gaps.push('تعليمات');
   if (!r.score) gaps.push('نقاط');
@@ -56,7 +83,9 @@ const row = r => {
   <td class="op"><a class="open" href="${esc(r.f)}" target="_blank" rel="noopener">↗ فتح</a></td>
   <td class="st" title="${htxt}">${ico}<span class="only-wide"> ${htxt}</span>
       ${(r.http && r.http.length) ? '<em>' + esc(r.http.join(' · ')) + '</em>' : ''}
-      ${(r.errs && r.errs.length) ? '<em>' + esc(r.errs[0]) + '</em>' : ''}</td>
+      ${(r.errs && r.errs.length) ? '<em>' + esc(r.errs[0]) + '</em>' : ''}
+      ${pl.note ? '<em class="nt">' + esc(pl.note) + '</em>' : ''}
+      ${(pl.ext && pl.ext.length) ? '<em class="nt">يحتاج ' + esc(pl.ext.join(' · ')) + '</em>' : ''}</td>
   <td class="g">${gaps.length ? gaps.map(g => '<span class="gap">' + g + '</span>').join('') : '<span class="full">مكتملة</span>'}</td>
   <td class="dec">
     <button class="d keep" data-d="keep" title="نعتمدها كما هي">اعتماد</button>
@@ -128,6 +157,7 @@ a.open:hover{background:var(--earth);border-color:var(--earth)}
 .nm i{display:block;font-style:normal;font-size:.68rem;color:var(--earth);opacity:.8;direction:ltr;text-align:right}
 .st{white-space:nowrap}
 .st em{display:block;font-style:normal;font-size:.66rem;color:var(--bad);direction:ltr;text-align:right;max-width:210px}
+.st em.nt{color:var(--warn);direction:rtl}
 .gap{display:inline-block;background:rgba(176,122,30,.14);color:var(--warn);border-radius:5px;
      padding:.05em .5em;font-size:.7rem;margin-inline-end:3px}
 .full{color:var(--ok);font-size:.72rem}
@@ -157,7 +187,7 @@ footer a{color:var(--earth)}
   ${kpi('صفحة', rows.length)}
   ${kpi('معتمدة', ap.length, 'ok')}
   ${kpi('غير معتمدة', un.length, 'warn')}
-  ${kpi('فيها خطأ', count(rows, r => health(r) !== 'ok'), 'bad')}
+  ${kpi('لا تُلعَب', count(rows, r => r.approved && verdictOf(r) !== 'تُلعَب'), 'bad')}
   ${kpi('بلا تعليمات', count(rows, r => !r.instr), 'warn')}
   ${kpi('بلا نقاط', count(rows, r => !r.score), 'warn')}
 </div>
@@ -167,7 +197,7 @@ footer a{color:var(--earth)}
   <button class="f on" data-f="all">الكلّ</button>
   <button class="f" data-f="ap">المعتمدة</button>
   <button class="f" data-f="un">غير المعتمدة</button>
-  <button class="f" data-f="bad">فيها خطأ</button>
+  <button class="f" data-f="bad">لا تُلعَب</button>
   <button class="f" data-f="gap">ينقصها شيء</button>
   <button class="f" data-f="undone">لم تُنجَز</button>
   <button class="f" data-f="nodec">بلا قرار</button>

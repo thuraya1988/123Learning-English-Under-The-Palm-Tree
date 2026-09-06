@@ -51,14 +51,16 @@ const row = r => {
   return `<tr data-f="${esc(r.f)}" data-ap="${r.approved ? 1 : 0}" data-h="${h}"
    data-gap="${gaps.length}" data-find="${esc((r.f + ' ' + (r.title || '')).toLowerCase())}">
   <td class="tick"><input type="checkbox" class="done" aria-label="أنجزت"></td>
-  <td class="nm"><a href="${esc(r.f)}" target="_blank" rel="noopener">${esc(r.title || r.f.split('/').pop())}</a>
+  <td class="nm"><span class="t">${esc(r.title || r.f.split('/').pop())}</span>
       <i>${esc(r.f)}</i></td>
+  <td class="op"><a class="open" href="${esc(r.f)}" target="_blank" rel="noopener">↗ فتح</a></td>
   <td class="st" title="${htxt}">${ico}<span class="only-wide"> ${htxt}</span>
       ${(r.http && r.http.length) ? '<em>' + esc(r.http.join(' · ')) + '</em>' : ''}
       ${(r.errs && r.errs.length) ? '<em>' + esc(r.errs[0]) + '</em>' : ''}</td>
   <td class="g">${gaps.length ? gaps.map(g => '<span class="gap">' + g + '</span>').join('') : '<span class="full">مكتملة</span>'}</td>
   <td class="dec">
-    <button class="d keep" data-d="keep" title="نعتمدها ونثبّتها">اعتماد</button>
+    <button class="d keep" data-d="keep" title="نعتمدها كما هي">اعتماد</button>
+    <button class="d edit" data-d="edit" title="تُعتمد بعد إصلاحٍ أو إضافة">تعديل</button>
     <button class="d drop" data-d="drop" title="مكرّرة أو مهجورة — للحذف">حذف</button>
   </td></tr>`;
 };
@@ -68,7 +70,7 @@ const table = (id, title, list, note) => `
   <h2>${title} <span class="n">${list.length}</span></h2>
   ${note ? `<p class="note">${note}</p>` : ''}
   <div class="scroll"><table>
-    <thead><tr><th></th><th>الصفحة</th><th>الحالة</th><th>الناقص</th><th>القرار</th></tr></thead>
+    <thead><tr><th></th><th>الصفحة</th><th>افتحيها</th><th>الحالة</th><th>الناقص</th><th>القرار</th></tr></thead>
     <tbody>${list.map(row).join('\n')}</tbody>
   </table></div>
 </section>`;
@@ -118,8 +120,11 @@ td{padding:7px 10px;border-bottom:1px solid rgba(140,106,63,.14);vertical-align:
 tr:last-child td{border-bottom:0}
 tr.hide{display:none}
 .tick{width:34px}
-.nm a{color:var(--soil);font-weight:700;text-decoration:none}
-.nm a:hover{text-decoration:underline}
+.nm .t{font-weight:700}
+.op{width:74px}
+a.open{display:inline-block;font-size:.72rem;font-weight:700;padding:.3em .7em;border-radius:6px;
+  border:1.5px solid var(--soil);background:var(--soil);color:var(--sand);text-decoration:none;white-space:nowrap}
+a.open:hover{background:var(--earth);border-color:var(--earth)}
 .nm i{display:block;font-style:normal;font-size:.68rem;color:var(--earth);opacity:.8;direction:ltr;text-align:right}
 .st{white-space:nowrap}
 .st em{display:block;font-style:normal;font-size:.66rem;color:var(--bad);direction:ltr;text-align:right;max-width:210px}
@@ -130,6 +135,7 @@ tr.hide{display:none}
 button.d{font-family:inherit;font-size:.7rem;font-weight:700;padding:.3em .8em;border-radius:6px;
      border:1.5px solid var(--clay);background:transparent;color:var(--soil);cursor:pointer;margin-inline-end:4px}
 button.d.sel[data-d=keep]{background:var(--ok);border-color:var(--ok);color:#fff}
+button.d.sel[data-d=edit]{background:var(--warn);border-color:var(--warn);color:#fff}
 button.d.sel[data-d=drop]{background:var(--bad);border-color:var(--bad);color:#fff}
 tr.done-row{opacity:.5}
 footer{text-align:center;margin-top:36px;font-size:.74rem;color:var(--earth)}
@@ -164,6 +170,7 @@ footer a{color:var(--earth)}
   <button class="f" data-f="bad">فيها خطأ</button>
   <button class="f" data-f="gap">ينقصها شيء</button>
   <button class="f" data-f="undone">لم تُنجَز</button>
+  <button class="f" data-f="nodec">بلا قرار</button>
   <button class="f" id="exp" style="margin-inline-start:auto">📋 صدّري القرارات</button>
 </div>
 
@@ -220,6 +227,7 @@ ${table('un', 'غير المعتمدة — نقرّر فيها', un,
       else if(mode==='bad')ok=tr.dataset.h!=='ok';
       else if(mode==='gap')ok=tr.dataset.gap!=='0';
       else if(mode==='undone')ok=!tr.classList.contains('done-row');
+      else if(mode==='nodec')ok=!(state[tr.dataset.f]||{}).d;
       if(ok&&t) ok=tr.dataset.find.indexOf(t)>=0;
       tr.classList.toggle('hide',!ok);
     });
@@ -238,15 +246,15 @@ ${table('un', 'غير المعتمدة — نقرّر فيها', un,
 
   /* القرارات تُصدَّر نصّاً يُنسخ ويُرسَل — لا حاجة إلى خادم */
   document.getElementById('exp').addEventListener('click',function(){
-    var keep=[],drop=[];
+    var g={keep:[],edit:[],drop:[]};
     rows.forEach(function(tr){
       var st=state[tr.dataset.f]||{};
-      if(st.d==='keep') keep.push(tr.dataset.f);
-      if(st.d==='drop') drop.push(tr.dataset.f);
+      if(g[st.d]) g[st.d].push(tr.dataset.f);
     });
     var out=document.getElementById('out');
-    out.value='# اعتماد ('+keep.length+')\\n'+keep.join('\\n')+
-              '\\n\\n# حذف ('+drop.length+')\\n'+drop.join('\\n');
+    out.value='# اعتماد ('+g.keep.length+')\\n'+g.keep.join('\\n')+
+              '\\n\\n# تعديل ('+g.edit.length+')\\n'+g.edit.join('\\n')+
+              '\\n\\n# حذف ('+g.drop.length+')\\n'+g.drop.join('\\n');
     out.style.display='block'; out.select();
     try{ document.execCommand('copy'); }catch(e){}
   });

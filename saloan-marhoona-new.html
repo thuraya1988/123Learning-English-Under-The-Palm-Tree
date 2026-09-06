@@ -2142,13 +2142,46 @@ gltfLoader.load('public/assets/saloan-marhoona/kcdf-makeup-table-01.glb', (gltf)
   scene.add(model);
 }, undefined, () => { /* the atelier still reads fine without the vanity table if this fails to load */ });
 
-gltfLoader.load('public/assets/saloan-marhoona/makeup-desk.glb', (gltf) => {
-  const model = fitModel(gltf.scene, 1.9);
-  model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  model.position.set(1.1, 0, -0.4);
-  model.rotation.y = -0.3;
-  scene.add(model);
-}, undefined, () => { /* the atelier still reads fine without the desk if this fails to load */ });
+/* الرفّ الخشبيّ مبنيٌّ هنا لا مُحمَّل.
+   كان يُطلَب ملفُّ makeup-desk.glb ولم يوجد في المستودع قطّ، فيسقط
+   الطلبُ بـ404 ويبقى نصفُ الغرفة فارغاً. فبُني رفٌّ بسيطٌ بالقوائم
+   والألواح — لا ملفَّ ولا انتظار. وإن وُجد المجسّم الأصليّ يوماً
+   فمكانُه هنا. */
+(function buildShelf(){
+  const wood = new THREE.MeshStandardMaterial({ color: 0x8a6647, roughness: 0.85 });
+  const trim = new THREE.MeshStandardMaterial({ color: 0x6d4c33, roughness: 0.8 });
+  const g = new THREE.Group();
+  const W = 1.15, D = 0.34, H = 1.55;
+  [-1, 1].forEach(sd => {                                   /* قائمتان */
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.07, H, D), trim);
+    leg.position.set(sd * (W / 2), H / 2, 0);
+    g.add(leg);
+  });
+  for (let i = 0; i < 4; i++) {                             /* أربعة ألواح */
+    const sh = new THREE.Mesh(new THREE.BoxGeometry(W, 0.05, D), wood);
+    sh.position.y = 0.22 + i * 0.42;
+    g.add(sh);
+    for (let j = 0; j < 5; j++) {                           /* قواريرُ وعُلَب */
+      const h = 0.13 + Math.random() * 0.13;
+      const jar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.045 + Math.random() * 0.02, 0.05, h, 10),
+        new THREE.MeshStandardMaterial({
+          color: [0xC9A24A, 0xB4302B, 0x3E6444, 0xD9AE52, 0x7A1F3D][(i + j) % 5],
+          roughness: 0.5, metalness: 0.15 }));
+      jar.position.set(-W / 2 + 0.16 + j * (W - 0.32) / 4, sh.position.y + 0.03 + h / 2,
+                       (Math.random() - 0.5) * 0.1);
+      jar.castShadow = true;
+      g.add(jar);
+    }
+  }
+  const back = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.03), trim);
+  back.position.set(0, H / 2, -D / 2);
+  g.add(back);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.position.set(1.1, 0, -0.4);
+  g.rotation.y = -0.3;
+  scene.add(g);
+})();
 
 let t = 0;
 function animateScene3d() {

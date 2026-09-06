@@ -4885,6 +4885,7 @@ function setQuest(i){
   var parts=q.t.split('—');
   showChapter(parts[0].trim(), parts[1]?parts[1].trim():'');
   chime2();
+  jojoReact('chapter');
 }
 function renderLine(lines){
   var tx=lines[narrIdx]; dlgTextEl.textContent=''; typing=true; var i=0;
@@ -4911,6 +4912,8 @@ function closeNarr(){
   if(qIndex===2){
     ring.visible=false; ringGlow.intensity=0;
     goatState.stay=false; goatState.follow=true;
+    jojoReact('ring');
+    setTimeout(function(){ jojoReact('goat'); },2400);
   }
   if(qIndex===5){ finishGame(); return; }
   setQuest(qIndex+1);
@@ -4929,7 +4932,7 @@ function finishGame(){
 var restartBtn=document.getElementById('restartBtn');
 if(restartBtn) restartBtn.addEventListener('click',function(){ location.reload(); });
 
-function ringBell(){ bellRingT=2.2; gong(); }
+function ringBell(){ bellRingT=2.2; gong(); jojoReact('bell'); }
 function gong(){
   if(!ctx||ctx.state!=='running')return;
   var t0=ctx.currentTime;
@@ -5197,18 +5200,25 @@ function actJojo(name,secs){
   jLockT=setTimeout(function(){ jLock=false; jCurrent=null; }, (secs||1.6)*1000);
 }
 /* أزرار الحركات */
-(function actionButtons(){
-  var bar=document.getElementById('acts');
-  if(!bar) return;
-  [['قفز','Jump',1.4],['تلويح','Waving',2.2],['قطف','Pick_Fruit',2.4],
-   ['فرح','Happy',2.0],['حماس','Excited',2.0],['التفات','Look_Over_Shoulder',2.0],
-   ['سباحة','Swimming',2.6]].forEach(function(a){
-    var b=document.createElement('button');
-    b.className='act'; b.textContent=a[0];
-    b.addEventListener('click',function(e){ e.stopPropagation(); actJojo(a[1],a[2]); });
-    bar.appendChild(b);
-  });
-})();
+/* لا أزرارَ حركات.
+   كان تحت الشاشة صفٌّ من الأزرار: قفز، تلويح، قطف، فرح، حماس… يضغطها
+   الطالبُ فترقص جوجو بلا سبب. الحركةُ تتبع الموقف: تفرح حين تلتقط
+   تمرة، وتلوّح حين يبدأ فصلٌ جديد، وتقطف عند الخاتم، وتلتفت حين يلحق
+   بها ملود. فحُذفت الأزرار وصار المشهدُ هو الذي يحرّكها. */
+var actsBar=document.getElementById('acts');
+if(actsBar) actsBar.remove();
+
+/* حركةٌ حسب الموقف — تُنادى من مواضع الأحداث */
+function jojoReact(what){
+  switch(what){
+    case 'date':    actJojo('Happy',1.6); break;              /* التقطت تمرة */
+    case 'chapter': actJojo('Waving',2.0); break;             /* بدأ فصلٌ جديد */
+    case 'ring':    actJojo('Pick_Fruit',2.2); break;         /* رفعت الخاتم */
+    case 'goat':    actJojo('Look_Over_Shoulder',1.8); break; /* لحق بها ملود */
+    case 'bell':    actJojo('Excited',2.2); break;            /* رنّت الجرس */
+    case 'water':   actJojo('Swimming',2.4); break;           /* اقتربت من الفلج */
+  }
+}
 
 /* ظل ناعم تحتها */
 var jShadow=new THREE.Mesh(new THREE.CircleGeometry(0.5,18),
@@ -5986,7 +5996,13 @@ function loop(){
       if(D.position.distanceTo(jojo.position)<1.6){
         scene.remove(D); dates.splice(di,1); datesGot++;
         document.getElementById('dateCount').textContent=datesGot;
+        jojoReact('date');
       }
+    }
+
+    /* ---- قربُ الماء: مرّةً واحدةً عند أوّل اقتراب ---- */
+    if(!window.__sawWater && Math.abs(jojo.position.z-falajZ(jojo.position.x))<2.6){
+      window.__sawWater=true; jojoReact('water');
     }
 
     /* ---- الجرس ---- */

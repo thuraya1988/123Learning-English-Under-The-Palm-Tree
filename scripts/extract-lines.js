@@ -169,6 +169,47 @@ QBANK.forEach(q => { add(q.q); add(q.a); add(q.hint); });
 
 for (const k in EX) { add(EX[k].t); (EX[k].items || []).forEach(it => { add(it[0]); add(it[1]); }); }
 
+/* The skills knowledge base — the other half of what she answers with.
+ *
+ * «مهارات Unit 4» is a chip on her own home screen, and its answer is 840
+ * characters of English about reading, listening, pronunciation, the project
+ * and the graded readers. None of it lives in classic.html, so none of it had
+ * a clip: pressing 🔊 said «corner shop» and stopped. That is the whole of
+ * what a student heard from that card.
+ *
+ * The base is a pure function of a question, so rather than parse it, ask it —
+ * every unit crossed with every command it understands — and keep the lines it
+ * prints. The tags are turned into breaks exactly as the page turns them, so
+ * clip text matches the screen character for character.
+ */
+const vm = require('vm');
+const kbWin = {};
+vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'miss-thuraya', 'grade5-knowledge.js'), 'utf8'),
+                   { window: kbWin });
+const KB = kbWin.G5_KB;
+if (!KB) throw new Error('grade5-knowledge.js did not define G5_KB');
+
+const KB_UNITS = ['Welcome', 'Unit 1', 'Unit 2', 'Unit 3', 'Unit 4'];
+const KB_CMDS = ['مهارات', 'كل شيء في', 'قراءة', 'استماع', 'تحدث', 'كتابة', 'مشروع',
+                 'نشاط', 'اختبار', 'قواعد', 'كلمات', 'صفحات', 'progress', 'graded readers',
+                 'movers', 'pronunciation', 'culture', 'english in action'];
+const KB_LOOSE = ['نمط الاختبار', 'دربيني على الكتابة في Unit 2', 'مشروع',
+                  'قارئ متدرج', 'progress path', 'نشاط الكتاب'];
+
+const askKB = q => {
+  KB.reset();
+  const r = KB.answer(q);
+  if (!r) return;
+  // <br> and list items become line breaks, matching how the bubble renders.
+  String(r)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/?(ul|ol|li)[^>]*>/gi, '\n')
+    .split(/\n+/)
+    .forEach(l => add(l));
+};
+for (const u of KB_UNITS) for (const c of KB_CMDS) askKB(c + ' ' + u);
+KB_LOOSE.forEach(askKB);
+
 /* Why a word conjugates the way it does. The engines answer «صرّفي big» with a
  * generated form plus a fixed reason, and the reason is the part worth hearing
  * — without these the whole card was silent. */

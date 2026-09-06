@@ -50,7 +50,11 @@ main{min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 220px}
 .face{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;font-size:15px;background:#9f5369}
 .bot .face{background:#f4e5d2;border:1px solid var(--line);overflow:hidden}
 .face img{width:100%;height:100%;object-fit:cover;display:block}
-.bubble{padding:11px 14px;border-radius:17px;line-height:1.85;font-size:14px;white-space:normal;word-break:break-word}
+/* كلُّ سطرٍ يأخذ اتّجاهَه من أوّل حرفٍ فيه: الشرحُ عربيٌّ والأمثلةُ
+   إنجليزيّة، وبلا هذا تقع النقطةُ في أوّل الجملة الإنجليزيّة لا آخرِها
+   — «.Listening: … shops and services» — وهي جملةٌ يقرؤها الطالب. */
+.bubble{padding:11px 14px;border-radius:17px;line-height:1.85;font-size:14px;white-space:normal;word-break:break-word;unicode-bidi:plaintext;text-align:start}
+.bubble>div{unicode-bidi:plaintext;text-align:start}
 .bot .bubble{background:rgba(255,250,242,.94);border:1px solid var(--line);border-bottom-right-radius:5px;box-shadow:0 8px 24px rgba(83,39,42,.08)}
 .user .bubble{background:linear-gradient(145deg,#7a1f3d,#983d5b);color:#fff;border-bottom-left-radius:5px;box-shadow:0 8px 20px rgba(122,31,61,.14)}
 .bubble code{direction:ltr;display:inline-block;background:rgba(122,31,61,.09);color:#6f1835;padding:0 5px;border-radius:5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
@@ -194,7 +198,7 @@ footer{min-width:0;max-width:100%;overflow:hidden;border-top:1px solid var(--lin
   <div class="tip">يمكن إرسال صورة السؤال أو ستيكر. إذا لم يكن السؤال واضحًا ستطلب مس ثريا صورة أوضح أو كتابة النص، ولن تخمّن الإجابة.</div>
 </footer>
 </div>
-<iframe id="localTutor" src="classic.html?v=voice-3" title="محرك منهج 5A" hidden aria-hidden="true"></iframe>
+<iframe id="localTutor" src="classic.html?v=voice-4" title="محرك منهج 5A" hidden aria-hidden="true"></iframe>
 
 <script>
 'use strict';
@@ -612,6 +616,9 @@ function cleanLocalAnswer(value=''){
     .replace(/<\/li>/gi,'\n')
     .replace(/<\/?(?:small|ul|ol|b|strong|em|p|div)[^>]*>/gi,'')
     .replace(/<[^>]+>/g,'')
+    /* المحرّك يهرّب الرموز قبل العرض، فتصل &amp; و&lt; كما هي لو لم تُفَكّ */
+    .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"')
+    .replace(/&#0?39;/g,"'").replace(/&nbsp;/g,' ').replace(/&amp;/g,'&')
     .replace(/\n{3,}/g,'\n\n')
     .trim();
 }
@@ -697,12 +704,11 @@ async function askLocal(question,image){
       if(bubble){
         const copy=bubble.cloneNode(true);
         copy.querySelectorAll('.play').forEach(x=>x.remove());
-        /* innerText لعنصرٍ خارج الصفحة يتجاهل <br>، فنُدخل النسخةَ
-           مخفيّةً لحظةً لتُقرأ بأسطرِها ثمّ تُزال. */
-        copy.style.cssText='position:absolute;left:-9999px;top:0;white-space:pre-wrap';
-        bubble.parentNode.appendChild(copy);
-        answer=cleanLocalAnswer(copy.innerText||copy.textContent||'');
-        copy.remove();
+        /* من الوسم لا من النصّ المعروض: إطارُ المحرّك مخفيّ (hidden)، وما
+           لا يُعرَض لا تخطيطَ له، فـinnerText فيه يعود نصّاً خاماً بلا
+           أسطر — فتلتصق «Off to the shops» بـ«Reading:». وcleanLocalAnswer
+           تُحوّل <br> والقوائمَ إلى أسطرٍ بنفسها، فنُعطيها الوسم. */
+        answer=cleanLocalAnswer(copy.innerHTML||copy.textContent||'');
       }
       if(answer && !busy){
         const head=MODE_HEAD[mode], note=modeNote(mode,question);

@@ -260,11 +260,21 @@ canvas#g{position:fixed;top:0;left:0;width:100vw;height:100vh}
   width:38px;height:38px;border-radius:50%;cursor:pointer;
   border:1px solid rgba(201,170,128,.45);background:rgba(26,18,16,.85);
   color:var(--g);font-size:1.05rem;font-family:var(--font-h)}
-#helpBox{position:fixed;inset:0;z-index:120;display:none;place-items:center;
+#helpBox{position:fixed;inset:0;z-index:900;display:none;place-items:center;
   background:rgba(10,7,5,.92);padding:20px}
 #helpBox.on{display:grid}
 #helpBox .howto{background:rgba(26,18,16,.95);max-height:86vh;overflow:auto}
 #helpClose{margin-top:14px;width:100%}
+
+/* لقطةُ الافتتاح: مخطّطُ الطابق من فوق ثمّ نزولٌ إلى المدخل */
+#fly{position:fixed;inset:0;z-index:850;display:none;background:#0a0705}
+#fly.on{display:block}
+#flyc{width:100%;height:100%;display:block}
+#flyt{position:absolute;left:0;right:0;bottom:11%;text-align:center;
+  font-family:var(--font-h);color:var(--g);font-size:clamp(15px,3.6vw,20px);
+  letter-spacing:4px;text-shadow:0 2px 18px #000}
+#flyt small{display:block;font-family:var(--font-b);font-size:.62em;color:var(--t);
+  letter-spacing:1px;margin-top:6px}
 </style>
 <script src="public/js/piper-client.js?v=20260905-quiet"></script>
 <script src="public/js/palm-sfx.js" defer></script>
@@ -334,6 +344,7 @@ canvas#g{position:fixed;top:0;left:0;width:100vw;height:100vh}
 </div>
 <div id="xh"></div><div id="ip">Click or E</div>
 <div id="ct"><div class="cn"><div class="kc">W</div>Fwd</div><div class="cn"><div class="kc">A</div><div class="kc">D</div>Turn</div><div class="cn"><div class="kc">S</div>Back</div><div class="cn"><div class="kc">E</div>Use</div></div>
+<div id="fly"><canvas id="flyc"></canvas><div id="flyt"></div></div>
 <button id="helpBtn" aria-label="How to play">؟</button>
 <div id="helpBox"><div><div id="helpInner"></div>
   <button class="sb" id="helpClose">Close · إغلاق</button></div></div>
@@ -844,12 +855,66 @@ function init(){
 }
 init();
 
+
+/* ═══════ لقطةُ الدخول ═══════
+   طلبتِ أن تبدأ الكاميرا من فوق ثمّ تدخل القلعة. والرسمُ هنا شعاعيٌّ
+   لا مجسّمَ فيه ولا ارتفاعَ للكاميرا، فلا سبيل إلى تحليقٍ حقيقيّ.
+   فالمقابلُ الصادق: مخطّطُ الطابق كلِّه من فوق، ثمّ تقريبٌ متّصلٌ إلى
+   بلاطة المدخل، ثمّ ذوبانٌ إلى منظور العين — فيرى الطالبُ شكلَ المتاهة
+   قبل أن يدخلها، ويعرف من أين بدأ. */
+function flyIn(done){
+  var el=document.getElementById('fly'), cv=document.getElementById('flyc');
+  var tt=document.getElementById('flyt');
+  if(!el||!cv){ done(); return; }
+  var dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=innerWidth*dpr; cv.height=innerHeight*dpr;
+  var cx=cv.getContext('2d'); cx.scale(dpr,dpr);
+  var W=innerWidth,H=innerHeight;
+  tt.innerHTML=['Floor I \u2014 The Entrance','Floor II \u2014 The Chambers','Floor III \u2014 The Heart'][lvl]
+    +'<small>'+['\u0627\u0644\u0645\u062f\u062e\u0644','\u0627\u0644\u063a\u0631\u0641','\u0627\u0644\u0642\u0644\u0628'][lvl]+'</small>';
+  el.classList.add('on');
+  var t0=performance.now(), DUR=3200;
+  function ease(u){ return u<.5 ? 4*u*u*u : 1-Math.pow(-2*u+2,3)/2; }
+  function frame(now){
+    var u=Math.min(1,(now-t0)/DUR), e=ease(u);
+    /* من مخطّطٍ يسع الطابق كلَّه إلى بلاطةٍ واحدةٍ عند المدخل */
+    var full=Math.min(W,H)*0.86/Math.max(curW,curH);
+    var cs=full+(Math.min(W,H)*0.55-full)*e;
+    var tx=W/2-((curW/2)+(px-curW/2)*e)*cs;
+    var ty=H/2-((curH/2)+(py-curH/2)*e)*cs;
+    cx.fillStyle='#0a0705'; cx.fillRect(0,0,W,H);
+    cx.save(); cx.translate(tx,ty);
+    for(var y=0;y<curH;y++)for(var x=0;x<curW;x++){
+      var X=x*cs,Y=y*cs;
+      if(curMap[y][x]===1){ cx.fillStyle='rgba(140,106,63,.85)'; cx.fillRect(X,Y,cs+.5,cs+.5); }
+      else{
+        cx.fillStyle='rgba(26,18,8,.9)'; cx.fillRect(X,Y,cs+.5,cs+.5);
+        if(curMap[y][x]===2){ cx.fillStyle='rgba(201,170,128,.75)'; cx.fillRect(X+cs*.22,Y+cs*.22,cs*.56,cs*.56); }
+        if(curMap[y][x]===3){ cx.fillStyle='rgba(232,194,74,.85)'; cx.fillRect(X+cs*.26,Y+cs*.26,cs*.48,cs*.48); }
+        if(curMap[y][x]===9){ cx.fillStyle='rgba(90,70,45,.8)'; cx.fillRect(X,Y,cs,cs); }
+      }
+    }
+    /* موضعُ الطالب ينبض حتّى يعرف من أين يبدأ */
+    var pr=cs*(.16+Math.sin(now/220)*.04);
+    cx.beginPath(); cx.arc(px*cs,py*cs,pr,0,6.2832);
+    cx.fillStyle='#E8C24A'; cx.fill();
+    cx.restore();
+    if(u<1){ requestAnimationFrame(frame); }
+    else{
+      el.style.transition='opacity .7s'; el.style.opacity='0';
+      setTimeout(function(){ el.classList.remove('on'); el.style.opacity=''; el.style.transition=''; done(); },700);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
 function loop(){if(gameOn&&!won&&!lvlDone){move();render();renMM();}requestAnimationFrame(loop);}
 
 // ═══════ START GAME ═══════
 document.getElementById('go').addEventListener('click',function(){
   au.init();loadLevel(0);
   document.getElementById('title').classList.add('h');
+  setTimeout(function(){ flyIn(function(){}); },900);
   var to=document.getElementById('to');document.getElementById('tx').textContent='Floor I \u2014 The Entrance';document.getElementById('tsu').textContent='3 Riddles \u2022 1 Key to find';to.classList.add('a');
   speakBritish('Floor One. The Entrance. Three riddles. One key to find.');
   setTimeout(function(){

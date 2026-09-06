@@ -3917,12 +3917,21 @@ function grassTex(){
   var c=document.createElement('canvas'); c.width=c.height=512;
   var x=c.getContext('2d');
   x.fillStyle='#59803C'; x.fillRect(0,0,512,512);
-  /* بقعٌ عريضةٌ تكسر الاستواء */
-  for(var i=0;i<70;i++){
-    var r=40+Math.random()*120;
-    x.fillStyle='rgba('+(70+Math.random()*40|0)+','+(110+Math.random()*45|0)+',' +
-                (45+Math.random()*30|0)+','+(0.05+Math.random()*0.10).toFixed(2)+')';
+  /* بقعٌ عريضةٌ تكسر الاستواء. الشعيراتُ الدقيقةُ تذوب في البعد فتعود
+     الأرضُ لوناً واحداً — فالذي يُرى من مسافة اللعب هو هذا التنوّعُ
+     الواسع، ولذلك رُفع وضوحُه وكُبّرت بقعُه. */
+  for(var i=0;i<110;i++){
+    var r=55+Math.random()*185;
+    x.fillStyle='rgba('+(58+Math.random()*52|0)+','+(96+Math.random()*62|0)+',' +
+                (38+Math.random()*42|0)+','+(0.10+Math.random()*0.20).toFixed(2)+')';
     x.beginPath(); x.arc(Math.random()*512,Math.random()*512,r,0,6.284); x.fill();
+  }
+  for(var d=0;d<26;d++){                       /* بقعٌ ترابيّةٌ متفرّقة */
+    var dr=14+Math.random()*46;
+    x.fillStyle='rgba('+(140+Math.random()*40|0)+','+(126+Math.random()*34|0)+',' +
+                (86+Math.random()*30|0)+','+(0.10+Math.random()*0.16).toFixed(2)+')';
+    x.beginPath(); x.ellipse(Math.random()*512,Math.random()*512,dr,dr*0.62,
+                             Math.random()*3,0,6.284); x.fill();
   }
   /* شعيراتُ عشب */
   for(var j=0;j<2600;j++){
@@ -3933,8 +3942,8 @@ function grassTex(){
     x.lineTo(px+(Math.random()-0.5)*2.2,py-h); x.stroke();
   }
   var t=new THREE.CanvasTexture(c);
-  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(60,60);
-  t.encoding=THREE.sRGBEncoding; t.anisotropy=4;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(55,55);
+  t.encoding=THREE.sRGBEncoding; t.anisotropy=16;
   return t;
 }
 function sandTex(){
@@ -3954,8 +3963,8 @@ function sandTex(){
     x.fillRect(Math.random()*512,Math.random()*512,1+ (g>0.94?1:0),1+(g>0.94?1:0));
   }
   var t=new THREE.CanvasTexture(c);
-  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(70,1.2);
-  t.encoding=THREE.sRGBEncoding; t.anisotropy=4;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(120,1.6);
+  t.encoding=THREE.sRGBEncoding; t.anisotropy=16;
   return t;
 }
 /* خريطةُ خشونةٍ من النقش نفسه: الفاتح أملس والداكن خشن */
@@ -3975,14 +3984,14 @@ function roughFrom(tex,rx,ry){
 }
 var GRASS=grassTex(), SAND=sandTex();
 var ground=new THREE.Mesh(new THREE.PlaneGeometry(900,900),
-  new THREE.MeshStandardMaterial({map:GRASS,roughnessMap:roughFrom(GRASS,60,60),
+  new THREE.MeshStandardMaterial({map:GRASS,roughnessMap:roughFrom(GRASS,55,55),
                                   color:0xFFFFFF,roughness:1}));
 ground.rotation.x=-Math.PI/2; ground.position.set(X1/2,0,-40);
 ground.receiveShadow=true; scene.add(ground);
 
 /* ============ الممشى ============ */
 var walk=new THREE.Mesh(new THREE.PlaneGeometry(X1+40,5.4),
-  new THREE.MeshStandardMaterial({map:SAND,roughnessMap:roughFrom(SAND,70,1.2),
+  new THREE.MeshStandardMaterial({map:SAND,roughnessMap:roughFrom(SAND,120,1.6),
                                   color:0xFFFFFF,roughness:1}));
 walk.rotation.x=-Math.PI/2; walk.position.set(X1/2,0.03,Z_WALK);
 walk.receiveShadow=true; scene.add(walk);
@@ -4069,6 +4078,9 @@ function mudTex(base,streak){
 }
 var MUD1=mudTex('#C2A177','150,110,70'), MUD2=mudTex('#B8946A','140,100,62'),
     MUD3=mudTex('#CBAE85','160,120,78');
+/* وجهُ الصندوق إحداثيّاته من صفرٍ إلى واحد، فبلاطةٌ واحدةٌ تُفرَد على
+   الجدار كلِّه وتذوب المداميك. بلاطتان ونصفٌ تجعل المدماك بحجمه. */
+[MUD1,MUD2,MUD3].forEach(function(t){ t.repeat.set(2.5,2.5); t.anisotropy=8; });
 var wallA=new THREE.MeshStandardMaterial({map:MUD1,roughness:1});
 var wallB=new THREE.MeshStandardMaterial({map:MUD2,roughness:1});
 var wallC=new THREE.MeshStandardMaterial({map:MUD3,roughness:1});
@@ -5283,6 +5295,52 @@ var BARKS =[0x6B4726,0x5C3D21,0x77532E,0x664526,0x7A5A34,0x51361F];
 BARKS[5]=0x51361F;
 var STONES=[0xB09071,0xA5885F,0xBA9A78,0x9C8264];
 var EARTH =[0x9A7247,0x8A653C,0xA87E52];
+/* نقشُ الخشب والحجر لمجسّمات الطقم.
+   المجسّمات تصل بلونٍ واحدٍ لكلّ مادّة بلا صورة، فجذعُ النخلة — وهو
+   أقربُ سطحٍ وأكبرُه في الكادر — يبدو لوحاً بنّيّاً أملس. وإحداثيّاتُها
+   موجودةٌ وتمتدّ نحو عشرين وحدة، فبلاطةٌ واحدةٌ تكفي لتظهر بحجمها. */
+function woodTex(kind){
+  var c=document.createElement('canvas'); c.width=c.height=128;
+  var x=c.getContext('2d'); x.fillStyle='#FFFFFF'; x.fillRect(0,0,128,128);
+  if(kind==='palm'){
+    /* ليفُ النخلة: حلقاتٌ متراكبةٌ تلتفّ حول الجذع */
+    for(var r=0;r<11;r++){
+      var y=r*12+Math.random()*3;
+      x.fillStyle='rgba(0,0,0,'+(0.07+Math.random()*0.09).toFixed(2)+')';
+      x.fillRect(0,y,128,2.4);
+      x.fillStyle='rgba(255,255,255,0.10)'; x.fillRect(0,y+2.4,128,1.4);
+      for(var q=0;q<9;q++){                   /* حزوزُ قواعد السعف */
+        var px=q*14+Math.random()*7;
+        x.fillStyle='rgba(0,0,0,'+(0.05+Math.random()*0.08).toFixed(2)+')';
+        x.fillRect(px,y+3,4.5,7);
+      }
+    }
+  }else{
+    for(var g=0;g<120;g++){                   /* عروقٌ طوليّةٌ في الخشب */
+      var gx=Math.random()*128;
+      x.strokeStyle='rgba('+(Math.random()>0.55?'0,0,0,':'255,255,255,')+
+                    (0.04+Math.random()*0.09).toFixed(2)+')';
+      x.lineWidth=0.6+Math.random()*1.8; x.beginPath(); x.moveTo(gx,0);
+      x.bezierCurveTo(gx+(Math.random()-0.5)*7,43,gx+(Math.random()-0.5)*7,86,gx,128);
+      x.stroke();
+    }
+    for(var k=0;k<3;k++){                     /* عُقَد */
+      var kx=Math.random()*128, ky=Math.random()*128;
+      for(var e=4;e>0;e--){
+        x.strokeStyle='rgba(0,0,0,0.07)'; x.lineWidth=1;
+        x.beginPath(); x.ellipse(kx,ky,e*1.7,e*3.1,0.4,0,6.284); x.stroke();
+      }
+    }
+  }
+  var t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(1,1);
+  t.encoding=THREE.sRGBEncoding; t.anisotropy=8; return t;
+}
+var PALMBARK=woodTex('palm'), WOODGRAIN=woodTex('plank');
+/* إحداثيّاتُ الطقم تمتدّ نحو عشرين وحدةً لا واحدة، فبلاطةٌ كاملةٌ لكلّ
+   وحدةٍ تجعل الحلقاتِ أدقَّ من أن تُرى. نُكبّرها لتصير حلقةً كلَّ ثلث متر. */
+PALMBARK.repeat.set(0.15,0.15); WOODGRAIN.repeat.set(0.25,0.25);
+
 /* إعادة تعيين بأسماء المواد — لا تخمين ألوان */
 function recolor(o,seed){
   var g1=(seed===undefined?Math.floor(Math.random()*GREENS.length):seed%GREENS.length);
@@ -5301,8 +5359,13 @@ function recolor(o,seed){
     else if(n.indexOf('corn')===0)        c.setHex(0xD9AE52);
     else if(n.indexOf('woodbirch')===0)   c.setHex(0xC9A87A);
     else if(n.indexOf('woodinner')===0)   c.setHex(0x9A7247);
-    else if(n.indexOf('wood')===0)        c.setHex(BARKS[b1]);    /* wood, woodBark, woodDark */
-    else if(n.indexOf('stone')===0)       c.setHex(STONES[b1%STONES.length]);
+    else if(n.indexOf('wood')===0){       c.setHex(BARKS[b1]);    /* wood, woodBark, woodDark */
+      /* إسنادُ صورةٍ إلى مادّةٍ لم تكن لها صورةٌ يغيّر برنامجَ الرسم،
+         ولا يُعاد بناؤه إلّا بـneedsUpdate — وبدونها يبقى اللونُ أملس. */
+      m.material.map = n.indexOf('woodbark')===0 ? PALMBARK : WOODGRAIN;
+      m.material.needsUpdate = true; }
+    else if(n.indexOf('stone')===0){      c.setHex(STONES[b1%STONES.length]);
+      m.material.map = STONE; m.material.needsUpdate = true; }
     else if(n.indexOf('dirt')===0)        c.setHex(EARTH[b1%EARTH.length]);
     else if(n.indexOf('water')===0)       c.setHex(0x2E6E80);
     /* colorRed/Yellow/Purple/White/Tan تبقى — هذي الزهور */
@@ -5639,10 +5702,39 @@ function build(){
   });
 
   /* ---------- جبال بنية: طبقتان فقط، بعيدتان ---------- */
+  /* كانت لوناً واحداً مسطّحاً، وهي أعرضُ ما في الأفق. صخرُ عُمان مطبَّقٌ
+     مشقَّق، فنرسم طبقاتِه وشقوقَه مرّةً واحدةً ونصبغُ كلَّ جبلٍ بلونه. */
+  var ROCK=(function(){
+    var c=document.createElement('canvas'); c.width=c.height=256;
+    var x=c.getContext('2d'); x.fillStyle='#FFFFFF'; x.fillRect(0,0,256,256);
+    for(var i=0;i<26;i++){                       /* مداميك صخرية أفقية */
+      var y=Math.random()*256, th=2+Math.random()*10;
+      x.fillStyle='rgba(0,0,0,'+(0.04+Math.random()*0.09).toFixed(2)+')';
+      x.beginPath(); x.moveTo(0,y);
+      x.bezierCurveTo(85,y+(Math.random()-0.5)*9,170,y+(Math.random()-0.5)*9,256,y);
+      x.lineTo(256,y+th);
+      x.bezierCurveTo(170,y+th+(Math.random()-0.5)*9,85,y+th+(Math.random()-0.5)*9,0,y+th);
+      x.closePath(); x.fill();
+    }
+    for(var j=0;j<70;j++){                       /* شقوق رأسيّة */
+      var px=Math.random()*256, py=Math.random()*256, len=8+Math.random()*34;
+      x.strokeStyle='rgba(0,0,0,'+(0.05+Math.random()*0.10).toFixed(2)+')';
+      x.lineWidth=0.7+Math.random()*1.4; x.beginPath(); x.moveTo(px,py);
+      x.lineTo(px+(Math.random()-0.5)*10,py+len); x.stroke();
+    }
+    for(var k=0;k<1400;k++){                     /* حبيبات */
+      x.fillStyle='rgba('+(Math.random()>0.5?'255,255,255,':'0,0,0,')+
+                  (0.03+Math.random()*0.07).toFixed(2)+')';
+      x.fillRect(Math.random()*256,Math.random()*256,1,1);
+    }
+    var t=new THREE.CanvasTexture(c);
+    t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(3,2);
+    t.encoding=THREE.sRGBEncoding; t.anisotropy=8; return t;
+  })();
   function ridge(zc,zj,count,rMin,rMax,hMin,hMax,pal,seg){
     for(var i=0;i<count;i++){
       var r=rMin+Math.random()*(rMax-rMin), h=hMin+Math.random()*(hMax-hMin);
-      var mat=new THREE.MeshStandardMaterial({
+      var mat=new THREE.MeshStandardMaterial({map:ROCK,
         color:pal[Math.floor(Math.random()*pal.length)],roughness:1,flatShading:true});
       var c=new THREE.Mesh(new THREE.ConeGeometry(r,h,seg,1),mat);
       c.position.set(-200+i*((X1+420)/count)+(Math.random()-0.5)*30, h/2-5, zc-Math.random()*zj);

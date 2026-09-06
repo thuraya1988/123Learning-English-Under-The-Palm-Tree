@@ -5074,6 +5074,73 @@ scene.add(jojo);
 
 /* ===== جوجو الحقيقية من ملفك ===== */
 var jMixer=null, jActions={}, jCurrent=null, jReal=null;
+/* نسيجُ الشخصيّة.
+   جوجو تصل بصورةٍ مخبوزةٍ ألوانُها مسطّحةٌ تماماً، فتبدو لدائنيّةً
+   ملساء بجانب أرضٍ وجدرانٍ وجذوعٍ صارت كلُّها منقوشة. ولا نعرف تخطيط
+   صورتها لنكسو القميصَ وحده والشعرَ وحده — فنُبقي ألوانَها كما هي
+   ونضربُ فوقها حبيباتٍ ونسيجاً دقيقاً، ونشتقُّ من النسيج خريطةَ
+   خشونةٍ ليتكسّر البريقُ الأملس على الأطراف. */
+function weaveCanvas(W,H){
+  var w=document.createElement('canvas'); w.width=W; w.height=H;
+  var y=w.getContext('2d');
+  /* الحبيباتُ تُرسم بربع الدقّة ثمّ تُكبَّر: حبّةٌ بحجم البكسل الواحد
+     على صورةٍ ألفيّةٍ تختفي في التصغير قبل أن تصل الشاشة، فلا يُرى
+     شيء — وهذا ما حدث في المحاولة الأولى. */
+  var q=document.createElement('canvas'); q.width=W>>2; q.height=H>>2;
+  var z=q.getContext('2d');
+  var n=z.createImageData(q.width,q.height), a=n.data;
+  for(var i=0;i<a.length;i+=4){
+    var v=128+(Math.random()-0.5)*84;
+    a[i]=a[i+1]=a[i+2]=v; a[i+3]=255;
+  }
+  z.putImageData(n,0,0);
+  y.imageSmoothingEnabled=false;
+  y.drawImage(q,0,0,W,H);
+  var step=Math.max(5,W>>7);                 /* خيوطُ لُحمةٍ وسَدَاة */
+  for(var r=0;r<H;r+=step){ y.fillStyle='rgba(0,0,0,0.26)'; y.fillRect(0,r,W,1.5); }
+  for(var c2=0;c2<W;c2+=step){ y.fillStyle='rgba(255,255,255,0.18)'; y.fillRect(c2,0,1.5,H); }
+  return w;
+}
+function enrichSkin(tex){
+  var img=tex.image; if(!img||!(img.width||img.naturalWidth)) return null;
+  var W=Math.min(img.width||img.naturalWidth,1024),
+      H=Math.min(img.height||img.naturalHeight,1024);
+  var c=document.createElement('canvas'); c.width=W; c.height=H;
+  var x=c.getContext('2d');
+  try{ x.drawImage(img,0,0,W,H); }catch(e){ return null; }
+
+  var wv=weaveCanvas(W,H).getContext('2d').getImageData(0,0,W,H).data;
+  var base=x.getImageData(0,0,W,H), p=base.data;
+
+  /* النسيجُ للقماش وحده. الصورةُ أطلسٌ واحدٌ لا نعرف تخطيطَه، لكنّ
+     الملابسَ مشبعةُ اللون والبشرةَ والشعرَ باهتان — فنزنُ أثرَ النسيج
+     بإشباع اللون. بدونها ظهرت الحبيباتُ على الوجه كالنمش. */
+  var rc=document.createElement('canvas'); rc.width=W; rc.height=H;
+  var rx=rc.getContext('2d'), rimg=rx.createImageData(W,H), rp=rimg.data;
+
+  for(var i=0;i<p.length;i+=4){
+    var r=p[i], g=p[i+1], bl=p[i+2];
+    var mx=Math.max(r,g,bl), mn=Math.min(r,g,bl);
+    var sat=mx?(mx-mn)/mx:0;
+    var wgt=(sat-0.20)/0.28; wgt=wgt<0?0:(wgt>1?1:wgt);
+    var d=(wv[i]-128)/128;                     /* -1 .. 1 */
+    var k=1+d*0.30*wgt;
+    p[i]  =r *k<0?0:(r *k>255?255:r *k);
+    p[i+1]=g *k<0?0:(g *k>255?255:g *k);
+    p[i+2]=bl*k<0?0:(bl*k>255?255:bl*k);
+    var rv=205+d*55*wgt;                        /* خشونةٌ تتكسّر مع النسيج */
+    rp[i]=rp[i+1]=rp[i+2]=rv<0?0:(rv>255?255:rv); rp[i+3]=255;
+  }
+  x.putImageData(base,0,0);
+  rx.putImageData(rimg,0,0);
+
+  var map=new THREE.CanvasTexture(c);
+  map.flipY=false; map.encoding=THREE.sRGBEncoding;
+  map.wrapS=map.wrapT=tex.wrapS; map.anisotropy=8;
+  var rough=new THREE.CanvasTexture(rc);
+  rough.flipY=false; rough.wrapS=rough.wrapT=tex.wrapS;
+  return {map:map, rough:rough};
+}
 (function loadJojo(){
   if(!JOJO_GLB) return;
   var ld=new THREE.GLTFLoader();
@@ -5093,7 +5160,11 @@ var jMixer=null, jActions={}, jCurrent=null, jReal=null;
         m.castShadow=true; m.frustumCulled=false;
         if(m.material && m.material.map){
           m.material.map.flipY=false;        /* تصحيح اتجاه التكستر */
-          m.material.map.needsUpdate=true; m.material.needsUpdate=true;
+          m.material.map.needsUpdate=true;
+          var en=enrichSkin(m.material.map);
+          if(en){ m.material.map=en.map;
+                  m.material.roughnessMap=en.rough; m.material.roughness=1; }
+          m.material.needsUpdate=true;
         }
       }});
       /* أخفِ الشخصية المؤقتة نهائياً */

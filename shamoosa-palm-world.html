@@ -1136,7 +1136,12 @@ animatedWaveBridge(new THREE.Vector3(19.5,0.6,3.5),new THREE.Vector3(27.6,-1.8,5
 animatedWaveBridge(new THREE.Vector3(-18.8,1.4,-0.5),new THREE.Vector3(-27.4,-0.8,3.2),0.5);
 animatedWaveBridge(new THREE.Vector3(-3.5,0.2,6.6),new THREE.Vector3(3.5,0.2,7.6),0.4);
 animatedHelixBridge(new THREE.Vector3(-11.5,3.4,-19),new THREE.Vector3(-16,4.8,-26));
-animatedHelixBridge(new THREE.Vector3(12,4.2,-21),new THREE.Vector3(17.5,5.8,-28));
+animatedHelixBridge(new THREE.Vector3(11.5,4.15,-20.5),new THREE.Vector3(17.5,5.8,-28));
+/* جسورُ الجزر الثلاث التي كانت معزولة */
+buildRopeBridge(new THREE.Vector3(-5.5,0.10,5.5),  new THREE.Vector3(-9.8,-4.30,9.3), 1.0,1.2);
+buildRopeBridge(new THREE.Vector3(5.8,0.10,5.2),   new THREE.Vector3(11.3,-4.00,8.4), 1.0,1.2);
+buildRopeBridge(new THREE.Vector3(-2.3,6.10,-25.4),new THREE.Vector3(-8.2,3.40,-18.8),1.0,1.2);
+buildRopeBridge(new THREE.Vector3(-0.7,6.10,-29),  new THREE.Vector3(0,7.90,-35.2),   0.9,1.2);
 animatedRingBridge(0,0,10.5,2.2);
 
 /* الشلالات */
@@ -1282,9 +1287,23 @@ var WALKWAYS=[
   [-18.8,-0.5,-27.4,3.2,  1.4,-0.8, 1.7,  0],     /* B ↔ O — جسر متموّج */
   [-3.5,6.6,3.5,7.6,      0.2,0.2,  1.7,  0],     /* ممرّ متموّج على الجزيرة الوسطى */
   [-11.5,-19,-16,-26,     3.4,4.8,  1.5,  0],     /* D ↔ L — الجسر الحلزوني */
-  [12,-21,17.5,-28,       4.2,5.8,  1.5,  0]      /* E ↔ M — الجسر الحلزوني */
+  /* كان فمُه عند (12,-21) وبُعدُه عن مركز E ثلاثةٌ وعشرون جزءًا من عشرة
+     آلافٍ فوقَ نصف قطرها — فانفصل الجسرُ عن جزيرته وصارت M لا تُبلَغ
+     إلّا بدورةٍ طويلةٍ عبر K وL وD. فأُدخل فمُه في الجزيرة. */
+  [11.5,-20.5,17.5,-28,   4.15,5.8, 1.5,  0],    /* E ↔ M — الجسر الحلزوني */
+
+  /* وثلاثُ جزرٍ كانت تُرى ولا تُبلَغ — لا جسرَ يمسّها: F وG وH.
+     فوُصلت: G وH بالجزيرة الوسطى، وF بـ D وK. */
+  [-5.5,5.5,-9.8,9.3,     0.10,-4.30, 1.5, -0.9],  /* A ↔ G */
+  [5.8,5.2,11.3,8.4,      0.10,-4.00, 1.5, -0.9],  /* A ↔ H */
+  [-2.3,-25.4,-8.2,-18.8, 6.10,3.40,  1.5, -0.9],  /* F ↔ D */
+  [-0.7,-29,0,-35.2,      6.10,7.90,  1.5, -0.8]   /* F ↔ K */
 ];
-function groundAt(x,z){
+/* pad: هامشٌ يُضاف إلى نصف عرض الجسر عند مشي اللاعب وحدَه. الجسورُ
+   عرضُها مترٌ وثلث، فنصفُها سبعون سنتيمترًا — والطفلُ يمشي بخمسة أمتارٍ
+   ونصفٍ في الثانية، فيخرج عن الشريط قبل أن يشعر ويقف. ولا يُعطى هذا
+   الهامشُ لوضع الكرات ولا لأرض حلا، فتبقى المواضعُ على السطح الحقيقيّ. */
+function groundAt(x,z,pad){
   var best=null,i;
   for(i=0;i<GROUNDS.length;i++){
     var G0=GROUNDS[i];
@@ -1294,7 +1313,7 @@ function groundAt(x,z){
     var W=WALKWAYS[i],dx=W[2]-W[0],dz=W[3]-W[1],L2=dx*dx+dz*dz;
     var tt=((x-W[0])*dx+(z-W[1])*dz)/L2;
     if(tt<0||tt>1) continue;
-    if(Math.hypot(x-(W[0]+dx*tt),z-(W[1]+dz*tt))<W[6]/2){
+    if(Math.hypot(x-(W[0]+dx*tt),z-(W[1]+dz*tt))<W[6]/2+(pad||0)){
       /* منحنى بيزيه التربيعي: خط مستقيم + 2t(1-t)·تقوّس */
       var y=W[4]+(W[5]-W[4])*tt+2*tt*(1-tt)*W[7]+0.05;
       if(!best||y>best.y) best={y:y};
@@ -1684,6 +1703,8 @@ updates.push(function(t,dt){
       var o=orbs[i].g.position, dd=(o.x-sh.x)*(o.x-sh.x)+(o.z-sh.z)*(o.z-sh.z);
       if(dd<nd){ nd=dd; near=o; }
     }
+    /* تشير إلى فمِ الجسر لا إلى الكلمة عبر الهواء، كما يقول التلميح */
+    if(near){ var gd=guideTo(near); near={x:gd.x,z:gd.z}; }
     if(near){
       HALA.rotation.y=Math.atan2(near.x-HS.x,near.z-HS.z);
       U.arms[1].rotation.set(-1.45,0,-0.15);          /* ذراعٌ ممدودةٌ إلى الأمام */
@@ -1720,11 +1741,21 @@ function wordSprite(en,ar){
     transparent:true,depthWrite:false,toneMapped:false}));
   sp.scale.set(3.0,1.5,1); return sp;
 }
-/* الجزر التي تظهر عليها الكلمات — كلّها موصولة بجسور، والأوزان تميل للوسط */
-var ORB_ISLES=[0,0,0,0,0,1,1,2,2,3,4,8,9,10,11,12,13,14];
-function orbSpot(){
+/* الجزرُ التي تظهر عليها الكلمات. وكانت واحدةً لكلّ المستويات، فتُفرَّق
+   كلماتُ المستوى الأوّل السّتُّ على ستّ جزرٍ متباعدة — والطفلُ في أوّل
+   يومه يمشي دقائقَ على جسور الحبال ليجمع ستَّ كلماتٍ عن العائلة.
+   فصار المدى يتّسع مع المستوى: الوسطُ وجيرانُه أوّلًا، ثمّ ما وراءها. */
+var ISLE_NEAR=[0,0,0,0,1,1,2,2,3],                          /* A B C D */
+    ISLE_MID =[0,0,0,1,1,2,2,3,4,6,7,8,9,13,14],            /* + E G H I J N O */
+    ISLE_FAR =[0,0,0,1,1,2,2,3,4,5,6,7,8,9,10,11,12,13,14]; /* الخمس عشرة */
+function orbIsles(level){
+  var n=(level&&level.n)||1;
+  return n<=10 ? ISLE_NEAR : (n<=30 ? ISLE_MID : ISLE_FAR);
+}
+function orbSpot(pool){
+  var P=pool||ISLE_FAR;
   for(var k=0;k<80;k++){
-    var gi=ORB_ISLES[Math.floor(rand()*ORB_ISLES.length)];
+    var gi=P[Math.floor(rand()*P.length)];
     var G0=GROUNDS[gi];
     var a=rand()*Math.PI*2;
     /* على الجزر الصغيرة نبتعد عن مركزها حيث يقوم البيت */
@@ -1741,7 +1772,7 @@ function spawnOrbs(level){
   var i;
   for(i=0;i<orbs.length;i++) scene.remove(orbs[i].g);
   orbs.length=0;
-  var seen={};
+  var seen={}, pool=orbIsles(level);
   /* أربعةُ مستوياتٍ من المئة موضوعُها أصغرُ من هدفها: «الأشكال» فيه
      اثنتا عشرة كلمةً والمطلوب خمسَ عشرة، و«الموسيقى» اثنتا عشرة
      والمطلوب سبعَ عشرة. وكان يستسلم بعد ثلاثين محاولةً فيضع الكلمةَ
@@ -1761,7 +1792,7 @@ function spawnOrbs(level){
       do{ q=PALM.makeQuestion(wide); }while(seen[q.correct] && guard++<60);
     }
     seen[q.correct]=1;
-    var sp=orbSpot();
+    var sp=orbSpot(pool);
     var g=new THREE.Group(); g.position.set(sp[0],sp[1],sp[2]);
     var core=mesh(orbCoreGeo,new THREE.MeshStandardMaterial({color:0xfff0cf,emissive:0xffc46a,emissiveIntensity:2.4}),false,false);
     var wire=new THREE.Mesh(orbWireGeo,new THREE.MeshBasicMaterial({color:0xffd79a,wireframe:true,transparent:true,opacity:0.5}));
@@ -1941,12 +1972,21 @@ updates.push(function(t,dt){
   var len=Math.hypot(dx,dz), moving=len>0.01;
   if(moving){
     dx/=len; dz/=len;
-    var spd=5.4;
-    var nx=shamoosa.position.x+dx*spd*dt, nz=shamoosa.position.z+dz*spd*dt;
-    if(groundAt(nx,nz)){ shamoosa.position.x=nx; shamoosa.position.z=nz; }
-    else if(!groundAt(shamoosa.position.x,shamoosa.position.z)){
+    var spd=5.4, PAD=0.42;
+    var px=shamoosa.position.x, pz=shamoosa.position.z;
+    var sx=dx*spd*dt, sz=dz*spd*dt;
+    /* كانت الخطوةُ إمّا أن تمرَّ كاملةً أو لا تكون، فمن دفع نحو حافّةٍ
+       مائلةٍ تجمّد في مكانه: جرّبتُ المشيَ إلى أربع كلماتٍ ستًّا وعشرين
+       ثانيةً لكلٍّ منها فما بلغتُ واحدةً — تقف يارا عند طرف الجزيرة ولا
+       تتزحزح. فصارت الخطوةُ تُجرَّب كاملةً، فإن مُنعت جُرِّب شقُّها في
+       المحور الأوّل ثمّ في الثاني — فتنزلق على الحافّة حتى تجد فمَ
+       الجسر بدل أن تلتصق به. */
+    if(groundAt(px+sx,pz+sz,PAD)){ shamoosa.position.x=px+sx; shamoosa.position.z=pz+sz; }
+    else if(groundAt(px+sx,pz,PAD)){ shamoosa.position.x=px+sx; }
+    else if(groundAt(px,pz+sz,PAD)){ shamoosa.position.z=pz+sz; }
+    else if(!groundAt(px,pz,PAD)){
       /* نسمة تعيدها بلطف بدل السقوط */
-      shamoosa.position.x-=dx*spd*dt*1.4; shamoosa.position.z-=dz*spd*dt*1.4;
+      shamoosa.position.x-=sx*1.4; shamoosa.position.z-=sz*1.4;
     }
     var tr=Math.atan2(dx,dz), da=tr-shamoosa.rotation.y;
     while(da>Math.PI) da-=Math.PI*2;
@@ -1954,7 +1994,7 @@ updates.push(function(t,dt){
     shamoosa.rotation.y+=da*0.2;
   }
   /* الجاذبية والقفز */
-  var gr=groundAt(shamoosa.position.x,shamoosa.position.z);
+  var gr=groundAt(shamoosa.position.x,shamoosa.position.z,0.42);
   var gy=gr?gr.y:shamoosa.position.y;
   if((keys.Space||touchBtn.j)&&P.onGround){ P.vy=6.4; P.onGround=false; SFX('click'); }
   P.vy-=17*dt; shamoosa.position.y+=P.vy*dt;
@@ -2034,6 +2074,57 @@ function dirWord(dx,dz){
              'خلفَكم','خلفَكم إلى اليسار','إلى يسارِكم','إلى يسارِكم قليلًا'];
   return names[Math.round(a/45)%8];
 }
+/* ---------- دليلُ الطريق بين الجزر --------------------------------
+   كان التلميحُ يقول «أقربُ كلمةٍ إلى يمينكم على بُعد سبعٍ وعشرين خطوة»
+   والكلمةُ على جزيرةٍ أخرى وراء الفراغ. فيمشي الطفلُ في الاتّجاه الذي
+   قيل له حتى يقف عند حافّة جزيرته ولا يفهم لماذا لا يتقدّم — جرّبتُها
+   بنفسي: ستٌّ وعشرون ثانيةً نحو أربع كلماتٍ فما بلغتُ واحدةً.
+   فصار الدليلُ يعرف الجسورَ: إن كانت الكلمةُ على جزيرةٍ أخرى دلّ على
+   فمِ الجسر الذي يُخرِجك من جزيرتك إليها، لا على الكلمة عبر الهواء. */
+var NET=(function(){
+  var isleOf=function(x,z){
+    var bi=-1,bd=1e9;
+    for(var i=0;i<GROUNDS.length;i++){
+      var g=GROUNDS[i],d=Math.hypot(x-g[0],z-g[1]);
+      if(d<g[2]&&d<bd){ bd=d; bi=i; }
+    }
+    return bi;
+  };
+  var adj={};
+  WALKWAYS.forEach(function(w){
+    var a=isleOf(w[0],w[1]), b=isleOf(w[2],w[3]);
+    if(a<0||b<0||a===b) return;                 /* ممرٌّ داخلَ جزيرةٍ واحدة */
+    /* لكلِّ جسرٍ فمان: الذي عندنا والذي يقابله. ولا بدّ من حفظهما معًا،
+       وإلّا وقفنا عند الفم ندور حولَه ولا نعبر. */
+    (adj[a]=adj[a]||[]).push({to:b,mouth:[w[0],w[1]],far:[w[2],w[3]]});
+    (adj[b]=adj[b]||[]).push({to:a,mouth:[w[2],w[3]],far:[w[0],w[1]]});
+  });
+  return {isleOf:isleOf, adj:adj};
+})();
+/* أقصرُ طريقٍ بعددِ الجسور، ويُعاد أوّلُ فمٍ نسلكه */
+function nextHop(fromIsle,toIsle){
+  if(fromIsle<0||toIsle<0||fromIsle===toIsle) return null;
+  var prev={}, q=[fromIsle], seen={};
+  seen[fromIsle]=1;
+  while(q.length){
+    var c=q.shift();
+    var ns=NET.adj[c]||[];
+    for(var i=0;i<ns.length;i++){
+      var n=ns[i];
+      if(seen[n.to]) continue;
+      seen[n.to]=1; prev[n.to]={from:c,mouth:n.mouth,far:n.far};
+      if(n.to===toIsle){
+        /* ارجع إلى الوراء حتى الجزيرة التي نقف عليها */
+        var cur=toIsle, hops=0;
+        while(prev[cur] && prev[cur].from!==fromIsle){ cur=prev[cur].from; hops++; }
+        if(!prev[cur]) return null;
+        return {mouth:prev[cur].mouth, far:prev[cur].far, hops:hops+1};
+      }
+      q.push(n.to);
+    }
+  }
+  return null;
+}
 function nearestOrb(){
   var best=null,bd=1e9;
   for(var i=0;orbs&&i<orbs.length;i++){
@@ -2041,6 +2132,23 @@ function nearestOrb(){
     if(d<bd){ bd=d; best=o; }
   }
   return best?{o:best,d:Math.sqrt(bd)}:null;
+}
+/* إلى أين نشير: إلى الكلمةِ إن كانت على جزيرتنا، وإلى فمِ الجسر إن لم تكن */
+function guideTo(target){
+  var px=shamoosa.position.x, pz=shamoosa.position.z;
+  var here=NET.isleOf(px,pz);
+  var there=NET.isleOf(target.x,target.z);
+  var hop=nextHop(here,there);
+  if(hop&&hop.mouth){
+    /* ما دمنا بعيدين نقصد فمَ الجسر، فإذا بلغناه قصدنا طرفَه الآخر —
+       وإلّا وقف اللاعبُ على الفم يتأرجح حولَه ولا يعبر. */
+    var dm=Math.hypot(hop.mouth[0]-px,hop.mouth[1]-pz);
+    var aim=(dm<2.2 && hop.far)?hop.far:hop.mouth;
+    return {x:aim[0], z:aim[1], bridge:true, crossing:(aim===hop.far), hops:hop.hops,
+            d:Math.hypot(aim[0]-px,aim[1]-pz)};
+  }
+  return {x:target.x, z:target.z, bridge:false, crossing:false, hops:0,
+          d:Math.hypot(target.x-px,target.z-pz)};
 }
 updates.push(function(t,dt){
   if(!G.playing) return;
@@ -2053,10 +2161,20 @@ updates.push(function(t,dt){
   if(!BUB.since) BUB.since=now;
   if(now-BUB.since>9000 && !BUB.until){
     var n=nearestOrb();
-    if(n) say('أقربُ كلمةٍ ' + dirWord(n.o.g.position.x-shamoosa.position.x,
-                                        n.o.g.position.z-shamoosa.position.z) +
-              ' على بُعدِ ' + Math.round(n.d) + ' خطوة',
-              'اتبعوا عمودَ الضوء — أنا أشيرُ إليه بذراعي 👉', 4200);
+    if(n){
+      var g=guideTo(n.o.g.position);
+      if(g.bridge && g.crossing)
+        say('أنتم على الجسر — امضوا ' + dirWord(g.x-shamoosa.position.x, g.z-shamoosa.position.z),
+            'لا تلتفتوا، الطرفُ الآخر قريب 🌉', 3600);
+      else if(g.bridge)
+        say('الكلمةُ على جزيرةٍ أخرى — الجسرُ ' + dirWord(g.x-shamoosa.position.x, g.z-shamoosa.position.z) +
+            ' على بُعدِ ' + Math.round(g.d) + ' خطوة',
+            'اعبروا الجسرَ أوّلًا، ثمّ نتبع عمودَ الضوء 👉', 4600);
+      else
+        say('أقربُ كلمةٍ ' + dirWord(g.x-shamoosa.position.x, g.z-shamoosa.position.z) +
+            ' على بُعدِ ' + Math.round(g.d) + ' خطوة',
+            'اتبعوا عمودَ الضوء — أنا أشيرُ إليه بذراعي 👉', 4200);
+    }
     else say('لا كلمةَ متبقّية هنا','انتظروا… المستوى التالي يبدأ',3000);
     BUB.since=now;
   }
@@ -2082,16 +2200,19 @@ $('btnPlay').onclick=function(){
   say('أهلًا! أنا حلا، أختُ يارا 🌸','امشوا بـ W A S D والمسوا الكرةَ المضيئة لتجمعوا كلمتَها.',5200);
   setTimeout(function(){
     var n=nearestOrb();
-    if(n) say('أوّلُ كلمةٍ ' + dirWord(n.o.g.position.x-shamoosa.position.x,
-                                        n.o.g.position.z-shamoosa.position.z),
-              'اتبعوا عمودَ الضوء الصاعدَ من الكرة', 5000);
+    if(n){
+      var g=guideTo(n.o.g.position);
+      say(g.bridge ? 'أوّلُ كلمةٍ على جزيرةٍ أخرى — الجسرُ ' + dirWord(g.x-shamoosa.position.x,g.z-shamoosa.position.z)
+                   : 'أوّلُ كلمةٍ ' + dirWord(g.x-shamoosa.position.x,g.z-shamoosa.position.z),
+          g.bridge ? 'اعبروا الجسرَ أوّلًا' : 'اتبعوا عمودَ الضوء الصاعدَ من الكرة', 5000);
+    }
   },5600);
 };
 
 /* خطّافُ الفحص: ‎?dbg=1‎ يفتح البابَ للاختبار الآليّ لا للاعبين */
 if(new URLSearchParams(location.search).get('dbg')==='1'){
   window.__spawn=spawnOrbs; window.PALM=PALM;
-  window.YARA={ G:G, HS:HS, BUB:BUB, updates:updates, HALA:HALA, yara:shamoosa, camera:camera,
+  window.YARA={ G:G, HS:HS, BUB:BUB, P:P, GROUNDS:GROUNDS, WALKWAYS:WALKWAYS, groundAt:groundAt, guideTo:guideTo, NET:NET, updates:updates, HALA:HALA, yara:shamoosa, camera:camera,
     get orbs(){ return orbs; },
     say:say, cheer:halaCheer, dance:halaDance,
     /* صندوقُ حلا وأرضُها — لمعرفة أهي فوق الأرض أم مدفونةٌ فيها */

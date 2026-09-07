@@ -47,10 +47,10 @@
     '.palm-home{position:fixed;z-index:2147483000;display:inline-flex;align-items:center;gap:.45em;' +
     'padding:7px 14px;border-radius:999px;text-decoration:none;white-space:nowrap;' +
     "font-family:'Almarai','Amiri',system-ui,sans-serif;font-size:12.5px;font-weight:700;" +
-    'color:#F5EDD8;background:rgba(54,3,4,.86);border:1px solid rgba(232,193,122,.55);' +
+    'color:#eae7e3;background:rgba(54,3,4,.86);border:1px solid rgba(200,179,154,.55);' +
     'box-shadow:0 6px 20px rgba(0,0,0,.45);backdrop-filter:blur(6px);' +
     'transition:background .2s,transform .2s,opacity .2s;opacity:.92}' +
-    '.palm-home:hover{background:rgba(140,106,63,.95);transform:translateY(-1px);opacity:1}' +
+    '.palm-home:hover{background:rgba(132,104,71,.95);transform:translateY(-1px);opacity:1}' +
     '.palm-home img{width:17px;height:17px;object-fit:contain}' +
     '.palm-home.tl{top:12px;left:12px}.palm-home.tr{top:12px;right:12px}' +
     '.palm-home.bl{bottom:12px;left:12px}.palm-home.br{bottom:12px;right:12px}' +

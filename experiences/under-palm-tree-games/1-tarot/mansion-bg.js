@@ -30,14 +30,14 @@ addEventListener('resize', () => {
 });
 
 scene.add(new THREE.AmbientLight(0xd4c5a9, 1.9));
-const keyLight = new THREE.DirectionalLight(0xffe0b0, 1.3);
+const keyLight = new THREE.DirectionalLight(0xe0d8cf, 1.3);
 keyLight.position.set(10, 20, 20);
 scene.add(keyLight);
 const rimLight = new THREE.PointLight(0x8b1a3a, 2.5, 60);
 rimLight.position.set(-10, 5, -40);
 scene.add(rimLight);
 // إضاءة متحركة تتبع اللاعب — الردهة عميقة والضباب البعيد يبلعها بدونها
-const torch = new THREE.PointLight(0xffcf9e, 1.4, 14);
+const torch = new THREE.PointLight(0xddcfc0, 1.4, 14);
 scene.add(torch);
 
 const loader = new GLTFLoader();

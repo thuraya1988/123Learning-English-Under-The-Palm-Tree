@@ -95,8 +95,8 @@ function sunAngles(){
   const a = (timeOfDay - 0.25) * Math.PI * 2;
   return { el:Math.sin(a), x:Math.cos(a) };
 }
-const skyDay = new THREE.Color(0x8fb8d8), skyDusk = new THREE.Color(0xe8a05c), skyNight = new THREE.Color(0x0c1424);
-const fogDay = new THREE.Color(0xe8d9b8), fogDusk = new THREE.Color(0xd8a878), fogNight = new THREE.Color(0x141c28);
+const skyDay = new THREE.Color(0x8fb8d8), skyDusk = new THREE.Color(0xbea486), skyNight = new THREE.Color(0x0c1424);
+const fogDay = new THREE.Color(0xe8d9b8), fogDusk = new THREE.Color(0xc2aa8e), fogNight = new THREE.Color(0x141c28);
 function daylight(){ return Math.max(0, Math.min(1, sunAngles().el*2.4 + 0.12)); }
 
 /* ═══════════════════ TERRAIN ═══════════════════ */
@@ -143,7 +143,7 @@ function moistureAt(x, z){
 function recolorTerrain(){
   const pos = terrGeo.attributes.position, col = terrGeo.attributes.color, nrm = terrGeo.attributes.normal;
   const c = new THREE.Color(), sand = new THREE.Color(0xc9a86a), rock = new THREE.Color(0x8a7a66),
-        green = new THREE.Color(0x5d7f38), pale = new THREE.Color(0xd6c290);
+        green = new THREE.Color(0x5d7f38), pale = new THREE.Color(0xcab59c);
   for (let i=0;i<pos.count;i++){
     const x = pos.getX(i), z = pos.getZ(i), y = pos.getY(i);
     const slope = 1 - nrm.getY(i);
@@ -222,7 +222,7 @@ trunkInst.castShadow = frondInst.castShadow = true;
       frondInst.setMatrixAt(i*7+f, dm.matrix);
     }
     const sick = pd.health < 50;
-    tint.set(sick ? 0xb3a048 : 0x3f7a34);
+    tint.set(sick ? 0xa38058 : 0x3f7a34);
     for (let f=0; f<7; f++) frondInst.setColorAt(i*7+f, tint);
   });
   frondInst.instanceColor.needsUpdate = true;
@@ -230,7 +230,7 @@ trunkInst.castShadow = frondInst.castShadow = true;
 scene.add(trunkInst, frondInst);
 function updatePalmTint(i){
   const pd = palmDefs[i]; const tint = new THREE.Color();
-  tint.set(0xb3a048).lerp(new THREE.Color(0x3f7a34), Math.max(0, Math.min(1, (pd.health-30)/60)));
+  tint.set(0xa38058).lerp(new THREE.Color(0x3f7a34), Math.max(0, Math.min(1, (pd.health-30)/60)));
   for (let f=0; f<7; f++) frondInst.setColorAt(i*7+f, tint);
   frondInst.instanceColor.needsUpdate = true;
 }
@@ -250,7 +250,7 @@ acTrunkInst.castShadow = acCrownInst.castShadow = true;
     dm.updateMatrix();
     acTrunkInst.setMatrixAt(i, dm.matrix); acCrownInst.setMatrixAt(i, dm.matrix);
     const zn = zoneAt(ad.x, ad.z);
-    tint.set(0x8a8a4a).lerp(new THREE.Color(0x4a7a34), (zn?zn.health:40)/100);
+    tint.set(0x8a6c4a).lerp(new THREE.Color(0x4a7a34), (zn?zn.health:40)/100);
     acCrownInst.setColorAt(i, tint);
   });
   acCrownInst.instanceColor.needsUpdate = true;
@@ -286,7 +286,7 @@ const grassRec = [], shrubRec = [];
 scene.add(grassInst, shrubInst);
 const dummyV = new THREE.Object3D();
 const tintC = new THREE.Color();
-const dryC = new THREE.Color(0xb3a36a), greenC = new THREE.Color(0x6f8f3f), shrubDry = new THREE.Color(0x9a8f5a), shrubGreen = new THREE.Color(0x557a36);
+const dryC = new THREE.Color(0xb0916d), greenC = new THREE.Color(0x6f8f3f), shrubDry = new THREE.Color(0x9a8f5a), shrubGreen = new THREE.Color(0x557a36);
 function refreshVeg(zIdx){
   grassRec.forEach((r, i) => {
     if (r.zn !== zIdx && zIdx >= 0) return;
@@ -391,9 +391,9 @@ function chips(g,s,n,metal,oxide){
   }
 }
 function paintOrange(g,s){
-  g.fillStyle = '#d4701f'; g.fillRect(0,0,s,s);
-  mottle(g,s,26,50,150,['#e8892f','#a34e12','#ef9a42','#8a4210'],0.10,0.22);
-  speckle(g,s,7000,['#dd7c26','#b25814','#ef9a42','#954a10','#cf6c1c'],0.05,0.14,1,2.2);
+  g.fillStyle = '#9e7c55'; g.fillRect(0,0,s,s);
+  mottle(g,s,26,50,150,['#ae8e69','#a34e12','#b79b7a','#8a4210'],0.10,0.22);
+  speckle(g,s,7000,['#a7845c','#816545','#b79b7a','#6b543a','#997852'],0.05,0.14,1,2.2);
   scratches(g,s,60,'rgba(230,220,204,1)',0.10,0.34,8,46,1);
   scratches(g,s,26,'rgba(60,32,14,1)',0.10,0.26,6,34,1);
   chips(g,s,56,'rgba(172,164,150,0.95)','rgba(128,86,46,0.9)');
@@ -418,18 +418,18 @@ const texRubber = canvasTexture(256, paintRubber);
 const vmats = [];
 function vmat(opts){ const m = new THREE.MeshStandardMaterial(opts); m.envMapIntensity = 0.5; vmats.push(m); return m; }
 const matBody   = vmat({ map:texOrange, bumpMap:texOrange, bumpScale:0.05, roughness:0.55, metalness:0.3 });
-const matHub    = vmat({ map:texOrange, bumpMap:texOrange, bumpScale:0.04, roughness:0.5, metalness:0.3, color:0xffd9b0 });
+const matHub    = vmat({ map:texOrange, bumpMap:texOrange, bumpScale:0.04, roughness:0.5, metalness:0.3, color:0xe0d8cf });
 const matTire   = vmat({ map:texRubber, bumpMap:texRubber, bumpScale:0.08, roughness:0.96, metalness:0 });
 const matMud    = vmat({ map:texRust, bumpMap:texRust, bumpScale:0.12, roughness:0.95, metalness:0.2 });
 const matSteel  = vmat({ color:0x4a4e52, roughness:0.45, metalness:0.65 });
 const matDark   = vmat({ color:0x26282a, roughness:0.9, metalness:0.2 });
 const matSeat   = vmat({ color:0x3f7a3a, roughness:0.9, metalness:0 });
 const matStripe = vmat({ color:0x2c5a2c, roughness:0.6, metalness:0.2 });
-const matTank   = vmat({ map:texOrange, bumpMap:texOrange, bumpScale:0.04, roughness:0.5, metalness:0.35, color:0xf5c890 });
-const matAmber  = vmat({ color:0xffb020, emissive:0xffa030, emissiveIntensity:0.9, roughness:0.4 });
+const matTank   = vmat({ map:texOrange, bumpMap:texOrange, bumpScale:0.04, roughness:0.5, metalness:0.35, color:0xd5c4b0 });
+const matAmber  = vmat({ color:0xb1926e, emissive:0xb79a78, emissiveIntensity:0.9, roughness:0.4 });
 const matEco    = vmat({ color:0x6fae62, roughness:0.45, metalness:0.25 });
 const matRedL   = vmat({ color:0xc02818, emissive:0xd02020, emissiveIntensity:0.7, roughness:0.4 });
-const matLens   = vmat({ color:0xfff2c8, emissive:0xc8a850, emissiveIntensity:0.9, roughness:0.3 });
+const matLens   = vmat({ color:0xe9e4de, emissive:0xaf8e6a, emissiveIntensity:0.9, roughness:0.3 });
 
 const veh = new THREE.Group();
 veh.name = 'RangerTractor';
@@ -666,8 +666,8 @@ addBox(1.3, 0.7, 0.8, matEco, 0,1.15,0, 0,0,0, wasteBin);
 addBox(1.2, 0.08, 0.7, matDark, 0,1.52,0, 0,0,0, wasteBin);
 
 /* headlights */
-const headL = new THREE.SpotLight(0xffe9b0, 0, 40, 0.5, 0.55, 1.4);
-const headR = new THREE.SpotLight(0xffe9b0, 0, 40, 0.5, 0.55, 1.4);
+const headL = new THREE.SpotLight(0xe0d8cf, 0, 40, 0.5, 0.55, 1.4);
+const headR = new THREE.SpotLight(0xe0d8cf, 0, 40, 0.5, 0.55, 1.4);
 headL.position.set(-0.3,1.2,1.8); headR.position.set(0.3,1.2,1.8);
 const headTgt = new THREE.Object3D(); headTgt.position.set(0, 0, 16);
 veh.add(headL, headR, headTgt);
@@ -724,7 +724,7 @@ function makeGauge(x, label){
   face.position.set(x, 1.18, 0.34); face.rotation.set(-1.15, Math.PI, 0);
   cockpit.add(face);
   const needle = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.05, 0.004),
-    new THREE.MeshBasicMaterial({ color:0xe8b23a }));
+    new THREE.MeshBasicMaterial({ color:0xb29370 }));
   needle.position.set(x, 1.185, 0.345);
   needle.rotation.x = -1.15;
   cockpit.add(needle);
@@ -753,12 +753,12 @@ function makeButton(x, z, color, label, action){
 }
 makeButton(-0.16, 0.42, 0x6fae62, 'SCAN', 'scan');
 makeButton(-0.02, 0.42, 0x4a8ab0, 'TRACK', 'track');
-makeButton(0.12, 0.42, 0xe8b23a, 'ARM', 'arm');
+makeButton(0.12, 0.42, 0xb29370, 'ARM', 'arm');
 makeButton(-0.16, 0.3, 0x4aa0c8, 'WATER', 'water');
 makeButton(-0.02, 0.3, 0x8ac860, 'ECO', 'eco');
-makeButton(0.12, 0.3, 0xc8a04a, 'PLANT', 'plant');
+makeButton(0.12, 0.3, 0xac8b66, 'PLANT', 'plant');
 const warnLight = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8),
-  new THREE.MeshStandardMaterial({ color:0xe8b23a, emissive:0xe8b23a, emissiveIntensity:0 }));
+  new THREE.MeshStandardMaterial({ color:0xb29370, emissive:0xb29370, emissiveIntensity:0 }));
 warnLight.position.set(0.3, 1.7, 0.55);
 cockpit.add(warnLight);
 /* cockpit camera rig anchored at the driver's seat, looking forward over the hood */
@@ -1739,7 +1739,7 @@ function drawMap(){
     if (!fogGrid[j*64+i]) g.fillRect(i/64*220, j/64*220, 220/64+0.5, 220/64+0.5);
   }
   for (const zn of zones){
-    g.strokeStyle = 'rgba(232,178,58,0.5)';
+    g.strokeStyle = 'rgba(178,147,112,0.5)';
     g.beginPath();
     g.arc((zn.cx/800+0.5)*220, (zn.cz/800+0.5)*220, zn.r/800*220, 0, 6.29);
     g.stroke();
@@ -1747,7 +1747,7 @@ function drawMap(){
   const vx = (veh.position.x/800+0.5)*220, vy = (veh.position.z/800+0.5)*220;
   g.save();
   g.translate(vx, vy); g.rotate(-heading);
-  g.fillStyle = '#ffe08a';
+  g.fillStyle = '#d6c6b3';
   g.beginPath(); g.moveTo(0,-6); g.lineTo(4,5); g.lineTo(-4,5); g.closePath(); g.fill();
   g.restore();
   scrMap.tx.needsUpdate = true;
@@ -1775,7 +1775,7 @@ function drawMainScreen(){
       if (d < bd){ bd = d; best = ts; }
     }
     if (best){
-      g.fillStyle = '#ffe08a';
+      g.fillStyle = '#d6c6b3';
       g.fillText(bd < 28 ? `TRACK DETECTED · ${SPECIES[best.sp].name.toUpperCase()} NEARBY` :
         `TRACK DETECTED · ${bd.toFixed(0)}m · ${SPECIES[best.sp].name.split(' ')[1]||'SIGN'}`, 12, 168);
     }
@@ -1785,7 +1785,7 @@ function drawMainScreen(){
 function drawMissionScreen(){
   const g = scrMission.g;
   g.fillStyle = '#101810'; g.fillRect(0,0,420,96);
-  g.fillStyle = '#e8b23a'; g.font = '700 13px Chakra Petch';
+  g.fillStyle = '#b29370'; g.font = '700 13px Chakra Petch';
   g.fillText(`MISSION ${level} · ${mission.title}`, 12, 24);
   g.fillStyle = '#cfe0a8'; g.font = '11px Chakra Petch';
   const words = mission.hint.split(' ');
@@ -1878,7 +1878,7 @@ function updateDayNight(dt){
   if (d > 0.55){ skyC = skyDay; fogC = fogDay; }
   else if (d > 0.2){ const t = (d-0.2)/0.35; skyC = skyNight.clone().lerp(skyDusk, t).lerp(skyDay, Math.max(0,t-0.5)*2); fogC = fogNight.clone().lerp(fogDusk, t); }
   else { skyC = skyNight; fogC = fogNight; }
-  if (weather === 'DUSTY'){ fogC = fogC.clone().lerp(new THREE.Color(0xd8b878), 0.5); }
+  if (weather === 'DUSTY'){ fogC = fogC.clone().lerp(new THREE.Color(0xc2aa8e), 0.5); }
   if (weather === 'RAINY'){ skyC = skyC.clone().lerp(new THREE.Color(0x8a98a0), 0.4); fogC = fogC.clone().lerp(new THREE.Color(0x9aa8a8), 0.4); }
   scene.background = skyC;
   scene.fog.color.copy(fogC);

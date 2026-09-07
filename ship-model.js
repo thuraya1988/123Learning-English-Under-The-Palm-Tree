@@ -70,7 +70,7 @@ export const NEON_LIVERIES = {
   classic: { name: 'كلاسيكي', color: 0x0b0d10, opacity: 0.55, glow: false },
   cyan: { name: 'نيون سماوي', color: 0x5ee6ff, opacity: 0.95, glow: true },
   magenta: { name: 'نيون وردي', color: 0xff4fd8, opacity: 0.95, glow: true },
-  amber: { name: 'نيون كهرماني', color: 0xffb347, opacity: 0.95, glow: true },
+  amber: { name: 'نيون كهرماني', color: 0xbfa587, opacity: 0.95, glow: true },
   green: { name: 'نيون أخضر', color: 0x6bff9e, opacity: 0.95, glow: true },
 };
 function makeNeonEdgeMat(liveryKey) {
@@ -90,7 +90,7 @@ function attachChaseLights(group) {
   const chaseFill = new THREE.PointLight(0xcfe0ff, 2.4, 16, 2);
   chaseFill.position.set(0, 2.4, 5);
   group.add(chaseFill);
-  const bellyFill = new THREE.PointLight(0xffe9c9, 1, 12, 2);
+  const bellyFill = new THREE.PointLight(0xeae4de, 1, 12, 2);
   bellyFill.position.set(0, -1.6, -3);
   group.add(bellyFill);
 }
@@ -105,7 +105,7 @@ export function buildShip(liveryKey) {
 
   const hullMat = new THREE.MeshStandardMaterial({ color: 0x8a94a3, roughness: 0.48, metalness: 0.55, flatShading: true });
   const darkMat = new THREE.MeshStandardMaterial({ color: 0x22262c, roughness: 0.55, metalness: 0.55, flatShading: true });
-  const canopyMat = new THREE.MeshPhysicalMaterial({ color: 0xf7c96b, metalness: 0.2, roughness: 0.08, transparent: true, opacity: 0.42, clearcoat: 1, side: THREE.DoubleSide });
+  const canopyMat = new THREE.MeshPhysicalMaterial({ color: 0xc8b39a, metalness: 0.2, roughness: 0.08, transparent: true, opacity: 0.42, clearcoat: 1, side: THREE.DoubleSide });
   const nozzleMat = new THREE.MeshStandardMaterial({ color: 0x34393f, metalness: 0.85, roughness: 0.4, side: THREE.DoubleSide });
 
   attachChaseLights(group);
@@ -214,12 +214,12 @@ export function buildShip(liveryKey) {
 
   /* afterburner flame + glow, in un-scaled group space so per-frame
      flicker/scale logic elsewhere keeps working */
-  const exhaustMat = new THREE.MeshBasicMaterial({ color: 0xff9a50, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
+  const exhaustMat = new THREE.MeshBasicMaterial({ color: 0xc2a98d, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
   const flame = new THREE.Mesh(new THREE.ConeGeometry(0.24, 1.1, 10), exhaustMat);
   flame.rotation.x = -Math.PI / 2;
   flame.position.z = 7.62 * SHIP_SCALE + 0.55;
   group.add(flame);
-  const glowSprite = makeGlowSprite(0xffb877, 0.65);
+  const glowSprite = makeGlowSprite(0xcfbca7, 0.65);
   glowSprite.material.opacity = 0.6;
   glowSprite.position.z = 7.62 * SHIP_SCALE + 0.25;
   group.add(glowSprite);

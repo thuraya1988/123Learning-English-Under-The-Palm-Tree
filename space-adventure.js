@@ -144,19 +144,19 @@ function buildMoon() {
    milestone spawns, so it isn't always the same yellow ball */
 const STAR_COLORS = [
   { core: 0xfff6e8, glow: 0xfff2d0, name: 'white' },
-  { core: 0xffe066, glow: 0xffcf6b, name: 'yellow' },
-  { core: 0xff9d4d, glow: 0xff8a3d, name: 'orange' },
+  { core: 0xc9b49c, glow: 0xcbb69f, name: 'yellow' },
+  { core: 0xc1a88b, glow: 0xff8a3d, name: 'orange' },
 ];
 function buildSun() {
   const g = new THREE.Group();
-  const sun = new THREE.Mesh(new THREE.SphereGeometry(20, 24, 18), new THREE.MeshBasicMaterial({ color: 0xffcf6b }));
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(20, 24, 18), new THREE.MeshBasicMaterial({ color: 0xcbb69f }));
   g.add(sun);
-  const corona1 = makeGlowSprite(0xffb347, 70);
+  const corona1 = makeGlowSprite(0xbfa587, 70);
   g.add(corona1);
-  const corona2 = makeGlowSprite(0xffb347, 110);
+  const corona2 = makeGlowSprite(0xbfa587, 110);
   corona2.material.opacity = 0.35;
   g.add(corona2);
-  const corona3 = makeGlowSprite(0xffb347, 150);
+  const corona3 = makeGlowSprite(0xbfa587, 150);
   corona3.material.opacity = 0.16;
   g.add(corona3);
   g.userData.sunMesh = sun;
@@ -362,7 +362,7 @@ function buildEridFlareTexture() {
   const ctx = c.getContext('2d');
   const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
   grad.addColorStop(0, 'rgba(255,255,220,1.0)');
-  grad.addColorStop(0.1, 'rgba(255,200,100,0.8)');
+  grad.addColorStop(0.1, 'rgba(201,179,154,0.8)');
   grad.addColorStop(0.3, 'rgba(255,100,30,0.4)');
   grad.addColorStop(0.6, 'rgba(200,50,10,0.15)');
   grad.addColorStop(1, 'rgba(100,20,0,0)');
@@ -562,7 +562,7 @@ function buildBlackHole() {
   const g = new THREE.Group();
   const core = new THREE.Mesh(new THREE.SphereGeometry(2.2, 24, 18), new THREE.MeshBasicMaterial({ color: 0x000000 }));
   g.add(core);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(3.1, 0.28, 10, 40), new THREE.MeshBasicMaterial({ color: 0xffb060, transparent: true, opacity: 0.85 }));
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(3.1, 0.28, 10, 40), new THREE.MeshBasicMaterial({ color: 0xc7b198, transparent: true, opacity: 0.85 }));
   ring.rotation.x = Math.PI / 2.4;
   g.add(ring);
   const glow = makeGlowSprite(0x8b5cf6, 10);
@@ -1049,7 +1049,7 @@ function updateStaticZone(dt, moveZ) {
       sp.visible = false;
       g.userData.junkRemaining--;
       $('#staticJunkCount').textContent = g.userData.junkRemaining;
-      spawnBurst(worldPos, 0xffd166);
+      spawnBurst(worldPos, 0xc9b49c);
       playTone(320, 0.15, 'triangle');
       gs.score += 30;
       if (g.userData.junkRemaining <= 0) {
@@ -1266,7 +1266,7 @@ function updateNebulaCloud(dt, moveZ) {
    Gargantua for that. */
 const DEBRIS_SHARD_MATS = [
   new THREE.MeshStandardMaterial({ color: 0xdfe4ff, metalness: 1.0, roughness: 0.2, flatShading: true }),
-  new THREE.MeshStandardMaterial({ color: 0xffc86b, metalness: 1.0, roughness: 0.28, flatShading: true }),
+  new THREE.MeshStandardMaterial({ color: 0xcbb69f, metalness: 1.0, roughness: 0.28, flatShading: true }),
   new THREE.MeshStandardMaterial({ color: 0x14161c, metalness: 0.5, roughness: 0.25, flatShading: true }),
 ];
 const DEBRIS_SHARD_GEOS = [
@@ -1538,7 +1538,7 @@ function buildLaunchPad() {
   const pad = new THREE.Mesh(new THREE.CylinderGeometry(6, 6.6, 0.6, 24), padMat);
   pad.position.set(0, LAUNCH_GROUND_Y - 1.6, 0);
   g.add(pad);
-  const ringMat = new THREE.MeshBasicMaterial({ color: 0xffb877, transparent: true, opacity: 0.75 });
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xcfbca7, transparent: true, opacity: 0.75 });
   const ring = new THREE.Mesh(new THREE.RingGeometry(3.2, 3.5, 32), ringMat);
   ring.rotation.x = -Math.PI / 2;
   ring.position.set(0, LAUNCH_GROUND_Y - 1.28, 0);
@@ -1997,7 +1997,7 @@ function updateLaunch(dt) {
     flame.scale.set(1, 0.3 + k * 0.5, 1);
     glow.scale.setScalar(0.6 + k * 0.4);
     ship.position.y = LAUNCH_GROUND_Y + Math.sin(t * 60) * 0.02 * k;
-    if (Math.random() < dt * 18) spawnBurst(new THREE.Vector3(ship.position.x + (Math.random() - 0.5) * 1.5, LAUNCH_GROUND_Y - 1.2, (Math.random() - 0.5) * 1.5), 0xffcf8a);
+    if (Math.random() < dt * 18) spawnBurst(new THREE.Vector3(ship.position.x + (Math.random() - 0.5) * 1.5, LAUNCH_GROUND_Y - 1.2, (Math.random() - 0.5) * 1.5), 0xd6c6b3);
     $('#launchWord').textContent = 'الإشعال… 🔥';
   } else {
     const at = Math.min(1, (t - LAUNCH_IGNITE) / (LAUNCH_DUR - LAUNCH_IGNITE));
@@ -2007,7 +2007,7 @@ function updateLaunch(dt) {
     flame.scale.set(1, (1.1 + at * 0.6) * flick, 1);
     glow.scale.setScalar(1.3 * flick);
     if (Math.random() < dt * 26) {
-      spawnBurst(new THREE.Vector3(ship.position.x + (Math.random() - 0.5) * 1.2, ship.position.y - 1.6, (Math.random() - 0.5) * 1.2), 0xffb877);
+      spawnBurst(new THREE.Vector3(ship.position.x + (Math.random() - 0.5) * 1.2, ship.position.y - 1.6, (Math.random() - 0.5) * 1.2), 0xcfbca7);
     }
     $('#launchWord').textContent = at < 1 ? 'الانطلاق! 🚀' : 'ندخل الفضاء…';
 
@@ -2079,7 +2079,7 @@ function update(dt) {
     if (d < 1.6 && gs.invuln <= 0) {
       gs.hull = Math.max(0, gs.hull - 18);
       gs.invuln = 0.8;
-      spawnBurst(a.mesh.position, 0xffb347);
+      spawnBurst(a.mesh.position, 0xbfa587);
       a.active = false;
       a.mesh.visible = false;
       playTone(140, 0.25, 'sawtooth');

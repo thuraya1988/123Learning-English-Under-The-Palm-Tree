@@ -199,9 +199,9 @@ const fbm3 = Fn(([p]) => {
 // Warm, cinematic grades — soft key light, gentle contrast, atmospheric haze.
 // ---------------------------------------------------------------------------
 const PALETTES = [
-  { name: 'Dawn',   t: 0.00, zen: 0x4a5c78, hor: 0xe8b07e, sun: 0xffe0b0, sunI: 1.05, fog: 0xd9b48e, waterDeep: 0x1c3a3e, waterShallow: 0x3d6a60, amb: 0.45, sunEl: 0.10, cloudLit: 0xf7d8b4, cloudSh: 0x9a93a4, night: 0.0 },
+  { name: 'Dawn',   t: 0.00, zen: 0x4a5c78, hor: 0xcab59c, sun: 0xe0d8cf, sunI: 1.05, fog: 0xd9b48e, waterDeep: 0x1c3a3e, waterShallow: 0x3d6a60, amb: 0.45, sunEl: 0.10, cloudLit: 0xf7d8b4, cloudSh: 0x9a93a4, night: 0.0 },
   { name: 'Day',    t: 0.30, zen: 0x6f9cc4, hor: 0xd8e2dc, sun: 0xfff3da, sunI: 1.45, fog: 0xd4dcd2, waterDeep: 0x1d4a4a, waterShallow: 0x4a8574, amb: 0.72, sunEl: 0.85, cloudLit: 0xfffaf0, cloudSh: 0xbcb6ac, night: 0.0 },
-  { name: 'Golden', t: 0.55, zen: 0x6a6f9a, hor: 0xf0b878, sun: 0xffd090, sunI: 1.3, fog: 0xe2bc90, waterDeep: 0x22464a, waterShallow: 0x4d7a68, amb: 0.55, sunEl: 0.28, cloudLit: 0xf7dcae, cloudSh: 0xa3949c, night: 0.0 },
+  { name: 'Golden', t: 0.55, zen: 0x6a6f9a, hor: 0xcbb59d, sun: 0xd8c9b7, sunI: 1.3, fog: 0xcebaa4, waterDeep: 0x22464a, waterShallow: 0x4d7a68, amb: 0.55, sunEl: 0.28, cloudLit: 0xf7dcae, cloudSh: 0xa3949c, night: 0.0 },
   { name: 'Dusk',   t: 0.75, zen: 0x3c3a5e, hor: 0xc9826a, sun: 0xffab74, sunI: 0.8, fog: 0xa37c6e, waterDeep: 0x1a333c, waterShallow: 0x3a5c58, amb: 0.36, sunEl: 0.06, cloudLit: 0xdfa08a, cloudSh: 0x645e78, night: 0.05 },
   { name: 'Night',  t: 1.00, zen: 0x0a0e1c, hor: 0x1c2438, sun: 0xd8dcff, sunI: 0.25, fog: 0x141a26, waterDeep: 0x0a181e, waterShallow: 0x1a3036, amb: 0.17, sunEl: 0.45, cloudLit: 0x3c4260, cloudSh: 0x14161f, night: 1.0 },
 ];
@@ -719,7 +719,7 @@ function buildAnimatedGate(scene) {
   const DUST_N = 70;
   const dustGeo = new THREE.SphereGeometry(0.09, 10, 8);
   const dustMat = new THREE.MeshBasicNodeMaterial({ transparent: true, opacity: 0.45, depthWrite: false });
-  dustMat.colorNode = mix(color(0xb9a37e), color(0xd9c8a4), hash(instanceIndex.add(1)));
+  dustMat.colorNode = mix(color(0xb9a37e), color(0xd2c0ab), hash(instanceIndex.add(1)));
   const dust = new THREE.InstancedMesh(dustGeo, dustMat, DUST_N);
   dust.frustumCulled = false;
   const dustP = [];
@@ -829,7 +829,7 @@ function buildVillage(scene) {
 
   // ---- ground strip (banks) ----
   const groundMat = new THREE.MeshStandardNodeMaterial({ roughness: 1.0 });
-  groundMat.colorNode = plasterColor(0xa88f6a, 0xcbb78d, 0.25);
+  groundMat.colorNode = plasterColor(0xa88f6a, 0xc5ae93, 0.25);
   const groundGeo = new THREE.PlaneGeometry(320, 80, 48, 10);
   groundGeo.rotateX(-Math.PI / 2);
   const GROUND_STEP = 72;
@@ -897,7 +897,7 @@ function buildVillage(scene) {
   })();
 
   const dateGeo = new THREE.SphereGeometry(0.22, 16, 12);
-  const dateMat = new THREE.MeshStandardNodeMaterial({ color: 0xb96a2c, roughness: 0.6 });
+  const dateMat = new THREE.MeshStandardNodeMaterial({ color: 0x957550, roughness: 0.6 });
 
   // wind sway: canopies lean + shiver with the khamaseen gust uniform
   canopyMat.positionNode = positionLocal.add(vec3(
@@ -1054,7 +1054,7 @@ function buildVillage(scene) {
     const n = fbm3(positionWorld.mul(0.8));
     const streaks = fbm3(positionWorld.mul(vec3(0.3, 2.0, 0.3)));
     const patches = fbm3(positionWorld.mul(2.6));
-    return mix(color(0xc9a877), color(0xe4cba0), n.mul(0.6).add(streaks.mul(0.25)).add(patches.mul(0.15)));
+    return mix(color(0xc9a877), color(0xd4c3b0), n.mul(0.6).add(streaks.mul(0.25)).add(patches.mul(0.15)));
   })();
   houseMat.roughnessNode = clamp(float(0.9).add(fbm3(positionWorld.mul(3.0)).mul(0.2).sub(0.1)), 0.6, 1.0);
   const doorGeo = new RoundedBoxGeometry(0.62, 1.1, 0.1, 3, 0.03);
@@ -1156,7 +1156,7 @@ function buildVillage(scene) {
   pathAt(schD, p); tangentAt(schD, t);
   const schPos = new THREE.Vector3(p.x + (-t.z) * 24, 0, p.z + t.x * 24);
   const schoolMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.9 });
-  schoolMat.colorNode = plasterColor(0xd9c9a2, 0xf0e3c0, 0.5);
+  schoolMat.colorNode = plasterColor(0xd1bfaa, 0xe0d9d0, 0.5);
   const school = new THREE.Mesh(new RoundedBoxGeometry(12, 4.5, 6, 5, 0.14), schoolMat);
   school.position.set(schPos.x, 1.85, schPos.z);
   school.rotation.y = Math.atan2(t.x, t.z);
@@ -1171,7 +1171,7 @@ function buildVillage(scene) {
   pathAt(shpD, p); tangentAt(shpD, t);
   const shopPos = new THREE.Vector3(p.x - (-t.z) * 16, 0, p.z - t.x * 16);
   const shopMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.9 });
-  shopMat.colorNode = plasterColor(0xcaa06a, 0xe8c892, 0.7);
+  shopMat.colorNode = plasterColor(0xcaa06a, 0xd1bea9, 0.7);
   const shop = new THREE.Mesh(new RoundedBoxGeometry(5.5, 3.4, 4.2, 5, 0.12), shopMat);
   shop.position.set(shopPos.x, 1.3, shopPos.z);
   shop.rotation.y = Math.atan2(t.x, t.z) + Math.PI / 2;
@@ -1621,7 +1621,7 @@ function updateTokens(dt) {
 // Dust motes drifting in the light near the camera.
 // ---------------------------------------------------------------------------
 function buildMotes(scene) {
-  motePool = makeParticlePool(scene, 60, 0xd8c9a8, 0xf0e3c0, 0.035);
+  motePool = makeParticlePool(scene, 60, 0xd3c1ad, 0xe0d9d0, 0.035);
   for (const pt of motePool.parts) {
     pt.life = 1e9; pt.maxLife = 1e9;   // persistent; repositioned relative to camera
     pt.s = rand(0.5, 1.4);
@@ -1651,7 +1651,7 @@ function updateMotes(dt, camPos) {
 // thrash (uWind), whoosh audio, speed surge + token magnet.
 // ---------------------------------------------------------------------------
 function buildHaze(scene) {
-  hazePool = makeParticlePool(scene, 160, 0xc99a5e, 0xe2c08a, 0.14);
+  hazePool = makeParticlePool(scene, 160, 0xc99a5e, 0xccb7a0, 0.14);
 }
 function triggerWind() {
   if (state.windActive > 0) return;
@@ -2527,7 +2527,7 @@ async function initScene() {
 
   // collection-run gameplay objects + particle pools
   buildTokens(scene);
-  burstPool = makeParticlePool(scene, 90, 0xe8a06a, 0xc76a58, 0.07);   // warm sparkles
+  burstPool = makeParticlePool(scene, 90, 0xc3ab8f, 0xc76a58, 0.07);   // warm sparkles
   splashPool = makeParticlePool(scene, 90, 0xbfd4d8, 0x8fb0b8, 0.08);  // cold splash
   sprayPool = makeParticlePool(scene, 140, 0xf2f2ea, 0xd8e2da, 0.075); // bow spray
   buildMotes(scene);

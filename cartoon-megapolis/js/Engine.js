@@ -119,7 +119,7 @@ export class Engine {
     this.scene.add(this.lights.ambient);
 
     // Directional (Sun/Moon)
-    this.lights.sun = new THREE.DirectionalLight(0xFFD4A3, 1.5);
+    this.lights.sun = new THREE.DirectionalLight(0xdfd2c3, 1.5);
     this.lights.sun.position.set(50, 100, 50);
     this.lights.sun.castShadow = this.preset.shadows;
     if (this.preset.shadows) {

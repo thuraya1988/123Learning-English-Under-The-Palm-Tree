@@ -189,7 +189,7 @@ class Game {
         this.scene.add(ambient);
         this.lights.ambient = ambient;
 
-        this.sunLight = new THREE.DirectionalLight(0xffd4a0, 1.5);
+        this.sunLight = new THREE.DirectionalLight(0xded0c1, 1.5);
         this.sunLight.position.set(50, 80, 50);
         this.sunLight.castShadow = true;
         this.sunLight.shadow.mapSize.set(4096, 4096);
@@ -209,7 +209,7 @@ class Game {
         this.scene.add(this.floodLight);
         this.lights.flood = this.floodLight;
 
-        this.rimLight = new THREE.SpotLight(0xffd700, 2, 60, Math.PI / 4, 0.5, 1);
+        this.rimLight = new THREE.SpotLight(0xa68259, 2, 60, Math.PI / 4, 0.5, 1);
         this.rimLight.position.set(0, 20, -20);
         this.rimLight.target.position.set(0, 0, 0);
         this.scene.add(this.rimLight);
@@ -217,7 +217,7 @@ class Game {
         this.lights.rim = this.rimLight;
 
         const neonPositions = [
-            { pos: [20, 3, 20], color: 0xffd700, intensity: 1.2, distance: 25 },
+            { pos: [20, 3, 20], color: 0xa68259, intensity: 1.2, distance: 25 },
             { pos: [-20, 3, 15], color: 0xff006e, intensity: 0.8, distance: 20 },
             { pos: [15, 3, -20], color: 0x00d4ff, intensity: 0.8, distance: 20 },
             { pos: [-15, 3, -15], color: 0x9d4edd, intensity: 0.6, distance: 18 },
@@ -255,7 +255,7 @@ class Game {
                 this.scene.fog.density = 0.01;
             } else {
                 this.sunLight.intensity = 1.5;
-                this.sunLight.color.setHex(0xffd4a0);
+                this.sunLight.color.setHex(0xded0c1);
                 this.scene.fog.color.setHex(0x0a0a0f);
                 this.scene.fog.density = 0.006;
             }
@@ -322,7 +322,7 @@ class Game {
         groundGeo.computeVertexNormals();
 
         const groundMat = new THREE.MeshStandardMaterial({
-            color: 0xc2b280, roughness: 0.95, metalness: 0.0, envMapIntensity: 0.5,
+            color: 0xbda385, roughness: 0.95, metalness: 0.0, envMapIntensity: 0.5,
         });
         const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
@@ -380,7 +380,7 @@ class Game {
     createPalmTreeModel() {
         const group = new THREE.Group();
         const trunkGeo = new THREE.CylinderGeometry(0.25, 0.45, 10, 12);
-        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8b6914, roughness: 0.85, metalness: 0.05 });
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x675138, roughness: 0.85, metalness: 0.05 });
         const trunk = new THREE.Mesh(trunkGeo, trunkMat);
         trunk.position.y = 5;
         trunk.castShadow = true;
@@ -388,7 +388,7 @@ class Game {
 
         for (let r = 0; r < 8; r++) {
             const ringGeo = new THREE.TorusGeometry(0.35 + Math.random() * 0.05, 0.02, 4, 12);
-            const ringMat = new THREE.MeshStandardMaterial({ color: 0x6b4f14, roughness: 0.9 });
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0x53412c, roughness: 0.9 });
             const ring = new THREE.Mesh(ringGeo, ringMat);
             ring.position.y = 1 + r * 1.1;
             ring.rotation.x = Math.PI / 2;
@@ -500,9 +500,9 @@ class Game {
         const houses = [
             { x: -40, z: 15, color: 0xe8d4b8, size: [8, 5, 6] },
             { x: -35, z: 30, color: 0xd4c4a8, size: [7, 4.5, 5] },
-            { x: -50, z: 25, color: 0xc8b898, size: [9, 5.5, 7] },
+            { x: -50, z: 25, color: 0xc8b298, size: [9, 5.5, 7] },
             { x: 50, z: -15, color: 0xe0d0b0, size: [8, 5, 6] },
-            { x: 55, z: 10, color: 0xd8c8a8, size: [7, 4.5, 5] },
+            { x: 55, z: 10, color: 0xd3c1ad, size: [7, 4.5, 5] },
             { x: -30, z: -10, color: 0xe8d4b8, size: [6, 4, 5] },
         ];
 
@@ -530,14 +530,14 @@ class Game {
 
             const winGeo = new THREE.BoxGeometry(1, 1, 0.2);
             const winMat = new THREE.MeshStandardMaterial({
-                color: 0xffeebb, roughness: 0.2, metalness: 0.1,
-                emissive: 0xffeebb, emissiveIntensity: 0.3,
+                color: 0xe4ddd6, roughness: 0.2, metalness: 0.1,
+                emissive: 0xe4ddd6, emissiveIntensity: 0.3,
             });
             const win = new THREE.Mesh(winGeo, winMat);
             win.position.set(1.5, data.size[1] / 2 + 0.5, data.size[2] / 2 + 0.1);
             group.add(win);
 
-            const winLight = new THREE.PointLight(0xffeebb, 0.5, 8);
+            const winLight = new THREE.PointLight(0xe4ddd6, 0.5, 8);
             winLight.position.set(1.5, data.size[1] / 2 + 0.5, data.size[2] / 2 + 1);
             group.add(winLight);
 
@@ -591,7 +591,7 @@ class Game {
     createSchool() {
         const group = new THREE.Group();
         const buildingGeo = new THREE.BoxGeometry(18, 6, 10);
-        const buildingMat = new THREE.MeshStandardMaterial({ color: 0xf0e68c, roughness: 0.9 });
+        const buildingMat = new THREE.MeshStandardMaterial({ color: 0xd2bfab, roughness: 0.9 });
         const building = new THREE.Mesh(buildingGeo, buildingMat);
         building.position.y = 3;
         building.castShadow = true;
@@ -625,8 +625,8 @@ class Game {
 
         const signGeo = new THREE.BoxGeometry(4, 0.8, 0.2);
         const signMat = new THREE.MeshStandardMaterial({
-            color: 0xffd700, roughness: 0.4, metalness: 0.3,
-            emissive: 0xffd700, emissiveIntensity: 0.3,
+            color: 0xa68259, roughness: 0.4, metalness: 0.3,
+            emissive: 0xa68259, emissiveIntensity: 0.3,
         });
         const sign = new THREE.Mesh(signGeo, signMat);
         sign.position.set(0, 4.5, 3.1);
@@ -765,7 +765,7 @@ class Game {
         tower.castShadow = true;
         group.add(tower);
 
-        const windowColors = [0xff006e, 0x00d4ff, 0xffd700, 0x9d4edd];
+        const windowColors = [0xff006e, 0x00d4ff, 0xa68259, 0x9d4edd];
         for (let floor = 0; floor < 6; floor++) {
             for (let side = 0; side < 4; side++) {
                 const winGeo = new THREE.PlaneGeometry(1, 1.5);
@@ -784,7 +784,7 @@ class Game {
 
         const stripGeo = new THREE.BoxGeometry(8.2, 0.2, 0.2);
         const stripMat = new THREE.MeshStandardMaterial({
-            color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 3,
+            color: 0xa68259, emissive: 0xa68259, emissiveIntensity: 3,
         });
         for (let i = 0; i < 5; i++) {
             const strip = new THREE.Mesh(stripGeo, stripMat);
@@ -825,7 +825,7 @@ class Game {
 
         const coreGeo = new THREE.IcosahedronGeometry(0.8, 1);
         const coreMat = new THREE.MeshStandardMaterial({
-            color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 2,
+            color: 0xa68259, emissive: 0xa68259, emissiveIntensity: 2,
         });
         const core = new THREE.Mesh(coreGeo, coreMat);
         core.position.y = 6;
@@ -864,7 +864,7 @@ class Game {
 
         const ring1Geo = new THREE.TorusGeometry(3.5, 0.05, 8, 32);
         const ring1Mat = new THREE.MeshStandardMaterial({
-            color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 2,
+            color: 0xa68259, emissive: 0xa68259, emissiveIntensity: 2,
         });
         this.spiderRing1 = new THREE.Mesh(ring1Geo, ring1Mat);
         this.spiderRing1.position.y = 6;
@@ -889,7 +889,7 @@ class Game {
     }
 
     createNeonGridFloor() {
-        const gridHelper = new THREE.GridHelper(400, 80, 0xffd700, 0x1a1a2e);
+        const gridHelper = new THREE.GridHelper(400, 80, 0xa68259, 0x1a1a2e);
         gridHelper.position.y = 0.05;
         gridHelper.material.opacity = 0.15;
         gridHelper.material.transparent = true;

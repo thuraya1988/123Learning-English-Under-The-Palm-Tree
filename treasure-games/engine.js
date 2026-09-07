@@ -27,8 +27,8 @@ const WORLDS = [
   {
     n: "صحراء الأسرار",
     i: "🏜️",
-    sky: ["#ffd89b", "#ff9957"],
-    top: "#efc16f",
+    sky: ["#dccebe", "#ff9957"],
+    top: "#c7b197",
     body: "#9e6631",
     enemy: "🦂",
   },
@@ -516,7 +516,7 @@ function makeLastLight() {
     ty: innerHeight * 0.55,
   };
   g.moons = [
-    { a: 0, d: 75, x: 0, y: 0, c: "#ffd98a" },
+    { a: 0, d: 75, x: 0, y: 0, c: "#d6c6b3" },
     { a: Math.PI, d: 125, x: 0, y: 0, c: "#8be9ff" },
   ];
   g.drops = [];
@@ -987,7 +987,7 @@ function drawLastLight() {
   const s = G.sun,
     g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 75);
   g.addColorStop(0, "#fffce5");
-  g.addColorStop(0.25, "#ffd27d");
+  g.addColorStop(0.25, "#d2bfab");
   g.addColorStop(1, "#ff9d4d00");
   ctx.fillStyle = g;
   ctx.beginPath();
@@ -998,7 +998,7 @@ function drawLastLight() {
   ctx.arc(s.x, s.y, 16, 0, 7);
   ctx.fill();
   if (G.meter >= 1) {
-    ctx.strokeStyle = "#ffd98a";
+    ctx.strokeStyle = "#d6c6b3";
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(s.x, s.y, 28 + Math.sin(G.t * 6) * 4, 0, 7);

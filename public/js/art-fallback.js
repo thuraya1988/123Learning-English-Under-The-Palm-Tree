@@ -18,11 +18,11 @@
   window.__palmArtFallback = true;
 
   var PALETTES = [
-    ['#0f2027', '#2c5364', '#f4d06f'],   // night sea
+    ['#0f2027', '#2c5364', '#c9b39a'],   // night sea
     ['#3a1c71', '#d76d77', '#ffaf7b'],   // sunset
-    ['#134e5e', '#71b280', '#f3f9a7'],   // oasis
-    ['#42275a', '#734b6d', '#e8c24a'],   // dusk
-    ['#1a2a6c', '#b21f1f', '#fdbb2d']    // desert fire
+    ['#134e5e', '#71b280', '#ded1c2'],   // oasis
+    ['#42275a', '#734b6d', '#b89b7a'],   // dusk
+    ['#1a2a6c', '#b21f1f', '#b59775']    // desert fire
   ];
 
   function pick(seed) {

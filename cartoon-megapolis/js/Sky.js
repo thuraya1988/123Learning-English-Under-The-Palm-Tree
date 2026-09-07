@@ -74,7 +74,7 @@ export class SkySystem {
 
     // Sun/Moon mesh
     const sunGeo = new THREE.SphereGeometry(8, 16, 16);
-    const sunMat = new THREE.MeshBasicMaterial({ color: 0xFFD4A3, fog: false });
+    const sunMat = new THREE.MeshBasicMaterial({ color: 0xdfd2c3, fog: false });
     this.sunMesh = new THREE.Mesh(sunGeo, sunMat);
     this.scene.add(this.sunMesh);
   }
@@ -96,7 +96,7 @@ export class SkySystem {
       this.sunMesh.material.color.setHex(0xFF6B4A);
       this.sunMesh.scale.setScalar(1.2);
     } else {
-      this.sunMesh.material.color.setHex(0xFFD4A3);
+      this.sunMesh.material.color.setHex(0xdfd2c3);
       this.sunMesh.scale.setScalar(1.0);
     }
 

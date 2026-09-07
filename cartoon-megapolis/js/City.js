@@ -137,7 +137,7 @@ export class City {
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const lit = Math.random() < 0.32;
-        ctx.fillStyle = lit ? 'rgba(255,222,150,0.95)' : 'rgba(0,0,0,0.5)';
+        ctx.fillStyle = lit ? 'rgba(218,204,187,0.95)' : 'rgba(0,0,0,0.5)';
         ctx.fillRect(c * cw + padX, r * ch + padY, cw - padX * 2, ch - padY * 2);
       }
     }
@@ -217,7 +217,7 @@ export class City {
   _generateWindows() {
     const winGeo = new THREE.PlaneGeometry(0.8, 1.2);
     const winMat = new THREE.MeshBasicMaterial({ 
-      color: 0xFFE4A0, side: THREE.DoubleSide, transparent: true, opacity: 0.8 
+      color: 0xded0c1, side: THREE.DoubleSide, transparent: true, opacity: 0.8 
     });
     const winCount = Math.min(this.rooftops.length * 4, 2000);
     const winMesh = new THREE.InstancedMesh(winGeo, winMat, winCount);
@@ -331,7 +331,7 @@ export class City {
     const poleGeo = new THREE.CylinderGeometry(0.15, 0.2, 8);
     const poleMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.5, roughness: 0.5 });
     const lightGeo = new THREE.SphereGeometry(0.5);
-    const lightMat = new THREE.MeshBasicMaterial({ color: 0xFFE4B5 });
+    const lightMat = new THREE.MeshBasicMaterial({ color: 0xe2dbd2 });
 
     const maxProps = this.preset.instanceCount.props;
     const poleCount = Math.min(200, maxProps / 2);
@@ -352,7 +352,7 @@ export class City {
 
       // Point light for night
       if (this.preset.quality !== 'low') {
-        const pl = new THREE.PointLight(0xFFE4B5, 0.5, 20);
+        const pl = new THREE.PointLight(0xe2dbd2, 0.5, 20);
         pl.position.set(x, 8, z);
         this.scene.add(pl);
       }
@@ -414,7 +414,7 @@ export class City {
 
   _generateCars() {
     if (!this._carShellGeo) this._buildCarGeometries();
-    const carColors = [0xCC4444, 0x44AA44, 0x4444CC, 0xCCCC44, 0xF2F2F2, 0x333333, 0xE8A23A];
+    const carColors = [0xCC4444, 0x44AA44, 0x4444CC, 0xac8a64, 0xF2F2F2, 0x333333, 0xb29370];
     this.cars = [];
 
     for (let i = 0; i < this.preset.instanceCount.cars; i++) {

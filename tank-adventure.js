@@ -164,7 +164,7 @@ function buildCrate() {
   label.position.set(0, 1.55, 0.1);
   g.add(label);
 
-  const glow = makeGlowSprite(0xffe08a, 2.6);
+  const glow = makeGlowSprite(0xd6c6b3, 2.6);
   glow.position.set(0, 1.55, -0.1);
   g.add(glow);
 
@@ -271,7 +271,7 @@ function startMission() {
 
   clock = new THREE.Clock();
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xE3B36A, 20, 105);
+  scene.fog = new THREE.Fog(0xc1a88c, 20, 105);
 
   camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 300);
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -284,19 +284,19 @@ function startMission() {
     new THREE.SphereGeometry(200, 16, 16),
     new THREE.ShaderMaterial({
       side: THREE.BackSide,
-      uniforms: { top: { value: new THREE.Color(0xFBDFA0) }, bot: { value: new THREE.Color(0xE3934F) } },
+      uniforms: { top: { value: new THREE.Color(0xdccebf) }, bot: { value: new THREE.Color(0xb89b7a) } },
       vertexShader: `varying vec3 vPos; void main(){ vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `varying vec3 vPos; uniform vec3 top; uniform vec3 bot; void main(){ float h = normalize(vPos).y * 0.5 + 0.5; gl_FragColor = vec4(mix(bot, top, h), 1.0); }`,
     })
   );
   scene.add(sky);
 
-  scene.add(new THREE.HemisphereLight(0xFBDFA0, 0x8C6A3F, 0.7));
-  const sun = new THREE.DirectionalLight(0xFFE8B0, 1.3);
+  scene.add(new THREE.HemisphereLight(0xdccebf, 0x8C6A3F, 0.7));
+  const sun = new THREE.DirectionalLight(0xe0d8cf, 1.3);
   sun.position.set(-20, 30, -10);
   scene.add(sun);
 
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(140, 400), new THREE.MeshStandardMaterial({ color: 0xD9A05B, roughness: 1 }));
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(140, 400), new THREE.MeshStandardMaterial({ color: 0xb89c7c, roughness: 1 }));
   ground.rotation.x = -Math.PI / 2;
   ground.position.z = -100;
   scene.add(ground);
@@ -320,7 +320,7 @@ function startMission() {
 function buildDecorPool() {
   const items = [];
   const rockMat = new THREE.MeshStandardMaterial({ color: 0x8C6A3F, roughness: 1 });
-  const bushMat = new THREE.MeshStandardMaterial({ color: 0x6B7A3A, roughness: 1 });
+  const bushMat = new THREE.MeshStandardMaterial({ color: 0x755c3f, roughness: 1 });
   for (let i = 0; i < 20; i++) {
     const isRock = Math.random() > 0.4;
     const mesh = isRock
@@ -384,7 +384,7 @@ function nextRound() {
     c.g.visible = true;
     c.isWrong = e.isWrong;
     setLabelText(c.g.userData.label, e.text);
-    c.g.userData.glow.material.color.setHex(0xffe08a);
+    c.g.userData.glow.material.color.setHex(0xd6c6b3);
     c.g.position.set(slots[i] + (Math.random() - 0.5) * 0.4, 0, -110 - Math.random() * 8);
   });
 
@@ -563,7 +563,7 @@ function update(dt) {
       const d = r.mesh.position.distanceTo(tank.position);
       if (d < 1.8) {
         gs.hp = Math.max(0, gs.hp - 14);
-        spawnBurst(r.mesh.position.clone().add(new THREE.Vector3(0, 0.6, 0)), 0xffb347);
+        spawnBurst(r.mesh.position.clone().add(new THREE.Vector3(0, 0.6, 0)), 0xbfa587);
         r.active = false;
         r.mesh.visible = false;
         playTone(140, 0.25, 'sawtooth');

@@ -1,4 +1,5 @@
-/* قصر النخيل — المحرّك.
+/* Castle of the Palms — المحرّك.
+ * (كان اسمُه «قصر النخيل»، ورُدّ إلى اسمِه الأوّل.)
  *
  * مبنيٌّ على الشفرة التي أرسلتها ثريّا، مع أربعة إصلاحات وتغييرٍ واحد
  * في طريقة التحميل، وكلُّها موصوفةٌ عند موضعها:
@@ -14,21 +15,24 @@
  * ونسختُنا r128 تسمّي فضاء الألوان encoding لا colorSpace، فعُدِّلت
  * المواضعُ التسعة.
  */
-import { RIDDLES } from './qasr-riddles.js';
-import { ENGLISH_RIDDLES } from './qasr-riddles-english.js';
+import { RIDDLES } from './castle-riddles-heritage.js';
+import { NOVEL_RIDDLES } from './castle-riddles-novel.js';
 
-/* بنكان لا بنك: ألغازُ التراث بالعربيّة، وألغازُ الإنجليزيّة مُولَّدةٌ
-   من منهج الصفّ الخامس. وكانت كلُّها نوعًا واحدًا — سؤالُ تراثٍ بأربعة
-   خيارات — فثلاثون منها في الطابق تُشبه بعضَها، والموقعُ موقعُ تعليمِ
-   إنجليزيّة. فصار كلُّ لغزٍ يحمل نوعَه، والطابقُ يُبنى من الأنواع كلِّها
-   بنسبةٍ ثابتة: ثلثاه إنجليزيّةٌ وثلثه تراث. */
+/* بنكان لا بنك: ألغازُ ثقافةِ عُمان وتاريخِها بالعربيّة، وألغازُ الرواية
+   مُولَّدةٌ من «Under the Palm Tree · 36 Palms» نفسِها — من كلماتها
+   الموسومةِ ومعانيها ومرادفاتِها وجملِها، ومن نخيلها الستّ والثلاثين
+   ومشاهدِها. وكنتُ قد ولّدتُها من كتاب الصفّ الخامس وذلك خطأٌ منّي:
+   حين تقول الناشرةُ «منهجي» فهي تعني روايتَها.
+   وكانت الألغازُ كلُّها نوعًا واحدًا فثلاثون منها في الطابق تُشبه
+   بعضَها، فصار كلُّ لغزٍ يحمل نوعَه، والطابقُ يُبنى من الأنواع كلِّها
+   بنسبةٍ ثابتة: ثمانيةَ عشرَ من الرواية واثنا عشرَ من التراث. */
 const HERITAGE = RIDDLES.map(r => r.length > 4 ? r : [r[0], r[1], r[2], r[3], 'تراث']);
 const KIND_COLOR = {
   'تراث':   ['🏺', '#e8c17a'],
   'مفردات': ['📖', '#8fd4ff'],
   'إكمال':  ['✍️', '#a8e88a'],
-  'تصريف':  ['⏳', '#ffb0a0'],
-  'الكتاب': ['📗', '#d0a8ff']
+  'مرادف':  ['🔗', '#ffcf8a'],
+  'الرواية':['📕', '#ff9f8a']
 };
 
 const THREE = window.THREE;
@@ -47,7 +51,7 @@ const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 /* ══════ ١) الثيمات العُمانية ══════ */
 const THEMES={
   fort:{ar:'حصن',wall:0xc69a63,wall2:0x8a6236,floor:0x9a7a52,ceil:0x6b4f30,trim:0xe8c17a,
-        fog:0x3d2b1c,fogD:.021,sky:['#2a1a2e','#6b3f2a','#c47a35'],sun:0xffd39a,sunI:1.15,amb:0x6b4a33,ambI:.55,
+        fog:0x3d2b1c,fogD:.021,sky:['#1a2e25','#6b3f2a','#c47a35'],sun:0xffd39a,sunI:1.15,amb:0x6b4a33,ambI:.55,
         lamp:0xffb45e,part:'dust',maqam:'rast',bpm:84,outdoor:false},
   desert:{ar:'صحراء',wall:0xd8b478,wall2:0xa8813f,floor:0xc69f62,ceil:0x000000,trim:0xf6dfa6,
         fog:0xd8a96a,fogD:.014,sky:['#1c2a4a','#e08a3c','#f6cf8a'],sun:0xffdf9e,sunI:1.55,amb:0x9c7a4a,ambI:.7,
@@ -59,17 +63,17 @@ const THEMES={
         fog:0x7fa8bd,fogD:.017,sky:['#0d2a4a','#2f7fa8','#bfe8f6'],sun:0xd8f4ff,sunI:1.35,amb:0x5c8ba0,ambI:.7,
         lamp:0x9fe8ff,part:'spray',maqam:'ajam',bpm:96,outdoor:true},
   mountain:{ar:'جبل',wall:0x9c8f86,wall2:0x6a5f58,floor:0x7d7268,ceil:0x544a44,trim:0xffb0a0,
-        fog:0x4a4048,fogD:.024,sky:['#1a1430','#5a3a5e','#e08a7a'],sun:0xffc9b0,sunI:1.05,amb:0x6a5468,ambI:.6,
+        fog:0x404a45,fogD:.024,sky:['#143023','#3a5e4d','#e08a7a'],sun:0xffc9b0,sunI:1.05,amb:0x546a60,ambI:.6,
         lamp:0xffa88a,part:'mist',maqam:'bayati',bpm:78,outdoor:true},
   frank:{ar:'أرض اللبان',wall:0xbfa98c,wall2:0x8a7355,floor:0xa08b6d,ceil:0x6d5c44,trim:0xf0e2a8,
-        fog:0x6a5a44,fogD:.030,sky:['#241a2e','#8a6a3a','#e8cf94'],sun:0xffe6a8,sunI:.95,amb:0x7a6a4a,ambI:.6,
+        fog:0x6a5a44,fogD:.030,sky:['#1a2e25','#8a6a3a','#e8cf94'],sun:0xffe6a8,sunI:.95,amb:0x7a6a4a,ambI:.6,
         lamp:0xffe0a0,part:'incense',maqam:'hijaz',bpm:60,outdoor:false},
   souq:{ar:'سوق',wall:0xc08a5a,wall2:0x8a5a34,floor:0x9a7048,ceil:0x5e4228,trim:0xffcf7a,
-        fog:0x4a3020,fogD:.028,sky:['#1a1020','#7a3f1a','#e09a4a'],sun:0xffb870,sunI:.85,amb:0x7a4a2a,ambI:.65,
+        fog:0x4a3020,fogD:.028,sky:['#102019','#7a3f1a','#e09a4a'],sun:0xffb870,sunI:.85,amb:0x7a4a2a,ambI:.65,
         lamp:0xff9a4a,part:'incense',maqam:'hijaz',bpm:104,outdoor:false},
-  night:{ar:'ليل',wall:0x4a4468,wall2:0x2c2844,floor:0x3a3552,ceil:0x241f38,trim:0xa89cff,
-        fog:0x141028,fogD:.035,sky:['#05040f','#141030','#2c2450'],sun:0x9aa8ff,sunI:.5,amb:0x3a3468,ambI:.5,
-        lamp:0x8f7aff,part:'dust',maqam:'kurd',bpm:58,outdoor:false},
+  night:{ar:'ليل',wall:0x446857,wall2:0x284437,floor:0x355244,ceil:0x1f382c,trim:0x9cffd1,
+        fog:0x10281d,fogD:.035,sky:['#040f0a','#103021','#24503b'],sun:0x9affd0,sunI:.5,amb:0x346850,ambI:.5,
+        lamp:0x7affc1,part:'dust',maqam:'kurd',bpm:58,outdoor:false},
   cave:{ar:'كهف',wall:0x6b5a4e,wall2:0x463a32,floor:0x584a40,ceil:0x332a24,trim:0x9fd8c8,
         fog:0x1c1814,fogD:.046,sky:['#0a0808','#1a1614','#241e1a'],sun:0xbfa88a,sunI:.4,amb:0x4a3e34,ambI:.5,
         lamp:0x8fe8d0,part:'mist',maqam:'nahawand',bpm:54,outdoor:false},
@@ -140,29 +144,27 @@ const LEVELS=[
 ];
 
 /* ══════ ٣) الصوت ══════ */
-const MAQAM={
-  rast:[0,2,3.5,5,7,9,10.5], hijaz:[0,1,4,5,7,8,11],
-  bayati:[0,2,3,5,7,9,10], nahawand:[0,2,3,5,7,8,10],
-  kurd:[0,1,3,5,7,8,10], ajam:[0,2,4,5,7,9,11]
-};
+/* مقطوعةُ الخلفيّة ملفٌّ من مكتبة الموقع لا مذبذبات، وهذه شدّتُها */
+const MUSIC_VOL=.34;
 class Sound{
-  /* «step» كانت اسمَ دالّةِ صوتِ الخطوة واسمَ عدّادِ النغمة معًا، فيُسنَد
-     إليها رقمٌ في startMusic فتختفي الدالّة ويسقط الصوتُ عند أوّل خطوة.
-     فصار العدّادُ tick. */
-  constructor(){this.ok=false;this.on=true;this.vol=.55;this.mode='rast';this.bpm=84;this.playing=false;this.tickN=0;}
+  constructor(){this.ok=false;this.on=true;this.vol=.55;this.playing=false;this.bgm=null;this.baseFreq=196;}
   init(){
     if(this.ok)return;
     try{
       this.ctx=new (window.AudioContext||window.webkitAudioContext)();
       this.master=this.ctx.createGain();this.master.gain.value=this.on?this.vol:0;this.master.connect(this.ctx.destination);
-      this.mus=this.ctx.createGain();this.mus.gain.value=.5;this.mus.connect(this.master);
+      this.mus=this.ctx.createGain();this.mus.gain.value=0;this.mus.connect(this.master);
       this.rev=this.ctx.createConvolver();
       const len=this.ctx.sampleRate*2.1,buf=this.ctx.createBuffer(2,len,this.ctx.sampleRate);
       for(let c=0;c<2;c++){const d=buf.getChannelData(c);for(let i=0;i<len;i++){d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.6);}}
       this.rev.buffer=buf;
       const rg=this.ctx.createGain();rg.gain.value=.32;this.rev.connect(rg);rg.connect(this.master);
       this.dry=this.ctx.createGain();this.dry.gain.value=.88;this.dry.connect(this.master);
-      this.dronG=this.ctx.createGain();this.dronG.gain.value=0;this.dronG.connect(this.mus);this.dronG.connect(this.rev);
+      /* المقطوعةُ تمرّ في مسار الصوت نفسِه لا في مكبّر الصفحة، فيكتمها
+         زرُّ الصوت مع المؤثّرات، ويتدرّج علوُّها بدقّة العيّنة لا
+         بمؤقّتٍ يتلكّأ إذا ثقل الرسم. */
+      const el=this.bgm||(this.bgm=document.getElementById('bgm'));
+      if(el&&!this.mSrc){try{this.mSrc=this.ctx.createMediaElementSource(el);this.mSrc.connect(this.mus);}catch(e){}}
       this.ok=true;
     }catch(e){this.ok=false;}
   }
@@ -203,18 +205,6 @@ class Sound{
     const ng=c.createGain();ng.gain.setValueAtTime(g*(type==='riq'?.35:.5),t);ng.gain.exponentialRampToValueAtTime(.0001,t+.11);
     nb.connect(nf);nf.connect(ng);this.to(ng);nb.start(t);
   }
-  droneOn(){
-    if(!this.ok||this.dronOn)return;this.dronOn=true;const c=this.ctx;
-    const base=this.baseFreq||110;
-    [1,1.5,2].forEach((m,i)=>{
-      const o=c.createOscillator(),g=c.createGain();o.type=i===0?'sawtooth':'triangle';o.frequency.value=base*m/2;
-      g.gain.value=0;o.connect(g);g.connect(this.dronG);o.start();
-      g.gain.setTargetAtTime(i===0?.09:.035,c.currentTime,2.5);
-      const l=c.createOscillator(),lg=c.createGain();l.frequency.value=.06+i*.03;lg.gain.value=.9;l.connect(lg);lg.connect(o.frequency);l.start();
-    });
-    this.dronG.gain.setTargetAtTime(.55,c.currentTime,3);
-  }
-  droneOff(){if(!this.ok||!this.dronOn)return;this.dronG.gain.setTargetAtTime(0,this.ctx.currentTime,.6);setTimeout(()=>{this.dronOn=false;},900);}
   step(v){if(!this.ok)return;const c=this.ctx,t=c.currentTime;
     const nb=c.createBufferSource(),buf=c.createBuffer(1,Math.floor(c.sampleRate*.09),c.sampleRate),bd=buf.getChannelData(0);
     for(let i=0;i<bd.length;i++)bd[i]=(Math.random()*2-1)*Math.pow(1-i/bd.length,3.5);
@@ -261,40 +251,25 @@ class Sound{
       o.frequency.setValueAtTime(4200,st);o.frequency.exponentialRampToValueAtTime(2600,st+.05);
       g.gain.setValueAtTime(.0001,st);g.gain.linearRampToValueAtTime(.022,st+.01);g.gain.exponentialRampToValueAtTime(.0001,st+.06);
       o.connect(g);g.connect(this.dry);o.start(st);o.stop(st+.08);}}
-  startMusic(mode,bpm){
-    this.init();if(!this.ok)return;this.mode=mode||'rast';this.bpm=bpm||84;
-    this.baseFreq=98*Math.pow(2,(mode==='hijaz'?2:0)/12);
-    if(this.playing)return;this.playing=true;this.tickN=0;
-    this.nextT=this.ctx.currentTime+.15;this.droneOn();
-    this.timer=setInterval(()=>this.pump(),25);
+  /* الموسيقى: كانت مُركَّبةً بالمذبذبات — درونٌ وطبولٌ وعودٌ وناي —
+     ففيها خشخشةٌ من ضجيج الطبل ومن منشار الدرون. فصارت مقطوعةَ الموقع
+     نفسَها التي في «Castle of the Palms» الأولى، مقطوعةً واحدةً تدور
+     ولا تُقطَع بين الأدوار. وتبقى المذبذباتُ للمؤثّرات وحدَها. */
+  startMusic(){
+    this.init();
+    const el=this.bgm; if(!el)return;
+    el.loop=true; el.volume=1;                 /* التحكُّمُ في mus لا هنا */
+    const pr=el.play(); if(pr&&pr.catch)pr.catch(()=>{});
+    if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume();
+    this.playing=true;
+    if(this.ok)this.mus.gain.setTargetAtTime(MUSIC_VOL,this.ctx.currentTime,.8);
   }
-  stopMusic(){if(!this.playing)return;this.playing=false;clearInterval(this.timer);this.droneOff();}
-  pump(){
-    if(!this.ok)return;const c=this.ctx;
-    const s16=(60/this.bpm)/4;
-    while(this.nextT<c.currentTime+.25){this.sched(this.nextT,this.tickN);this.tickN++;this.nextT+=s16;}
-  }
-  sched(t,s){
-    const sc=MAQAM[this.mode]||MAQAM.rast, b=this.baseFreq||110;
-    const f=d=>b*Math.pow(2,d/12);
-    const m=s%64;
-    const pat=[1,0,0,2,0,0,1,0, 0,2,0,0,3,0,2,0];
-    const p=pat[m%16];
-    if(p===1)this.drum(t,'rahmani',.75);
-    else if(p===2)this.drum(t,'kaser',.6);
-    else if(p===3)this.drum(t,'riq',.55);
-    if(m%8===0||(m%16===6&&Math.random()<.5)){
-      const deg=sc[Math.floor(Math.random()*sc.length)]+(Math.random()<.4?12:0);
-      this.oud(t,f(deg),.85+Math.random()*.5,.17);
-    }
-    if(m%16===4&&Math.random()<.55){
-      const d1=sc[Math.floor(Math.random()*5)],d2=sc[Math.floor(Math.random()*5)]+12;
-      this.oud(t,f(d1),.6,.14);this.oud(t+.16,f(d2),.7,.13);
-    }
-    if(m%32===0){
-      const seq=[sc[0],sc[2],sc[4],sc[2],sc[5],sc[4],sc[2],sc[0]];
-      seq.forEach((d,i)=>{if(Math.random()<.85)this.ney(t+i*.34,f(d+12),.42,.075);});
-    }
+  stopMusic(){
+    const el=this.bgm; if(!el)return;
+    this.playing=false;
+    if(this.ok)this.mus.gain.setTargetAtTime(0,this.ctx.currentTime,.35);
+    clearTimeout(this.mStop);
+    this.mStop=setTimeout(()=>{if(!this.playing){try{el.pause();el.currentTime=0;}catch(e){}}},1400);
   }
 }
 const SND=new Sound();
@@ -427,7 +402,7 @@ function texGlow(col){
 }
 function texTablet(accent){
   const W=512,H=640,c=cv(W,H),x=c.getContext('2d');
-  const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#1a1024');g.addColorStop(.5,'#241533');g.addColorStop(1,'#120a1c');
+  const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#10241b');g.addColorStop(.5,'#153325');g.addColorStop(1,'#0a1c14');
   x.fillStyle=g;x.fillRect(0,0,W,H);
   const A=hex(accent);
   x.strokeStyle=A;x.lineWidth=7;x.strokeRect(16,16,W-32,H-32);
@@ -464,7 +439,7 @@ function texDoor(accent,locked){
 }
 function texWeb(){
   const S=256,c=cv(S,S),x=c.getContext('2d');
-  x.clearRect(0,0,S,S);x.strokeStyle='rgba(235,235,240,.75)';x.lineWidth=1.4;
+  x.clearRect(0,0,S,S);x.strokeStyle='rgba(235,240,238,.75)';x.lineWidth=1.4;
   const R=S*1.45;
   for(let i=0;i<14;i++){const a=i/14*Math.PI/2;x.beginPath();x.moveTo(0,0);x.lineTo(Math.cos(a)*R,Math.sin(a)*R);x.stroke();}
   for(let r=1;r<=9;r++){
@@ -558,9 +533,9 @@ function makeInsect(kind,accent){
       parts.legs.push({g:L,ph:i,amp:.3});});
   }
   else if(kind==='fly'){
-    const th=new THREE.Mesh(new THREE.SphereGeometry(.09,14,12),M(0x2c2a2e,.45,.2));th.position.z=.06;th.scale.set(1,.85,1.3);G.add(th);
-    const ab=new THREE.Mesh(new THREE.SphereGeometry(.085,14,12),M(0x38343a,.5,.15));ab.position.z=-.14;ab.scale.set(.8,.8,1.7);G.add(ab);
-    const hd=new THREE.Mesh(new THREE.SphereGeometry(.075,14,12),M(0x232025,.4,.2));hd.position.z=.19;G.add(hd);
+    const th=new THREE.Mesh(new THREE.SphereGeometry(.09,14,12),M(0x2a2e2c,.45,.2));th.position.z=.06;th.scale.set(1,.85,1.3);G.add(th);
+    const ab=new THREE.Mesh(new THREE.SphereGeometry(.085,14,12),M(0x343a37,.5,.15));ab.position.z=-.14;ab.scale.set(.8,.8,1.7);G.add(ab);
+    const hd=new THREE.Mesh(new THREE.SphereGeometry(.075,14,12),M(0x202523,.4,.2));hd.position.z=.19;G.add(hd);
     [-1,1].forEach(o=>{const e=new THREE.Mesh(new THREE.SphereGeometry(.045,12,10),M(0x8f2018,.25,.3));
       e.position.set(o*.045,.02,.21);G.add(e);});
     [-1,1].forEach(o=>{const p=new THREE.Group();p.position.set(o*.05,.08,.05);
@@ -1072,7 +1047,7 @@ function cellOf(x,z){
 }
 
 /* ══════ ٨) الحالة ══════ */
-const SAVE_KEY='qasr_alnakhil_v2';
+const SAVE_KEY='castle_of_the_palms';
 let save={unlocked:1,done:{},sound:true};
 try{const s=JSON.parse(localStorage.getItem(SAVE_KEY));if(s)save=Object.assign(save,s);}catch(e){}
 function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));}catch(e){}}
@@ -1082,15 +1057,18 @@ const G={level:1,stage:0,totalSolved:0,keys:0,attempts:0,correct:0,
 const STAGE_NAMES=['الدور الأول — المدخل','الدور الثاني — الحُجُرات','الدور الثالث — القلب','الحديقة'];
 const STAGE_NUM=['I','II','III','❋'];
 
-/* البنكُ الإنجليزيّ مُولَّدٌ نوعًا بعد نوع، فأخذُ عشرين متتاليةً منه
-   يعطي الطابقَ نوعًا واحدًا: عشرون سؤالَ مفرداتٍ في الطابق الأوّل،
-   وعشرون إكمالًا في المئة. فالأخذُ من كلّ نوعٍ على حدة. */
+/* بنكُ الرواية مُولَّدٌ نوعًا بعد نوع، فأخذُ ثمانيةَ عشرَ متتاليةً منه
+   يعطي الطابقَ نوعًا واحدًا: ثمانيةَ عشرَ سؤالَ مفرداتٍ في الطابق
+   الأوّل، وثمانيةَ عشرَ إكمالًا في المئة. فالأخذُ من كلّ نوعٍ على حدة. */
 const BY_KIND=(()=>{
   const m={};
-  ENGLISH_RIDDLES.forEach(r=>{(m[r[4]]=m[r[4]]||[]).push(r);});
+  NOVEL_RIDDLES.forEach(r=>{(m[r[4]]=m[r[4]]||[]).push(r);});
   return m;
 })();
-const MIX=[['مفردات',7],['إكمال',5],['تصريف',4],['الكتاب',4]];
+const MIX=[['مفردات',6],['مرادف',4],['إكمال',4],['الرواية',4]];
+/* خُطوةُ كلِّ نوعٍ تساوي عددَه في الطابق، فيُقرأ بنكُه سطرًا بعد سطرٍ
+   ولا يعود لغزٌ إلّا بعد أن يُستوفى البنكُ كلُّه: ستُّ مئةٍ من تسع مئةٍ
+   وأربعين مفردةً لا تتكرّر أبدًا في المئة طابق. */
 function levelRiddles(level){
   const rnd=mulberry32(level*7919+101);
   const take=(bank,n,mul)=>{
@@ -1100,10 +1078,10 @@ function levelRiddles(level){
     return out;
   };
   let eng=[];
-  MIX.forEach(([k,n],i)=>{ eng=eng.concat(take(BY_KIND[k],n,29+i*8)); });
+  MIX.forEach(([k,n])=>{ eng=eng.concat(take(BY_KIND[k],n,n)); });
   /* إن نقص نوعٌ يومًا، يُكمَّل من البنك كلِّه فلا يقلّ الطابقُ عن ثلاثين */
-  if(eng.length<20) eng=eng.concat(take(ENGLISH_RIDDLES,20-eng.length,37));
-  const mix=shuffle(eng.concat(take(HERITAGE,10,53)),rnd);
+  if(eng.length<18) eng=eng.concat(take(NOVEL_RIDDLES,18-eng.length,37));
+  const mix=shuffle(eng.concat(take(HERITAGE,30-eng.length,30-eng.length)),rnd);
   return mix.map(r=>{
     const sh=shuffle([0,1,2,3],rnd);
     return {q:r[0],o:sh.map(k=>r[1][k]),c:sh.indexOf(r[2]),e:r[3],k:r[4]||'تراث'};
@@ -1114,7 +1092,7 @@ function startLevel(n,stage=0){
   G.riddles=levelRiddles(G.level);G.playing=true;G.startTime=performance.now();
   const th=THEMES[LEVELS[G.level-1][2]];
   buildStage(G.level,G.stage);
-  SND.startMusic(th.maqam,th.bpm);
+  SND.startMusic();
   showScreen(null);
   $('#hud').classList.add('on');
   if(isTouch)$('#touch').classList.add('on');
@@ -1195,10 +1173,8 @@ function advanceStage(){
   fade(()=>{
     if(G.stage<2){G.stage++;buildStage(G.level,G.stage);
       const th=THEMES[LEVELS[G.level-1][2]];
-      SND.stopMusic();setTimeout(()=>SND.startMusic(th.maqam,th.bpm),200);
       toast('صعدتَ إلى '+STAGE_NAMES[G.stage],2600);}
     else if(G.stage===2){G.stage=3;buildStage(G.level,3);
-      SND.stopMusic();setTimeout(()=>SND.startMusic('rast',112),200);
       toast('❋ انفتحت الحديقة… سِتٌّ وثلاثون نخلةً تنحني',3000);}
     else finishLevel();
     G.busy=false;
@@ -1213,7 +1189,7 @@ function finishLevel(){
   const last=G.level>=100;
   $('#finTitle').textContent=last?'تَمَّتِ المائةُ طابقًا!':'انفتحتِ الحديقة';
   $('#finText').innerHTML=last
-    ? 'مئةُ طابقٍ… وآلافُ الألغاز…<br>ستٌّ وثلاثون نخلةً في كل حديقةٍ انحنَت لك.<br>لقد صِرتَ حارسَ قصرِ النخيل، وراويةَ تاريخِ عُمان.'
+    ? 'مئةُ طابقٍ… وآلافُ الألغاز…<br>ستٌّ وثلاثون نخلةً في كل حديقةٍ انحنَت لك.<br>لقد صِرتَ حارسَ Castle of the Palms، وراويةَ تاريخِ عُمان.'
     : 'ثلاثةُ أدوارٍ قُهرت، وثلاثون لُغزًا أُجيبت.<br>سِتٌّ وثلاثون نخلةً تنحني وأنت تعبر.<br><b style="color:var(--gold)">الطابق '+ar(G.level)+' — '+LEVELS[G.level-1][0]+'</b> اكتمل.';
   $('#finNext').textContent=last?'◈ الطوابق':'الطابق '+ar(G.level+1)+' ▶';
   save.done[G.level]=true;
@@ -1263,12 +1239,12 @@ function openRiddle(ped){
   $('#rCnt').innerHTML='<span style="color:'+kc[1]+'">'+kc[0]+' '+r.k+'</span> · '+STAGE_NAMES[G.stage];
   $('#rQ').textContent=r.q;
   /* السطرُ تحت السؤال يتبع نوعَه: كان يقول «من تراث عُمان» فوق سؤالٍ
-     في تصريف الأفعال الإنجليزية. */
-  const SUB={'تراث':'— من تراث عُمان: '+L[1]+' —',
-             'مفردات':'— من كلمات كتاب الصفّ الخامس 5A —',
-             'إكمال':'— أكمل جملةً من الكتاب —',
-             'تصريف':'— الأفعال الشاذّة · صفحة ٧٤ —',
-             'الكتاب':'— وحدات الكتاب الأربع —'};
+     في كلمات الرواية. */
+  const SUB={'تراث':'— من ثقافة عُمان وتاريخِها: '+L[1]+' —',
+             'مفردات':'— من كلمات رواية «تحت ظلّ النخلة» —',
+             'مرادف':'— مرادفاتُ الرواية —',
+             'إكمال':'— أكمل جملةً من الرواية —',
+             'الرواية':'— نخيلُ الرواية الستّ والثلاثون —'};
   $('#rSub').textContent=SUB[r.k]||SUB['تراث'];
   const box=$('#rOpts');box.innerHTML='';
   r.o.forEach((o,i)=>{
@@ -1347,7 +1323,7 @@ function buildLevelGrid(){
       const unlocked=i<=save.unlocked,done=save.done[i];
       const b=document.createElement('div');
       b.className='lv'+(unlocked?'':' locked')+(i===save.unlocked?' cur':'');
-      b.style.background='linear-gradient(160deg,'+col+'55,#0d0818 72%)';
+      b.style.background='linear-gradient(160deg,'+col+'55,#081811 72%)';
       b.style.borderColor=col+'88';
       b.innerHTML='<span class="num">'+ar(i)+'</span>'+(done?'<span class="done">✓</span>':'')+
         '<b style="color:'+col+'">◆</b><small>'+L[0]+'</small>';
@@ -1394,7 +1370,7 @@ function buildPalmSil(){
   for(let i=0;i<13;i++){
     const x=40+i*92,h=110+((i*37)%60);
     const p=document.createElementNS('http://www.w3.org/2000/svg','g');
-    p.setAttribute('fill','#150d22');
+    p.setAttribute('fill','#0d2218');
     p.innerHTML='<rect x="'+(x-4)+'" y="'+(190-h)+'" width="8" height="'+h+'"/>'+
       Array.from({length:7},(_,k)=>{const a=-1.3+k*.43;
         const ex=x+Math.cos(a)*34, ey=190-h+Math.sin(a)*20;
@@ -1479,7 +1455,7 @@ function drawMinimap(){
   m.clearRect(0,0,S,S);
   const col=hex(W.theme.trim);
   const cs=S/(Math.max(W.cols,W.rows)+1),ox=(S-W.cols*cs)/2,oy=(S-W.rows*cs)/2;
-  m.fillStyle='rgba(10,6,18,.55)';m.fillRect(0,0,S,S);
+  m.fillStyle='rgba(6,18,12,.55)';m.fillRect(0,0,S,S);
   m.strokeStyle=col+'66';m.lineWidth=3;
   for(let y=0;y<W.rows;y++)for(let x=0;x<W.cols;x++){
     const c=W.maze[y][x],px=ox+x*cs,py=oy+y*cs;
@@ -1507,7 +1483,7 @@ function drawCompass(){
   if(t){ang=Math.atan2(t.x-player.pos.x,t.z-player.pos.z)-player.yaw;
     dist=Math.hypot(t.x-player.pos.x,t.z-player.pos.z);}
   svg.innerHTML=
-  '<circle cx="50" cy="50" r="46" fill="rgba(8,5,15,.72)" stroke="'+col+'" stroke-width="1.6"/>'+
+  '<circle cx="50" cy="50" r="46" fill="rgba(5,15,10,.72)" stroke="'+col+'" stroke-width="1.6"/>'+
   '<circle cx="50" cy="50" r="38" fill="none" stroke="'+col+'" stroke-width=".8" opacity=".4" stroke-dasharray="3 6"/>'+
   Array.from({length:8},(_,i)=>{const a=i*Math.PI/4;
     return '<line x1="'+(50+Math.sin(a)*41)+'" y1="'+(50-Math.cos(a)*41)+'" x2="'+(50+Math.sin(a)*46)+'" y2="'+(50-Math.cos(a)*46)+'" stroke="'+col+'" stroke-width="'+(i%2?1:2.4)+'"/>';}).join('')+
@@ -1714,7 +1690,7 @@ addEventListener('resize',()=>{
   if(new URLSearchParams(location.search).get('dbg')==='1'){
     /* W يُعاد إسنادُه في كلّ طابق، فالنسخةُ المأخوذةُ مرّةً تبقى قديمة
        وتُبلّغ بصفر مِسَلّات. فيُقرأ حيًّا. */
-    window.QASR={
+    window.CASTLE=window.QASR={
       G,player,
       get W(){ return W; },
       openFirst(){ const p=W.pedestals.find(x=>!x.solved); if(p)openRiddle(p); return !!p; },

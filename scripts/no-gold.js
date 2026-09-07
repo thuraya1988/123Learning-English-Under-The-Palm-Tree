@@ -91,8 +91,14 @@ function sweep(text, isJs) {
       const to = m.slice(0, m.indexOf('(') + 1) + c.join(',') + tail;
       seen.set(m, to); n++; return to;
     });
-  /* ‎0xRRGGBB‎ لغةُ ألوان three.js — وفي غير الجافاسكربت قد يكون نصًّا عابرًا */
-  if (isJs) t = t.replace(/0x([0-9a-fA-F]{6})\b/g, (m, h) => conv(m, h, '0x', false));
+  /* ‎0xRRGGBB‎ لغةُ ألوان three.js. وكنتُ أقرؤها في ملفّات ‎.js‎ وحدَها،
+     فمرّت عليّ ألوانُ صفحاتٍ كاملةٍ ثلاثيّةِ الأبعاد شفرتُها داخل
+     ‎<script>‎ في الصفحة — قالت الأداةُ «نظيفة» وفيها ‎0xffd700‎.
+     فصارت تُقرأ في الصفحات أيضًا، لكن داخلَ وسوم ‎<script>‎ فقط،
+     لئلّا تُقلَب ستّةُ محارفَ في نصٍّ أو في ترميزٍ طويل. */
+  const fixJs = src => src.replace(/0x([0-9a-fA-F]{6})\b/g, (m, h) => conv(m, h, '0x', false));
+  if (isJs) t = fixJs(t);
+  else t = t.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, fixJs);
   return { text: t, n, seen };
 }
 

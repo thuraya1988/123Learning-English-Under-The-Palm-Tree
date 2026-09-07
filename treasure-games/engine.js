@@ -359,7 +359,9 @@ function start(n) {
       ? makeKingdom(n)
       : MODE === "jump"
         ? makeJump(n)
-        : makeMaze(n);
+        : MODE === "gates"
+          ? makeMaze(n)
+          : makeLastLight();
   refresh();
 }
 function base(n) {
@@ -504,11 +506,55 @@ function makeMaze(n) {
   g.time = 0;
   return g;
 }
+function makeLastLight() {
+  const g = base(1);
+  g.kind = "lastlight";
+  g.sun = {
+    x: innerWidth / 2,
+    y: innerHeight * 0.55,
+    tx: innerWidth / 2,
+    ty: innerHeight * 0.55,
+  };
+  g.moons = [
+    { a: 0, d: 75, x: 0, y: 0, c: "#ffd98a" },
+    { a: Math.PI, d: 125, x: 0, y: 0, c: "#8be9ff" },
+  ];
+  g.drops = [];
+  g.thorns = [];
+  g.score = 0;
+  g.combo = 0;
+  g.comboT = 0;
+  g.meter = 0;
+  g.spawnD = 0.1;
+  g.spawnT = 2.5;
+  g.best = D.best || 0;
+  g.time = 0;
+  return g;
+}
 
 function refresh() {
   if (!G) return;
+  if (G.kind === "lastlight") {
+    $("levelChip").textContent = [
+      "الظلام الأعظم",
+      "ولادة النجوم",
+      "استيقاظ السدم",
+      "دوران المجرات",
+      "تكوّن الكواكب",
+      "اخضرار الأفق",
+      "الكون الحي",
+    ][Math.min(6, (G.score / 35) | 0)];
+    $("coinChip").textContent = `✦ ${G.score}`;
+    $("starChip").textContent =
+      `توليفة ×${Math.min(5, 1 + ((G.combo / 5) | 0))}`;
+    $("heartChip").textContent =
+      "❤️".repeat(G.hearts) + "🖤".repeat(3 - G.hearts);
+    $("nova")?.classList.toggle("ready", G.meter >= 1);
+    return;
+  }
   $("levelChip").textContent = `مستوى ${G.n}`;
-  $("worldChip").textContent = `${WORLDS[G.wi].i} ${WORLDS[G.wi].n}`;
+  if ($("worldChip"))
+    $("worldChip").textContent = `${WORLDS[G.wi].i} ${WORLDS[G.wi].n}`;
   $("coinChip").textContent = `🪙 ${D.coins}`;
   $("heartChip").textContent =
     "❤️".repeat(G.hearts) + "🖤".repeat(3 - G.hearts);
@@ -544,6 +590,20 @@ function hit() {
   refresh();
 }
 function lose() {
+  if (G.kind === "lastlight") {
+    state = "lost";
+    D.best = Math.max(D.best || 0, G.score);
+    save();
+    modal(
+      "انطفأ الضوء الأخير",
+      `<p>جمعتِ ✦ ${G.score} من الضوء<br>أفضل نتيجة: ${D.best}</p>`,
+      [
+        { a: "retry", t: "أشعليها من جديد" },
+        { a: "home", t: "القائمة" },
+      ],
+    );
+    return;
+  }
   state = "lost";
   modal("انتهت القلوب", "<p>حاولي مرة أخرى، فكل محاولة تقرّبك من الكنز.</p>", [
     { a: "retry", t: "إعادة المستوى" },
@@ -588,8 +648,80 @@ function update(dt) {
   if (G.wings > 0) G.wings -= dt;
   if (G.kind === "kingdom") updateKingdom(dt);
   else if (G.kind === "jump") updateJump(dt);
-  else updateMaze(dt);
+  else if (G.kind === "gates") updateMaze(dt);
+  else updateLastLight(dt);
   refresh();
+}
+function updateLastLight(dt) {
+  const s = G.sun;
+  s.x += (s.tx - s.x) * Math.min(1, dt * 7);
+  s.y += (s.ty - s.y) * Math.min(1, dt * 7);
+  G.time += dt;
+  if (G.comboT > 0) {
+    G.comboT -= dt;
+    if (G.comboT <= 0) G.combo = 0;
+  }
+  for (const m of G.moons) {
+    m.a += (m.d < 100 ? 1.8 : -1.2) * dt;
+    m.x = s.x + Math.cos(m.a) * m.d;
+    m.y = s.y + Math.sin(m.a) * m.d;
+  }
+  G.spawnD -= dt;
+  if (G.spawnD <= 0 && G.drops.length < 16) {
+    G.drops.push({
+      x: 40 + Math.random() * (innerWidth - 80),
+      y: 70 + Math.random() * (innerHeight - 130),
+      v: Math.random() < 0.15 ? 3 : 1,
+      p: Math.random() * 6.28,
+    });
+    G.spawnD = 0.65 + Math.random() * 0.7;
+  }
+  for (let i = G.drops.length - 1; i >= 0; i--) {
+    const d = G.drops[i];
+    for (const m of G.moons)
+      if (Math.hypot(d.x - m.x, d.y - m.y) < 20) {
+        G.drops.splice(i, 1);
+        G.combo++;
+        G.comboT = 2.6;
+        const mul = Math.min(5, 1 + ((G.combo / 5) | 0));
+        G.score += d.v * mul;
+        G.meter = Math.min(1, G.meter + 0.09 * d.v);
+        tone(850 + d.v * 100);
+        break;
+      }
+  }
+  G.spawnT -= dt;
+  if (G.spawnT <= 0) {
+    const side = (Math.random() * 4) | 0,
+      x =
+        side === 0
+          ? -25
+          : side === 1
+            ? innerWidth + 25
+            : Math.random() * innerWidth,
+      y =
+        side === 2
+          ? -25
+          : side === 3
+            ? innerHeight + 25
+            : Math.random() * innerHeight;
+    G.thorns.push({ x, y, v: 55 + Math.min(100, G.time), r: 12 });
+    G.spawnT = Math.max(0.65, 2.2 - G.time / 70);
+  }
+  for (let i = G.thorns.length - 1; i >= 0; i--) {
+    const t = G.thorns[i],
+      a = Math.atan2(s.y - t.y, s.x - t.x);
+    t.x += Math.cos(a) * t.v * dt;
+    t.y += Math.sin(a) * t.v * dt;
+    if (
+      Math.hypot(t.x - s.x, t.y - s.y) < 28 ||
+      G.moons.some((m) => Math.hypot(t.x - m.x, t.y - m.y) < 20)
+    ) {
+      G.thorns.splice(i, 1);
+      G.combo = 0;
+      hit();
+    }
+  }
 }
 function updateKingdom(dt) {
   const p = G.p,
@@ -792,6 +924,10 @@ function render() {
   );
   ctx.clearRect(0, 0, innerWidth, innerHeight);
   if (!G) return;
+  if (G.kind === "lastlight") {
+    drawLastLight();
+    return;
+  }
   const w = WORLDS[G.wi],
     gr = ctx.createLinearGradient(0, 0, 0, innerHeight);
   gr.addColorStop(0, w.sky[0]);
@@ -801,6 +937,73 @@ function render() {
   if (G.kind === "kingdom") drawKingdom(w);
   else if (G.kind === "jump") drawJump(w);
   else drawMaze(w);
+}
+function drawLastLight() {
+  const grad = ctx.createRadialGradient(
+    G.sun.x,
+    G.sun.y,
+    10,
+    G.sun.x,
+    G.sun.y,
+    Math.max(innerWidth, innerHeight),
+  );
+  grad.addColorStop(0, "#251547");
+  grad.addColorStop(1, "#050310");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, innerWidth, innerHeight);
+  ctx.fillStyle = "#fff";
+  for (let i = 0; i < 120; i++) {
+    ctx.globalAlpha = 0.15 + 0.35 * Math.abs(Math.sin(G.t + i));
+    ctx.fillRect((i * 137) % innerWidth, (i * 83) % innerHeight, 1.5, 1.5);
+  }
+  ctx.globalAlpha = 1;
+  for (const d of G.drops) emo(d.v > 1 ? "✦" : "·", d.x, d.y, 18 + d.v * 3);
+  for (const t of G.thorns) {
+    ctx.save();
+    ctx.translate(t.x, t.y);
+    ctx.rotate(G.t * 2);
+    ctx.fillStyle = "#13081e";
+    ctx.strokeStyle = "#ff527d";
+    ctx.beginPath();
+    for (let i = 0; i < 16; i++) {
+      const a = (i * Math.PI) / 8,
+        r = i % 2 ? t.r * 0.55 : t.r;
+      ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+  for (const m of G.moons) {
+    ctx.fillStyle = m.c;
+    ctx.shadowColor = m.c;
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, m.d < 100 ? 9 : 7, 0, 7);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+  const s = G.sun,
+    g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 75);
+  g.addColorStop(0, "#fffce5");
+  g.addColorStop(0.25, "#ffd27d");
+  g.addColorStop(1, "#ff9d4d00");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(s.x, s.y, 75, 0, 7);
+  ctx.fill();
+  ctx.fillStyle = "#fffbe8";
+  ctx.beginPath();
+  ctx.arc(s.x, s.y, 16, 0, 7);
+  ctx.fill();
+  if (G.meter >= 1) {
+    ctx.strokeStyle = "#ffd98a";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 28 + Math.sin(G.t * 6) * 4, 0, 7);
+    ctx.stroke();
+  }
 }
 function emo(e, x, y, s) {
   ctx.font = `${s}px Apple Color Emoji,Segoe UI Emoji,sans-serif`;
@@ -926,6 +1129,10 @@ $("modalBtns").addEventListener("click", (e) => {
   if (a === "next") G.n < TOTAL ? start(G.n + 1) : buildMap();
   if (a === "close") closeModal();
   if (a === "spin") spin();
+  if (a === "home") {
+    closeModal();
+    screen("menu");
+  }
 });
 const keyMap = {
   ArrowLeft: "left",
@@ -958,6 +1165,27 @@ document.querySelectorAll("[data-key]").forEach((b) => {
     b.addEventListener(x, () => (keys[k] = false)),
   );
 });
+if (MODE === "lastlight") {
+  cv.addEventListener("pointerdown", (e) => {
+    if (G && state === "play") {
+      G.sun.tx = e.clientX;
+      G.sun.ty = e.clientY;
+    }
+  });
+  cv.addEventListener("pointermove", (e) => {
+    if (G && state === "play" && (e.pointerType === "mouse" || e.buttons)) {
+      G.sun.tx = e.clientX;
+      G.sun.ty = e.clientY;
+    }
+  });
+  $("nova").onclick = () => {
+    if (!G || state !== "play" || G.meter < 1) return toast("اجمعي ضوءًا أكثر");
+    G.meter = 0;
+    G.thorns = [];
+    tone(1100, 0.3);
+    toast("نبضة النور ✦");
+  };
+}
 function loop(t) {
   const dt = Math.min(0.033, (t - last) / 1000);
   last = t;

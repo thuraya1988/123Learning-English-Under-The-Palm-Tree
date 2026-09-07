@@ -1742,9 +1742,24 @@ function spawnOrbs(level){
   for(i=0;i<orbs.length;i++) scene.remove(orbs[i].g);
   orbs.length=0;
   var seen={};
+  /* أربعةُ مستوياتٍ من المئة موضوعُها أصغرُ من هدفها: «الأشكال» فيه
+     اثنتا عشرة كلمةً والمطلوب خمسَ عشرة، و«الموسيقى» اثنتا عشرة
+     والمطلوب سبعَ عشرة. وكان يستسلم بعد ثلاثين محاولةً فيضع الكلمةَ
+     مرّتين على الأرض — والطفلُ يجمع الشيءَ نفسَه مرّتين. فإن نفِد
+     الموضوعُ استُكمِل من مواضيع وحدتِه الأخرى: كلماتٌ من درسِه نفسِه
+     ولا تكرار. */
+  var wide=null;
   for(i=0;i<level.need;i++){
     var q=PALM.makeQuestion(level),guard=0;
     while(seen[q.correct] && guard++<30) q=PALM.makeQuestion(level);
+    if(seen[q.correct]){
+      if(!wide){
+        var U=PALM.UNITS[level.unit-1];
+        wide=Object.assign({},level,{pool:(U&&U.themes&&U.themes.length)?U.themes:[]});
+      }
+      guard=0;
+      do{ q=PALM.makeQuestion(wide); }while(seen[q.correct] && guard++<60);
+    }
     seen[q.correct]=1;
     var sp=orbSpot();
     var g=new THREE.Group(); g.position.set(sp[0],sp[1],sp[2]);
@@ -2075,6 +2090,7 @@ $('btnPlay').onclick=function(){
 
 /* خطّافُ الفحص: ‎?dbg=1‎ يفتح البابَ للاختبار الآليّ لا للاعبين */
 if(new URLSearchParams(location.search).get('dbg')==='1'){
+  window.__spawn=spawnOrbs; window.PALM=PALM;
   window.YARA={ G:G, HS:HS, BUB:BUB, updates:updates, HALA:HALA, yara:shamoosa, camera:camera,
     get orbs(){ return orbs; },
     say:say, cheer:halaCheer, dance:halaDance,

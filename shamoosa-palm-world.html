@@ -4,8 +4,15 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>مغامرات يارا في عالم النخيل الغريب</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/aref-ruqaa@latest/index.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/cairo@latest/index.css">
+<!-- الخطوطُ من المستودع لا من CDN: شبكاتُ المدارس تحجب jsdelivr، فكانت
+     الصفحةُ تسقط إلى خطٍّ لاتينيٍّ لا يصل حروفَ العربيّة. و«عريف رقعة»
+     يقوم مقامَ «القاهرة» في العناوين، وكلاهما في المستودع. -->
+<style>
+@font-face{font-family:'Cairo';src:url('assets/book/fonts/Amiri-Regular.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:'Cairo';src:url('assets/book/fonts/Amiri-Bold.ttf') format('truetype');font-weight:700;font-display:swap}
+@font-face{font-family:'Aref Ruqaa';src:url('assets/book/fonts/ArefRuqaa-Regular.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:'Aref Ruqaa';src:url('assets/book/fonts/ArefRuqaa-Bold.ttf') format('truetype');font-weight:700;font-display:swap}
+</style>
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#3a2c55}
   #app{position:fixed;inset:0}
@@ -75,6 +82,39 @@
     background:linear-gradient(135deg,#e0d8cf,#cebba5);box-shadow:0 8px 24px rgba(197,174,148,.35);
     pointer-events:auto}
   .bigbtn:hover{transform:translateY(-2px)}
+  /* فقاعةُ كلامِ حلا: تخبر اللاعبَ ما المطلوب وتعطيه التلميح */
+  #bubble{position:fixed;left:50%;bottom:118px;transform:translateX(-50%) translateY(14px);
+    z-index:9;max-width:min(560px,92vw);padding:12px 18px 12px 16px;opacity:0;
+    transition:opacity .35s,transform .35s;pointer-events:none;text-align:center}
+  #bubble.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  #bubble::after{content:"";position:absolute;bottom:-9px;left:50%;margin-left:-9px;
+    width:18px;height:18px;background:rgba(58,32,18,.62);
+    border-right:1px solid rgba(229,223,216,.28);border-bottom:1px solid rgba(229,223,216,.28);
+    transform:rotate(45deg)}
+  #bubble .who{font-size:.72rem;color:#dccebd;letter-spacing:.06em;margin-bottom:3px}
+  #bubble .msg{font-size:1rem;font-weight:700;line-height:1.6}
+  #bubble .tip{font-size:.85rem;color:#e6dccd;margin-top:4px;line-height:1.7}
+  /* شاشةُ التعليمات */
+  #howBtn{position:absolute;top:18px;left:20px;pointer-events:auto;cursor:pointer;
+    width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+    font-size:1.05rem;font-weight:800;border:1px solid rgba(229,223,216,.35);
+    background:rgba(58,32,18,.55);color:#ffeed6;backdrop-filter:blur(6px)}
+  #how{position:fixed;inset:0;z-index:16;display:none;align-items:center;justify-content:center;
+    background:rgba(14,10,6,.82);backdrop-filter:blur(4px);padding:16px}
+  #how.on{display:flex}
+  #how .inner{position:relative;max-width:660px;width:100%;max-height:90vh;overflow-y:auto;
+    padding:26px 28px 26px;text-align:right;font-family:'Cairo',sans-serif}
+  /* اللوحُ يطول فيسقط زرُّ الرجوع تحت حافّة الشاشة، فزرُّ إغلاقٍ ثابتٌ في زاويته */
+  #howX{position:sticky;top:0;float:left;cursor:pointer;width:34px;height:34px;border-radius:50%;
+    display:grid;place-items:center;font-size:1rem;border:1px solid rgba(229,223,216,.35);
+    background:rgba(58,32,18,.85);color:#ffeed6;margin:-6px -6px 0 0}
+  #how h2{font-size:1.35rem;color:#dccebd;margin:0 0 6px;text-align:center}
+  #how h3{font-size:1rem;color:#dccebd;margin:18px 0 6px}
+  #how p,#how li{font-size:.92rem;line-height:1.95;color:#ffeed6}
+  #how ul{margin:0;padding-inline-start:1.1em}
+  #how .keys{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:flex-end}
+  #how .kc{border:1px solid rgba(229,223,216,.3);border-radius:8px;padding:3px 10px;
+    font-size:.8rem;background:rgba(0,0,0,.2)}
   #touch{position:fixed;bottom:20px;left:0;right:0;z-index:8;display:none;
     justify-content:space-between;padding:0 22px;pointer-events:none}
   body.touch #touch{display:flex}
@@ -110,6 +150,56 @@
   </div>
   <div id="toasts"></div>
   <div id="keys" class="card">WASD / الأسهم للمشي &nbsp;·&nbsp; السحب لتدوير الكاميرا &nbsp;·&nbsp; المسافة للقفز</div>
+  <div id="howBtn" title="التعليمات">؟</div>
+</div>
+
+<!-- فقاعةُ كلام حلا -->
+<div id="bubble" class="card">
+  <div class="who">☀️ حلا — أختُ يارا</div>
+  <div class="msg" id="bubMsg"></div>
+  <div class="tip" id="bubTip"></div>
+</div>
+
+<!-- التعليمات -->
+<div id="how">
+  <div class="inner card">
+    <div id="howX" title="إغلاق">✕</div>
+    <h2>🌴 كيف نلعب؟</h2>
+    <p style="text-align:center;color:#dccebd">عالمُ يارا — خمس عشرة جزيرةً عائمةً فوق بحرٍ من الغيوم</p>
+
+    <h3>◆ ما المطلوب؟</h3>
+    <p>على الجزر <b>كراتٌ مضيئة</b>، في كلِّ كرةٍ كلمةٌ إنجليزيّةٌ ومعناها بالعربيّة.
+       امشوا بيارا حتى تلمسوا الكرة فتُجمَع الكلمةُ ويرتفع العدّاد.
+       أكملوا عددَ كلمات المستوى فينفتح المستوى التالي — <b>مئةُ مستوى</b>،
+       كلُّ عشرةٍ منها وحدةٌ من المنهج: العائلة، الطعام، المدينة،
+       <b>المهن</b>، التراث العُمانيّ، الإملاء، الأضداد، الجموع،
+       حروف الجرّ، الأزمنة.</p>
+
+    <h3>◆ كيف نتحرّك؟</h3>
+    <p>يارا تمشي بمنظور المتابعة، والكاميرا تدور بالسحب.</p>
+    <div class="keys">
+      <span class="kc">W A S D</span><span class="kc">أو الأسهم — المشي</span>
+      <span class="kc">Space</span><span class="kc">القفز</span>
+      <span class="kc">Shift</span><span class="kc">الركض</span>
+      <span class="kc">السحب</span><span class="kc">تدوير الكاميرا</span>
+      <span class="kc">العجلة</span><span class="kc">تقريب وإبعاد</span>
+      <span class="kc">؟</span><span class="kc">هذه الشاشة</span>
+    </div>
+    <p style="margin-top:8px">وعلى الجوّال: أزرارُ الاتّجاه أسفلَ الشاشة، والسحبُ على الشاشة يُدير الكاميرا.</p>
+
+    <h3>◆ كيف نصل إلى الكلمة؟</h3>
+    <ul>
+      <li><b>عمودُ الضوء:</b> فوق كلِّ كرةٍ عمودٌ مضيءٌ يُرى من بعيد.</li>
+      <li><b>الجسور:</b> الجزرُ موصولةٌ بجسورٍ تتموّج وتلتفّ — اعبروها بهدوء.</li>
+      <li><b>حلا:</b> إن وقفتم حائرين أشارت بذراعها إلى أقرب كلمة، وكلّمتكم في الفقاعة أسفلَ الشاشة.</li>
+    </ul>
+
+    <h3>◆ مَن حلا؟</h3>
+    <p>أختُ يارا الصغرى. تمشي معكم في كلِّ مكانٍ ولا تفارقكم: تركض إذا ركضتم،
+       وتلوّح إذا وقفتم، وتصفّق كلّما جمعتم كلمة، وترقص إذا أكملتم المستوى.</p>
+
+    <div style="text-align:center"><button class="bigbtn" id="howClose">↩ رجوع إلى اللعب</button></div>
+  </div>
 </div>
 
 <div id="startCard">
@@ -119,6 +209,9 @@
        امشوا مع <b>يارا</b> بين الجزر واعبروا الجسور، واجمعوا <b>الكلمات الإنجليزية المضيئة</b> —
        كل كلمة تقرّبكم من المستوى التالي من مئة مستوى.</p>
     <button class="bigbtn" id="btnPlay">▶ ابدؤوا اللعب</button>
+    <button class="bigbtn" id="btnHow"
+      style="background:rgba(58,32,18,.5);color:#ffeed6;border:1px solid rgba(229,223,216,.32);box-shadow:none">
+      ❖ التعليمات — ما المطلوب؟</button>
   </div>
 </div>
 
@@ -1396,7 +1489,19 @@ var HALA = (function(){
   var mDark =new THREE.MeshBasicMaterial({color:0x222222});
   var mCheek=new THREE.MeshStandardMaterial({color:0xff8899,transparent:true,opacity:0.75,roughness:0.5});
 
-  var body=new THREE.Group(); body.scale.setScalar(0.30); g.add(body);
+  /* كان الجسمُ بمقياس ٠٫٣٠ وموضعُه صفرٌ، وأخفضُ نقطةٍ فيه — أسفلُ القدم —
+     تقع عند ‎-3.85‎ من وحداته، أي مترًا وسُدسًا تحتَ أصل المجموعة. والمجموعةُ
+     تُوضَع على سطح الأرض، فكان أكثرُ من متر من حلا مدفونًا في التربة ولا
+     يظهر منها إلّا الرأسُ والأشعّة — وهو ما رأيتِه. فصار المقياسُ أصغرَ
+     (أختٌ صغرى لا عملاقة) والجسمُ مرفوعًا بمقدار القدم فتقف على الأرض. */
+  /* وقياسُها نسبةٌ من يارا لا رقمٌ مطلق: يارا بمِجَسّاتها ثلاثةُ أمتار،
+     فحلا عند ٠٫٢٦ تبلغ نحوَ ٢٫٤ — أختٌ أصغرُ تصل إلى كتف أختها، لا
+     دميةٌ عند ركبتها كما كانت عند ٠٫١٦. */
+  var HSCALE=0.26, FOOT=3.85;
+  var body=new THREE.Group();
+  body.scale.setScalar(HSCALE);
+  body.position.y=FOOT*HSCALE;
+  g.add(body);
   /* الوجه */
   var head=new THREE.Group(); head.position.y=2.35; body.add(head);
   var face=mesh(new THREE.SphereGeometry(1.2,26,20),mFace,true,false); head.add(face);
@@ -1460,9 +1565,9 @@ var HALA = (function(){
     x.fillStyle=gr; x.fillText('حلا',192,72);
     var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),
       transparent:true,depthWrite:false,toneMapped:false}));
-    sp.scale.set(0.95,0.34,1); sp.position.y=1.85; g.add(sp);
+    sp.scale.set(0.86,0.31,1); sp.position.y=2.62; g.add(sp);
   })();
-  var halo=glowSprite(2.0,0.0,0xffd9a0); halo.position.y=0.8; g.add(halo);
+  var halo=glowSprite(2.2,0.0,0xffd9a0); halo.position.y=1.15; g.add(halo);
   g.userData={arms:arms,legs:legs,body:body,head:head,dress:dress,halo:halo};
   return g;
 })();
@@ -1486,112 +1591,118 @@ var HALA_FLY=[];
   });
 })();
 
-/* ---- سلوك حلا: تظهر، تلعب، تختفي ---- */
-var HS={mode:'hidden',t:0,next:4,act:'run',ang:0,x:0,z:0,y:0};
+/* ---- سلوك حلا: رفيقةٌ دائمة، لا تظهر وتختفي ----------------------
+   كانت تظهر أربعَ ثوانٍ ثمّ تغيب خمسًا، فلا تكاد تُرى. وطلبتِ أن تبقى
+   مع يارا. فصارت تمشي معها دائمًا، وأفعالُها تتبع الموقفَ لا زرًّا:
+   تركض إذا ركضت يارا، وتقف وتلوّح إذا وقفت، وتشير إلى أقرب كلمةٍ إن
+   طال وقوفُها، وتقفز فرحًا كلّما جُمعت كلمة، وترقص عند إتمام المستوى.
+   وإن وقعت بين الكاميرا ويارا انتقلت إلى الجهة الأخرى بدل أن تختفي. */
+var HS={act:'follow',t:0,idle:0,cheer:0,dance:0,side:1,x:0,y:0,z:0,started:false};
+function halaCheer(k){ HS.cheer=Math.max(HS.cheer,k||1.1); }
+function halaDance(k){ HS.dance=Math.max(HS.dance,k||4.0); }
 updates.push(function(t,dt){
-  var U=HALA.userData, i;
+  var U=HALA.userData, sh=shamoosa.position;
+
   /* الفراشتان تدوران حول يارا */
   HALA_FLY.forEach(function(f,k){
     var a=t*(0.5+k*0.18)+f.ph;
-    f.g.position.set(shamoosa.position.x+Math.cos(a)*f.r,
-                     shamoosa.position.y+f.h+Math.sin(t*1.7+f.ph)*0.35,
-                     shamoosa.position.z+Math.sin(a)*f.r);
+    f.g.position.set(sh.x+Math.cos(a)*f.r, sh.y+f.h+Math.sin(t*1.7+f.ph)*0.35, sh.z+Math.sin(a)*f.r);
     f.g.rotation.y=-a;
     var flap=Math.sin(t*15+f.ph)*0.9;
     f.wl.rotation.y=flap; f.wr.rotation.y=-flap;
   });
 
-  /* لا تحجب الكاميرا: تختفي إن مرّت قريبة جدًّا منها */
-  if(HS.mode!=='hidden'){
-    HALA.visible = camera.position.distanceTo(HALA.position) > 3.6;
+  /* أوّلُ إطارٍ: ضَعْها بجانب يارا مباشرةً */
+  if(!HS.started){
+    HS.started=true; HS.x=sh.x+1.3; HS.z=sh.z+0.4; HS.y=sh.y;
+    HALA.position.set(HS.x,HS.y,HS.z); HALA.visible=true;
   }
 
-  HS.t+=dt;
-  if(HS.mode==='hidden'){
-    if(HS.t>HS.next){
-      /* تظهر قرب يارا بمكان عشوائي */
-      var a0=Math.random()*Math.PI*2, d0=3.2+Math.random()*2.2;
-      HS.x=shamoosa.position.x+Math.cos(a0)*d0;
-      HS.z=shamoosa.position.z+Math.sin(a0)*d0;
-      var gr=groundAt(HS.x,HS.z);
-      if(!gr){ HS.next=HS.t+1.2; return; }          /* لا تظهر في الهواء */
-      HS.y=gr.y+0.05;
-      HS.act=['run','dance','chase','peek'][Math.floor(Math.random()*4)];
-      HS.mode='in'; HS.t=0; HS.ang=a0;
-      HALA.visible=true; HALA.scale.setScalar(0.01);
-      HALA.position.set(HS.x,HS.y,HS.z);
-      SFX('reveal');
-    }
-    return;
+  /* الوجهةُ: على يمين يارا أو يسارها، أيُّهما أبعدُ عن الكاميرا —
+     فبدل أن تحجب المشهدَ وتُخفى، تنتقل إلى الجهة الأخرى */
+  var toCam=new THREE.Vector2(camera.position.x-sh.x, camera.position.z-sh.z);
+  if(toCam.lengthSq()<1e-4) toCam.set(0,1);
+  toCam.normalize();
+  var sideV=new THREE.Vector2(-toCam.y, toCam.x);       /* عموديٌّ على خطّ الكاميرا */
+  var wantX=sh.x+sideV.x*1.35+toCam.x*0.15;
+  var wantZ=sh.z+sideV.y*1.35+toCam.y*0.15;
+  var alt =new THREE.Vector2(sh.x-sideV.x*1.35+toCam.x*0.15, sh.z-sideV.y*1.35+toCam.y*0.15);
+  /* اختَرِ الجهةَ الأقربَ إلى مكانها الآن، فلا تقفز من جنبٍ إلى جنب */
+  if(Math.hypot(alt.x-HS.x,alt.y-HS.z) < Math.hypot(wantX-HS.x,wantZ-HS.z)-0.9){
+    wantX=alt.x; wantZ=alt.y;
   }
-  if(HS.mode==='in'){
-    var k=Math.min(1,HS.t/0.45);
-    HALA.scale.setScalar(k*k*(3-2*k));
-    U.halo.material.opacity=0.55*(1-k);
-    if(HS.t>=0.45){ HS.mode='play'; HS.t=0; HS.next=4.5+Math.random()*3.5; }
+  var gw=groundAt(wantX,wantZ);
+  if(!gw){                                   /* الوجهةُ في الهواء: التصِقي بيارا */
+    wantX=sh.x+(wantX-sh.x)*0.35; wantZ=sh.z+(wantZ-sh.z)*0.35;
+    gw=groundAt(wantX,wantZ);
   }
-  else if(HS.mode==='play'){
-    if(HS.act==='run'){
-      /* تركض في دائرة حول يارا */
-      HS.ang+=dt*1.5;
-      var rr=3.4+Math.sin(HS.t*1.3)*0.5;
-      var nx=shamoosa.position.x+Math.cos(HS.ang)*rr;
-      var nz=shamoosa.position.z+Math.sin(HS.ang)*rr;
-      var g2=groundAt(nx,nz);
-      if(g2){ HS.x=nx; HS.z=nz; HS.y=g2.y+0.05; }
-      HALA.position.set(HS.x,HS.y+Math.abs(Math.sin(t*11))*0.28,HS.z);
-      HALA.rotation.y=HS.ang+Math.PI/2;
-      var sw=Math.sin(t*11);
-      U.legs[0].rotation.x= sw*0.7; U.legs[1].rotation.x=-sw*0.7;
-      U.arms[0].rotation.x=-sw*0.6; U.arms[1].rotation.x= sw*0.6;
-      U.body.rotation.z=Math.sin(t*11)*0.05;
-    }
-    else if(HS.act==='dance'){
-      HALA.position.y=HS.y+Math.abs(Math.sin(t*5.5))*0.42;
-      HALA.rotation.y+=dt*2.6;
-      U.arms[0].rotation.z= 0.9+Math.sin(t*7)*0.5;
-      U.arms[1].rotation.z=-0.9-Math.sin(t*7)*0.5;
-      U.legs[0].rotation.x=Math.sin(t*7)*0.5;
-      U.legs[1].rotation.x=-Math.sin(t*7)*0.5;
-      U.body.rotation.z=Math.sin(t*5.5)*0.16;
-      U.dress.rotation.y+=dt*3.4;
-    }
-    else if(HS.act==='chase'){
-      /* تطارد فراشة */
-      var f=HALA_FLY[0].g.position;
-      HS.x+=(f.x-HS.x)*Math.min(1,dt*1.6);
-      HS.z+=(f.z-HS.z)*Math.min(1,dt*1.6);
-      var g3=groundAt(HS.x,HS.z); if(g3) HS.y=g3.y+0.05;
-      HALA.position.set(HS.x,HS.y+Math.abs(Math.sin(t*10))*0.32,HS.z);
-      HALA.rotation.y=Math.atan2(f.x-HS.x,f.z-HS.z);
-      U.arms[0].rotation.z= 1.5; U.arms[1].rotation.z=-1.5;   /* يداها للأعلى */
-      U.legs[0].rotation.x=Math.sin(t*10)*0.8; U.legs[1].rotation.x=-Math.sin(t*10)*0.8;
-      U.head.rotation.x=-0.25;
-    }
-    else { /* peek — تطلّ وتلوّح */
-      HALA.position.y=HS.y+Math.sin(t*2.2)*0.06;
-      HALA.rotation.y=Math.atan2(shamoosa.position.x-HS.x,shamoosa.position.z-HS.z);
-      U.arms[1].rotation.z=-2.2+Math.sin(t*8)*0.45;            /* تلوّح */
-      U.arms[0].rotation.z=0.35;
-      U.head.rotation.z=Math.sin(t*3)*0.12;
-    }
-    if(HS.t>HS.next){ HS.mode='out'; HS.t=0; }
+  var d=Math.hypot(wantX-HS.x,wantZ-HS.z);
+  var speed=(d>2.6?3.4:(d>0.9?2.1:0));       /* تركض إن تخلّفت، وتمشي إن قربت */
+  if(speed>0){
+    var k=Math.min(1,dt*speed/Math.max(d,0.001));
+    HS.x+=(wantX-HS.x)*k; HS.z+=(wantZ-HS.z)*k;
+    HALA.rotation.y=Math.atan2(wantX-HS.x||0.001,wantZ-HS.z||0.001);
+    HS.idle=0;
+  } else HS.idle+=dt;
+  var gr=groundAt(HS.x,HS.z);
+  if(gr) HS.y=gr.y+0.05; else if(gw) HS.y=gw.y+0.05;
+
+  /* ما الحال؟ الفرحُ يسبق الرقص، والرقصُ يسبق الإشارة، والإشارةُ الوقوف */
+  var act = HS.cheer>0 ? 'cheer' : (HS.dance>0 ? 'dance'
+          : (speed>0 ? 'walk' : (HS.idle>3.5 ? 'point' : 'idle')));
+  HS.cheer=Math.max(0,HS.cheer-dt); HS.dance=Math.max(0,HS.dance-dt);
+
+  var lift=0;
+  if(act==='walk'){
+    var f=(speed>3?14:9), sw=Math.sin(t*f);
+    lift=Math.abs(Math.sin(t*f))*0.10;
+    U.legs[0].rotation.x= sw*0.7; U.legs[1].rotation.x=-sw*0.7;
+    U.arms[0].rotation.x=-sw*0.6; U.arms[1].rotation.x= sw*0.6;
+    U.arms[0].rotation.z=0; U.arms[1].rotation.z=0;
+    U.body.rotation.z=sw*0.05; U.head.rotation.set(0,0,0);
   }
-  else if(HS.mode==='out'){
-    var k2=Math.min(1,HS.t/0.4);
-    HALA.scale.setScalar(1-k2+0.001);
-    U.halo.material.opacity=0.5*k2;
-    HALA.rotation.y+=dt*7;
-    if(HS.t>=0.4){
-      HALA.visible=false; U.halo.material.opacity=0;
-      /* تُعاد الأطراف إلى وضعها */
-      U.arms[0].rotation.set(0,0,0.0); U.arms[1].rotation.set(0,0,0.0);
-      U.legs[0].rotation.set(0,0,0);   U.legs[1].rotation.set(0,0,0);
-      U.head.rotation.set(0,0,0);      U.body.rotation.z=0;
-      HS.mode='hidden'; HS.t=0; HS.next=3+Math.random()*5;
-      SFX('click');
-    }
+  else if(act==='cheer'){
+    lift=Math.abs(Math.sin(t*9))*0.34;
+    U.arms[0].rotation.set(0,0, 2.3); U.arms[1].rotation.set(0,0,-2.3);
+    U.legs[0].rotation.x=0.25; U.legs[1].rotation.x=-0.25;
+    U.head.rotation.x=-0.18; U.body.rotation.z=0;
+    HALA.rotation.y=Math.atan2(sh.x-HS.x||0.001,sh.z-HS.z||0.001);
   }
+  else if(act==='dance'){
+    lift=Math.abs(Math.sin(t*5.5))*0.22;
+    HALA.rotation.y+=dt*2.6;
+    U.arms[0].rotation.set(0,0, 0.9+Math.sin(t*7)*0.5);
+    U.arms[1].rotation.set(0,0,-0.9-Math.sin(t*7)*0.5);
+    U.legs[0].rotation.x=Math.sin(t*7)*0.5; U.legs[1].rotation.x=-Math.sin(t*7)*0.5;
+    U.body.rotation.z=Math.sin(t*5.5)*0.16;
+    U.dress.rotation.y+=dt*3.4;
+  }
+  else if(act==='point'){
+    /* تشير بذراعها إلى أقرب كلمةٍ مضيئة */
+    var near=null,nd=1e9;
+    for(var i=0;orbs&&i<orbs.length;i++){
+      var o=orbs[i].g.position, dd=(o.x-sh.x)*(o.x-sh.x)+(o.z-sh.z)*(o.z-sh.z);
+      if(dd<nd){ nd=dd; near=o; }
+    }
+    if(near){
+      HALA.rotation.y=Math.atan2(near.x-HS.x,near.z-HS.z);
+      U.arms[1].rotation.set(-1.45,0,-0.15);          /* ذراعٌ ممدودةٌ إلى الأمام */
+      U.arms[0].rotation.set(0,0,0.2);
+      U.head.rotation.x=-0.12;
+    }
+    lift=Math.sin(t*2.2)*0.02;
+    U.legs[0].rotation.x=0; U.legs[1].rotation.x=0; U.body.rotation.z=0;
+  }
+  else {                                               /* واقفةٌ تلوّح */
+    lift=Math.sin(t*2.2)*0.03;
+    HALA.rotation.y=Math.atan2(sh.x-HS.x||0.001,sh.z-HS.z||0.001);
+    U.arms[1].rotation.set(0,0,-2.2+Math.sin(t*8)*0.45);
+    U.arms[0].rotation.set(0,0,0.35);
+    U.legs[0].rotation.x=0; U.legs[1].rotation.x=0;
+    U.head.rotation.z=Math.sin(t*3)*0.12; U.body.rotation.z=0;
+  }
+  HALA.position.set(HS.x,HS.y+lift,HS.z);
+  HALA.visible=true;
 });
 
 /* ---------- كرات الكلمات ---------- */
@@ -1683,6 +1794,8 @@ function collect(o){
   $('wEn').textContent=o.q.correct; $('wAr').textContent=o.q.hint||'';
   shamoosa.userData.setMood('wow');
   setTimeout(function(){ shamoosa.userData.setMood('smile'); },900);
+  halaCheer(1.3);
+  say(o.q.correct+' — '+(o.q.hint||''), 'حلا تصفّق: أحسنتم! 👏', 2600);
   /* ومضة ضوء */
   var fx=glowSprite(1.4,0.95); fx.position.copy(o.g.position); scene.add(fx);
   var k=0;
@@ -1696,6 +1809,8 @@ function collect(o){
   if(G.got>=lv.need){
     SFX('win');
     toast('🎉 أكملتم المستوى '+lv.n+'! تعلّمتم <b>'+G.learned.length+'</b> عنصراً');
+    halaDance(5.5);
+    say('أكملنا المستوى '+lv.n+'! 🎉','ننتقل إلى المستوى التالي…',3200);
     setTimeout(function(){ startLevel(Math.min(G.lvl+1,PALM.LEVELS.length)); },1800);
   }
 }
@@ -1881,6 +1996,66 @@ updates.push(function(t,dt){
   }
 });
 
+/* ---------- فقاعةُ كلام حلا ----------------------------------------
+   طلبتِ تعليماتٍ وفقاعةَ كلامٍ تخبر اللاعبَ وتعطيه تلميحًا. فحلا هي
+   المرشدة: تتكلّم عند البدء، وكلّما جُمعت كلمةٌ أو اكتمل مستوًى، وإذا
+   طال وقوفُ اللاعب حائرًا دلّته على أقربِ كلمةٍ وجهةِ سيرها. */
+/* المهلةُ بساعةِ الحائط لا بزمن الإطارات: زمنُ الإطار محدودٌ بـ ٠٫٠٥
+   ثانية، فلو عُدَّ به لصار انتظارُ التلميح على جهازٍ بطيءٍ دقيقةً
+   كاملةً — وأبطأُ الأجهزة أحوجُها إلى العون. */
+var BUB={until:0,since:0,lastGot:-1};
+function say(msg,tip,ms){
+  $('bubMsg').textContent=msg||'';
+  $('bubTip').textContent=tip||'';
+  $('bubble').classList.add('on');
+  BUB.until=performance.now()+(ms||3000);
+}
+function hideBubble(){ $('bubble').classList.remove('on'); }
+/* الجهةُ بالعربيّة من فرق الإحداثيّات — أوضحُ للطفل من سهمٍ على الشاشة */
+function dirWord(dx,dz){
+  var a=Math.atan2(dx,dz)*180/Math.PI;
+  if(a<0)a+=360;
+  var names=['أمامَكم','إلى يمينِكم قليلًا','إلى يمينِكم','خلفَكم إلى اليمين',
+             'خلفَكم','خلفَكم إلى اليسار','إلى يسارِكم','إلى يسارِكم قليلًا'];
+  return names[Math.round(a/45)%8];
+}
+function nearestOrb(){
+  var best=null,bd=1e9;
+  for(var i=0;orbs&&i<orbs.length;i++){
+    var o=orbs[i], d=o.g.position.distanceToSquared(shamoosa.position);
+    if(d<bd){ bd=d; best=o; }
+  }
+  return best?{o:best,d:Math.sqrt(bd)}:null;
+}
+updates.push(function(t,dt){
+  if(!G.playing) return;
+  if(BUB.until && performance.now()>BUB.until){ BUB.until=0; hideBubble(); }
+  /* التلميحُ حين يطول الحَيرة: مقياسُها ألّا تُجمَع كلمةٌ جديدة، لا
+     أن يقف اللاعبُ — فقد يمشي طويلًا في الاتّجاه الخطأ وهو أحوجُ ما
+     يكون إلى الدلالة. والعدّادُ يُصفَّر عند كلّ كلمةٍ تُجمَع. */
+  var now=performance.now();
+  if(G.got!==BUB.lastGot){ BUB.lastGot=G.got; BUB.since=now; }
+  if(!BUB.since) BUB.since=now;
+  if(now-BUB.since>9000 && !BUB.until){
+    var n=nearestOrb();
+    if(n) say('أقربُ كلمةٍ ' + dirWord(n.o.g.position.x-shamoosa.position.x,
+                                        n.o.g.position.z-shamoosa.position.z) +
+              ' على بُعدِ ' + Math.round(n.d) + ' خطوة',
+              'اتبعوا عمودَ الضوء — أنا أشيرُ إليه بذراعي 👉', 4200);
+    else say('لا كلمةَ متبقّية هنا','انتظروا… المستوى التالي يبدأ',3000);
+    BUB.since=now;
+  }
+});
+
+$('howBtn').onclick=function(){ $('how').classList.add('on'); };
+$('btnHow').onclick=function(){ $('how').classList.add('on'); };
+$('howClose').onclick=function(){ $('how').classList.remove('on'); };
+$('howX').onclick=function(){ $('how').classList.remove('on'); };
+addEventListener('keydown',function(e){
+  if(e.key==='?'||e.code==='Slash'){ $('how').classList.toggle('on'); }
+  if(e.code==='Escape') $('how').classList.remove('on');
+});
+
 $('btnPlay').onclick=function(){
   $('startCard').classList.add('gone');
   $('hud').classList.add('on');
@@ -1889,7 +2064,34 @@ $('btnPlay').onclick=function(){
   ctrl.auto=false;
   G.playing=true;
   startLevel(1);
+  say('أهلًا! أنا حلا، أختُ يارا 🌸','امشوا بـ W A S D والمسوا الكرةَ المضيئة لتجمعوا كلمتَها.',5200);
+  setTimeout(function(){
+    var n=nearestOrb();
+    if(n) say('أوّلُ كلمةٍ ' + dirWord(n.o.g.position.x-shamoosa.position.x,
+                                        n.o.g.position.z-shamoosa.position.z),
+              'اتبعوا عمودَ الضوء الصاعدَ من الكرة', 5000);
+  },5600);
 };
+
+/* خطّافُ الفحص: ‎?dbg=1‎ يفتح البابَ للاختبار الآليّ لا للاعبين */
+if(new URLSearchParams(location.search).get('dbg')==='1'){
+  window.YARA={ G:G, HS:HS, BUB:BUB, updates:updates, HALA:HALA, yara:shamoosa, camera:camera,
+    get orbs(){ return orbs; },
+    say:say, cheer:halaCheer, dance:halaDance,
+    /* صندوقُ حلا وأرضُها — لمعرفة أهي فوق الأرض أم مدفونةٌ فيها */
+    halaBox:function(){
+      var b=new THREE.Box3().setFromObject(HALA), g=groundAt(HALA.position.x,HALA.position.z);
+      return {low:+b.min.y.toFixed(3), high:+b.max.y.toFixed(3),
+              ground:g?+g.y.toFixed(3):null, visible:HALA.visible,
+              height:+(b.max.y-b.min.y).toFixed(3)};
+    },
+    yaraBox:function(){ var b=new THREE.Box3().setFromObject(shamoosa);
+      return {low:+b.min.y.toFixed(3), high:+b.max.y.toFixed(3),
+              height:+(b.max.y-b.min.y).toFixed(3)}; },
+    gap:function(){ return +Math.hypot(HALA.position.x-shamoosa.position.x,
+                                       HALA.position.z-shamoosa.position.z).toFixed(2); },
+    grab:function(){ if(orbs.length) collect(orbs[0]); return orbs.length; } };
+}
 
 /* ---------- حلقة التشغيل ---------- */
 var clock=new THREE.Clock(),veilDone=false;

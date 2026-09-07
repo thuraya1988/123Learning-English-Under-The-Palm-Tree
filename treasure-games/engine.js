@@ -91,7 +91,7 @@ const SKINS = [
     "🎖️",
     "🏺",
     "🥁",
-    "🌟",
+    "🌴",
     "🍁",
     "🎈",
     "🪁",
@@ -249,7 +249,7 @@ function buildMap() {
         open = n <= D.unlocked;
       b.className = "level " + (done ? "done " : "") + (!open ? "lock" : "");
       b.innerHTML = open
-        ? `${n}<small>${"★".repeat(done)}${"☆".repeat(3 - done)}</small>`
+        ? `${n}<small>${"🌴".repeat(done)}${"🌱".repeat(3 - done)}</small>`
         : `🔒<small>${n}</small>`;
       b.disabled = !open;
       b.onclick = () => start(n);
@@ -258,7 +258,7 @@ function buildMap() {
     sec.appendChild(grid);
     out.appendChild(sec);
   });
-  $("mapStats").textContent = `⭐ ${stars()}/360 · 🪙 ${D.coins}`;
+  $("mapStats").textContent = `🌴 ${stars()}/360 · 🪙 ${D.coins}`;
   screen("map");
 }
 function buildShop() {
@@ -402,7 +402,7 @@ function makeKingdom(n) {
   g.items = [0.24, 0.52, 0.82].map((q, i) => ({
     x: g.width * q,
     y: 120 + r() * 180,
-    e: ["⭐", "💎", "👑"][i],
+    e: ["🌴", "💎", "👑"][i],
     got: false,
   }));
   g.coinsA = Array.from({ length: 25 }, (_, i) => ({
@@ -544,7 +544,7 @@ function refresh() {
       "اخضرار الأفق",
       "الكون الحي",
     ][Math.min(6, (G.score / 35) | 0)];
-    $("coinChip").textContent = `✦ ${G.score}`;
+    $("coinChip").textContent = `🌴 ${G.score}`;
     $("starChip").textContent =
       `توليفة ×${Math.min(5, 1 + ((G.combo / 5) | 0))}`;
     $("heartChip").textContent =
@@ -564,7 +564,7 @@ function refresh() {
   $("starChip").textContent =
     G.kind === "jump"
       ? `${G.key.got ? "🔑" : "🔒"} ${G.chest.got ? "🎁" : ""}`
-      : `⭐ ${G.got}/3`;
+      : `🌴 ${G.got}/3`;
   if ($("progress") && G.kind === "jump")
     $("progress").style.width = clamp((-G.p.y / G.height) * 100, 0, 100) + "%";
 }
@@ -596,7 +596,7 @@ function lose() {
     save();
     modal(
       "انطفأ الضوء الأخير",
-      `<p>جمعتِ ✦ ${G.score} من الضوء<br>أفضل نتيجة: ${D.best}</p>`,
+      `<p>جمعتِ 🌴 ${G.score} من الضوء<br>أفضل نتيجة: ${D.best}</p>`,
       [
         { a: "retry", t: "أشعليها من جديد" },
         { a: "home", t: "القائمة" },
@@ -631,7 +631,7 @@ function win() {
   tone(1000, 0.35);
   modal(
     "مستوى مكتمل!",
-    `<div class="big-stars">${"⭐".repeat(s)}${"☆".repeat(3 - s)}</div><p>مكافأتك: 🪙 ${reward}</p>`,
+    `<div class="big-stars">${"🌴".repeat(s)}${"🌱".repeat(3 - s)}</div><p>مكافأتك: 🪙 ${reward}</p>`,
     [
       { a: "next", t: G.n < TOTAL ? "المستوى التالي" : "العودة للخريطة" },
       { a: "map", t: "الخريطة" },
@@ -957,7 +957,7 @@ function drawLastLight() {
     ctx.fillRect((i * 137) % innerWidth, (i * 83) % innerHeight, 1.5, 1.5);
   }
   ctx.globalAlpha = 1;
-  for (const d of G.drops) emo(d.v > 1 ? "✦" : "·", d.x, d.y, 18 + d.v * 3);
+  for (const d of G.drops) emo(d.v > 1 ? "🌴" : "·", d.x, d.y, 18 + d.v * 3);
   for (const t of G.thorns) {
     ctx.save();
     ctx.translate(t.x, t.y);
@@ -1183,7 +1183,7 @@ if (MODE === "lastlight") {
     G.meter = 0;
     G.thorns = [];
     tone(1100, 0.3);
-    toast("نبضة النور ✦");
+    toast("نبضة النور 🌴");
   };
 }
 function loop(t) {

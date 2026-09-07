@@ -15,6 +15,21 @@
  * المواضعُ التسعة.
  */
 import { RIDDLES } from './qasr-riddles.js';
+import { ENGLISH_RIDDLES } from './qasr-riddles-english.js';
+
+/* بنكان لا بنك: ألغازُ التراث بالعربيّة، وألغازُ الإنجليزيّة مُولَّدةٌ
+   من منهج الصفّ الخامس. وكانت كلُّها نوعًا واحدًا — سؤالُ تراثٍ بأربعة
+   خيارات — فثلاثون منها في الطابق تُشبه بعضَها، والموقعُ موقعُ تعليمِ
+   إنجليزيّة. فصار كلُّ لغزٍ يحمل نوعَه، والطابقُ يُبنى من الأنواع كلِّها
+   بنسبةٍ ثابتة: ثلثاه إنجليزيّةٌ وثلثه تراث. */
+const HERITAGE = RIDDLES.map(r => r.length > 4 ? r : [r[0], r[1], r[2], r[3], 'تراث']);
+const KIND_COLOR = {
+  'تراث':   ['🏺', '#e8c17a'],
+  'مفردات': ['📖', '#8fd4ff'],
+  'إكمال':  ['✍️', '#a8e88a'],
+  'تصريف':  ['⏳', '#ffb0a0'],
+  'الكتاب': ['📗', '#d0a8ff']
+};
 
 const THREE = window.THREE;
 if (!THREE) throw new Error('three.js لم يُحمَّل');
@@ -1067,13 +1082,31 @@ const G={level:1,stage:0,totalSolved:0,keys:0,attempts:0,correct:0,
 const STAGE_NAMES=['الدور الأول — المدخل','الدور الثاني — الحُجُرات','الدور الثالث — القلب','الحديقة'];
 const STAGE_NUM=['I','II','III','❋'];
 
+/* البنكُ الإنجليزيّ مُولَّدٌ نوعًا بعد نوع، فأخذُ عشرين متتاليةً منه
+   يعطي الطابقَ نوعًا واحدًا: عشرون سؤالَ مفرداتٍ في الطابق الأوّل،
+   وعشرون إكمالًا في المئة. فالأخذُ من كلّ نوعٍ على حدة. */
+const BY_KIND=(()=>{
+  const m={};
+  ENGLISH_RIDDLES.forEach(r=>{(m[r[4]]=m[r[4]]||[]).push(r);});
+  return m;
+})();
+const MIX=[['مفردات',7],['إكمال',5],['تصريف',4],['الكتاب',4]];
 function levelRiddles(level){
   const rnd=mulberry32(level*7919+101);
-  const off=(level*53)%RIDDLES.length;
-  const pool=shuffle(RIDDLES.slice(off).concat(RIDDLES.slice(0,off)),rnd).slice(0,30);
-  return pool.map(r=>{
+  const take=(bank,n,mul)=>{
+    if(!bank||!bank.length) return [];
+    const off=(level*mul)%bank.length, out=[];
+    for(let i=0;i<n;i++) out.push(bank[(off+i)%bank.length]);
+    return out;
+  };
+  let eng=[];
+  MIX.forEach(([k,n],i)=>{ eng=eng.concat(take(BY_KIND[k],n,29+i*8)); });
+  /* إن نقص نوعٌ يومًا، يُكمَّل من البنك كلِّه فلا يقلّ الطابقُ عن ثلاثين */
+  if(eng.length<20) eng=eng.concat(take(ENGLISH_RIDDLES,20-eng.length,37));
+  const mix=shuffle(eng.concat(take(HERITAGE,10,53)),rnd);
+  return mix.map(r=>{
     const sh=shuffle([0,1,2,3],rnd);
-    return {q:r[0],o:sh.map(k=>r[1][k]),c:sh.indexOf(r[2]),e:r[3]};
+    return {q:r[0],o:sh.map(k=>r[1][k]),c:sh.indexOf(r[2]),e:r[3],k:r[4]||'تراث'};
   });
 }
 function startLevel(n,stage=0){
@@ -1226,9 +1259,17 @@ function openRiddle(ped){
   const L=LEVELS[G.level-1],th=G.stage===3?THEMES.garden:THEMES[L[2]];
   $('#rTag').textContent='اللغز '+ar(G.totalSolved+1)+' / ٣٠';
   $('#rTag').style.background='linear-gradient(180deg,'+hex(th.trim)+',#8a6428)';
-  $('#rCnt').textContent='◆ '+STAGE_NAMES[G.stage];
+  const kc=KIND_COLOR[r.k]||KIND_COLOR['تراث'];
+  $('#rCnt').innerHTML='<span style="color:'+kc[1]+'">'+kc[0]+' '+r.k+'</span> · '+STAGE_NAMES[G.stage];
   $('#rQ').textContent=r.q;
-  $('#rSub').textContent='— من تراث عُمان: '+L[1]+' —';
+  /* السطرُ تحت السؤال يتبع نوعَه: كان يقول «من تراث عُمان» فوق سؤالٍ
+     في تصريف الأفعال الإنجليزية. */
+  const SUB={'تراث':'— من تراث عُمان: '+L[1]+' —',
+             'مفردات':'— من كلمات كتاب الصفّ الخامس 5A —',
+             'إكمال':'— أكمل جملةً من الكتاب —',
+             'تصريف':'— الأفعال الشاذّة · صفحة ٧٤ —',
+             'الكتاب':'— وحدات الكتاب الأربع —'};
+  $('#rSub').textContent=SUB[r.k]||SUB['تراث'];
   const box=$('#rOpts');box.innerHTML='';
   r.o.forEach((o,i)=>{
     const b=document.createElement('div');b.className='opt';b.dataset.i=i;
@@ -1257,7 +1298,7 @@ function answer(i,el,r){
     el.classList.add('right');all.forEach(o=>o.classList.add('dis'));
     curPed.tab.material.color.set(0x2a4a2a);curPed.tab.material.emissiveIntensity=.25;
     SND.correct();
-    $('#rLore').innerHTML='<b>✦ صحيح.</b> '+r.e;
+    $('#rLore').innerHTML='<b>🌴 صحيح.</b> '+r.e;
     $('#rFoot').classList.add('on');$('#rNext').textContent='متابعة ← (مسافة)';
     markSolved();
   }else{
@@ -1269,7 +1310,7 @@ function answer(i,el,r){
       $('#rFoot').classList.add('on');$('#rNext').textContent='حاول ثانية ← (مسافة)';
     }else{
       all.forEach(o=>{o.classList.add('dis');if(+o.dataset.i===r.c)o.classList.add('right');});
-      $('#rLore').innerHTML='<b>✦ الإجابة الصحيحة:</b> '+r.o[r.c]+'<br>'+r.e;
+      $('#rLore').innerHTML='<b>🌴 الإجابة الصحيحة:</b> '+r.o[r.c]+'<br>'+r.e;
       $('#rFoot').classList.add('on');$('#rNext').textContent='متابعة ← (مسافة)';
       curPed.tab.material.color.set(0x4a2a2a);
       markSolved();
@@ -1666,4 +1707,21 @@ addEventListener('resize',()=>{
   })();
   showScreen('#title');
   animate();
+
+  /* منفذُ فحصٍ صغير: ‎?dbg=1‎ يكشف ما يكفي لاختبار اللعبة آليًّا —
+     فتحُ لغزٍ بلا التجوّل في المتاهة، ونقلُ اللاعب إلى مِسَلَّة.
+     لا يُفعَّل بلا العلامة، فلا يراه طالب. */
+  if(new URLSearchParams(location.search).get('dbg')==='1'){
+    /* W يُعاد إسنادُه في كلّ طابق، فالنسخةُ المأخوذةُ مرّةً تبقى قديمة
+       وتُبلّغ بصفر مِسَلّات. فيُقرأ حيًّا. */
+    window.QASR={
+      G,player,
+      get W(){ return W; },
+      openFirst(){ const p=W.pedestals.find(x=>!x.solved); if(p)openRiddle(p); return !!p; },
+      gotoPedestal(i){ const p=W.pedestals[i||0]; if(!p)return false;
+        player.pos.set(p.pos.x,0,p.pos.z+1.2); return true; },
+      kinds(){ return G.riddles.map(r=>r.k); }
+    };
+    console.log('QASR debug جاهز');
+  }
 })();

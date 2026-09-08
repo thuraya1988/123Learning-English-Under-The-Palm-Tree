@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>T-34/85 — عارض المجسّم</title>
+<meta name="author" content="ثريا الناعبية — Thuraya Al Naabia">
+<link rel="icon" type="image/png" href="public/favicon.png">
+<!-- الخطُّ من المستودع لا من jsdelivr: شبكاتُ المدارس تحجبه، وورقةُ
+     الأنماط حاجبةٌ للعرض فتبقى الصفحةُ سوداء. -->
+<style>
+@font-face{font-family:'Chakra Petch';src:url('assets/book/fonts/EBGaramond-Variable.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:'Chakra Petch';src:url('assets/book/fonts/EBGaramond-Variable.ttf') format('truetype');font-weight:700;font-display:swap}
+</style>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0c0e0a;
+    font-family:'Chakra Petch','Amiri',system-ui,sans-serif}
+  #app{position:fixed;inset:0}#app canvas{display:block}
+  .vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
+    background:radial-gradient(ellipse at center,transparent 55%,rgba(5,8,4,.38) 100%)}
+  .panel{position:fixed;z-index:10;background:rgba(14,16,11,.74);backdrop-filter:blur(10px);
+    border:1px solid rgba(177,145,109,.24);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+  #info{top:18px;right:18px;padding:14px 18px 12px;max-width:340px;text-align:right}
+  #info h1{margin:0;font-size:27px;font-weight:700;color:#e6ead1;line-height:1;direction:ltr}
+  #info h1 em{font-style:normal;color:#b1916d}
+  #info .sub{margin-top:4px;font-size:12px;color:#8a916b}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px;justify-content:flex-end}
+  .chip{font-size:11px;color:#bcc39a;border:1px solid rgba(177,145,109,.32);border-radius:20px;
+    padding:3px 9px;background:rgba(177,145,109,.07)}
+  #controls{bottom:18px;left:50%;transform:translateX(-50%);padding:10px 16px;display:flex;
+    align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 24px)}
+  .grp{display:flex;align-items:center;gap:6px}
+  .grp>span{font-size:11px;font-weight:700;color:#878e67;margin-left:3px}
+  .sep{width:1px;height:24px;background:rgba(177,145,109,.25)}
+  .btn{font-family:inherit;font-size:12px;font-weight:600;color:#d2d7ba;background:rgba(34,38,26,.75);
+    border:1px solid rgba(177,145,109,.38);border-radius:6px;padding:7px 12px;cursor:pointer;transition:.18s}
+  .btn:hover{background:rgba(74,82,52,.9);border-color:rgba(192,167,138,.6)}
+  .btn.active{background:#b1916d;color:#161a0e;border-color:#b1916d;box-shadow:0 0 14px rgba(177,145,109,.35)}
+  #hint{position:fixed;bottom:20px;left:18px;z-index:10;font-size:11px;color:rgba(210,215,186,.55);
+    line-height:1.8;pointer-events:none}
+  #loading{position:fixed;inset:0;z-index:50;background:#0c0e0a;display:flex;align-items:center;
+    justify-content:center;flex-direction:column;transition:opacity .7s}
+  #loading.done{opacity:0;pointer-events:none}
+  .ld-t{font-size:34px;font-weight:700;color:#e6ead1;direction:ltr}
+  .ld-t em{font-style:normal;color:#b1916d}
+  .ld-s{margin-top:8px;font-size:13px;color:#878e67;animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+  @media(max-width:760px){#info{max-width:250px;padding:10px 14px}#info h1{font-size:21px}
+    #hint{display:none}#controls{left:12px;right:12px;transform:none;gap:8px}.sep{display:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="vignette"></div>
+
+<header id="info" class="panel">
+  <h1>T-34<em>/85</em></h1>
+  <div class="sub">دبّابةٌ متوسّطة · ١٩٤٤ — الدبّابةُ المعتمَدة في «مهمّة سمائل»</div>
+  <div class="chips">
+    <span class="chip">مدفع ٨٥ ملم</span>
+    <span class="chip">برجٌ مصبوب</span>
+    <span class="chip">دروعٌ أماميّةٌ مائلة</span>
+    <span class="chip">٥ عجلات · قضبانُ التواء</span>
+    <span class="chip">خزّاناتٌ خارجيّة</span>
+    <span class="chip">قبّةُ القائد</span>
+  </div>
+</header>
+
+<div id="controls" class="panel">
+  <div class="grp"><span>أوضاع</span>
+    <button id="btnRotate" class="btn active">دوران</button>
+    <button id="btnTurret" class="btn">البرج</button>
+    <button id="btnWire" class="btn">شبكيّ</button>
+  </div>
+  <div class="sep"></div>
+  <div class="grp"><span>لقطات</span>
+    <button class="btn view" data-v="frontal">أمام</button>
+    <button class="btn view" data-v="lateral">جانب</button>
+    <button class="btn view" data-v="superior">أعلى</button>
+    <button class="btn view" data-v="torreta">البرج</button>
+    <button class="btn view" data-v="trasera">خلف</button>
+  </div>
+</div>
+
+<div id="hint">اسحب · للدوران<br>العجلة · للتقريب<br>الزرّ الأيمن · للإزاحة</div>
+
+<div id="loading">
+  <div class="ld-t">T-34<em>/85</em></div>
+  <div class="ld-s">يُبنى المجسّم…</div>
+</div>
+
+<script src="public/js/palm-home.js" data-pos="bl" data-label="الموقع الرئيسيّ" defer></script>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.js",
+               "three/addons/": "./vendor/three/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { buildT34 } from './public/js/t34.js';
+
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xd5cdb8, 50, 175);
+const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 500);
+camera.position.set(8.4, 4.3, 10.6);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.35, 0.3);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 3.5; controls.maxDistance = 32; controls.maxPolarAngle = 1.52;
+controls.autoRotate = true; controls.autoRotateSpeed = 0.55;
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+scene.add(new THREE.HemisphereLight(0xcfd9e2, 0x58503f, 0.65));
+const sun = new THREE.DirectionalLight(0xfff1d6, 2.6);
+sun.position.set(13, 17, 8); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -10; sun.shadow.camera.right = 10;
+sun.shadow.camera.top = 10; sun.shadow.camera.bottom = -10;
+sun.shadow.camera.near = 2; sun.shadow.camera.far = 45;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+sun.target.position.set(0, 0, 0.5);
+scene.add(sun, sun.target);
+const fill = new THREE.DirectionalLight(0xaebccd, 0.55);
+fill.position.set(-9, 6, -7); scene.add(fill);
+
+/* سماءٌ وأرضٌ مرسومتان */
+function paint(size, f){ const c=document.createElement('canvas'); c.width=c.height=size;
+  f(c.getContext('2d'), size); const t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.colorSpace=THREE.SRGBColorSpace; return t; }
+const texSky = paint(512, (g,s)=>{ const gr=g.createLinearGradient(0,0,0,s);
+  gr.addColorStop(0,'#6f9cc6'); gr.addColorStop(.42,'#a9c3d4'); gr.addColorStop(.60,'#d8d8c6');
+  gr.addColorStop(.74,'#e2d9c2'); gr.addColorStop(1,'#cfc6ad'); g.fillStyle=gr; g.fillRect(0,0,s,s); });
+const texGround = paint(512, (g,s)=>{ g.fillStyle='#6e6852'; g.fillRect(0,0,s,s);
+  for(let i=0;i<9000;i++){ g.globalAlpha=.05+Math.random()*.13;
+    g.fillStyle=['#7d7660','#5b5644','#8a8371','#4f4a3a','#6a6450'][(Math.random()*5)|0];
+    const w=1+Math.random()*1.4; g.fillRect(Math.random()*s,Math.random()*s,w,w*1.2); }
+  g.globalAlpha=1; });
+texGround.repeat.set(55,55);
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(170,32,20),
+  new THREE.MeshBasicMaterial({ map:texSky, side:THREE.BackSide, fog:false, depthWrite:false })));
+const ground = new THREE.Mesh(new THREE.CircleGeometry(160,72),
+  new THREE.MeshStandardMaterial({ map:texGround, bumpMap:texGround, bumpScale:0.06, roughness:1 }));
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+
+/* الدبّابةُ نفسُها من الوحدة المشترَكة */
+const tank = buildT34(THREE, { mergeGeometries, anisotropy: renderer.capabilities.getMaxAnisotropy() });
+scene.add(tank);
+const turret = tank.userData.turret, gun = tank.userData.gun, mats = tank.userData.mats;
+
+const VIEWS = {
+  frontal:{pos:[0.5,2.4,12.5],tgt:[0,1.5,0.5]},  lateral:{pos:[12.5,2.6,0.8],tgt:[0,1.2,0]},
+  superior:{pos:[0.5,15,0.6],tgt:[0,0,0.3]},     torreta:{pos:[3.2,3.4,4.6],tgt:[0,2.1,0.6]},
+  trasera:{pos:[-1.5,2.6,-11.5],tgt:[0,1.5,-0.5]}
+};
+let camTween = null;
+document.querySelectorAll('.view').forEach(b => b.addEventListener('click', () => {
+  const v = VIEWS[b.dataset.v];
+  camTween = { p0:camera.position.clone(), p1:new THREE.Vector3(...v.pos),
+               t0:controls.target.clone(), t1:new THREE.Vector3(...v.tgt), k:0 };
+}));
+const btnRotate=document.getElementById('btnRotate'),
+      btnTurret=document.getElementById('btnTurret'),
+      btnWire=document.getElementById('btnWire');
+let turretAnim=false, wire=false;
+btnRotate.onclick=()=>{ controls.autoRotate=!controls.autoRotate;
+  btnRotate.classList.toggle('active', controls.autoRotate); };
+controls.addEventListener('start', ()=>{ if(controls.autoRotate){ controls.autoRotate=false;
+  btnRotate.classList.remove('active'); } camTween=null; });
+btnTurret.onclick=()=>{ turretAnim=!turretAnim; btnTurret.classList.toggle('active', turretAnim);
+  if(!turretAnim){ turret.rotation.y=0; gun.rotation.x=0; } };
+btnWire.onclick=()=>{ wire=!wire; mats.forEach(m=>m.wireframe=wire);
+  btnWire.classList.toggle('active', wire); };
+addEventListener('resize', ()=>{ camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+const clock=new THREE.Clock(); const loading=document.getElementById('loading'); let shown=false;
+(function animate(){
+  requestAnimationFrame(animate);
+  const dt=clock.getDelta(), t=clock.elapsedTime;
+  if(turretAnim){ turret.rotation.y=Math.sin(t*0.22)*0.6; gun.rotation.x=-0.05+Math.sin(t*0.5+1)*0.07; }
+  if(camTween){ camTween.k += dt/1.4; const k=Math.min(camTween.k,1);
+    const e = k<0.5 ? 4*k*k*k : 1-Math.pow(-2*k+2,3)/2;
+    camera.position.lerpVectors(camTween.p0,camTween.p1,e);
+    controls.target.lerpVectors(camTween.t0,camTween.t1,e);
+    if(k>=1) camTween=null; }
+  controls.update(); renderer.render(scene, camera);
+  if(!shown){ shown=true; loading.classList.add('done'); }
+})();
+</script>
+</body>
+</html>

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { buildT34 } from './public/js/t34.js';
 
 /* ============================================================
    TANK ADVENTURE — مهمة سمائل
@@ -91,60 +93,18 @@ function initMenu() {
 }
 
 /* ---------------- TANK MESH ---------------- */
+/* كانت الدبّابةُ صندوقًا أخضرَ بعجلاتٍ أسطوانيّة، وقلتِ إنّها ليست
+   المعتمَدة. فصارت T-34/85 التي أرسلتِها — هيكلٌ مائلُ الدروع وبرجٌ
+   مصبوبٌ ومدفعُ خمسةٍ وثمانين ومئتان وستّون حلقةَ جنزيرٍ على منحنًى
+   مغلق. وهي في وحدةٍ مشترَكة ‎public/js/t34.js‎ يقرؤها العارضُ
+   واللعبةُ معًا، فلا تُكتَب مرّتين.
+
+   ومقياسُها ٠٫٤٨ لأنّ اللعبةَ بُنيت حول دبّابةٍ طولُها ثلاثةُ أمتارٍ
+   ونصف: الصناديقُ ومسافاتُ الرمي والكاميرا كلُّها معايَرةٌ عليها،
+   والأصلُ سبعةُ أمتار. وفوّهتُها تُوجَّه إلى ‎-Z‎ لأنّ اللعبةَ تسير
+   في هذا الاتّجاه. */
 function buildTank() {
-  const group = new THREE.Group();
-  const hullMat = new THREE.MeshStandardMaterial({ color: 0x5c6b3f, roughness: 0.75, metalness: 0.15, flatShading: true });
-  const darkMat = new THREE.MeshStandardMaterial({ color: 0x2c331e, roughness: 0.8, flatShading: true });
-  const trackMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.9 });
-
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.7, 3.4), hullMat);
-  hull.position.y = 0.55;
-  group.add(hull);
-
-  const glacis = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.5, 0.9), hullMat);
-  glacis.position.set(0, 0.5, -1.9);
-  glacis.rotation.x = 0.5;
-  group.add(glacis);
-
-  [-1, 1].forEach((s) => {
-    const track = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.55, 3.7), trackMat);
-    track.position.set(s * 1.05, 0.3, 0);
-    group.add(track);
-    for (let i = 0; i < 6; i++) {
-      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.44, 10), darkMat);
-      wheel.rotation.z = Math.PI / 2;
-      wheel.position.set(s * 1.05, 0.28, -1.5 + i * 0.62);
-      group.add(wheel);
-    }
-  });
-
-  const turretGroup = new THREE.Group();
-  turretGroup.position.set(0, 0.95, 0.1);
-  const turretGeo = new THREE.LatheGeometry(
-    [
-      new THREE.Vector2(0, -0.35), new THREE.Vector2(0.62, -0.32), new THREE.Vector2(0.68, -0.05),
-      new THREE.Vector2(0.6, 0.18), new THREE.Vector2(0.32, 0.3), new THREE.Vector2(0, 0.34),
-    ],
-    16
-  );
-  const turret = new THREE.Mesh(turretGeo, hullMat);
-  turretGroup.add(turret);
-
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.09, 2.4, 10), darkMat);
-  barrel.rotation.x = Math.PI / 2;
-  barrel.position.set(0, -0.02, -1.5);
-  turretGroup.add(barrel);
-  const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.22, 10), darkMat);
-  muzzle.rotation.x = Math.PI / 2;
-  muzzle.position.set(0, -0.02, -2.6);
-  turretGroup.add(muzzle);
-
-  const hatch = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.08, 12), darkMat);
-  hatch.position.set(0.2, 0.36, 0.3);
-  turretGroup.add(hatch);
-
-  group.add(turretGroup);
-  group.userData.turret = turretGroup;
+  const group = buildT34(THREE, { mergeGeometries, facing: -1, scale: 0.48 });
   group.userData.dims = { l: 3.4, w: 2.0 };
   return group;
 }

@@ -9,7 +9,7 @@
       await reg.showNotification(message,{
         body:PERIOD_NOTICE_BODY,
         dir:'rtl',lang:'ar',
-        icon:'logo.svg',badge:'logo.svg',
+        icon:'school-logo.png',badge:'school-logo.png',
         tag:'multaqa-period-'+String(message).replace(/\s+/g,'-'),
         renotify:true,
         data:{url:'./'}

@@ -97,9 +97,8 @@ h2{font-size:26px;color:#2f6b4f}
   font-weight:700;color:#4a3b52}
 .grid div{background:#f2ecf7;border-radius:12px;padding:7px 9px;line-height:1.65}
 .who{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:10px 0}
-.who button{width:88px;padding:9px 4px;border-radius:16px;background:#f2ecf7;border:3px solid transparent;
-  font-size:13px;font-weight:700;color:#4a3b52;line-height:1.5}
-.who button.on{background:#dff5e9;border-color:#2f8f6b;color:#1e6b4f}
+.who-card{width:80px;padding:9px 4px;border-radius:16px;background:#dff5e9;
+  border:3px solid #2f8f6b;font-size:13px;font-weight:700;color:#1e6b4f;line-height:1.5}
 .who b{display:block;font-size:15px}
 .who small{color:#8a7a92;font-size:11px}
 .keys{font-size:12px;color:#8a7a92;margin-bottom:10px;line-height:1.8}
@@ -122,7 +121,7 @@ h2{font-size:26px;color:#2f6b4f}
 <div id="hud" class="hide">
   <div class="pill" id="hearts">♥♥♥</div>
   <div class="pill" id="mid">
-    <div id="dayLine">اليوم ١ · حلولة</div>
+    <div id="dayLine">اليوم ١ · الخمسةُ معًا</div>
     <div id="sentLine"></div>
   </div>
   <div class="pill" id="bars">
@@ -172,10 +171,9 @@ h2{font-size:26px;color:#2f6b4f}
       <div>🤔 عند اكتمال الكلمة يقفون ويفكّرون</div>
       <div>🅰️ ثمّ الزينة: الحرفُ الكبير والنقطة</div>
       <div>🌇 إن غربت الشمسُ قبل الجملة ضاع قلب</div>
-      <div>⭐ ٣٦٠ يومًا في أربعة أطوار — والجملةُ تعود أصعب</div>
+      <div>⭐ ٣٦ يومًا في أربعة أطوار — والجملةُ تطول</div>
     </div>
 
-    <div style="font-weight:700;color:#7a5a6e;font-size:14px;margin-top:6px">مع مَن تمشي اليوم؟</div>
     <div class="who" id="who"></div>
 
     <div class="keys">
@@ -713,8 +711,10 @@ function drawChar(c){
 }
 
 /* ——— سميد: جنّيُّ الرمل يطفو معهم ——— */
-/* يطفو أمام الفريق وفوق رؤوسهم — كان خلفهم فيختفي بين الأجساد */
-const smeed={x:170,y:-250,ph:0,mood:'calm'};
+/* يطفو أمام الفريق وفوق رؤوسهم، ويتبع نمطَهم: يُسرع إن ركضوا،
+   ويهبط ويلهث إن تعبوا، ويقف يفكّر إن وقفوا. لا ينفصل عنهم. */
+const smeed={x:170,y:-250,ph:0,mood:'calm',moodT:0,mode:'walk'};
+function smeedFeel(m,d){smeed.mood=m;smeed.moodT=d||1.2;}
 function drawSmeed(){
   const bob=Math.sin(smeed.ph*1.6)*9;
   ctx.save();ctx.translate(smeed.x,smeed.y+bob);ctx.scale(.62,.62);
@@ -735,15 +735,34 @@ function drawSmeed(){
   ctx.fillStyle='#f2a7c3';ctx.strokeStyle='#d76f9a';ctx.lineWidth=1.5;
   ctx.beginPath();ctx.moveTo(-28,-58);ctx.lineTo(-42,-70);ctx.lineTo(-24,-70);ctx.closePath();ctx.fill();ctx.stroke();
   ctx.beginPath();ctx.moveTo(28,-58);ctx.lineTo(42,-70);ctx.lineTo(24,-70);ctx.closePath();ctx.fill();ctx.stroke();
-  ell(-10,-54,10,10,'#fff');ell(10,-54,10,10,'#fff');
-  const eo=smeed.mood==='wow'?1.25:1;
-  ell(-8.5,-54,2.8*eo,2.8*eo,'#111');ell(8.5,-54,2.8*eo,2.8*eo,'#111');
+  const M=smeed.mood;
+  const shut=(M==='cheer');
+  if(shut){
+    ctx.strokeStyle='#141414';ctx.lineWidth=3;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(-10,-54,8,Math.PI*1.05,Math.PI*1.95);
+    ctx.arc(10,-54,8,Math.PI*1.05,Math.PI*1.95);ctx.stroke();
+  }else{
+    const eo=M==='wow'?1.25:M==='tired'?.55:1;
+    const lift=M==='think'?-2.6:0;
+    ell(-10,-54,10,M==='tired'?5.5:10,'#fff');
+    ell(10,-54,10,M==='tired'?5.5:10,'#fff');
+    ell(-8.5,-54+lift,2.8*eo,2.8*eo,'#111');
+    ell(8.5,-54+lift,2.8*eo,2.8*eo,'#111');
+  }
   ctx.strokeStyle='#141414';ctx.lineWidth=1.6;ctx.beginPath();
   ctx.moveTo(-16,-46);ctx.lineTo(-40,-50);ctx.moveTo(-16,-42);ctx.lineTo(-41,-42);
   ctx.moveTo(-16,-38);ctx.lineTo(-40,-34);ctx.moveTo(16,-46);ctx.lineTo(40,-50);
   ctx.moveTo(16,-42);ctx.lineTo(41,-42);ctx.moveTo(16,-38);ctx.lineTo(40,-34);ctx.stroke();
-  if(smeed.mood==='cheer'){
+  if(M==='cheer'){
     ell(0,-30,13,11,'#8a1020',OUT,2.4);ell(0,-26,7,5,'#e5484d');
+  }else if(M==='tired'){
+    const r=3+1.8*Math.sin(smeed.ph*5);
+    ell(0,-34,5,Math.max(1.8,r),'#8a1020',OUT,2.2);
+  }else if(M==='think'){
+    ell(0,-34,3.6,4,'#8a1020',OUT,2.2);
+  }else if(M==='sad'){
+    ctx.strokeStyle='#7a4a21';ctx.lineWidth=2.4;
+    ctx.beginPath();ctx.arc(0,-28,6,1.15*Math.PI,1.85*Math.PI);ctx.stroke();
   }else{
     ctx.strokeStyle='#7a4a21';ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(0,-38,6,.15*Math.PI,.85*Math.PI);ctx.stroke();
@@ -902,20 +921,19 @@ function drawPalm(p,x){
 /* =====================================================================
    اللعبة
    ===================================================================== */
-/* ٣٦٠ مستوًى من مئةِ جملة: أربعةُ أطوارٍ يشتدّ فيها الطلبُ على الجملة
-   نفسِها، فلا يكون التكرارُ إعادةً بل صعودًا. */
-const TOTAL_DAYS=360;
+/* ٣٦ مستوًى في أربعة أطوارٍ من تسعةِ أيّام. */
+const TOTAL_DAYS=36;
 const STAGES=[
-  {from:1,  to:100,perLetter:4,secs:195,capsAll:false,ar:'الطورُ الأوّل · الحرفُ الأوّلُ والنقطة'},
-  {from:101,to:200,perLetter:5,secs:175,capsAll:true, ar:'الطورُ الثاني · كلُّ الحروف الكبيرة'},
-  {from:201,to:300,perLetter:6,secs:155,capsAll:true, ar:'الطورُ الثالث · تمراتٌ أكثرُ ووقتٌ أقلّ'},
-  {from:301,to:360,perLetter:7,secs:140,capsAll:true, ar:'الطورُ الرابع · الجملُ الطوال'}
+  {from:1, to:9, perLetter:4,secs:195,capsAll:false,ar:'الطورُ الأوّل · الحرفُ الأوّلُ والنقطة'},
+  {from:10,to:18,perLetter:5,secs:180,capsAll:true, ar:'الطورُ الثاني · كلُّ الحروف الكبيرة'},
+  {from:19,to:27,perLetter:6,secs:165,capsAll:true, ar:'الطورُ الثالث · تمراتٌ أكثرُ ووقتٌ أقلّ'},
+  {from:28,to:36,perLetter:7,secs:150,capsAll:true, ar:'الطورُ الرابع · الجملُ الطوال'}
 ];
 const stageOf=d=>STAGES.find(s=>d>=s.from&&d<=s.to)||STAGES[STAGES.length-1];
 const game={
   state:'menu',              /* menu · play · think · sentence · decor · inter · over · pause */
   t:0,day:1,heroKey:'halula',
-  perLetter:4,daySecs:195,capsAll:false,stageAr:'',
+  perLetter:4,daySecs:195,capsAll:false,stageAr:'',pickSeed:0,
   hearts:3,starsTotal:0,best:1,
   sun:0,dates:0,dateBank:0,miss:0,dayDates:0,
   puzzle:null,wordIx:0,letters:[],  /* الحروفُ المكسوبةُ للكلمة الحاليّة */
@@ -937,11 +955,21 @@ function buildTeam(){
   }
 }
 
+/* المئةُ جملةٍ مرتَّبةً بالطول ثمّ مقسومةً ٣٦ حزمة: لليوم حزمتُه،
+   فتصعد الصعوبةُ يومًا بعد يوم ولا تُهمَل جملةٌ من المئة. */
+const BANDS=(function(){
+  const P=window.PalmPuzzles.PUZZLES.slice()
+    .sort((a,b)=>a.len-b.len||a.solution.length-b.solution.length);
+  const out=[];
+  for(let d=0;d<TOTAL_DAYS;d++){
+    const a=Math.floor(d*P.length/TOTAL_DAYS), b=Math.floor((d+1)*P.length/TOTAL_DAYS);
+    out.push(P.slice(a,Math.max(b,a+1)));
+  }
+  return out;
+})();
 function puzzleFor(day){
-  const P=window.PalmPuzzles.PUZZLES,s=stageOf(day);
-  /* الطورُ الرابعُ يقتصر على الجمل الطوال */
-  const pool=(s.from===301)?P.filter(x=>x.len>=4):P;
-  return pool[(day-s.from)%pool.length];
+  const band=BANDS[(day-1)%TOTAL_DAYS];
+  return band[(game.pickSeed+day)%band.length];
 }
 function startDay(){
   const S2=stageOf(game.day);
@@ -986,7 +1014,7 @@ function tryKnock(){
     game.dates++;game.dayDates++;game.dateBank++;
     sDate();spawnSpark(p.cx-W/2,p.cy+18,'184,100,42');
     popup(p.cx-W/2,p.cy+10,'🌴 +١','#8a5a2e');
-    feel(hero,'wow',.5);
+    feel(hero,'wow',.5);smeedFeel('wow',.5);
     if(game.dateBank>=game.perLetter){game.dateBank-=game.perLetter;earnLetter();}
     syncHud();
     return true;
@@ -999,7 +1027,7 @@ function earnLetter(){
   game.letters.push(word[game.letters.length]);
   sLetter();spawnSpark(0,-150,'226,140,170');
   popup(0,-190,'✨ '+word[game.letters.length-1].toUpperCase(),'#c2456a');
-  feel(hero,'cheer',1.1);smeed.mood='cheer';setTimeout(()=>smeed.mood='calm',900);
+  feel(hero,'cheer',1.1);smeedFeel('cheer',1.1);
   if(game.letters.length>=word.length)setTimeout(openThink,700);
   syncHud();
 }
@@ -1070,13 +1098,12 @@ function showTray(hintAr,hintEn,items,slotCount,kind){
 function wrong(btn){
   game.miss++;sBad();
   if(btn){btn.classList.add('bad');setTimeout(()=>btn.classList.remove('bad'),340);}
-  for(const c of team)feel(c,'sad',1.1);
+  for(const c of team)feel(c,'sad',1.1);smeedFeel('sad',1.2);
   breath=Math.max(0,breath-8);
   if(game.miss>0&&game.miss%4===0)loseHeart('كثرت الأخطاء');
   syncHud();
 }
-function right(){for(const c of team)feel(c,'cheer',1.2);sGood();smeed.mood='cheer';
-  setTimeout(()=>smeed.mood='calm',900);}
+function right(){for(const c of team)feel(c,'cheer',1.2);smeedFeel('cheer',1.3);sGood();}
 function onTile(kind,val,btn,idx){
   if(kind==='letter'){
     const word=game.puzzle.words[game.wordIx];
@@ -1128,7 +1155,7 @@ function finishWord(){
 /* ——— نهايةُ اليوم ——— */
 function loseHeart(why){
   game.hearts--;sBad();
-  for(const c of team)feel(c,'sad',2);
+  for(const c of team)feel(c,'sad',2);smeedFeel('sad',2);
   banner('💔 '+why);
   syncHud();
   if(game.hearts<=0)setTimeout(gameOver,900);
@@ -1167,14 +1194,15 @@ function nextDay(){
 function win(){
   game.state='over';$('tray').classList.add('hide');
   $('overTitle').textContent='🎉 تمَّ الدربُ كلُّه!';
-  $('overWhy').textContent='ثلاثُ مئةٍ وستّون يومًا، ومئةُ جملةٍ في أربعة أطوار. '+
-    'مشى معك '+CAST[game.heroKey].ar+' من أوّل حرفٍ إلى آخر نقطة.';
+  $('overWhy').textContent='ستّةٌ وثلاثون يومًا في أربعة أطوار. '+
+    'مشى معك الخمسةُ من أوّل حرفٍ إلى آخر نقطة.';
   $('oDay').textContent=AR(TOTAL_DAYS);
   $('oStars').textContent=AR(game.starsTotal);
   $('oBest').textContent=AR(game.best);
   $('over').classList.remove('hide');resize();
 }
 function newRun(){
+  game.pickSeed=(Math.random()*997)|0;
   $('overTitle').textContent='تعبوا وناموا 🌙';
   $('overWhy').textContent='نفدت القلوبُ الثلاثة… لكنّ الحروفَ التي جمعتَها لا تضيع.';
   game.day=1;game.hearts=3;game.starsTotal=0;game.worldX=0;buildTeam();startDay();}
@@ -1218,14 +1246,24 @@ function update(dt){
         :(hero.mode==='idle')?'idle':'walk';
     }
     game.worldX+=hero.vel*dt;
-    smeed.ph+=dt*(1+Math.abs(hero.vel)/220);
-    smeed.x=lerp(smeed.x,175+Math.sin(game.t*.8)*26,1-Math.exp(-2*dt));
-    smeed.y=lerp(smeed.y,-252+Math.sin(game.t*1.5)*14,1-Math.exp(-2*dt));
+    /* سميد لا ينفصل: نمطُه نمطُهم، وارتفاعُه ولهاثُه منه */
+    smeed.mode=hero.mode;
+    const fast=hero.mode==='run'||hero.mode==='happy';
+    const weary=hero.mode==='tired'||hero.mode==='rest';
+    smeed.ph+=dt*(weary?.75:fast?2.7:1.35);
+    const tx=fast?208:weary?152:176, ty=weary?-206:fast?-268:-252;
+    smeed.x=lerp(smeed.x,tx+Math.sin(game.t*.8)*(fast?34:20),1-Math.exp(-2.4*dt));
+    smeed.y=lerp(smeed.y,ty+Math.sin(game.t*(weary?.9:1.5))*(weary?8:14),1-Math.exp(-2.4*dt));
+    if(smeed.moodT<=0)smeed.mood=weary?'tired':'calm';
     spawnPalms();
   }else if(game.state==='think'||game.state==='sentence'||game.state==='decor'){
     for(const c of team)if(!c.emo)c.mode='think';
-    smeed.ph+=dt*.6;
+    smeed.mode='think';smeed.ph+=dt*.6;
+    smeed.x=lerp(smeed.x,150,1-Math.exp(-2*dt));
+    smeed.y=lerp(smeed.y,-238+Math.sin(game.t*.9)*7,1-Math.exp(-2*dt));
+    if(smeed.moodT<=0)smeed.mood='think';
   }
+  if(smeed.moodT>0)smeed.moodT-=dt;
 
   for(const c of team)poseChar(c,dt);
 
@@ -1314,8 +1352,8 @@ function thoughtBubble(){
 /* ——— الشريط ——— */
 function syncHud(){
   $('hearts').textContent='♥'.repeat(Math.max(0,game.hearts))+'♡'.repeat(Math.max(0,3-game.hearts));
-  $('dayLine').textContent='اليوم '+AR(game.day)+'/'+AR(TOTAL_DAYS)+' · '+CAST[game.heroKey].ar+
-    ' · '+(game.stageAr||'');
+  $('dayLine').textContent='اليوم '+AR(game.day)+'/'+AR(TOTAL_DAYS)+
+    ' · الخمسةُ معًا · '+(game.stageAr||'');
   const P=game.puzzle;
   if(P){
     let html='';
@@ -1374,17 +1412,13 @@ function togglePause(){
 }
 
 /* ——— اختيارُ الشخصيّة والقوائم ——— */
+/* لا اختيارَ ولا فصل: الخمسةُ يمشون سواءً دائمًا. والبطاقاتُ تعريفٌ فقط. */
 const whoBox=$('who');
-CAST_KEYS.forEach(k=>{
-  const b=document.createElement('button');
-  b.innerHTML='<b>'+CAST[k].ar+'</b><small>'+CAST[k].note+'</small>';
-  b.className=k===game.heroKey?'on':'';
-  b.addEventListener('click',()=>{
-    game.heroKey=k;
-    [...whoBox.children].forEach(x=>x.classList.remove('on'));
-    b.classList.add('on');
-    buildTeam();
-  });
+CAST_KEYS.concat(['smeed']).forEach(k=>{
+  const L=k==='smeed'?{ar:'سميد',note:'جنّيُّ الرمل'}:CAST[k];
+  const b=document.createElement('div');
+  b.className='who-card';
+  b.innerHTML='<b>'+L.ar+'</b><small>'+L.note+'</small>';
   whoBox.appendChild(b);
 });
 $('bStart').addEventListener('click',()=>{ac();newRun();});
@@ -1399,7 +1433,7 @@ $('bestMenu').textContent=AR(game.best);
 resize();buildTeam();
 game.puzzle=puzzleFor(1);
 requestAnimationFrame(loop);
-window.PALMLETTERS={game,get team(){return team;},get hero(){return hero;},
+window.PALMLETTERS={game,smeed,get team(){return team;},get hero(){return hero;},
   get breath(){return breath;},
   set breath(v){breath=v;},CAST,MODES,startDay,newRun,jump,earnLetter,openThink,openSentence,
   openDecor,endDay,onTile,keys};

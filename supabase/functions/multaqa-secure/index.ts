@@ -8,6 +8,9 @@ const clean=(v:unknown,max=1000)=>String(v??"").trim().slice(0,max);
 const norm=(v:unknown)=>clean(v,220).replace(/^أ\.\s*/,"").replace(/[إأآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/ؤ/g,"و").replace(/ئ/g,"ي").replace(/ـ/g,"").replace(/[ًٌٍَُِّْ]/g,"").replace(/\s+/g," ").toLowerCase();
 const pinOk=(v:string)=>/^\d{6,12}$/.test(v);
 const omDays=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+const gradeWords=["","الأول","الثاني","الثالث","الرابع","الخامس","السادس"];
+const classCode=(label:string)=>{const t=clean(label,100),g=gradeWords.findIndex((x,i)=>i>0&&t.includes(x)),s=t.match(/[\/\\]\s*(\d+)/)?.[1];return g&&s?g+"/"+s:t};
+const scheduleLabel=(code:string)=>{const m=clean(code,30).match(/^([1-6])\s*\/\s*(\d+)$/);return m?gradeWords[+m[1]]+" / "+m[2]:code};
 const muscatDate=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const dayFor=(d:string)=>omDays[new Date(`${d}T12:00:00+04:00`).getDay()];
 const sha=async(v:string)=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)))).map(x=>x.toString(16).padStart(2,"0")).join("");
@@ -121,7 +124,7 @@ Deno.serve(async(req)=>{
       db.from("multaqa_class_schedules").select("class_label").order("page"),
       db.from("multaqa_bus_routes").select("*").eq("active",true).order("trip_order")
     ]);
-    return json({ok:true,employees:employees||[],classes:(classRows||[]).map((x:any)=>x.class_label),buses:buses||[]});
+    return json({ok:true,employees:employees||[],classes:(classRows||[]).map((x:any)=>classCode(x.class_label)),buses:buses||[]});
   }
   if(action==="coverage"){
     let q=db.from("multaqa_substitute_assignments").select("*").order("coverage_date",{ascending:false}).order("period").limit(250);
@@ -156,7 +159,7 @@ Deno.serve(async(req)=>{
   }
   if(action==="class_roster"){
     const className=clean(body.class_name,100);const date=clean(body.date,10)||muscatDate(),period=Number(body.period||0);if(!className)return json({ok:false,error:"invalid_input"},400);
-    const [{data:students},{data:attendance},{data:schedule}]=await Promise.all([db.from("multaqa_students").select("school_id,serial,name,class_name").eq("class_name",className).order("serial"),db.from("multaqa_student_attendance").select("student_school_id,status,excuse_category,reason,late_at,note").eq("class_name",className).eq("attendance_date",date).eq("period",period),db.from("multaqa_class_schedules").select("schedule").eq("class_label",className).maybeSingle()]);
+    const [{data:students},{data:attendance},{data:schedule}]=await Promise.all([db.from("multaqa_students").select("school_id,serial,name,class_name").eq("class_name",className).order("serial"),db.from("multaqa_student_attendance").select("student_school_id,status,excuse_category,reason,late_at,note").eq("class_name",className).eq("attendance_date",date).eq("period",period),db.from("multaqa_class_schedules").select("schedule").eq("class_label",scheduleLabel(className)).maybeSingle()]);
     return json({ok:true,students:students||[],attendance:attendance||[],schedule:schedule?.schedule||{}});
   }
   if(action==="save_student_attendance"){

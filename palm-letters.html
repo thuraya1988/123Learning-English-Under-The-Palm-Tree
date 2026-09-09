@@ -298,19 +298,22 @@ const CAST={
     top:'#f6f1e4',topD:'#ded6c4',trim:'#e8d9bd',emb:'#6f8f4f',embD:'#4d6b36',
     shoe:'#5b3a2a',shoeF:'#482e21',sock:'#efe6d2',sirwal:'#e6ddc8',
     bag:'#6f8f4f',bagD:'#54703a',tie:'#6f8f4f',
-    braids:false,thob:false,dish:true,kummah:'#5f7f9e',kummahEmb:'#f6f1e4',bangs:'short'},
+    braids:false,thob:false,dish:true,kummah:'#5f7f9e',kummahEmb:'#f6f1e4',
+    bangs:'short',kummahLift:0,brow:4.2},
   taha:{ar:'طه',en:'Taha',note:'يعرف كلَّ بيت',
     skin:'#c98d5c',skinF:'#ac744a',hair:'#1e1610',hairL:'#2e241a',hairF:'#171009',hairFL:'#241a12',
     top:'#e8e2d0',topD:'#cfc7b2',trim:'#eef2e0',emb:'#c0492f',embD:'#8f3320',
     shoe:'#4a3226',shoeF:'#38251c',sock:'#f2ece0',sirwal:'#ddd5c0',
     bag:'#c0492f',bagD:'#95371f',tie:'#c0492f',
-    braids:false,thob:false,dish:true,kummah:'#2f6b4f',kummahEmb:'#f2ece0',bangs:'short'},
+    braids:false,thob:false,dish:true,kummah:'#2f6b4f',kummahEmb:'#f2ece0',
+    bangs:'wave',kummahLift:-4,brow:4},
   aws:{ar:'أوس',en:'Aws',note:'حارسُ الطريق',
     skin:'#c5ad92',skinF:'#a8907a',hair:'#2b1d14',hairL:'#3d2a1d',hairF:'#20150e',hairFL:'#2b1d14',
     top:'#dfe6ea',topD:'#c5ced4',trim:'#e6eef4',emb:'#5f7f9e',embD:'#3f5f7c',
     shoe:'#463b30',shoeF:'#342c24',sock:'#eef2f6',sirwal:'#d4dbe0',
     bag:'#b89c7b',bagD:'#95795b',tie:'#5f7f9e',
-    braids:false,thob:false,dish:true,kummah:'#8f3320',kummahEmb:'#e6eef4',bangs:'curl'}
+    braids:false,thob:false,dish:true,kummah:'#8f3320',kummahEmb:'#e6eef4',
+    bangs:'curl',kummahLift:4,brow:4.4}
 };
 const CAST_KEYS=['halula','adam','taha','aws'];
 
@@ -653,7 +656,7 @@ function drawHead(c){
       ell(e.x+look*.18-ir*.35,e.y+e.r*open*.12-ir*.35,ir*.3,ir*.3,'#fff');
     }
   }
-  ctx.strokeStyle=OUT;ctx.lineWidth=3.2;ctx.lineCap='round';
+  ctx.strokeStyle=OUT;ctx.lineWidth=L.brow||3.2;ctx.lineCap='round';
   for(let i=0;i<2;i++){
     const e=eyes[i],by=e.y-e.r*1.75+fx.bar,slope=fx.bang*7*(i===0?.7:1);
     ctx.beginPath();ctx.moveTo(e.x-7,by+slope);ctx.lineTo(e.x+7,by-slope);ctx.stroke();
@@ -664,27 +667,52 @@ function drawHead(c){
     ell(26,-36,13,13,L.hair);ell(8,-44,13.5,13.5,L.hair);
     ell(-11,-41,12.5,12.5,L.hair);ell(-27,-32,11,11,L.hair);
     /* لا خصلةَ طائرةً فوق الرأس */
-  }else if(L.bangs==='curl'){
-    for(let i=0;i<5;i++)ell(24-i*13,-38-Math.sin(i)*6,9,9,L.hair);
-    ell(6,-48,10,9,L.hair);
+    ctx.strokeStyle=L.hairL;ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(16,-44);ctx.quadraticCurveTo(4,-50,-8,-46);ctx.stroke();
   }else{
-    ctx.beginPath();ctx.moveTo(30,-30);ctx.quadraticCurveTo(4,-52,-28,-30);
-    ctx.lineTo(-28,-38);ctx.quadraticCurveTo(4,-58,30,-38);ctx.closePath();ctx.fill();
+    /* شعرُ الولد يُرسَم قبل الكمّة وأخفضَ منها ليظهر من تحتها:
+       هُدْبٌ حول الجبين، وسالفان، ونُقرةٌ عند القفا. كانت الكمّةُ
+       تُرسَم فوقه كلِّه فيبدو الولدُ أحلقَ تحتها. */
+    ctx.fillStyle=L.hair;
+    ctx.beginPath();
+    ctx.moveTo(-48,-26);
+    ctx.quadraticCurveTo(-50,-48,-14,-57);
+    ctx.quadraticCurveTo(26,-64,50,-40);
+    ctx.lineTo(50,-31);
+    if(L.bangs==='curl'){
+      for(let i=0;i<6;i++)ctx.arc(44-i*16,-38,8.2,-.15,Math.PI-.15,false);
+    }else if(L.bangs==='wave'){
+      ctx.quadraticCurveTo(28,-46,14,-38);
+      ctx.quadraticCurveTo(0,-30,-14,-39);
+      ctx.quadraticCurveTo(-28,-48,-40,-34);
+    }else{
+      ctx.quadraticCurveTo(4,-52,-40,-34);
+    }
+    ctx.closePath();ctx.fill();
+    ctx.strokeStyle=OUT;ctx.lineWidth=2.4;ctx.stroke();
+    /* سالفان ونُقرةُ قفا — كلُّها خارجَ قرص الوجه، لا على الخدّ */
+    ctx.fillStyle=L.hair;ctx.strokeStyle=OUT;ctx.lineWidth=2.2;
+    rr(-53,-32,9,17,4);ctx.fill();ctx.stroke();
+    rr(51,-39,8,14,4);ctx.fill();ctx.stroke();
+    ell(-51,-12,10,13,L.hair,OUT,2.2);
+    /* لمعةٌ خفيفة */
+    ctx.strokeStyle=L.hairL;ctx.lineWidth=2.4;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(20,-46);ctx.quadraticCurveTo(0,-52,-18,-46);ctx.stroke();
   }
-  ctx.strokeStyle=L.hairL;ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(16,-44);ctx.quadraticCurveTo(4,-50,-8,-46);ctx.stroke();
   if(L.kummah){
-    /* كمّةٌ عُمانيّة: قبّةٌ مستديرةٌ بحافّةٍ مطرَّزةٍ ونقوشٍ مخرَّمة */
+    /* كمّةٌ عُمانيّة: قبّةٌ ترتفع على قمّة الرأس وحافّةٌ مطرَّزة،
+       مرفوعةٌ عن الجبين ليظهر الشعرُ تحتها. */
     ctx.fillStyle=L.kummah;ctx.strokeStyle=OUT;ctx.lineWidth=2.4;
-    ctx.beginPath();ctx.moveTo(-31,-36);
-    ctx.bezierCurveTo(-31,-67,31,-67,31,-36);
+    const rim=-44+(L.kummahLift||0);
+    ctx.beginPath();ctx.moveTo(-29,rim);
+    ctx.bezierCurveTo(-30,rim-32,30,rim-32,29,rim);
     ctx.closePath();ctx.fill();ctx.stroke();
-    rr(-32.5,-41,65,11,4);ctx.fill();ctx.stroke();
+    rr(-31,rim-5,62,11,4);ctx.fill();ctx.stroke();
     const E=L.kummahEmb||'#fff';
-    for(let i=-2;i<=2;i++)ell(i*12,-35.5,2.4,2.4,E);
-    for(let i=-2;i<=2;i++)ell(i*12+6,-51,2.1,2.1,E);
+    for(let i=-2;i<=2;i++)ell(i*11.5,rim+.5,2.4,2.4,E);
+    for(let i=-2;i<=2;i++)ell(i*11.5+5.5,rim-16,2.1,2.1,E);
     ctx.strokeStyle=E;ctx.lineWidth=1.7;
-    ctx.beginPath();ctx.moveTo(-26,-45);ctx.quadraticCurveTo(0,-59,26,-45);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-24,rim-9);ctx.quadraticCurveTo(0,rim-24,24,rim-9);ctx.stroke();
   }
   ctx.restore();
 }

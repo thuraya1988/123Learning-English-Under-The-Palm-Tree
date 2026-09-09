@@ -54,6 +54,15 @@ function injectStaffCenter(){
  const strip=S('portalStrip');if(strip&&!S('staffCenterEntry'))strip.insertAdjacentHTML('afterbegin','<button class="portal-entry featured" id="staffCenterEntry" onclick="openStaffCenter()"><em>📊</em><b>مركز التشغيل والتحليل</b><small>الحضور • الاستئذان • المناوبة • الاحتياط • المؤشرات</small></button>');
  else S('modules')?.insertAdjacentHTML('beforebegin','<section class="portal-strip"><button class="portal-entry featured" id="staffCenterEntry" onclick="openStaffCenter()"><em>📊</em><b>مركز التشغيل والتحليل</b><small>كل وحدات المدرسة في مكان واحد</small></button></section>');
 }
+function updateSecureLabels(){
+ document.querySelectorAll('a,button,b,h1,h2,h3,h4').forEach(x=>{
+  const t=x.textContent.trim();
+  if(t==='تحديد الاسم')x.textContent='دخول الموظفات';
+  if(t==='عرّفي النظام باسمك')x.textContent='دخول الموظفات بالاسم والرمز';
+  if(t==='دخول الموظفات بالاسم')x.textContent='دخول آمن بالاسم والرمز';
+  if(t==='اكتبي اسمك')x.textContent='سجلي دخولك';
+ });
+}
 window.openStaffCenter=async()=>{
  if(!staffToken||!secureEmployee){toast('سجلي الدخول بالاسم والرمز السري');return openIdentity()}
  openById('staffCenterModal');if(!secureDirectory.classes.length)try{secureDirectory=await staffApi('directory')}catch(e){toast(staffError(e))}
@@ -113,4 +122,4 @@ async function renderAnalytics(){
  const now=new Date(),from=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10),to=now.toISOString().slice(0,10),d=await staffApi('analytics',{from,to});const bar=(obj,labels)=>{const a=Object.entries(obj||{}),max=Math.max(1,...a.map(x=>x[1]));return '<div class="bars">'+a.map(([k,v])=>'<div><span>'+esc(labels[k]||k)+'</span><i><b style="width:'+Math.round(v/max*100)+'%"></b></i><strong>'+v+'</strong></div>').join('')+'</div>'};const st={present:'حضور',absent:'غياب',late:'تأخر',excused:'بعذر',permission:'استئذان',partial_permission:'استئذان جزئي',approved:'موافق',pending:'قيد الانتظار',organized:'صف منظم',no_teacher:'بلا معلمة',problem:'مشكلة'},rs={health:'صحي',medical_appointment:'موعد طبي',family:'أسري',child:'طفل',government:'جهة حكومية',emergency:'طارئ',official_task:'مهمة رسمية',transport:'مواصلات',other:'أخرى'};S('staffPane').innerHTML='<div class="today-title"><div><small>من '+from+' إلى '+to+'</small><h2>📊 مؤشرات الشهر</h2></div></div><div class="analytics-grid"><section class="staff-card"><h3>حضور الطالبات</h3>'+bar(d.students.status,st)+'</section><section class="staff-card"><h3>حضور المعلمات</h3>'+bar(d.teachers.status,st)+'</section><section class="staff-card"><h3>أسباب استئذان المعلمات</h3>'+bar(d.permissions.reasons,rs)+'</section><section class="staff-card"><h3>بلاغات الفصول</h3>'+bar(d.observations.status,st)+'</section></div>'}
 function renderSecurity(){S('staffPane').innerHTML='<div class="two-col"><section class="staff-card"><h2>🔐 إصدار رمز شخصي</h2><p class="staff-help">اختاري الموظفة. يمكن للنظام إنشاء رمز مؤقت، ويُطلب تغييره عند أول دخول.</p><select id="pinEmployee">'+employeeOptions()+'</select><input id="pinCustom" inputmode="numeric" maxlength="12" placeholder="اختياري: اكتبي رمزًا من 6 أرقام"><button class="staff-primary" onclick="issueStaffPin()">إصدار الرمز المؤقت</button><div id="issuedPin"></div></section><section class="staff-card"><h3>حماية الحساب</h3><ul><li>إيقاف مؤقت بعد خمس محاولات خاطئة.</li><li>الجلسة تنتهي تلقائيًا بعد 12 ساعة.</li><li>كل عملية مرتبطة باسم الموظفة وصلاحيتها.</li><li>البيانات الصحية والاجتماعية محجوبة عن غير المخولين.</li></ul></section></div>'}
 window.issueStaffPin=async()=>{try{const d=await staffApi('issue_pin',{employee_name:S('pinEmployee').value,pin:S('pinCustom').value});S('issuedPin').innerHTML='<div class="issued-pin"><small>الرمز المؤقت لـ '+esc(d.employee_name)+'</small><b>'+esc(d.temporary_pin)+'</b><p>سلّميه لها بصورة خاصة؛ سيطلب النظام تغييره.</p></div>'}catch(e){toast(staffError(e))}};
-setTimeout(async()=>{prepareSecureLogin();injectStaffCenter();await restoreStaff()},0);
+setTimeout(async()=>{prepareSecureLogin();injectStaffCenter();updateSecureLabels();await restoreStaff()},0);

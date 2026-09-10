@@ -22,13 +22,15 @@ function setSecureEmployee(e){
 function prepareSecureLogin(){
  const box=S('modal')?.querySelector('.modal-box');if(!box)return;
  const sub=box.querySelector('.sub');if(sub)sub.textContent='دخول آمن: الاسم الأول والقبيلة + الرمز السري الشخصي';
- const form=S('identityForm');if(form&&!S('identityPin'))form.innerHTML='<label>الاسم الأول + القبيلة</label><input id="identityName" list="identitySuggestions" required autocomplete="username" placeholder="مثال: ثرياء الناعبية"><datalist id="identitySuggestions"></datalist><label>الرمز السري الشخصي</label><input id="identityPin" type="password" inputmode="numeric" minlength="6" maxlength="12" required autocomplete="current-password" placeholder="••••••"><div id="identityError" style="display:none;margin-top:8px;color:#9b1c31;font-size:12px;font-weight:800"></div><button class="btn btn-solid">دخول إلى ملفي</button>';
+ const form=S('identityForm');if(form&&!S('identityPin'))form.innerHTML='<label>الاسم الأول + القبيلة</label><input id="identityName" list="identitySuggestions" required autocomplete="username" placeholder="مثال: ثرياء الناعبية"><datalist id="identitySuggestions"></datalist><label>الرمز السري الشخصي</label><input id="identityPin" type="password" inputmode="numeric" minlength="6" maxlength="12" required autocomplete="current-password" placeholder="••••••"><div id="identityError" role="alert" style="display:none;margin-top:8px;color:#9b1c31;font-size:12px;font-weight:800"></div><button id="identitySubmit" type="submit" class="btn btn-solid">دخول إلى ملفي</button>';
  const sw=box.querySelector('.switch');if(sw)sw.textContent='الرمز شخصي ولا يظهر لأي مستخدمة أخرى. بعد أول دخول سيطلب النظام تغييره.';
 }
 window.openIdentity=()=>{prepareSecureLogin();openById('modal');setTimeout(()=>S('identityName')?.focus(),50)};
 window.identifyEmployee=async ev=>{
- ev.preventDefault();const name=S('identityName').value.trim(),pin=S('identityPin').value.trim(),box=S('identityError');box.style.display='none';
- try{const d=await staffApi('login',{name,pin});staffToken=d.token;localStorage.setItem('multaqa_staff_session',staffToken);setSecureEmployee(d.employee);closeModal();toast('✅ '+d.employee.welcome_message);if(d.must_change_pin)setTimeout(()=>changeMyPin(true),350);return false}catch(e){box.textContent=staffError(e);box.style.display='block';return false}
+ ev?.preventDefault();prepareSecureLogin();const nameEl=S('identityName'),pinEl=S('identityPin'),box=S('identityError'),btn=S('identitySubmit');
+ if(!nameEl||!pinEl||!box){toast('تعذر تجهيز نموذج الدخول. حدّثي الصفحة مرة واحدة.');return false}
+ const name=nameEl.value.trim(),pin=pinEl.value.trim();box.style.display='none';if(btn){btn.disabled=true;btn.textContent='جاري الدخول…'}
+ try{const d=await staffApi('login',{name,pin});staffToken=d.token;localStorage.setItem('multaqa_staff_session',staffToken);setSecureEmployee(d.employee);closeModal();toast('✅ '+d.employee.welcome_message);if(d.must_change_pin)setTimeout(()=>changeMyPin(true),350);setTimeout(()=>openStaffCenter(),250);return false}catch(e){box.textContent=staffError(e);box.style.display='block';return false}finally{if(btn){btn.disabled=false;btn.textContent='دخول إلى ملفي'}}
 };
 window.changeMyPin=async forced=>{
  const pin=prompt(forced?'هذا رمز مؤقت. اكتبي رمزك الجديد من 6 إلى 12 رقمًا:':'اكتبي الرمز السري الجديد من 6 إلى 12 رقمًا:');if(!pin)return;

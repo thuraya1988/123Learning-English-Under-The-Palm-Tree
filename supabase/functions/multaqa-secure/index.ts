@@ -134,6 +134,43 @@ Deno.serve(async(req)=>{
     const order:any={"الأحد":1,"الاثنين":2,"الثلاثاء":3,"الأربعاء":4,"الخميس":5};
     return json({ok:true,days:(data||[]).sort((a:any,b:any)=>(order[a.day_name]||99)-(order[b.day_name]||99)),is_admin:elevated(e)});
   }
+  if(action==="broadcasts"){
+    const {data:rows}=await db.from("multaqa_broadcasts").select("*").order("broadcast_date",{ascending:false}).order("created_at",{ascending:false}).limit(100);
+    const {data:emps}=await db.from("multaqa_employees").select("employee_id,short_name,full_name");
+    const names=new Map((emps||[]).map((x:any)=>[x.employee_id,x.short_name||x.full_name]));
+    const items=await Promise.all((rows||[]).map(async(x:any)=>{
+      let video_url=null;
+      if(x.video_path){const {data:signed}=await db.storage.from("school-broadcasts").createSignedUrl(x.video_path,3600);video_url=signed?.signedUrl||null}
+      return {...x,teacher_name:names.get(x.teacher_employee_id)||"—",video_url};
+    }));
+    return json({ok:true,items});
+  }
+  if(action==="save_broadcast"){
+    const id=clean(body.id,80),title=clean(body.title,220),date=clean(body.broadcast_date,10)||muscatDate(),status=clean(body.event_status,20)||"planned";
+    if(title.length<2||!["planned","live","completed","cancelled"].includes(status))return json({ok:false,error:"invalid_input"},400);
+    const teacher=clean(body.teacher_name,220)?await resolveEmployee(db,clean(body.teacher_name,220)):e;
+    if(!teacher)return json({ok:false,error:"not_found"},404);
+    const participants=(Array.isArray(body.participants)?body.participants:[]).map((x:any)=>clean(x,160)).filter(Boolean).slice(0,80);
+    const row:any={broadcast_date:date,title,teacher_employee_id:teacher.employee_id,participants,event_status:status,rating:Math.max(1,Math.min(5,Number(body.rating)||0))||null,evaluation_note:clean(body.evaluation_note,1600)||null,updated_at:new Date().toISOString()};
+    if(id){
+      const {data:old}=await db.from("multaqa_broadcasts").select("created_by_employee_id").eq("id",id).maybeSingle();
+      if(!old)return json({ok:false,error:"not_found"},404);if(!elevated(e)&&old.created_by_employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+      const {data,error}=await db.from("multaqa_broadcasts").update(row).eq("id",id).select().single();if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,item:data});
+    }
+    const {data,error}=await db.from("multaqa_broadcasts").insert({...row,created_by_employee_id:e.employee_id}).select().single();if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,item:data});
+  }
+  if(action==="prepare_broadcast_upload"){
+    const id=clean(body.id,80),mime=clean(body.mime_type,80);const {data:item}=await db.from("multaqa_broadcasts").select("created_by_employee_id").eq("id",id).maybeSingle();
+    if(!item)return json({ok:false,error:"not_found"},404);if(!elevated(e)&&item.created_by_employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+    const ext=mime.includes("mp4")?"mp4":mime.includes("quicktime")?"mov":"webm",path=`broadcasts/${id}/${crypto.randomUUID()}.${ext}`;
+    const {data:signed,error}=await db.storage.from("school-broadcasts").createSignedUploadUrl(path);if(error||!signed)return json({ok:false,error:"upload_failed"},500);
+    return json({ok:true,path,token:signed.token,signed_url:signed.signedUrl});
+  }
+  if(action==="complete_broadcast_video"){
+    const id=clean(body.id,80),path=clean(body.path,700);if(!path.startsWith(`broadcasts/${id}/`))return json({ok:false,error:"invalid_input"},400);
+    const {data:item}=await db.from("multaqa_broadcasts").select("created_by_employee_id").eq("id",id).maybeSingle();if(!item)return json({ok:false,error:"not_found"},404);if(!elevated(e)&&item.created_by_employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+    const {error}=await db.from("multaqa_broadcasts").update({video_path:path,updated_at:new Date().toISOString()}).eq("id",id);if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
   if(action==="directory"){
     const [{data:employees},{data:classRows},{data:buses}]=await Promise.all([
       db.from("multaqa_employees").select("employee_id,full_name,short_name,role,kind,access_group").order("full_name"),

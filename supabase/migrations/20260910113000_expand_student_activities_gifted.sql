@@ -121,6 +121,17 @@ create index if not exists idx_case_files_student on public.multaqa_case_files(s
 create index if not exists idx_activities_date_type on public.multaqa_school_activities(activity_date desc, activity_type);
 create index if not exists idx_activity_tasks_activity_status on public.multaqa_activity_tasks(activity_id, status);
 create index if not exists idx_gifted_participations_student on public.multaqa_gifted_participations(student_school_id, participation_date desc);
+create index if not exists idx_activity_achievements_activity on public.multaqa_activity_achievements(activity_id);
+create index if not exists idx_activity_achievements_employee on public.multaqa_activity_achievements(recorded_by_employee_id);
+create index if not exists idx_activity_responsibles_employee on public.multaqa_activity_responsibles(employee_id);
+create index if not exists idx_activity_tasks_creator on public.multaqa_activity_tasks(created_by_employee_id);
+create index if not exists idx_case_files_uploader on public.multaqa_case_files(uploaded_by_employee_id);
+create index if not exists idx_case_followups_creator on public.multaqa_case_followups(created_by_employee_id);
+create index if not exists idx_case_plans_creator on public.multaqa_case_plans(created_by_employee_id);
+create index if not exists idx_gifted_participations_employee on public.multaqa_gifted_participations(recorded_by_employee_id);
+create index if not exists idx_gifted_students_recorder on public.multaqa_gifted_students(recorded_by_employee_id);
+create index if not exists idx_gifted_students_supervisor on public.multaqa_gifted_students(supervisor_employee_id);
+create index if not exists idx_school_activities_creator on public.multaqa_school_activities(created_by_employee_id);
 
 alter table public.multaqa_case_followups enable row level security;
 alter table public.multaqa_case_plans enable row level security;

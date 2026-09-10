@@ -118,6 +118,22 @@ Deno.serve(async(req)=>{
     const count=(a:any[],s:string)=>a.filter(x=>x.status===s).length;
     return json({ok:true,date,students_total:students||0,staff_total:staff||0,students:{present:count(sa||[],"present"),absent:count(sa||[],"absent"),late:count(sa||[],"late"),excused:count(sa||[],"excused")},teachers:{present:count(ta||[],"present"),absent:count(ta||[],"absent"),late:count(ta||[],"late")},permissions:{pending:count(pr||[],"pending"),approved:count(pr||[],"approved")},coverage:{needed:(cv||[]).filter(x=>!x.status||x.status==="proposed").length,assigned:count(cv||[],"assigned")},observations:{no_teacher:count((ob||[]).filter(x=>!x.resolved),"no_teacher"),problem:count((ob||[]).filter(x=>!x.resolved),"problem")},duty:{confirmed:(da||[]).length,absent:count(da||[],"absent")}});
   }
+  if(action==="teacher_schedule"){
+    let target=e;
+    if(elevated(e)&&clean(body.employee_name,220)){
+      const found=await resolveEmployee(db,clean(body.employee_name,220));
+      if(!found)return json({ok:false,error:"not_found"},404);
+      target=found;
+    }
+    const {data:schedule}=await db.from("multaqa_teacher_schedules").select("full_name,page,schedule").eq("full_name",target.full_name).maybeSingle();
+    if(!schedule)return json({ok:false,error:"not_found"},404);
+    return json({ok:true,employee:{employee_id:target.employee_id,full_name:target.full_name,short_name:target.short_name},schedule});
+  }
+  if(action==="duty_week"){
+    const {data}=await db.from("multaqa_duty").select("day_name,teachers,admins,slots");
+    const order:any={"الأحد":1,"الاثنين":2,"الثلاثاء":3,"الأربعاء":4,"الخميس":5};
+    return json({ok:true,days:(data||[]).sort((a:any,b:any)=>(order[a.day_name]||99)-(order[b.day_name]||99)),is_admin:elevated(e)});
+  }
   if(action==="directory"){
     const [{data:employees},{data:classRows},{data:buses}]=await Promise.all([
       db.from("multaqa_employees").select("employee_id,full_name,short_name,role,kind,access_group").order("full_name"),

@@ -4,10 +4,13 @@ const S=id=>document.getElementById(id);
 const POSTHOG_KEY='phc_t4Rq2JvPvHE6S2DY4PDcTSnNc9CFrpnrkD7qU72HQWxM';
 function phCapture(event,properties={}){try{const distinct=secureEmployee?.employee_id||localStorage.getItem('multaqa_anon_id')||crypto.randomUUID();localStorage.setItem('multaqa_anon_id',distinct);const payload={api_key:POSTHOG_KEY,event,properties:{distinct_id:distinct,app:'multaqa_school',role:secureEmployee?.access_group||'guest',...properties}};if(navigator.sendBeacon)navigator.sendBeacon('https://us.i.posthog.com/capture/',new Blob([JSON.stringify(payload)],{type:'application/json'}));else fetch('https://us.i.posthog.com/capture/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),keepalive:true})}catch{}}
 async function staffApi(action,p={}){
- const r=await fetch(SECURE_API,{method:'POST',headers:{'Content-Type':'application/json',...(staffToken?{'x-staff-session':staffToken}:{})},body:JSON.stringify({action,...p})});
- let d={};try{d=await r.json()}catch{}if(!r.ok||d.ok===false){const x=new Error(d.error||'request_failed');x.code=d.error;throw x}return d
+ const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),15000);
+ try{
+  const r=await fetch(SECURE_API,{method:'POST',headers:{'Content-Type':'application/json',...(staffToken?{'x-staff-session':staffToken}:{})},body:JSON.stringify({action,...p}),signal:ctl.signal});
+  let d={};try{d=await r.json()}catch{}if(!r.ok||d.ok===false){const x=new Error(d.error||'request_failed');x.code=d.error||'request_failed';throw x}return d
+ }catch(e){if(e&&e.name==='AbortError'){const x=new Error('service_timeout');x.code='service_timeout';throw x}throw e}finally{clearTimeout(timer)}
 }
-function staffError(e){return({invalid_login:'الاسم أو الرمز السري غير صحيح.',pin_not_issued:'لم تصدر الإدارة رمزًا لهذا الاسم بعد.',temporarily_locked:'تم إيقاف المحاولات 15 دقيقة للحماية.',session_required:'انتهت جلسة الدخول. سجلي الدخول من جديد.',weak_pin:'الرمز يجب أن يكون من 6 إلى 12 رقمًا.',forbidden:'ليست لديك صلاحية لهذه العملية.',not_on_duty:'الإبلاغ متاح لمعلمات مناوبة اليوم.',not_found:'لم يتم العثور على السجل.',save_failed:'تعذر حفظ البيانات.',upload_failed:'تعذر رفع الفيديو. حاولي مرة أخرى.',invalid_input:'أكملي الحقول المطلوبة.'}[e?.code]||'تعذر إتمام العملية الآن.')}
+function staffError(e){return({invalid_login:'الاسم أو الرمز السري غير صحيح.',pin_not_issued:'لم تصدر الإدارة رمزًا لهذا الاسم بعد.',temporarily_locked:'تم إيقاف المحاولات 15 دقيقة للحماية.',session_required:'انتهت جلسة الدخول. سجلي الدخول من جديد.',weak_pin:'الرمز يجب أن يكون من 6 إلى 12 رقمًا.',forbidden:'ليست لديك صلاحية لهذه العملية.',not_on_duty:'الإبلاغ متاح لمعلمات مناوبة اليوم.',not_found:'لم يتم العثور على السجل.',save_failed:'تعذر حفظ البيانات.',upload_failed:'تعذر رفع الفيديو. حاولي مرة أخرى.',invalid_input:'أكملي الحقول المطلوبة.',service_timeout:'خدمة الدخول لا تستجيب الآن بسبب عطل مؤقت في قاعدة البيانات. حاولي بعد دقيقة.'}[e?.code]||'تعذر إتمام العملية الآن.')}
 function secureAdmin(){return secureEmployee&&['admin','management'].includes(secureEmployee.access_group)}
 function caseAccess(){return secureEmployee&&['admin','management','social'].includes(secureEmployee.access_group)}
 function setSecureEmployee(e){

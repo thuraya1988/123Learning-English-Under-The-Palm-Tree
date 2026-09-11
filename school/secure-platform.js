@@ -50,6 +50,7 @@ function injectStaffCenter(){
  document.body.insertAdjacentHTML('beforeend',`<div class="modal staff-center" id="staffCenterModal"><div class="modal-box">
  <button class="close" onclick="closeById('staffCenterModal')">✕</button>
  <header class="staff-profile"><div class="staff-photo" id="staffPhoto"><span>👩‍🏫</span></div><div><small id="staffWelcome">أهلًا بكِ</small><h3 id="staffName">ملفي المدرسي</h3><p id="staffRole"></p></div><div class="staff-account"><button onclick="changeMyPin(false)">تغيير الرمز</button><button onclick="staffLogout()">خروج</button></div></header>
+ <div class="staff-admin-bar" data-admin-only><button type="button" onclick="staffTab('home')">🏠 العودة إلى لوحة الإدارة الرئيسية</button><span>مديرة النظام • جميع الصلاحيات مفعّلة</span></div>
  <div class="staff-tabs">
   <button data-staff-tab="home" onclick="staffTab('home')">🏠 الرئيسية</button><button data-staff-tab="schedule" onclick="staffTab('schedule')">📚 جدولي</button><button data-staff-tab="attendance" onclick="staffTab('attendance')">✅ الطالبات</button>
   <button data-staff-tab="permissions" onclick="staffTab('permissions')">🚪 الاستئذان</button><button data-staff-tab="duty" onclick="staffTab('duty')">🦺 المناوبة</button><button data-staff-tab="broadcast" onclick="staffTab('broadcast')">📻 الإذاعة</button>

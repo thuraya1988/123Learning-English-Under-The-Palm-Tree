@@ -85,8 +85,22 @@ window.staffTab=async tab=>{
 async function renderSecureSchedule(){
  const chosen=secureAdmin()?S('adminScheduleTeacher')?.value||'':'' ,d=await staffApi('teacher_schedule',chosen?{employee_name:chosen}:{}),row=d.schedule||{},schedule=row.schedule||{},days=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
  const picker=secureAdmin()?'<label class="schedule-picker">عرض جدول معلمة<select id="adminScheduleTeacher" onchange="renderSecureSchedule()"><option value="">جدولي</option>'+secureDirectory.employees.filter(x=>x.kind==='teacher').map(x=>'<option '+(chosen===x.full_name?'selected':'')+'>'+esc(x.full_name)+'</option>').join('')+'</select></label>':'';
- S('staffPane').innerHTML='<div class="today-title"><div><small>الجدول الأسبوعي الرسمي'+(row.page?' • صفحة '+row.page:'')+'</small><h2>📚 جدول '+esc(d.employee.short_name||d.employee.full_name)+'</h2></div>'+picker+'</div><div class="secure-schedule-grid">'+days.map(day=>'<section class="staff-card secure-day-card"><h3>'+day+'</h3><div class="secure-periods">'+[0,1,2,3,4,5,6].map(i=>'<div class="secure-period '+((schedule[day]||[])[i]?'has-class':'free-period')+'"><b>الحصة '+(i+1)+'</b><span>'+esc((schedule[day]||[])[i]||'فراغ')+'</span></div>').join('')+'</div></section>').join('')+'</div>';
+ const importCard=secureAdmin()?'<section class="staff-card schedule-import-card"><h3>📥 استيراد جدول العام الدراسي الجديد</h3><p class="staff-help">يستورد جدول جميع الصفوف والمعلمات من ملف الجدول الرسمي (٣١ صفًا و٦٤ معلمة). هذا يستبدل الجدول الحالي لأي صف أو معلمة موجودة في الملف.</p><button class="staff-primary" onclick="importOfficialSchedule()">استيراد الجدول الآن</button><div id="scheduleImportResult"></div></section>':'';
+ S('staffPane').innerHTML='<div class="today-title"><div><small>الجدول الأسبوعي الرسمي'+(row.page?' • صفحة '+row.page:'')+'</small><h2>📚 جدول '+esc(d.employee.short_name||d.employee.full_name)+'</h2></div>'+picker+'</div><div class="secure-schedule-grid">'+days.map(day=>'<section class="staff-card secure-day-card"><h3>'+day+'</h3><div class="secure-periods">'+[0,1,2,3,4,5,6].map(i=>'<div class="secure-period '+((schedule[day]||[])[i]?'has-class':'free-period')+'"><b>الحصة '+(i+1)+'</b><span>'+esc((schedule[day]||[])[i]||'فراغ')+'</span></div>').join('')+'</div></section>').join('')+'</div>'+importCard;
 }
+window.importOfficialSchedule=async()=>{
+ if(!confirm('سيتم استبدال جدول جميع الصفوف والمعلمات الموجودة في ملف الاستيراد بالجدول الجديد. متابعة؟'))return;
+ const box=S('scheduleImportResult');box.textContent='جاري الاستيراد…';
+ try{
+  const data=await fetch('schedule-import-2026.json').then(r=>r.json());
+  const d=await staffApi('import_schedules',{classes:data.classes||[],teachers:data.teachers||[]});
+  box.innerHTML='<div class="issued-pin"><small>نتيجة الاستيراد</small><b style="font-size:16px">'+d.classes.ok+' صف • '+d.teachers.ok+' معلمة</b>'
+   +(d.classes.failed.length?'<p style="color:#8e1833;font-weight:800;margin-top:8px">صفوف لم تُستورد: '+d.classes.failed.map(esc).join('، ')+'</p>':'')
+   +(d.teachers.failed.length?'<p style="color:#8e1833;font-weight:800;margin-top:8px">معلمات لم تُستورد: '+d.teachers.failed.map(esc).join('، ')+'</p>':'')
+   +'</div>';
+  toast('✅ تم الاستيراد');
+ }catch(e){box.textContent='';toast(staffError(e))}
+};
 async function renderHome(){
  const d=await staffApi('dashboard'),p=S('staffPane');p.innerHTML=`<div class="today-title"><div><small>لوحة اليوم</small><h2>${new Intl.DateTimeFormat('ar-OM',{weekday:'long',day:'numeric',month:'long'}).format(new Date())}</h2></div><button class="staff-primary" onclick="staffTab('analytics')" data-admin-only>عرض المؤشرات</button></div>
  <div class="kpi-grid"><div><em>👧</em><small>حاضرات</small><b>${d.students.present}</b></div><div><em>❌</em><small>غائبات</small><b>${d.students.absent}</b></div><div><em>⏰</em><small>متأخرات</small><b>${d.students.late}</b></div><div><em>👩‍🏫</em><small>معلمات حاضرات</small><b>${d.teachers.present}</b></div><div><em>🚪</em><small>طلبات استئذان</small><b>${d.permissions.pending}</b></div><div><em>⚠️</em><small>حصص تحتاج تغطية</small><b>${d.coverage.needed}</b></div><div><em>🦺</em><small>مناوبات مؤكدة</small><b>${d.duty.confirmed}</b></div><div><em>🏫</em><small>صفوف بلا معلمة</small><b>${d.observations.no_teacher}</b></div></div>

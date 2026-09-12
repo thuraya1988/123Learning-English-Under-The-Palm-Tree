@@ -213,6 +213,26 @@ Deno.serve(async(req)=>{
     ]);
     return json({ok:true,employees:employees||[],classes:(classRows||[]).map((x:any)=>classCode(x.class_label)),buses:buses||[]});
   }
+  if(action==="import_schedules"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const classes=Array.isArray(body.classes)?body.classes:[],teachers=Array.isArray(body.teachers)?body.teachers:[];
+    const result:any={classes:{ok:0,failed:[] as string[]},teachers:{ok:0,failed:[] as string[]}};
+    for(const c of classes){
+      const label=clean(c?.class_label,60),schedule=c?.schedule;
+      if(!label||!schedule||typeof schedule!=="object"){result.classes.failed.push(label||"?");continue}
+      const {error}=await db.from("multaqa_class_schedules").upsert({class_label:label,schedule},{onConflict:"class_label"});
+      if(error)result.classes.failed.push(label+": "+error.message);else result.classes.ok++;
+    }
+    for(const t of teachers){
+      const hint=clean(t?.full_name_hint,220),schedule=t?.schedule;
+      if(!hint||!schedule||typeof schedule!=="object"){result.teachers.failed.push(hint||"?");continue}
+      const target=await resolveEmployee(db,hint);
+      if(!target){result.teachers.failed.push(hint+" (لم يتم التعرّف على الموظفة)");continue}
+      const {error}=await db.from("multaqa_teacher_schedules").upsert({full_name:target.full_name,schedule},{onConflict:"full_name"});
+      if(error)result.teachers.failed.push(hint+": "+error.message);else result.teachers.ok++;
+    }
+    return json({ok:true,...result});
+  }
   if(action==="coverage"){
     let q=db.from("multaqa_substitute_assignments").select("*").order("coverage_date",{ascending:false}).order("period").limit(250);
     if(!elevated(e))q=q.eq("replacement_employee_id",e.employee_id);

@@ -25,7 +25,7 @@
   <div class="quick-links"><a href="../">المدرسة</a><a href="../staff-chat/">اللايف تشات</a></div>
   <main class="stage">
     <div class="robot-wrap"><img class="robot" src="../assets/aref.webp?v=20260912" alt="الروبوت عارف يلوّح بيده"></div>
-    <section class="speech"><h1>مرحبًا، أنا عارف</h1><p>اسأليني عن المناوبة، الصفوف، الجداول، المعلمات والطالبات. بيانات المدرسة محمية ولا تظهر إلا بعد دخول الموظفة.</p><button class="start" type="button" id="startChat">ابدئي المحادثة</button></section>
+    <section class="speech"><h1>مرحبًا، أنا عارف</h1><p>اسأليني عن المناوبة، الصفوف، الجداول، مواعيد الحصص، المناسبات، المعلمات والطالبات. بيانات المدرسة محمية ولا تظهر إلا بعد دخول الموظفة.</p><button class="start" type="button" id="startChat">ابدئي المحادثة</button></section>
   </main>
 
   <section class="chat" aria-label="محادثة عارف">
@@ -39,6 +39,7 @@
     <form class="login" id="loginForm"><div class="login-top"><img src="../assets/aref.webp?v=20260912" alt="عارف"><div><h2>دخول الموظفات</h2><p>ليجيب عارف عن بيانات المدرسة المحمية.</p></div></div><div class="field"><label for="loginName">الاسم المسجل</label><input id="loginName" required autocomplete="username" placeholder="الاسم الأول والقبيلة"></div><div class="field"><label for="loginPin">رمز الدخول</label><input id="loginPin" required type="password" inputmode="numeric" autocomplete="current-password" placeholder="رمز الدخول"></div><button class="login-submit" type="submit" id="loginBtn">دخول ومتابعة الحديث</button><div class="login-error" id="loginError"></div><div class="privacy">أسماء الطالبات والجداول لا تُعرض للزوار؛ يلزم حساب موظفة معتمد.</div></form>
   </div>
 
+  <script src="../events-data.js"></script>
   <script>
   (()=>{
     'use strict';
@@ -47,6 +48,9 @@
     const KEYS=['multaqa-staff-session','staff-session','multaqaSession'];
     const DAYS=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
     const PERIODS=['١','٢','٣','٤','٥','٦','٧'];
+    const PERIOD_TIMES=[['الأولى','12:20 م - 12:55 م'],['الثانية','12:55 م - 1:30 م'],['الثالثة','1:30 م - 2:05 م'],['الرابعة','2:05 م - 2:40 م'],['الخامسة','3:00 م - 3:35 م'],['السادسة','3:35 م - 4:10 م'],['السابعة','4:10 م - 4:45 م']];
+    const EV_MONTHS=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    const EV_DOWS=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
     const $=id=>document.getElementById(id);
     const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const norm=v=>String(v||'').trim().replace(/[إأآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').toLowerCase();
@@ -65,7 +69,37 @@
     function resolveClass(q,classes){const nq=norm(digits(q));const direct=(classes||[]).find(c=>nq.includes(norm(digits(c))));if(direct)return direct;const grade=requestedGrade(q);if(!grade)return '';const same=(classes||[]).filter(c=>classGrade(c)===grade);const nums=digits(q).match(/[1-7]/g)||[];const section=nums.length>1?nums.at(-1):((q.includes('/')||q.includes('شعبة'))?nums.at(-1):'');if(section){const hit=same.find(c=>new RegExp('[/\\\\-]\\s*'+section+'(?:\\D|$)').test(digits(c)));if(hit)return hit}return same.length===1?same[0]:''}
     function cleanName(q,words){let x=q;for(const w of words)x=x.replace(new RegExp(w,'gi'),' ');return x.replace(/[؟?!،,:]/g,' ').replace(/\s+/g,' ').trim()}
     function formatSchedule(s){const rows=[];for(const day of DAYS){const a=s?.[day]||[];a.forEach((v,i)=>rows.push([day,PERIODS[i]||String(i+1),v||'—']))}return rows.length?table(['اليوم','الحصة','الصف/المادة'],rows):'الجدول موجود لكن لا توجد حصص مسجلة.'}
+    function evBuildAll(){
+      let today0=new Date();today0=new Date(today0.getFullYear(),today0.getMonth(),today0.getDate());
+      const CYCLE=(today0.getMonth()+1>=9)?today0.getFullYear():today0.getFullYear()-1;
+      const raw=(typeof EVENTS_RAW!=='undefined'?EVENTS_RAW:[]);
+      return raw.map(ev=>{let s;if(ev.hijri){const off=Math.round((CYCLE-2024)*354.37);s=new Date(ev.d[1]>=9?2024:2025,ev.d[1]-1,ev.d[0]);s.setDate(s.getDate()+off)}else s=new Date(ev.d[1]>=9?CYCLE:CYCLE+1,ev.d[1]-1,ev.d[0]);let en;if(ev.end){en=new Date(s.getFullYear(),ev.end[1]-1,ev.end[0]);if(en<s)en=new Date(s.getFullYear()+1,ev.end[1]-1,ev.end[0])}else en=new Date(s);return {...ev,startDate:s,endDate:en}}).sort((a,b)=>a.startDate-b.startDate);
+    }
+    function evFmtDate(d){return EV_DOWS[d.getDay()]+' '+d.getDate()+' '+EV_MONTHS[d.getMonth()]+'م'}
+    function nextEventDetail(){
+      const today0=new Date();today0.setHours(0,0,0,0);
+      const list=evBuildAll().filter(e=>!e.monthOnly&&e.endDate>=today0);
+      if(!list.length)return 'لا توجد مناسبة قادمة مسجلة في دليل المناسبات حاليًا.';
+      const e=list[0],dd=Math.round((e.startDate-today0)/86400000);
+      let out='<b>'+esc(e.icon+' '+e.n)+'</b><br>📅 '+esc(evFmtDate(e.startDate))+' — '+(dd===0?'اليوم 🎉':dd===1?'غدًا':'بعد '+dd+' يومًا')+'<br>🏷️ '+esc(e.c)+'<br><br>'+esc(e.def);
+      if(e.ideas&&e.ideas.length)out+='<br><br><b>💡 أفكار الاحتفال</b><br>'+e.ideas.map((x,i)=>esc((i+1)+'. '+x)).join('<br>');
+      return out;
+    }
     async function answer(q){const n=norm(q);
+      if(n.includes('دقيق')||n.includes('ولي الامر')||n.includes('اولياء الامور')||n.includes('ولي أمر')||n.includes('أولياء')||n.includes('اهل الطالب')||n.includes('استئذان الكتروني')||n.includes('طلب الكتروني')){
+        return 'خدمة أولياء الأمور «دقيقة» فيها كل الطلبات (عذر غياب، استئذان، طلبات المصادر...) بمكان واحد ومتابعة برقم تتبّع.<br><a href="../parent-self-service.html" target="_blank" style="color:#8c1f3b;font-weight:900">افتحي رابط خدمة دقيقة من هنا ↗</a>';
+      }
+      if((n.includes('مواعيد')||n.includes('توقيت')||n.includes('اوقات')||n.includes('أوقات'))&&(n.includes('حصص')||n.includes('حصة')||n.includes('الحصص'))){
+        return '<b>التوقيت الرسمي للحصص</b>'+table(['الحصة','التوقيت'],PERIOD_TIMES.map(x=>['الحصة '+x[0],x[1]]));
+      }
+      if(n.includes('مناسب')||n.includes('فعالي')||n.includes('احتفال')||n.includes('عيد')){
+        return nextEventDetail();
+      }
+      if(n.includes('احتياط')&&!n.includes('مناوب')){
+        const d=await api('coverage');const items=d.items||[];
+        if(!items.length)return 'لا توجد حصص احتياط مسجلة لكِ حاليًا.';
+        return '<b>حصص الاحتياط</b>'+table(['التاريخ','اليوم','الحصة','الصف','الحالة'],items.slice(0,25).map(x=>[x.coverage_date,x.day_name||'—','الحصة '+x.period,x.class_label,x.status==='proposed'?'تحتاج تعيين':(x.status==='assigned'?'مسندة':x.status)]));
+      }
       if(n.includes('مناوب')){if(n.includes('اسبوع')||n.includes('الأسبوع')){const d=await api('duty_week');const labels={morning:'الطابور',shade:'المظلة',coop:'التعاونية',between:'بين الفصول',cars:'السيارات',buses:'الحافلات',reserve:'احتياط'};const rows=[];(d.days||[]).forEach(x=>{const team=[...(x.admins||[])];for(const [slot,names] of Object.entries(x.slots||{}))if((names||[]).length)team.push((labels[slot]||slot)+': '+names.join('، '));rows.push([x.day_name,team.join(' • ')||'—'])});return '<b>مناوبات الأسبوع</b>'+table(['اليوم','الفريق والموقع'],rows)}const d=await api('duty_today');return '<b>مناوبة '+esc(d.day||'اليوم')+'</b><br>'+esc((d.members||[]).map(x=>x.short_name||x.full_name).join(' • ')||'لا توجد أسماء مسجلة')}
       if(n.includes('جدول')){if(n.includes('صف')){const dir=await api('directory'),c=resolveClass(q,dir.classes||[]);if(!c)return 'حددي الصف والشعبة من هذه القائمة: '+esc((dir.classes||[]).join(' • '));const d=await publicApi('class_schedule',{class_label:c});return '<b>جدول '+esc(d.class_label||c)+'</b>'+formatSchedule(d.schedule||{})}const who=cleanName(q,['جدول','المعلمة','معلمة','الأستاذة','استاذه','أستاذة','استاذة','لو سمحت','اريد','أريد']);const d=await api('teacher_schedule',who?{employee_name:who}:{});return '<b>'+esc(d.employee?.full_name||'جدولي')+'</b>'+formatSchedule(d.schedule?.schedule||{})}
       if(n.includes('صف')||n.includes('شعب')){const dir=await api('directory'),c=resolveClass(q,dir.classes||[]);if(c){const d=await api('class_roster',{class_name:c,period:0});return '<b>'+esc(c)+'</b><br>عدد الطالبات: '+(d.students||[]).length+table(['م','اسم الطالبة'],(d.students||[]).map((x,i)=>[x.serial||i+1,x.name]))}return '<b>صفوف المدرسة</b><br>'+esc((dir.classes||[]).join(' • '))}
@@ -73,10 +107,10 @@
       if(n.includes('معلم')||n.includes('موظف')||n.includes('اداري')||n.includes('إداري')){const d=await api('directory');const rows=(d.employees||[]).map(x=>[x.short_name||x.full_name,x.role||x.kind||'—']);return '<b>دليل الموظفات</b>'+table(['الاسم','المسمى'],rows)}
       if(n.includes('حافل')||n.includes('نقل')||n.includes('سيار')){const d=await api('directory');if(!(d.buses||[]).length)return 'لا توجد بيانات حافلات معتمدة في السجل حتى الآن.';return '<b>النقل المدرسي</b>'+table(['الحافلة','السائق','المسار'],d.buses.map(x=>[x.bus_number||x.name||'—',x.driver_name||'—',x.route_name||x.area||'—']))}
       if(n.includes('عدد')||n.includes('احص')||n.includes('إحص')||n.includes('لوحه')||n.includes('لوحة')){const d=await api('dashboard');return '<b>لوحة المدرسة اليوم</b><br>الطالبات الحاضرات: '+(d.students?.present||0)+'<br>الغياب: '+(d.students?.absent||0)+'<br>التأخر: '+(d.students?.late||0)+'<br>المعلمات الحاضرات: '+(d.teachers?.present||0)+'<br>طلبات الاستئذان: '+(d.permissions?.pending||0)+'<br>حصص تحتاج تغطية: '+(d.coverage?.needed||0)+'<br>المناوبة المؤكدة: '+(d.duty?.confirmed||0)}
-      return 'أقدر أساعدك في: مناوبة اليوم أو الأسبوع، جدولك أو جدول صف، قوائم الصفوف والطالبات، البحث عن طالبة، دليل المعلمات والإداريات، النقل المدرسي وإحصاءات اليوم.'
+      return 'أقدر أساعدك في: مناوبة اليوم أو الأسبوع وتوزيعها، جدولك أو جدول أي صف، مواعيد الحصص، حصص الاحتياط، قوائم الصفوف والطالبات، البحث عن طالبة (صفها وشعبتها)، دليل المعلمات والإداريات، النقل المدرسي، المناسبة القادمة بالتفصيل، رابط خدمة أولياء الأمور «دقيقة»، وإحصاءات اليوم.'
     }
     async function send(q){q=String(q||'').trim();if(!q)return;add(q,'user');const t=typing();try{const out=await answer(q);t.remove();add(out,'bot',true)}catch(e){t.remove();if(e.code==='session_required'){clearToken();$('gate').classList.remove('hidden')}add(errorText(e),'bot error');$('question').focus()}}
-    const prompts=['مناوبة اليوم','مناوبات الأسبوع','جدولي','صفوف المدرسة','ابحث عن طالبة','لوحة اليوم'];for(const p of prompts){const b=document.createElement('button');b.type='button';b.textContent=p;b.onclick=()=>send(p);$('chips').append(b)}
+    const prompts=['مناوبة اليوم','مناوبات الأسبوع','جدولي','صفوف المدرسة','ابحث عن طالبة','المناسبة القادمة','مواعيد الحصص','حصص الاحتياط','خدمة أولياء الأمور','لوحة اليوم'];for(const p of prompts){const b=document.createElement('button');b.type='button';b.textContent=p;b.onclick=()=>send(p);$('chips').append(b)}
     async function identify(){if(!token())return false;try{const d=await api('me');$('identity').textContent=(d.employee?.short_name||d.employee?.full_name||'موظفة')+' • متصل';return true}catch{clearToken();return false}}
     async function start(){document.body.classList.add('started');if(!(await identify()))$('gate').classList.remove('hidden');else if(!$('messages').children.length)add('مرحبًا! أنا عارف. اسأليني عن أي معلومة تخص تشغيل المدرسة.')}
     $('startChat').onclick=start;$('chatForm').onsubmit=e=>{e.preventDefault();const q=$('question').value;$('question').value='';send(q)};

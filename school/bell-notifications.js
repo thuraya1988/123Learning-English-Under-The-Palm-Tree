@@ -1,8 +1,27 @@
 (()=>{
   const PERIOD_NOTICE_BODY='تنبيه موعد الحصة — مدرسة ملتقى المعارف للتعليم الأساسي (١–٦)';
+  const ALERT_SOUND_SRC='assets/alert-sound.mp3';
+  let alertAudioEl=null;
+  function getAlertAudio(){
+    if(!alertAudioEl){ alertAudioEl=new Audio(ALERT_SOUND_SRC); alertAudioEl.preload='auto'; }
+    return alertAudioEl;
+  }
+  window.playMultaqaAlertSound=function(){
+    try{
+      const a=getAlertAudio();
+      a.currentTime=0;
+      const p=a.play();
+      if(p&&p.catch) p.catch(()=>{});
+    }catch(_){}
+  };
+  ['click','touchstart','keydown','pointerdown'].forEach(ev=>document.addEventListener(ev,()=>{
+    try{ const a=getAlertAudio(); const p=a.play(); if(p&&p.then) p.then(()=>{a.pause();a.currentTime=0;}).catch(()=>{}); }catch(_){}
+  },{once:true,passive:true}));
+
   const originalNotify=window.notifyLocal;
   window.notifyLocal=async function(message){
     try{ if(typeof originalNotify==='function') originalNotify(message); }catch(_){ }
+    window.playMultaqaAlertSound();
     if(!('Notification' in window)||Notification.permission!=='granted'||!('serviceWorker' in navigator)) return;
     try{
       const reg=await navigator.serviceWorker.ready;
@@ -37,7 +56,7 @@
       const cards=pane.querySelectorAll('.bell-card');
       if(cards[1]){
         const p=cards[1].querySelector('p');
-        if(p) p.textContent='كل حصة 35 دقيقة، والتنبيه إشعار مرئي وليس صوت جرس.';
+        if(p) p.textContent='كل حصة 35 دقيقة، والتنبيه إشعار مرئي مع مؤثر صوتي.';
       }
       const btn=pane.querySelector('button[onclick="enableOpsAlerts()"]');
       if(btn) btn.textContent='🔔 تفعيل إشعارات الحصص';

@@ -217,18 +217,22 @@ Deno.serve(async(req)=>{
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);
     const classes=Array.isArray(body.classes)?body.classes:[],teachers=Array.isArray(body.teachers)?body.teachers:[];
     const result:any={classes:{ok:0,failed:[] as string[]},teachers:{ok:0,failed:[] as string[]}};
-    for(const c of classes){
-      const label=clean(c?.class_label,60),schedule=c?.schedule;
+    for(let i=0;i<classes.length;i++){
+      const c=classes[i],label=clean(c?.class_label,60),schedule=c?.schedule;
       if(!label||!schedule||typeof schedule!=="object"){result.classes.failed.push(label||"?");continue}
-      const {error}=await db.from("multaqa_class_schedules").upsert({class_label:label,schedule},{onConflict:"class_label"});
+      const {data:old}=await db.from("multaqa_class_schedules").select("page").eq("class_label",label).maybeSingle();
+      const page=Number.isInteger(old?.page)?old.page:i;
+      const {error}=await db.from("multaqa_class_schedules").upsert({class_label:label,page,schedule},{onConflict:"class_label"});
       if(error)result.classes.failed.push(label+": "+error.message);else result.classes.ok++;
     }
-    for(const t of teachers){
-      const hint=clean(t?.full_name_hint,220),schedule=t?.schedule;
+    for(let i=0;i<teachers.length;i++){
+      const t=teachers[i],hint=clean(t?.full_name_hint,220),schedule=t?.schedule;
       if(!hint||!schedule||typeof schedule!=="object"){result.teachers.failed.push(hint||"?");continue}
       const target=await resolveEmployee(db,hint);
       if(!target){result.teachers.failed.push(hint+" (لم يتم التعرّف على الموظفة)");continue}
-      const {error}=await db.from("multaqa_teacher_schedules").upsert({full_name:target.full_name,schedule},{onConflict:"full_name"});
+      const {data:old}=await db.from("multaqa_teacher_schedules").select("page").eq("full_name",target.full_name).maybeSingle();
+      const page=Number.isInteger(old?.page)?old.page:(Number.isInteger(target.teacher_page)?target.teacher_page:i);
+      const {error}=await db.from("multaqa_teacher_schedules").upsert({full_name:target.full_name,page,schedule},{onConflict:"full_name"});
       if(error)result.teachers.failed.push(hint+": "+error.message);else result.teachers.ok++;
     }
     return json({ok:true,...result});

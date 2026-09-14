@@ -13,12 +13,18 @@ async function staffApi(action,p={}){
 function staffError(e){return({invalid_login:'الاسم أو الرمز السري غير صحيح.',pin_not_issued:'لم تصدر الإدارة رمزًا لهذا الاسم بعد.',temporarily_locked:'تم إيقاف المحاولات 15 دقيقة للحماية.',session_required:'انتهت جلسة الدخول. سجلي الدخول من جديد.',weak_pin:'الرمز يجب أن يكون من 6 إلى 12 رقمًا.',forbidden:'ليست لديك صلاحية لهذه العملية.',not_on_duty:'الإبلاغ متاح لمعلمات مناوبة اليوم.',not_found:'لم يتم العثور على السجل.',save_failed:'تعذر حفظ البيانات.',upload_failed:'تعذر رفع الفيديو. حاولي مرة أخرى.',invalid_input:'أكملي الحقول المطلوبة.',service_timeout:'خدمة الدخول لا تستجيب الآن بسبب عطل مؤقت في قاعدة البيانات. حاولي بعد دقيقة.'}[e?.code]||'تعذر إتمام العملية الآن.')}
 function secureAdmin(){return secureEmployee&&['admin','management'].includes(secureEmployee.access_group)}
 function caseAccess(){return secureEmployee&&['admin','management','social'].includes(secureEmployee.access_group)}
+function secureWelcomeName(e){
+ const saved=String(e?.profile?.welcome_name||'').trim(),base=saved||String(e?.short_name||e?.full_name||'').trim();
+ if(e?.kind==='teacher'&&!/^(مس|أ\.?|الأستاذة|المعلمة)\s/u.test(base))return 'مس '+base;
+ return base;
+}
 function setSecureEmployee(e){
  secureEmployee=e;employee=e;localStorage.removeItem('multaqa_employee');
- const g=S('identityGreeting');if(g){g.textContent='مرحبًا '+(e.profile?.welcome_name||e.short_name);g.style.display='inline-flex'}
+ const welcomeName=secureWelcomeName(e),welcomeMessage=e.welcome_message||('مرحبًا '+welcomeName+'، يومك مليء بالإنجاز');
+ const g=S('identityGreeting');if(g){g.textContent='مرحبًا '+welcomeName;g.setAttribute('aria-label',welcomeMessage);g.title=welcomeMessage;g.style.display='inline-flex'}
  document.querySelectorAll('[data-admin-only]').forEach(x=>x.style.display=secureAdmin()?'':'none');
- if(S('staffWelcome'))S('staffWelcome').textContent=e.welcome_message||('مرحبًا '+e.short_name);
- if(S('staffName'))S('staffName').textContent=e.profile?.welcome_name||e.short_name;
+ if(S('staffWelcome'))S('staffWelcome').textContent=welcomeMessage;
+ if(S('staffName'))S('staffName').textContent=welcomeName;
  if(S('staffRole'))S('staffRole').textContent=[e.profile?.display_title||e.role,e.profile?.subject].filter(Boolean).join(' • ');
  const img=S('staffPhoto');if(img){img.innerHTML=e.profile?.photo_url?'<img src="'+esc(e.profile.photo_url)+'" alt="">':'<span>'+(e.kind==='teacher'?'👩‍🏫':'🏛️')+'</span>'}
 }

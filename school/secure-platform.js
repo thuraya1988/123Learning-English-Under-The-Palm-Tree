@@ -126,7 +126,13 @@ window.decidePermission=async(id,status)=>{try{const d=await staffApi('decide_pe
 function employeeOptions(){return secureDirectory.employees.map(x=>'<option value="'+esc(x.short_name)+'">'+esc(x.short_name)+' — '+esc(x.role||'')+'</option>').join('')}
 function renderStaffAdmin(){if(!secureAdmin())return;S('staffPane').innerHTML='<div class="two-col"><section class="staff-card"><h3>تسجيل حضور أو غياب معلمة</h3><label>المعلمة</label><select id="taEmployee">'+employeeOptions()+'</select><label>الحالة</label><select id="taStatus"><option value="present">حاضرة</option><option value="late">متأخرة</option><option value="absent">غائبة</option><option value="partial_permission">استئذان جزئي</option><option value="full_exit">خروج كامل</option><option value="official_task">مهمة رسمية</option><option value="leave">إجازة</option></select><label>سبب مصنف</label><select id="taReasonCat"><option value="">بدون</option>'+reasonOptions()+'</select><label>السبب/الملاحظة</label><textarea id="taNote"></textarea><button class="staff-primary" onclick="recordTeacherAttendance()">حفظ وتشغيل الاحتياط عند الغياب</button></section><section class="staff-card"><h3>آلية الاحتياط العادل</h3><ul><li>تستبعد المعلمة التي لديها حصة في الوقت نفسه.</li><li>لا تُنشئ ثلاث حصص متتالية.</li><li>تقلل تكرار المعلمة نفسها.</li><li>تقارن تكليفات آخر 30 يومًا وعدد حصص اليوم.</li></ul></section></div>'}
 window.recordTeacherAttendance=async()=>{try{const d=await staffApi('record_teacher_attendance',{employee_name:S('taEmployee').value,status:S('taStatus').value,reason_category:S('taReasonCat').value||null,reason:S('taNote').value});toast('✅ تم الحفظ'+(d.coverage?.length?' وتوزيع '+d.coverage.length+' حصص احتياط':''));if(d.coverage?.length)staffTab('coverage')}catch(e){toast(staffError(e))}};
-async function renderCoverage(){const d=await staffApi('coverage');S('staffPane').innerHTML='<h2>🔄 توزيع حصص الاحتياط</h2><p class="staff-help">التوزيع يحسب العدالة والتعارض والحصص المتتالية تلقائيًا.</p><div class="coverage-list">'+(d.items||[]).map(x=>'<article><span class="period-pill">الحصة '+x.period+'</span><div><b>'+esc(x.class_label)+'</b><small>'+esc(x.subject||'')+' • '+esc(x.day_name)+' '+esc(x.coverage_date)+'</small><p>'+esc(x.reason_summary||'')+'</p></div><strong>'+esc(x.status==='proposed'?'تحتاج تعيين':x.status)+'</strong></article>').join('')+'</div>'}
+async function renderCoverage(){
+ const d=await staffApi('coverage'),items=d.items||[],names=new Map((secureDirectory.employees||[]).map(x=>[x.employee_id,x.short_name||x.full_name]));
+ const statusLabel=x=>x.status==='assigned'?'تم التعيين':x.status==='proposed'?'تحتاج تعيين':x.status==='completed'?'مكتملة':x.status==='cancelled'?'ملغاة':x.status||'بانتظار التعيين';
+ S('staffPane').innerHTML='<h2>🔄 توزيع حصص الاحتياط</h2><p class="staff-help">يظهر هنا اسم المعلمة الغائبة واسم معلمة الاحتياط لكل حصة.</p><div class="coverage-list">'
+  +(items.length?items.map(x=>{const absent=names.get(x.absent_employee_id)||'غير محددة',replacement=x.replacement_employee_id?(names.get(x.replacement_employee_id)||'معلمة محددة بالنظام'):'لم يتم تعيين معلمة بعد';return '<article><span class="period-pill">الحصة '+x.period+'</span><div><b>'+esc(x.class_label)+'</b><small>'+esc(x.subject||'')+' • '+esc(x.day_name)+' '+esc(x.coverage_date)+'</small><p><b>المعلمة الغائبة:</b> '+esc(absent)+'</p><p><b>معلمة الاحتياط:</b> '+esc(replacement)+'</p><p>'+esc(x.reason_summary||'')+'</p></div><strong>'+esc(statusLabel(x))+'</strong></article>'}).join(''):'<div class="staff-empty">لا توجد حصص احتياط مسجلة.</div>')
+  +'</div>'
+}
 async function renderSecureDuty(){
  const [d,w]=await Promise.all([staffApi('duty_today'),staffApi('duty_week')]);
  const slotNames={morning:'الطابور الصباحي',shade:'المظلة',coop:'التعاونية',between:'بين الفصول',cars:'السيارات',buses:'الحافلات',reserve:'احتياط'};
@@ -252,5 +258,3 @@ window.exportBulkPinsCsv=()=>{
  const a=document.createElement('a');
  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
  a.download='الرموز_المؤقتة.csv';a.click();
-};
-setTimeout(async()=>{prepareSecureLogin();injectStaffCenter();updateSecureLabels();await restoreStaff()},0);

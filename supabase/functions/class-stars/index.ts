@@ -47,6 +47,22 @@ Deno.serve(async (req) => {
 
   if (action === "verify") return json({ ok: true });
 
+  if (action === "import") {
+    const source = Array.isArray(body.items) ? body.items.slice(0, 120) : [];
+    const items = source.flatMap((item: any) => {
+      const cls = clean(item?.cls, 20), name = clean(item?.name, 200);
+      if (!ROSTER[cls] || !ROSTER[cls].includes(name)) return [];
+      const stars = Array.isArray(item?.stars) ? item.stars.map((x: unknown) => clean(x, 40)).slice(0, 2000) : [];
+      const losses = Array.isArray(item?.losses) ? item.losses.map((x: unknown) => clean(x, 40)).slice(0, 2000) : [];
+      return [{ cls, name, stars, losses, updated_at: new Date().toISOString() }];
+    });
+    if (!items.length) return json({ ok: true, imported: 0 });
+    const { error } = await db.from("class_stars_students")
+      .upsert(items, { onConflict: "cls,name" });
+    if (error) return json({ ok: false, error: "save_failed" }, 500);
+    return json({ ok: true, imported: items.length });
+  }
+
   if (action === "save") {
     const cls = clean(body.cls, 20), name = clean(body.name, 200);
     if (!ROSTER[cls] || !ROSTER[cls].includes(name)) return json({ ok: false, error: "invalid_input" }, 400);

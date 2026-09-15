@@ -318,13 +318,24 @@ $('#search').addEventListener('input', e => { state.q = e.target.value; renderGr
 $('#sortName').onclick = () => { state.sort='name'; $('#sortName').classList.add('active'); $('#sortStars').classList.remove('active'); renderGrid(); };
 $('#sortStars').onclick = () => { state.sort='stars'; $('#sortStars').classList.add('active'); $('#sortName').classList.remove('active'); renderGrid(); };
 
-$('#exportBtn').onclick = () => {
+$('#exportBtn').onclick = async () => {
   const names = ROSTER[state.cls] || [];
   const rows = [['الاسم','نجوم الإجمالي','نجوم هالأسبوع','خسائر الإجمالي','خسائر هالأسبوع'], ...names.map(n=>{const c=countsFor(state.cls,n);return [n,c.starsTotal,c.starsWeek,c.lossesTotal,c.lossesWeek];})];
   const csv = '﻿' + rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const filename = `stars-${state.cls.replace('/','-')}.csv`;
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
+  if(window.claude && window.claude.use){
+    try{
+      const downloads = await window.claude.use('downloads');
+      if(downloads){
+        try{ await downloads.save({filename, data: blob}); }catch(e){ toast('تعذّر حفظ الملف'); }
+        return;
+      }
+    }catch(e){}
+  }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
-  a.download = `stars-${state.cls.replace('/','-')}.csv`;
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(a.href);
 };

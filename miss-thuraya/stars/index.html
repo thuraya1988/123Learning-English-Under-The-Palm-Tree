@@ -20,6 +20,12 @@ button{cursor:pointer}
 .syncbadge.synced{background:#e3f7ea;color:#1f8a4c}
 .syncbadge.connecting{background:#fff6e3;color:#8a6416}
 .syncbadge.error{background:#fdeceb;color:#a33327}
+.lockbar{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.lockstatus{font-size:12px;font-weight:800;padding:5px 14px;border-radius:999px;background:rgba(255,255,255,.9);color:#6d5b7a}
+.lockstatus.on{background:#e3f7ea;color:#1f8a4c}
+.lockbtn{border:0;border-radius:999px;padding:6px 14px;font-weight:800;font-size:12px;color:#fff;background:linear-gradient(#7a5aa8,#563797);box-shadow:0 3px 0 #3c265f}
+.lockbtn:active{transform:translateY(2px);box-shadow:none}
+.addbtn:disabled,.lossbtn:disabled,.undobtn:disabled,.btn.red:disabled{opacity:.4;filter:grayscale(.3)}
 .tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;justify-content:center}
 .tab{border:0;border-radius:999px;padding:11px 22px;font-weight:800;font-size:15px;background:#fff;color:#a12457;box-shadow:0 4px 0 #dec7d1}
 .tab.active{background:linear-gradient(#ff9db8,var(--pink));color:#fff;box-shadow:0 4px 0 #b52f55}
@@ -68,6 +74,10 @@ button{cursor:pointer}
     <h1>⭐ نجوم الفصل</h1>
     <p>خامس أول • خامس ثاني • خامس ثالث — الأستاذة ثريا</p>
     <div class="syncbadge" id="syncBadge">📴 محفوظ على هالجهاز فقط</div>
+    <div class="lockbar">
+      <span class="lockstatus" id="lockStatus">🔒 وضع العرض فقط</span>
+      <button class="lockbtn" id="unlockBtn">🔑 دخول المعلمة</button>
+    </div>
   </header>
 
   <div class="tabs" id="tabs"></div>
@@ -212,7 +222,44 @@ async function initCloudSync(){
   }, () => setSyncBadge('error'));
 }
 
+// ---- edit lock: the page ships on a public URL with no login, so a
+// simple shared code gates the add/subtract/reset controls to keep
+// casual visitors from touching results — not a real security boundary
+// (the cloud-sync write rules above are what actually enforce that). ----
+const EDIT_PIN = '1970';
+const EDIT_KEY = 'palm_stars_edit_v1';
+let editMode = localStorage.getItem(EDIT_KEY) === '1';
+
+function updateLockUI(){
+  const status = $('#lockStatus');
+  const btn = $('#unlockBtn');
+  if(editMode){
+    status.textContent = '🔓 وضع التعديل مفعّل';
+    status.classList.add('on');
+    btn.textContent = '🔒 قفل';
+  } else {
+    status.textContent = '🔒 وضع العرض فقط';
+    status.classList.remove('on');
+    btn.textContent = '🔑 دخول المعلمة';
+  }
+  $('#resetBtn').disabled = !editMode;
+}
+function setEditMode(on){
+  editMode = on;
+  if(on) localStorage.setItem(EDIT_KEY, '1'); else localStorage.removeItem(EDIT_KEY);
+  updateLockUI();
+  renderGrid();
+}
+$('#unlockBtn').onclick = () => {
+  if(editMode){ setEditMode(false); toast('تم القفل — وضع العرض فقط'); return; }
+  const code = prompt('أدخلي رمز المعلمة لتفعيل الإضافة والحذف:');
+  if(code === null) return;
+  if(code.trim() === EDIT_PIN){ setEditMode(true); toast('تم تفعيل وضع التعديل'); }
+  else toast('رمز غير صحيح');
+};
+
 function addMark(kind, cls, name){
+  if(!editMode) return;
   ensure(cls, name)[kind].push(new Date().toISOString());
   saveData(DATA);
   pushRecord(cls, name);
@@ -220,6 +267,7 @@ function addMark(kind, cls, name){
   toast(kind === 'stars' ? `⭐ نجمة لـ ${name}` : `➖ خسارة لـ ${name}`);
 }
 function undoMark(kind, cls, name){
+  if(!editMode) return;
   const arr = ensure(cls, name)[kind];
   if(!arr.length) return;
   arr.pop();
@@ -285,12 +333,12 @@ function renderGrid(){
         <span class="chip loss">➖ خسائر: ${s.lossesTotal}</span>
       </div>
       <div class="row">
-        <button class="addbtn" data-add="${s.name}">+ نجمة ⭐</button>
-        <button class="undobtn" data-undo="${s.name}" ${s.starsTotal?'':'disabled'}>↩</button>
+        <button class="addbtn" data-add="${s.name}" ${editMode?'':'disabled'}>+ نجمة ⭐</button>
+        <button class="undobtn" data-undo="${s.name}" ${(editMode && s.starsTotal)?'':'disabled'}>↩</button>
       </div>
       <div class="row">
-        <button class="lossbtn" data-loss="${s.name}">➖ خسارة</button>
-        <button class="undobtn" data-undoloss="${s.name}" ${s.lossesTotal?'':'disabled'}>↩</button>
+        <button class="lossbtn" data-loss="${s.name}" ${editMode?'':'disabled'}>➖ خسارة</button>
+        <button class="undobtn" data-undoloss="${s.name}" ${(editMode && s.lossesTotal)?'':'disabled'}>↩</button>
       </div>
     </div>
   `).join('');
@@ -341,6 +389,7 @@ $('#exportBtn').onclick = async () => {
 };
 
 $('#resetBtn').onclick = () => {
+  if(!editMode) return;
   if(!confirm(`متأكدة تبين تصفرين كل نجوم وخسائر ${CLASS_LABELS[state.cls]}؟ ما تنرجع بعدها.`)) return;
   const names = ROSTER[state.cls] || [];
   DATA[state.cls] = {};
@@ -355,6 +404,7 @@ $('#resetBtn').onclick = () => {
   toast('تم تصفير نجوم الصف');
 };
 
+updateLockUI();
 render();
 initCloudSync();
 </script>

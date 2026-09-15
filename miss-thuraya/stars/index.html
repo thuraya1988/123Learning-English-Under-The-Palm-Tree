@@ -103,6 +103,8 @@ const ROSTER = {"5/1": ["أريام بنت خليل بن محمد صالح ال�
 const CLASS_LABELS = {"5/1":"خامس أول","5/2":"خامس ثاني","5/3":"خامس ثالث"};
 const CLASSES = ["5/1","5/2","5/3"];
 const STORE_KEY = "palm_stars_v1";
+const LOCAL_BACKUP_KEY = "palm_stars_local_backup_v1";
+const PIN_SESSION_KEY = "palm_stars_teacher_pin_v2";
 const $ = s => document.querySelector(s);
 
 let state = { cls: "5/1", sort: "name", q: "" };
@@ -173,6 +175,8 @@ function countsFor(cls, name){
 // neither backend is reachable. ----
 let cloudDb = null;
 let publicApiActive = false;
+let remoteItemCount = 0;
+let publicPollTimer = null;
 const PUBLIC_API = 'https://dhhwcqczvcbwdwllfcun.supabase.co/functions/v1/class-stars';
 const writeQueues = new Map();
 
@@ -199,7 +203,8 @@ function setSyncBadge(mode){
   el.textContent = text;
   el.className = 'syncbadge ' + cls;
 }
-function applyRemoteItems(items){
+function applyRemoteItems(items, replaceAll = false){
+  if(replaceAll) DATA = {};
   (items || []).forEach(d => {
     if(!d || !d.name || !d.cls) return;
     if(!DATA[d.cls]) DATA[d.cls] = {};
@@ -219,10 +224,14 @@ function pushRecord(cls, name){
       .then(()=> setSyncBadge('synced'))
       .catch(()=> setSyncBadge('error'));
   } else if(publicApiActive){
-    queueWrite(`${cls}|${name}`, () => fetch(PUBLIC_API, {
+    return queueWrite(`${cls}|${name}`, () => fetch(PUBLIC_API, {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({action:'save', pin: EDIT_PIN, cls, name, stars: rec.stars, losses: rec.losses}),
-    }).then(r => r.json()).then(d => { if(!d.ok) throw new Error(d.error || 'save_failed'); }))
+      body: JSON.stringify({action:'save', pin: teacherPin, cls, name, stars: rec.stars, losses: rec.losses}),
+    }).then(async r => {
+      const d = await r.json();
+      if(!r.ok || !d.ok) throw new Error(d.error || 'save_failed');
+      remoteItemCount = Math.max(1, remoteItemCount);
+    }))
       .then(()=> setSyncBadge('synced'))
       .catch(()=> setSyncBadge('error'));
   }
@@ -251,16 +260,77 @@ async function fetchPublicList(){
   if(!data.ok) throw new Error(data.error || 'list_failed');
   return data.items || [];
 }
+function markedRecords(source){
+  const items = [];
+  CLASSES.forEach(cls => (ROSTER[cls] || []).forEach(name => {
+    const rec = source?.[cls]?.[name];
+    const stars = Array.isArray(rec?.stars) ? rec.stars : [];
+    const losses = Array.isArray(rec?.losses) ? rec.losses : [];
+    if(stars.length || losses.length) items.push({cls, name, stars, losses});
+  }));
+  return items;
+}
+function saveLocalBackupIfNeeded(){
+  if(markedRecords(DATA).length && !localStorage.getItem(LOCAL_BACKUP_KEY)){
+    localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(DATA));
+  }
+}
+function readLocalBackup(){
+  try{ return JSON.parse(localStorage.getItem(LOCAL_BACKUP_KEY) || '{}'); }
+  catch(e){ return {}; }
+}
+async function verifyTeacherPin(pin){
+  const res = await fetch(PUBLIC_API, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({action:'verify', pin}),
+  });
+  const data = await res.json();
+  return res.ok && data.ok;
+}
+async function refreshPublicList(){
+  const items = await fetchPublicList();
+  remoteItemCount = items.length;
+  applyRemoteItems(items, true);
+  setSyncBadge('synced');
+  render();
+}
+function schedulePublicRefresh(){
+  clearTimeout(publicPollTimer);
+  publicPollTimer = setTimeout(async () => {
+    try{ await refreshPublicList(); }
+    catch(e){ setSyncBadge('error'); }
+    finally{ schedulePublicRefresh(); }
+  }, 5000);
+}
+async function migrateLocalBackupIfNeeded(){
+  if(!publicApiActive || !editMode || !teacherPin || remoteItemCount !== 0) return;
+  const items = markedRecords(readLocalBackup());
+  if(!items.length) return;
+  setSyncBadge('connecting');
+  const res = await fetch(PUBLIC_API, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({action:'import', pin: teacherPin, items}),
+  });
+  const data = await res.json();
+  if(!res.ok || !data.ok) throw new Error(data.error || 'import_failed');
+  localStorage.removeItem(LOCAL_BACKUP_KEY);
+  await refreshPublicList();
+  toast(`تم نقل النجوم القديمة للسحابة (${data.imported || items.length} طالبة)`);
+}
 async function initPublicSync(){
   setSyncBadge('connecting');
   try{
-    applyRemoteItems(await fetchPublicList());
+    const items = await fetchPublicList();
+    remoteItemCount = items.length;
+    if(!items.length) saveLocalBackupIfNeeded();
+    applyRemoteItems(items, true);
     publicApiActive = true;
     setSyncBadge('synced');
     render();
-    setInterval(async () => {
-      try{ applyRemoteItems(await fetchPublicList()); render(); }catch(e){}
-    }, 20000);
+    if(editMode){
+      try{ await migrateLocalBackupIfNeeded(); }catch(e){ setSyncBadge('error'); }
+    }
+    schedulePublicRefresh();
   }catch(e){
     publicApiActive = false;
     setSyncBadge('local');
@@ -271,9 +341,9 @@ async function initPublicSync(){
 // simple shared code gates the add/subtract/reset controls to keep
 // casual visitors from touching results — not a real security boundary
 // (the cloud-sync write rules above are what actually enforce that). ----
-const EDIT_PIN = '1970';
-const EDIT_KEY = 'palm_stars_edit_v1';
-let editMode = localStorage.getItem(EDIT_KEY) === '1';
+let teacherPin = sessionStorage.getItem(PIN_SESSION_KEY) || '';
+let editMode = !!teacherPin;
+localStorage.removeItem('palm_stars_edit_v1');
 
 function updateLockUI(){
   const status = $('#lockStatus');
@@ -291,16 +361,38 @@ function updateLockUI(){
 }
 function setEditMode(on){
   editMode = on;
-  if(on) localStorage.setItem(EDIT_KEY, '1'); else localStorage.removeItem(EDIT_KEY);
+  if(!on){
+    teacherPin = '';
+    sessionStorage.removeItem(PIN_SESSION_KEY);
+  }
   updateLockUI();
   renderGrid();
 }
-$('#unlockBtn').onclick = () => {
+$('#unlockBtn').onclick = async () => {
   if(editMode){ setEditMode(false); toast('تم القفل — وضع العرض فقط'); return; }
   const code = prompt('أدخلي رمز المعلمة لتفعيل الإضافة والحذف:');
   if(code === null) return;
-  if(code.trim() === EDIT_PIN){ setEditMode(true); toast('تم تفعيل وضع التعديل'); }
-  else toast('رمز غير صحيح');
+  const btn = $('#unlockBtn');
+  btn.disabled = true;
+  setSyncBadge('connecting');
+  try{
+    const cleanCode = code.trim();
+    if(!(await verifyTeacherPin(cleanCode))) throw new Error('forbidden');
+    teacherPin = cleanCode;
+    sessionStorage.setItem(PIN_SESSION_KEY, teacherPin);
+    setEditMode(true);
+    setSyncBadge('synced');
+    toast('تم تفعيل وضع التعديل');
+    try{ await migrateLocalBackupIfNeeded(); }catch(e){ setSyncBadge('error'); toast('تعذّر نقل النجوم القديمة'); }
+  }catch(e){
+    teacherPin = '';
+    sessionStorage.removeItem(PIN_SESSION_KEY);
+    setEditMode(false);
+    setSyncBadge(publicApiActive ? 'synced' : 'error');
+    toast('رمز غير صحيح');
+  }finally{
+    btn.disabled = false;
+  }
 };
 
 function addMark(kind, cls, name){
@@ -447,8 +539,13 @@ $('#resetBtn').onclick = () => {
   } else if(publicApiActive){
     fetch(PUBLIC_API, {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({action:'reset', pin: EDIT_PIN, cls: state.cls}),
-    }).catch(()=>{});
+      body: JSON.stringify({action:'reset', pin: teacherPin, cls: state.cls}),
+    }).then(async r => {
+      const d = await r.json();
+      if(!r.ok || !d.ok) throw new Error(d.error || 'reset_failed');
+      remoteItemCount = 0;
+      await refreshPublicList();
+    }).catch(()=> setSyncBadge('error'));
   }
   render();
   toast('تم تصفير نجوم الصف');

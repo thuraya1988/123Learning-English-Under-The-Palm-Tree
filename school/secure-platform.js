@@ -264,3 +264,5 @@ window.exportBulkPinsCsv=()=>{
  const a=document.createElement('a');
  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
  a.download='الرموز_المؤقتة.csv';a.click();
+};
+setTimeout(async()=>{prepareSecureLogin();injectStaffCenter();updateSecureLabels();await restoreStaff()},0);

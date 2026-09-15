@@ -163,10 +163,17 @@ function countsFor(cls, name){
 }
 
 // ---- cloud sync: mirrors DATA to a shared, persistent store so results
-// survive a cleared browser and stay in sync across the teacher's devices.
-// Falls back silently to the device-only localStorage save above when this
-// page isn't running inside a viewer that grants the "db" capability. ----
+// survive a cleared browser and stay in sync across everyone who opens the
+// page. Two backends, tried in order:
+//  1. the "db" capability, when this page runs inside a Claude Artifact
+//     viewer that grants it;
+//  2. otherwise (the plain page on the real website) a small public
+//     Supabase edge function — see supabase/functions/class-stars.
+// Falls back silently to the device-only localStorage save above when
+// neither backend is reachable. ----
 let cloudDb = null;
+let publicApiActive = false;
+const PUBLIC_API = 'https://dhhwcqczvcbwdwllfcun.supabase.co/functions/v1/class-stars';
 const writeQueues = new Map();
 
 function classKey(cls){ return cls.replace('/', '-'); }
@@ -192,34 +199,72 @@ function setSyncBadge(mode){
   el.textContent = text;
   el.className = 'syncbadge ' + cls;
 }
+function applyRemoteItems(items){
+  (items || []).forEach(d => {
+    if(!d || !d.name || !d.cls) return;
+    if(!DATA[d.cls]) DATA[d.cls] = {};
+    DATA[d.cls][d.name] = {
+      stars: Array.isArray(d.stars) ? d.stars : [],
+      losses: Array.isArray(d.losses) ? d.losses : [],
+    };
+  });
+  saveData(DATA);
+}
 function pushRecord(cls, name){
-  if(!cloudDb) return;
   const rec = ensure(cls, name);
-  const id = studentDocId(cls, name);
-  queueWrite(id, () => cloudDb.collection('students').doc(id)
-    .set({name, cls, stars: rec.stars, losses: rec.losses}))
-    .then(()=> setSyncBadge('synced'))
-    .catch(()=> setSyncBadge('error'));
+  if(cloudDb){
+    const id = studentDocId(cls, name);
+    queueWrite(id, () => cloudDb.collection('students').doc(id)
+      .set({name, cls, stars: rec.stars, losses: rec.losses}))
+      .then(()=> setSyncBadge('synced'))
+      .catch(()=> setSyncBadge('error'));
+  } else if(publicApiActive){
+    queueWrite(`${cls}|${name}`, () => fetch(PUBLIC_API, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action:'save', pin: EDIT_PIN, cls, name, stars: rec.stars, losses: rec.losses}),
+    }).then(r => r.json()).then(d => { if(!d.ok) throw new Error(d.error || 'save_failed'); }))
+      .then(()=> setSyncBadge('synced'))
+      .catch(()=> setSyncBadge('error'));
+  }
 }
 async function initCloudSync(){
-  if(!(window.claude && window.claude.use)) { setSyncBadge('local'); return; }
+  if(window.claude && window.claude.use){
+    setSyncBadge('connecting');
+    try{ cloudDb = await window.claude.use('db'); }catch(e){ cloudDb = null; }
+    if(cloudDb){
+      cloudDb.collection('students').onSnapshot(snap => {
+        applyRemoteItems(snap.docs.map(doc => doc.data()));
+        setSyncBadge('synced');
+        render();
+      }, () => setSyncBadge('error'));
+      return;
+    }
+  }
+  initPublicSync();
+}
+async function fetchPublicList(){
+  const res = await fetch(PUBLIC_API, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({action:'list'}),
+  });
+  const data = await res.json();
+  if(!data.ok) throw new Error(data.error || 'list_failed');
+  return data.items || [];
+}
+async function initPublicSync(){
   setSyncBadge('connecting');
-  try{ cloudDb = await window.claude.use('db'); }catch(e){ cloudDb = null; }
-  if(!cloudDb){ setSyncBadge('local'); return; }
-  cloudDb.collection('students').onSnapshot(snap => {
-    snap.docs.forEach(doc => {
-      const d = doc.data();
-      if(!d || !d.name || !d.cls) return;
-      if(!DATA[d.cls]) DATA[d.cls] = {};
-      DATA[d.cls][d.name] = {
-        stars: Array.isArray(d.stars) ? d.stars : [],
-        losses: Array.isArray(d.losses) ? d.losses : [],
-      };
-    });
-    saveData(DATA);
+  try{
+    applyRemoteItems(await fetchPublicList());
+    publicApiActive = true;
     setSyncBadge('synced');
     render();
-  }, () => setSyncBadge('error'));
+    setInterval(async () => {
+      try{ applyRemoteItems(await fetchPublicList()); render(); }catch(e){}
+    }, 20000);
+  }catch(e){
+    publicApiActive = false;
+    setSyncBadge('local');
+  }
 }
 
 // ---- edit lock: the page ships on a public URL with no login, so a
@@ -399,6 +444,11 @@ $('#resetBtn').onclick = () => {
       const id = studentDocId(state.cls, n);
       queueWrite(id, () => cloudDb.collection('students').doc(id).delete()).catch(()=>{});
     });
+  } else if(publicApiActive){
+    fetch(PUBLIC_API, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action:'reset', pin: EDIT_PIN, cls: state.cls}),
+    }).catch(()=>{});
   }
   render();
   toast('تم تصفير نجوم الصف');

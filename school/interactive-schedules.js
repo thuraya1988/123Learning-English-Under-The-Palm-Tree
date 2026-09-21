@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 
-const SCHEDULE_SOURCE='schedule-import-2026.json?v=20260921-new';
+const SCHEDULE_SOURCE='schedule-import-2026.json?v=20260921-fix1';
 const SCHOOL_DAYS=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
 const PERIOD_LABELS=[
  ['١','12:20 م – 12:55 م',740,775],['٢','12:55 م – 1:30 م',775,810],
@@ -17,7 +17,7 @@ const SUBJECT_META={
  'التربية البدنية والصحية':['🏃','sport'],'الفنون البصرية':['🎨','art'],'الفنون الموسيقية':['🎵','music']
 };
 const state={data:null,type:'classes',query:'',grade:'all',mode:'week',day:0,selected:0,dark:false};
-let reminderTimer=null;
+let reminderTimer=null,schedulePromise=null,fillRequestId=0;
 
 const byId=id=>document.getElementById(id);
 const safe=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -25,10 +25,13 @@ const normalize=value=>String(value||'').trim().replace(/[إأآ]/g,'ا').replac
 
 async function scheduleData(){
  if(state.data)return state.data;
- const response=await fetch(SCHEDULE_SOURCE,{cache:'no-cache'});
- if(!response.ok)throw new Error('schedule_load_failed');
- state.data=await response.json();
- return state.data;
+ if(!schedulePromise){
+  schedulePromise=fetch(SCHEDULE_SOURCE,{cache:'no-cache'}).then(response=>{
+   if(!response.ok)throw new Error('schedule_load_failed');
+   return response.json();
+  }).then(data=>(state.data=data)).finally(()=>{schedulePromise=null});
+ }
+ return schedulePromise;
 }
 
 function rows(){return state.type==='classes'?(state.data?.classes||[]):(state.data?.teachers||[])}
@@ -123,38 +126,44 @@ function dailyMarkup(schedule,label){
 function interactiveMarkup(schedule,label){return scheduleSummary(schedule,label)+(state.mode==='week'?weeklyMarkup(schedule,label):dailyMarkup(schedule,label))}
 
 function bindLessonClicks(root,schedule){
- root?.addEventListener('click',event=>{const cell=event.target.closest('.schedule-cell');if(!cell)return;openLessonDetails(schedule,cell)});
+ if(!root)return;
+ root.onclick=event=>{const cell=event.target.closest('.schedule-cell');if(!cell)return;openLessonDetails(schedule,cell)};
 }
 function openLessonDetails(schedule,cell){
  const dayIndex=Number(cell.dataset.day),periodIndex=Number(cell.dataset.period),value=(schedule[SCHOOL_DAYS[dayIndex]]||[])[periodIndex],lesson=parseLesson(value);
  let modal=byId('interactiveScheduleDetail');
  if(!modal){modal=document.createElement('div');modal.id='interactiveScheduleDetail';modal.className='schedule-detail-overlay';document.body.appendChild(modal)}
- modal.innerHTML=`<div class="schedule-detail" role="dialog" aria-modal="true" aria-labelledby="scheduleDetailTitle"><button type="button" class="schedule-detail-close" aria-label="إغلاق">×</button><span class="schedule-detail-kicker">${SCHOOL_DAYS[dayIndex]} • الحصة ${PERIOD_LABELS[periodIndex][0]}</span><h3 id="scheduleDetailTitle">${value?safe(lesson.subject):'حصة متاحة'}</h3><p>${value?safe(lesson.person):'لا توجد مادة مسجلة في هذه الحصة.'}</p><div class="schedule-detail-time">⏰ ${PERIOD_LABELS[periodIndex][1]}</div>${value?`<button type="button" class="schedule-reminder-button" data-reminder>🔔 تذكير عند بداية الحصة</button>`:''}</div>`;
+ modal.innerHTML=`<div class="schedule-detail" role="dialog" aria-modal="true" aria-labelledby="scheduleDetailTitle"><button type="button" class="schedule-detail-close" aria-label="إغلاق">×</button><span class="schedule-detail-kicker">${SCHOOL_DAYS[dayIndex]} • الحصة ${PERIOD_LABELS[periodIndex][0]}</span><h3 id="scheduleDetailTitle">${value?safe(lesson.subject):'حصة متاحة'}</h3><p>${value?safe(lesson.person):'لا توجد مادة مسجلة في هذه الحصة.'}</p><div class="schedule-detail-time">⏰ ${PERIOD_LABELS[periodIndex][1]}</div>${value?`<button type="button" class="schedule-reminder-button" data-reminder>🔔 تذكير أثناء فتح الصفحة</button>`:''}</div>`;
  modal.classList.add('open');
  modal.querySelector('.schedule-detail-close').onclick=()=>modal.classList.remove('open');
  modal.onclick=event=>{if(event.target===modal)modal.classList.remove('open')};
  modal.querySelector('[data-reminder]')?.addEventListener('click',()=>saveReminder({day:dayIndex,period:periodIndex,label:cell.dataset.label,value}));
 }
 
+function readReminders(){
+ try{const value=JSON.parse(localStorage.getItem('multaqa_schedule_reminders')||'[]');return Array.isArray(value)?value:[]}catch{return []}
+}
+function writeReminders(reminders){localStorage.setItem('multaqa_schedule_reminders',JSON.stringify(reminders))}
+function reminderStamp(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 async function saveReminder(reminder){
- const reminders=JSON.parse(localStorage.getItem('multaqa_schedule_reminders')||'[]').filter(x=>!(x.day===reminder.day&&x.period===reminder.period&&x.label===reminder.label));
- reminders.push(reminder);localStorage.setItem('multaqa_schedule_reminders',JSON.stringify(reminders));
+ const reminders=readReminders().filter(x=>!(x.day===reminder.day&&x.period===reminder.period&&x.label===reminder.label));
+ const now=currentPeriod();if(now.day===reminder.day&&now.period===reminder.period)reminder.last=reminderStamp();
+ reminders.push(reminder);writeReminders(reminders);
  if('Notification'in window&&Notification.permission==='default')await Notification.requestPermission();
- if(typeof toast==='function')toast('🔔 تم حفظ تذكير الحصة');
+ if(typeof toast==='function')toast('🔔 تم حفظ التذكير أثناء فتح الصفحة');
  startReminderClock();
 }
 function startReminderClock(){
  if(reminderTimer)return;
  reminderTimer=setInterval(()=>{
   const now=currentPeriod();if(now.period<0||now.day<0||now.day>4)return;
-  const reminders=JSON.parse(localStorage.getItem('multaqa_schedule_reminders')||'[]');
-  const stamp=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const reminders=readReminders(),stamp=reminderStamp();
   reminders.filter(x=>x.day===now.day&&x.period===now.period&&x.last!==stamp).forEach(item=>{
-   item.last=stamp;try{new Audio('assets/alert-sound.mp3').play()}catch{}
-   const lesson=parseLesson(item.value);if('Notification'in window&&Notification.permission==='granted')new Notification('بدأت الحصة',{body:`${lesson.subject} — ${item.label}`,icon:'school-logo.png'});
+   item.last=stamp;try{new Audio('assets/alert-sound.mp3').play().catch(()=>{})}catch{}
+   const lesson=parseLesson(item.value);if('Notification'in window&&Notification.permission==='granted')try{new Notification('بدأت الحصة',{body:`${lesson.subject} — ${item.label}`,icon:'school-logo.png'})}catch{}
    if(typeof toast==='function')toast(`🔔 بدأت ${lesson.subject} — ${item.label}`);
   });
-  localStorage.setItem('multaqa_schedule_reminders',JSON.stringify(reminders));
+  writeReminders(reminders);
  },30000);
 }
 
@@ -166,24 +175,21 @@ async function renderPublicSchedule(){
 }
 
 window.fillScheduleOptions=async preferred=>{
+ const requestId=++fillRequestId;
  try{
-  installControls();await scheduleData();state.type=byId('scheduleType')?.value||'classes';state.grade='all';state.query='';if(byId('scheduleSearch'))byId('scheduleSearch').value='';refreshOptions(preferred);
- }catch{byId('scheduleTextView').innerHTML='<div class="schedule-empty">تعذر تحميل الجداول الجديدة. أعيدي المحاولة.</div>'}
+  installControls();await scheduleData();if(requestId!==fillRequestId)return;
+  state.type=byId('scheduleType')?.value||'classes';state.grade='all';state.query='';if(byId('scheduleSearch'))byId('scheduleSearch').value='';refreshOptions(preferred);
+ }catch{if(requestId===fillRequestId&&byId('scheduleTextView'))byId('scheduleTextView').innerHTML='<div class="schedule-empty">تعذر تحميل الجداول الجديدة. أعيدي المحاولة.</div>'}
 };
 window.renderSchedulePage=renderPublicSchedule;
-
-const originalOpenClasses=window.openClassSchedules;
-window.openClassSchedules=()=>{originalOpenClasses?.();setTimeout(()=>window.fillScheduleOptions(),0)};
-const originalOpenTeacher=window.openMyTeacherSchedule;
-window.openMyTeacherSchedule=()=>{originalOpenTeacher?.();setTimeout(()=>{if(employee?.short_name)window.fillScheduleOptions(employee.short_name)},0)};
 
 if(typeof window.renderSecureSchedule==='function'){
  window.renderSecureSchedule=async()=>{
   const chosen=secureAdmin()?S('adminScheduleTeacher')?.value||'':'';
   const d=await staffApi('teacher_schedule',chosen?{employee_name:chosen}:{}),row=d.schedule||{},schedule=row.schedule||{};
   const picker=secureAdmin()?'<label class="schedule-picker">عرض جدول معلمة<select id="adminScheduleTeacher" onchange="renderSecureSchedule()"><option value="">جدولي</option>'+secureDirectory.employees.filter(x=>x.kind==='teacher').map(x=>'<option '+(chosen===x.full_name?'selected':'')+'>'+esc(x.full_name)+'</option>').join('')+'</select></label>':'';
-  const importCard=secureAdmin()?'<section class="staff-card schedule-import-card"><h3>📥 الجداول الجديدة</h3><p class="staff-help">النسخة الرسمية الجديدة: ٣١ صفًا و٦٤ جدول معلمة.</p><button class="staff-primary" onclick="importOfficialSchedule()">إعادة استيراد الجداول</button><div id="scheduleImportResult"></div></section>':'';
-  const pane=S('staffPane');pane.innerHTML='<div class="today-title"><div><small>الجدول الأسبوعي الرسمي</small><h2>📚 جدول '+esc(d.employee.short_name||d.employee.full_name)+'</h2></div>'+picker+'</div><div id="secureInteractiveSchedule" class="secure-interactive-schedule"></div>'+importCard;
+  const importCard=secureAdmin()?'<section class="staff-card schedule-import-card"><h3>📥 استيراد جدول العام الدراسي الجديد</h3><p class="staff-help">يستورد جدول جميع الصفوف والمعلمات من الملف الرسمي (٣١ صفًا و٦٤ جدول معلمة)، ويستبدل الجدول الحالي لأي صف أو معلمة موجودة في الملف.</p><button class="staff-primary" onclick="importOfficialSchedule()">استيراد الجدول الآن</button><div id="scheduleImportResult"></div></section>':'';
+  const pane=S('staffPane');pane.innerHTML='<div class="today-title"><div><small>الجدول الأسبوعي الرسمي'+(row.page?' • صفحة '+row.page:'')+'</small><h2>📚 جدول '+esc(d.employee.short_name||d.employee.full_name)+'</h2></div>'+picker+'</div><div id="secureInteractiveSchedule" class="secure-interactive-schedule"></div>'+importCard;
   const root=S('secureInteractiveSchedule');root.innerHTML=weeklyMarkup(schedule,d.employee.short_name||d.employee.full_name);bindLessonClicks(root,schedule);
  };
 }

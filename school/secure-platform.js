@@ -117,7 +117,7 @@ window.importOfficialSchedule=async()=>{
  if(!confirm('سيتم استبدال جدول جميع الصفوف والمعلمات الموجودة في ملف الاستيراد بالجدول الجديد. متابعة؟'))return;
  const box=S('scheduleImportResult');box.textContent='جاري الاستيراد…';
  try{
-  const data=await fetch('schedule-import-2026.json?v=20260921-fix1',{cache:'no-cache'}).then(r=>r.json());
+  const data=await fetch('schedule-import-2026.json?v=20260921-official-names',{cache:'no-cache'}).then(r=>r.json());
   const d=await staffApi('import_schedules',{classes:data.classes||[],teachers:data.teachers||[]});
   box.innerHTML='<div class="issued-pin"><small>نتيجة الاستيراد</small><b style="font-size:16px">'+d.classes.ok+' صف • '+d.teachers.ok+' معلمة</b>'
    +(d.classes.failed.length?'<p style="color:#8e1833;font-weight:800;margin-top:8px">صفوف لم تُستورد: '+d.classes.failed.map(esc).join('، ')+'</p>':'')

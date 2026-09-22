@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Will / Won't Prediction Game — Unit 3, Lesson 3</title>
+<style>
+  :root{
+    --navy:#0B1E3D; --card:#16294f; --line:#23386a; --sand:#E8B04B; --teal:#2FD1C4;
+    --ink:#F4F7FB; --muted:#9FB0D0; --good:#3FCB7E; --bad:#E85D5D;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; min-height:100vh; font-family:'Baloo 2', system-ui, sans-serif;
+    background:radial-gradient(1000px 600px at 20% -10%, #1a3566, transparent 60%), var(--navy); color:var(--ink);}
+  header{text-align:center; padding:26px 16px 6px;}
+  h1{font-size:clamp(20px,5vw,30px); margin:0 0 6px;}
+  .sub{color:var(--muted); font-size:14px; margin:0;}
+  .wrap{max-width:680px; margin:0 auto; padding:16px;}
+  .progress{display:flex; justify-content:center; gap:6px; margin:18px 0;}
+  .dot{width:10px; height:10px; border-radius:50%; background:var(--line);}
+  .dot.done{background:var(--teal);}
+  .dot.current{background:var(--sand);}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:24px 20px; text-align:center;}
+  .scene{font-size:40px; margin-bottom:10px;}
+  .sentence{font-size:19px; line-height:1.5; margin:6px 0 22px;}
+  .blank{display:inline-block; min-width:70px; border-bottom:2px dashed var(--sand); color:var(--sand); font-weight:800;}
+  .options{display:flex; gap:14px; justify-content:center; flex-wrap:wrap;}
+  .opt{
+    background:var(--navy); border:2px solid var(--teal); color:var(--ink); font-family:inherit;
+    font-size:17px; font-weight:700; padding:12px 26px; border-radius:12px; cursor:pointer;
+  }
+  .opt:active{transform:scale(.97);}
+  .opt.correct{background:var(--good); border-color:var(--good); color:#04211d;}
+  .opt.wrong{background:var(--bad); border-color:var(--bad);}
+  .feedback{min-height:26px; margin-top:16px; font-weight:700;}
+  .feedback.good{color:var(--good);} .feedback.bad{color:var(--bad);}
+  .nextbtn{display:none; margin:18px auto 0; background:var(--sand); color:#3a2600; border:none; border-radius:12px;
+    padding:12px 26px; font-weight:800; font-size:15px; cursor:pointer; font-family:inherit;}
+  .nextbtn.show{display:block;}
+  .final{display:none; text-align:center; margin-top:10px;}
+  .final.show{display:block;}
+  .final h2{color:var(--sand);}
+  .restart{margin-top:12px; background:var(--teal); color:#04211d; border:none; border-radius:12px;
+    padding:12px 22px; font-weight:800; font-size:15px; cursor:pointer; font-family:inherit;}
+  footer{text-align:center; color:var(--muted); font-size:12px; padding:26px 16px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>🔮 Will / Won't — What will happen?</h1>
+  <p class="sub">Unit 3: Let's Explore! · Lesson 3 · Choose will or won't for each real-life prediction</p>
+</header>
+
+<div class="wrap">
+  <div class="progress" id="progress"></div>
+  <div class="card" id="card"></div>
+  <div class="final" id="final">
+    <h2>🌟 Prediction complete! 🌟</h2>
+    <p id="finalText"></p>
+    <button class="restart" onclick="start()">Play again</button>
+  </div>
+</div>
+<footer>Grade 5A · English · Let's Explore! interactive activities</footer>
+
+<script>
+const ITEMS = [
+  { scene:"🌧️", pre:"Look at the sky — it's very cloudy. I think it ", answer:"will", opp:"won't", after:" rain today." },
+  { scene:"☀️", pre:"The sky is clear and blue today, so it ", answer:"won't", opp:"will", after:" rain." },
+  { scene:"🎂", pre:"Tomorrow is my birthday, so my friends ", answer:"will", opp:"won't", after:" come to my party." },
+  { scene:"😴", pre:"Sami is very tired tonight, so he ", answer:"won't", opp:"will", after:" stay up late." },
+  { scene:"📚", pre:"I have a big test tomorrow, so I ", answer:"will", opp:"won't", after:" study tonight." },
+  { scene:"🚗", pre:"The car has no petrol, so it ", answer:"won't", opp:"will", after:" start." },
+  { scene:"🌱", pre:"If we water this seed every day, it ", answer:"will", opp:"won't", after:" grow." },
+  { scene:"🧊", pre:"It's very hot outside, so the ice cream ", answer:"will", opp:"won't", after:" melt quickly." },
+];
+
+let idx = 0, score = 0;
+
+function buildDots(){
+  const p = document.getElementById('progress');
+  p.innerHTML = "";
+  ITEMS.forEach((_,i)=>{
+    const d = document.createElement('div');
+    d.className = "dot" + (i < idx ? " done" : i === idx ? " current" : "");
+    p.appendChild(d);
+  });
+}
+
+function render(){
+  buildDots();
+  document.getElementById('final').classList.remove('show');
+  const item = ITEMS[idx];
+  const card = document.getElementById('card');
+  const opts = Math.random() > 0.5 ? [item.answer, item.opp] : [item.opp, item.answer];
+  card.innerHTML = `
+    <div class="scene">${item.scene}</div>
+    <div class="sentence">${item.pre}<span class="blank">______</span>${item.after}</div>
+    <div class="options">
+      <button class="opt" data-v="${opts[0]}">${opts[0]}</button>
+      <button class="opt" data-v="${opts[1]}">${opts[1]}</button>
+    </div>
+    <div class="feedback" id="fb"></div>
+    <button class="nextbtn" id="nextbtn">Next →</button>
+  `;
+  card.querySelectorAll('.opt').forEach(btn=>{
+    btn.addEventListener('click', () => choose(btn, item.answer));
+  });
+  document.getElementById('nextbtn').addEventListener('click', nextItem);
+}
+
+function choose(btn, correctAnswer){
+  const all = document.querySelectorAll('.opt');
+  all.forEach(b => b.disabled = true);
+  const fb = document.getElementById('fb');
+  if(btn.dataset.v === correctAnswer){
+    btn.classList.add('correct');
+    fb.textContent = "✓ Correct! Well predicted.";
+    fb.className = "feedback good";
+    score++;
+  } else {
+    btn.classList.add('wrong');
+    all.forEach(b => { if(b.dataset.v === correctAnswer) b.classList.add('correct'); });
+    fb.textContent = "Not quite — look at the clue again.";
+    fb.className = "feedback bad";
+  }
+  document.getElementById('nextbtn').classList.add('show');
+}
+
+function nextItem(){
+  idx++;
+  if(idx >= ITEMS.length){
+    buildDots();
+    document.getElementById('card').innerHTML = "";
+    document.getElementById('finalText').textContent = `You scored ${score} out of ${ITEMS.length}!`;
+    document.getElementById('final').classList.add('show');
+    return;
+  }
+  render();
+}
+
+function start(){ idx = 0; score = 0; render(); }
+start();
+</script>
+</body>
+</html>

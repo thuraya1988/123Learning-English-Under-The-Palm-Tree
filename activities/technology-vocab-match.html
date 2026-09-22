@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>💻 Then & Now — Technology Match</title>
+<style>
+  :root{
+    --navy:#1F2A44; --navy2:#28365A; --sand:#E0862E; --sand-dim:#B86B22;
+    --teal:#00A896; --card:#28365A; --ink:#F4F7FB; --muted:#A7B4CE;
+    --good:#3FCB7E; --bad:#E85D5D;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; font-family:'Baloo 2', system-ui, sans-serif; background:
+      radial-gradient(1200px 700px at 15% -10%, #33456c 0%, transparent 60%),
+      radial-gradient(900px 600px at 110% 10%, #33456c 0%, transparent 55%),
+      var(--navy);
+    color:var(--ink); min-height:100%; overflow-x:hidden;
+  }
+  header{position:relative; z-index:1; text-align:center; padding:28px 16px 10px;}
+  h1{font-family:'Baloo 2', system-ui, sans-serif; font-weight:800; font-size:clamp(22px,5vw,34px); margin:0 0 6px; letter-spacing:.3px;}
+  .sub{color:var(--muted); font-size:14px; margin:0;}
+  .wrap{max-width:900px; margin:0 auto; padding:10px 16px 60px; position:relative; z-index:1;}
+  .scorebar{display:flex; justify-content:center; gap:22px; margin:14px 0 22px; font-size:15px;}
+  .scorebar div{background:var(--card); border:1px solid #38486F; border-radius:12px; padding:8px 16px;}
+  .scorebar b{color:var(--sand);}
+  .grid{display:grid; grid-template-columns:repeat(4,1fr); gap:12px;}
+  @media(max-width:640px){ .grid{grid-template-columns:repeat(3,1fr);} }
+  .tile{
+    aspect-ratio:1/1; border-radius:16px; border:2px solid #38486F; background:var(--card);
+    display:flex; align-items:center; justify-content:center; text-align:center; cursor:pointer;
+    font-size:14px; font-weight:600; padding:8px; user-select:none;
+    transition:transform .15s ease, background .2s ease, border-color .2s ease;
+  }
+  .tile:hover{transform:translateY(-3px);}
+  .tile.flipped{background:var(--navy2); border-color:var(--teal); color:var(--ink);}
+  .tile.matched{background:linear-gradient(160deg,#134a3d,#0e3b31); border-color:var(--good); color:#bdf5d6; cursor:default; transform:none;}
+  .tile .emoji{font-size:32px; display:block; margin-bottom:4px;}
+  .tile.hidden-face{color:transparent;}
+  .tile.hidden-face .emoji{display:none;}
+  .tile.hidden-face::after{content:"✦"; color:var(--sand-dim); font-size:22px;}
+  .msg{text-align:center; min-height:28px; margin-top:18px; font-size:16px; font-weight:700;}
+  .msg.good{color:var(--good);}
+  .msg.bad{color:var(--bad);}
+  .win{
+    display:none; text-align:center; margin-top:24px; background:var(--card); border:1px solid var(--sand-dim);
+    border-radius:16px; padding:22px;
+  }
+  .win.show{display:block;}
+  .win h2{margin:0 0 8px; color:var(--sand); font-size:22px;}
+  button.restart{
+    margin-top:14px; background:var(--teal); color:#3a2000; border:none; border-radius:12px;
+    padding:12px 22px; font-weight:800; font-size:15px; cursor:pointer; font-family:inherit;
+  }
+  button.restart:active{transform:scale(.97);}
+  footer{text-align:center; color:var(--muted); font-size:12px; padding:10px 16px 30px; position:relative; z-index:1;}
+</style>
+</head>
+<body>
+<header>
+  <h1>💻 Then & Now — Technology Match</h1>
+  <p class="sub">Unit 2: Then and Now · Lesson 1 · Tap two cards to find each matching pair</p>
+</header>
+
+<div class="wrap">
+  <div class="scorebar">
+    <div>Pairs found: <b id="found">0</b> / 9</div>
+    <div>Tries: <b id="tries">0</b></div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <p class="msg" id="msg"></p>
+  <div class="win" id="win">
+    <h2>🌟 Well done! 🌟</h2>
+    <p id="winText"></p>
+    <button class="restart" onclick="init()">Play again</button>
+  </div>
+</div>
+
+<footer>Grade 5A · English · Then and Now interactive activities</footer>
+
+<script>
+const WORDS = [
+  {
+    "w": "computer",
+    "e": "🖥️"
+  },
+  {
+    "w": "keyboard",
+    "e": "⌨️"
+  },
+  {
+    "w": "mouse",
+    "e": "🖱️"
+  },
+  {
+    "w": "tablet",
+    "e": "📱"
+  },
+  {
+    "w": "email",
+    "e": "📧"
+  },
+  {
+    "w": "letter",
+    "e": "✉️"
+  },
+  {
+    "w": "telephone",
+    "e": "☎️"
+  },
+  {
+    "w": "mobile phone",
+    "e": "📲"
+  },
+  {
+    "w": "CD player",
+    "e": "💿"
+  }
+];
+
+let first = null, second = null, lock = false, foundCount = 0, tries = 0;
+
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+  return arr;
+}
+
+function init(){
+  document.getElementById('win').classList.remove('show');
+  foundCount = 0; tries = 0; first = null; second = null; lock = false;
+  document.getElementById('found').textContent = 0;
+  document.getElementById('tries').textContent = 0;
+  document.getElementById('msg').textContent = "";
+  document.getElementById('msg').className = "msg";
+
+  let deck = [];
+  WORDS.forEach((item, idx) => {
+    deck.push({ id: idx, type:'word', label:item.w });
+    deck.push({ id: idx, type:'emoji', label:item.e });
+  });
+  deck = shuffle(deck);
+
+  const grid = document.getElementById('grid');
+  grid.innerHTML = "";
+  deck.forEach((c, i) => {
+    const t = document.createElement('div');
+    t.className = "tile hidden-face";
+    t.dataset.id = c.id;
+    t.dataset.type = c.type;
+    t.dataset.index = i;
+    t.innerHTML = c.type === 'emoji'
+      ? `<span class="emoji">${c.label}</span>`
+      : `<span>${c.label}</span>`;
+    t.addEventListener('click', () => onTileClick(t));
+    grid.appendChild(t);
+  });
+}
+
+function onTileClick(t){
+  if(lock || t.classList.contains('matched') || t === first) return;
+  t.classList.remove('hidden-face');
+  t.classList.add('flipped');
+
+  if(!first){ first = t; return; }
+
+  second = t;
+  lock = true;
+  tries++; document.getElementById('tries').textContent = tries;
+
+  const isMatch = first.dataset.id === second.dataset.id;
+  const msg = document.getElementById('msg');
+
+  setTimeout(() => {
+    if(isMatch){
+      first.classList.add('matched'); second.classList.add('matched');
+      first.classList.remove('flipped'); second.classList.remove('flipped');
+      foundCount++;
+      document.getElementById('found').textContent = foundCount;
+      msg.textContent = "✓ Great! That's a match.";
+      msg.className = "msg good";
+      if(foundCount === WORDS.length){
+        document.getElementById('winText').textContent =
+          `You matched all ${WORDS.length} words in ${tries} tries!`;
+        document.getElementById('win').classList.add('show');
+      }
+    } else {
+      msg.textContent = "Not quite — try again!";
+      msg.className = "msg bad";
+      first.classList.add('hidden-face'); second.classList.add('hidden-face');
+      first.classList.remove('flipped'); second.classList.remove('flipped');
+    }
+    first = null; second = null; lock = false;
+  }, 700);
+}
+
+init();
+</script>
+</body>
+</html>

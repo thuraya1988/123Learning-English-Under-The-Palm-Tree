@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Unit 3 Review Challenge — Let's Explore!</title>
+<style>
+  :root{ --navy:#0B1E3D; --card:#16294f; --line:#23386a; --sand:#E8B04B; --teal:#2FD1C4;
+    --ink:#F4F7FB; --muted:#9FB0D0; --good:#3FCB7E; --bad:#E85D5D; }
+  *{box-sizing:border-box;}
+  body{margin:0; min-height:100vh; font-family:'Baloo 2', system-ui, sans-serif;
+    background:radial-gradient(1000px 600px at 50% -10%, #1a3566, transparent 60%), var(--navy); color:var(--ink);}
+  header{text-align:center; padding:26px 16px 6px;}
+  h1{font-size:clamp(20px,5vw,30px); margin:0 0 6px;}
+  .sub{color:var(--muted); font-size:14px; margin:0;}
+  .wrap{max-width:700px; margin:0 auto; padding:16px;}
+  .teams{display:flex; gap:14px; justify-content:center; margin:14px 0 8px;}
+  .team{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 20px; text-align:center;}
+  .team.active{border-color:var(--sand);}
+  .team b{display:block; font-size:22px; color:var(--sand);}
+  .stage{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:26px 20px; text-align:center; margin-top:14px;}
+  .cat{color:var(--muted); font-size:13px; margin-bottom:6px;}
+  .question{font-size:18px; font-weight:700; margin:0 0 18px; line-height:1.4;}
+  .answerRow{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  .opt{
+    background:var(--navy); border:2px solid var(--teal); color:var(--ink); font-family:inherit;
+    font-size:16px; font-weight:700; padding:12px 18px; border-radius:12px; cursor:pointer;
+  }
+  .opt.correct{background:var(--good); border-color:var(--good); color:#04211d;}
+  .opt.wrong{background:var(--bad); border-color:var(--bad);}
+  .feedback{min-height:26px; margin-top:16px; font-weight:700;}
+  .feedback.good{color:var(--good);} .feedback.bad{color:var(--bad);}
+  .nextbtn, .restart{display:none; margin:18px auto 0; background:var(--sand); color:#3a2600; border:none; border-radius:12px;
+    padding:12px 26px; font-weight:800; font-size:15px; cursor:pointer; font-family:inherit;}
+  .nextbtn.show, .restart.show{display:block;}
+  footer{text-align:center; color:var(--muted); font-size:12px; padding:26px 16px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏆 Unit 3 Challenge Quiz</h1>
+  <p class="sub">Let's Explore! · Lesson 9 Review · Play in two teams, or solo</p>
+</header>
+
+<div class="wrap">
+  <div class="teams">
+    <div class="team" id="teamA">Team A<b id="scoreA">0</b></div>
+    <div class="team" id="teamB">Team B<b id="scoreB">0</b></div>
+  </div>
+  <div class="stage" id="stage"></div>
+</div>
+<footer>Grade 5A · English · Let's Explore! interactive activities</footer>
+
+<script>
+const Q = [
+  { cat:"Vocabulary", question:"Astronauts wear a _____ when they travel into space.", options:["spacesuit","telescope","satellite"], correct:0 },
+  { cat:"Vocabulary", question:"You use a _____ to look at the stars.", options:["rocket","telescope","comet"], correct:1 },
+  { cat:"Grammar: will/won't", question:"Fahad and Anas are tired. _____ they play football tonight?", options:["Will","Won't","Do"], correct:0 },
+  { cat:"Grammar: will/won't", question:"It's very late, so we _____ go out now.", options:["will","won't","are"], correct:1 },
+  { cat:"Big numbers", question:"How do you write 'four thousand, two hundred and fifty'?", options:["4,250","42,50","425"], correct:0 },
+  { cat:"Big numbers", question:"Which is bigger: a hundred thousand, or a million?", options:["a hundred thousand","a million","they're equal"], correct:1 },
+  { cat:"Measurements", question:"'How deep is your school bag?' is asking about...", options:["weight","depth","colour"], correct:1 },
+  { cat:"Omani Culture", question:"Frankincense trees grow in...", options:["Wadi Dawkah","Muscat Souq","Jabal Akhdar only"], correct:0 },
+  { cat:"Omani Culture", question:"Al Balid was important because it was a...", options:["mountain","port","school"], correct:1 },
+  { cat:"Story", question:"In the Unit 3 story, what were the children making for the Science Fair?", options:["A model of the solar system","A robot","A poem"], correct:0 },
+];
+
+let idx = 0, scoreA = 0, scoreB = 0, turn = 'A';
+
+function updateTeams(){
+  document.getElementById('scoreA').textContent = scoreA;
+  document.getElementById('scoreB').textContent = scoreB;
+  document.getElementById('teamA').classList.toggle('active', turn === 'A');
+  document.getElementById('teamB').classList.toggle('active', turn === 'B');
+}
+
+function render(){
+  updateTeams();
+  const item = Q[idx];
+  const stage = document.getElementById('stage');
+  stage.innerHTML = `
+    <div class="cat">${item.cat} · Question ${idx+1} of ${Q.length} · Team ${turn}'s turn</div>
+    <div class="question">${item.question}</div>
+    <div class="answerRow">
+      ${item.options.map((o,i)=>`<button class="opt" data-i="${i}">${o}</button>`).join('')}
+    </div>
+    <div class="feedback" id="fb"></div>
+    <button class="nextbtn" id="nextbtn">${idx === Q.length-1 ? 'See final score →' : 'Next →'}</button>
+  `;
+  stage.querySelectorAll('.opt').forEach(btn=>{
+    btn.addEventListener('click', () => choose(btn, item.correct));
+  });
+  document.getElementById('nextbtn').addEventListener('click', next);
+}
+
+function choose(btn, correctIdx){
+  const all = document.querySelectorAll('.opt');
+  all.forEach(b => b.disabled = true);
+  const fb = document.getElementById('fb');
+  const chosen = parseInt(btn.dataset.i);
+  if(chosen === correctIdx){
+    btn.classList.add('correct');
+    fb.textContent = `✓ Correct! Point for Team ${turn}.`;
+    fb.className = "feedback good";
+    if(turn === 'A') scoreA++; else scoreB++;
+  } else {
+    btn.classList.add('wrong');
+    all[correctIdx].classList.add('correct');
+    fb.textContent = "Not quite — no point this round.";
+    fb.className = "feedback bad";
+  }
+  updateTeams();
+  document.getElementById('nextbtn').classList.add('show');
+}
+
+function next(){
+  idx++;
+  turn = turn === 'A' ? 'B' : 'A';
+  if(idx >= Q.length){
+    const winner = scoreA === scoreB ? "It's a tie! 🤝" : (scoreA > scoreB ? "Team A wins! 🏆" : "Team B wins! 🏆");
+    document.getElementById('stage').innerHTML = `
+      <div class="question">🌟 Unit 3 Challenge complete! 🌟</div>
+      <p>Team A: ${scoreA}   ·   Team B: ${scoreB}</p>
+      <p style="color:var(--sand); font-weight:800;">${winner}</p>
+      <button class="restart show" onclick="start()">Play again</button>
+    `;
+    return;
+  }
+  render();
+}
+
+function start(){ idx = 0; scoreA = 0; scoreB = 0; turn = 'A'; render(); }
+start();
+</script>
+</body>
+</html>

@@ -207,7 +207,7 @@ window.saveDutyRoles=async()=>{
  try{await staffApi('save_duty_roles',{date:card?.dataset.date,assignments});toast('✅ تم حفظ أدوار المناوبة');await renderSecureDuty()}catch(e){toast(staffError(e))}
 };
 window.confirmDuty=async(name,id)=>{try{await staffApi('confirm_duty',{employee_name:name,status:S('ds-'+id).value,stars:+S('star-'+id).value});toast('✅ تم تأكيد المناوبة');renderSecureDuty()}catch(e){toast(staffError(e))}};
-window.reportClassStatus=async()=>{try{await staffApi('report_class',{class_label:S('reportClass').value,status:S('reportStatus').value,period:+S('reportPeriod').value,note:S('reportNote').value});toast('✅ تم إرسال البلاغ للإدارة')}catch(e){toast(staffError(e))}};
+window.reportClassStatus=async()=>{try{const d=await staffApi('report_class',{class_label:S('reportClass').value,status:S('reportStatus').value,period:+S('reportPeriod').value,note:S('reportNote').value});if(d.notified_teacher)toast('🚨 تم تنبيه '+d.notified_teacher+(d.push_sent?' في الخلفية':'، وتحتاج تفعيل إشعارات جهازها'));else toast('✅ تم إرسال البلاغ للإدارة')}catch(e){toast(staffError(e))}};
 function broadcastTeacherOptions(){
  const teachers=(secureDirectory.employees||[]).filter(x=>x.kind==='teacher');
  if(!secureAdmin())return '<option value="'+esc(secureEmployee.short_name)+'">'+esc(secureEmployee.short_name)+'</option>';

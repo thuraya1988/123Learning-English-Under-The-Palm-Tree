@@ -61,7 +61,7 @@
       const btn=pane.querySelector('button[onclick="enableOpsAlerts()"]');
       if(btn) btn.textContent='🔔 تفعيل إشعارات الحصص';
       const test=pane.querySelector('button[onclick="testOpsAlert()"]');
-      if(test) test.textContent='اختبار الإشعار';
+      if(test) test.textContent='اختبار إشعار الخلفية';
     }
     const head=document.querySelector('#opsModal .ops-head h3');
     if(head) head.textContent='نظام الجداول والمناوبات وإشعارات الحصص';

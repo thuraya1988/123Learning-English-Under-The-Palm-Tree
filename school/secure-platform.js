@@ -354,6 +354,10 @@ window.getEmergencyStatus=()=>staffApi('emergency_status');
 window.saveImportantAnnouncementAdmin=p=>staffApi('save_important_announcement',p);
 window.startEmergencyAlertAdmin=p=>staffApi('start_emergency_alert',p);
 window.stopEmergencyAlertAdmin=id=>staffApi('stop_emergency_alert',{id});
+window.openAdminAnnouncement=()=>{
+ if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا لإضافة الإعلان');return openIdentity()}
+ openSchoolContent('announcement');
+};
 window.openCoverageCenter=async()=>{
  if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا لفتح توزيع الاحتياط');return openIdentity()}
  await openStaffCenter();await staffTab('coverage');

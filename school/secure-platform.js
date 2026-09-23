@@ -339,4 +339,17 @@ window.exportBulkPinsCsv=()=>{
  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
  a.download='الرموز_المؤقتة.csv';a.click();
 };
+const localTestOpsAlert=window.testOpsAlert;
+window.testOpsAlert=async()=>{
+ if(!secureEmployee||!staffToken){
+  if(typeof localTestOpsAlert==='function')await localTestOpsAlert();
+  toast('سجلي الدخول أولًا لاختبار إشعار الخلفية الحقيقي');
+  return;
+ }
+ try{
+  const d=await staffApi('test_push');
+  if(Number(d.sent)>0)toast('🔔 أُرسل إشعار اختبار إلى جهازك');
+  else toast('فعّلي إشعارات الجهاز أولًا من زر تفعيل الإشعارات');
+ }catch(e){toast(staffError(e))}
+};
 setTimeout(async()=>{prepareSecureLogin();injectStaffCenter();updateSecureLabels();await restoreStaff()},0);

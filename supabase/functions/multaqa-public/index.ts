@@ -99,6 +99,9 @@ Deno.serve(async(req)=>{
   if(action==="calendar_events"){
     const {data,error}=await db.from("multaqa_calendar_events").select("id,title,event_date,event_time,details,reminder_days,audience").eq("published",true).order("event_date",{ascending:true}).limit(300);if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,items:data||[]});
   }
+  if(action==="active_emergency"){
+    const {data,error}=await db.from("multaqa_emergency_alerts").select("id,title,body,severity,repeat_minutes,started_at").eq("active",true).order("started_at",{ascending:false}).limit(1).maybeSingle();if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,alert:data||null});
+  }
   if(action==="verify_student"){
     const schoolId=digits(body.school_id),phone=digits(body.guardian_phone),studentName=clean(body.student_name,220);
     if(!idOk(schoolId))return json({ok:false,error:"invalid_input"},400);
@@ -160,6 +163,8 @@ Deno.serve(async(req)=>{
       const {data:events}=await db.from("multaqa_calendar_events").select("*").eq("published",true).is("reminder_sent_at",null);const {data:emps}=await db.from("multaqa_employees").select("full_name,short_name,kind,access_group");
       for(const ev of events||[]){const due=new Date(`${ev.event_date}T12:00:00+04:00`);due.setDate(due.getDate()-Number(ev.reminder_days||0));const dueDate=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(due);if(dueDate!==today)continue;const names=(emps||[]).filter((x:any)=>ev.audience==="all"||(ev.audience==="teachers"&&x.kind==="teacher")||(ev.audience==="management"&&["admin","management"].includes(x.access_group))).map((x:any)=>x.short_name||x.full_name);const days=Number(ev.reminder_days||0),title=days===0?"📅 موعد اليوم":days===1?"⏰ تذكير لموعد الغد":`⏰ تذكير قبل ${days} أيام`;const count=await pushTo(db,names,title,`${ev.title} — ${ev.event_date}${ev.event_time?" • "+String(ev.event_time).slice(0,5):""}`,"/school/","calendar_event");sent+=count;if(count>0)await db.from("multaqa_calendar_events").update({reminder_sent_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",ev.id)}
     }
+    const {data:alert}=await db.from("multaqa_emergency_alerts").select("*").eq("active",true).order("started_at",{ascending:false}).limit(1).maybeSingle();
+    if(alert){const last=alert.last_sent_at?new Date(alert.last_sent_at).getTime():0,due=Date.now()-last>=Number(alert.repeat_minutes||5)*60000;if(due){const {data:allEmps}=await db.from("multaqa_employees").select("short_name,full_name");const count=await pushTo(db,(allEmps||[]).map((x:any)=>x.short_name||x.full_name),"🚨 "+alert.title,alert.body,"/school/","emergency");sent+=count;if(count>0)await db.from("multaqa_emergency_alerts").update({last_sent_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",alert.id).eq("active",true)}}
     return json({ok:true,sent});
   }
   return json({ok:false,error:"unknown_action"},400);

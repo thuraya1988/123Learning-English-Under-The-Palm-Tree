@@ -76,8 +76,8 @@ async function candidatesFor(db:any,absent:any,date:string,period:number,used:Se
     if(activeToday.some((x:any)=>x.replacement_employee_id===e.employee_id&&x.period===period))return null;
     const busy=(j:number)=>j>=0&&j<7&&(clean(slots[j])||activeToday.some((x:any)=>x.replacement_employee_id===e.employee_id&&x.period===j+1));
     const before=busy(i-1),after=busy(i+1),before2=busy(i-2),after2=busy(i+2);
-    if((before&&after)||(before&&before2)||(after&&after2))return null;
     const daily=slots.filter(x=>clean(x)).length+activeToday.filter((x:any)=>x.replacement_employee_id===e.employee_id).length;
+    if(daily>=5||(before&&after)||(before&&before2)||(after&&after2))return null;
     const score=(counts.get(e.employee_id)||0)*100+daily*8+(before||after?30:0)+(used.has(e.employee_id)?500:0);
     return {...e,score,reason:`احتياط آخر 30 يومًا: ${counts.get(e.employee_id)||0} • حصص اليوم: ${daily}`};
   }).filter(Boolean).sort((a:any,b:any)=>a.score-b.score);

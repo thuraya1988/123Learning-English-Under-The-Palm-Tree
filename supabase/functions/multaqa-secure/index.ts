@@ -335,6 +335,25 @@ Deno.serve(async(req)=>{
   if(action==="calendar_events"){
     let q=db.from("multaqa_calendar_events").select("*").order("event_date",{ascending:true}).limit(300);if(!elevated(e))q=q.eq("published",true);const {data,error}=await q;if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,items:data||[],can_manage:elevated(e)});
   }
+  if(action==="save_important_announcement"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);const title=clean(body.title,220),message=clean(body.body,1600),eventDate=clean(body.event_date,10)||null;if(title.length<2)return json({ok:false,error:"invalid_input"},400);
+    await db.from("multaqa_content").update({published:false,updated_at:new Date().toISOString()}).eq("content_type","announcement").eq("published",true);
+    const row={id:Date.now(),content_type:"announcement",title,body:message,media_url:clean(body.media_url,1000)||null,event_date:eventDate,test_name:clean(body.test_name,220)||title,subject:clean(body.subject,160)||null,day_name:clean(body.day_name,60)||null,published:true,sort_order:0,updated_at:new Date().toISOString()};const {data,error}=await db.from("multaqa_content").insert(row).select().single();if(error)return json({ok:false,error:"save_failed"},500);
+    let sent=0;if(body.send_push===true){const {data:emps}=await db.from("multaqa_employees").select("short_name,full_name");sent=await pushToNames(db,(emps||[]).map((x:any)=>x.short_name||x.full_name),"📣 إعلان هام",message||title,"/school/","important_announcement")}
+    return json({ok:true,item:data,push_sent:sent});
+  }
+  if(action==="emergency_status"){
+    const {data}=await db.from("multaqa_emergency_alerts").select("*").eq("active",true).order("started_at",{ascending:false}).limit(1).maybeSingle();return json({ok:true,alert:data||null,can_manage:elevated(e)});
+  }
+  if(action==="start_emergency_alert"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);const title=clean(body.title,180),message=clean(body.body,1000),repeat=[5,10,15,30].includes(Number(body.repeat_minutes))?Number(body.repeat_minutes):5;if(title.length<2||message.length<2)return json({ok:false,error:"invalid_input"},400);
+    const now=new Date().toISOString();await db.from("multaqa_emergency_alerts").update({active:false,stopped_at:now,updated_at:now}).eq("active",true);
+    const {data:alert,error}=await db.from("multaqa_emergency_alerts").insert({title,body:message,severity:"emergency",repeat_minutes:repeat,active:true,started_at:now,last_sent_at:now,created_by_name:e.short_name||e.full_name,updated_at:now}).select().single();if(error)return json({ok:false,error:"save_failed"},500);
+    const {data:emps}=await db.from("multaqa_employees").select("short_name,full_name");const sent=await pushToNames(db,(emps||[]).map((x:any)=>x.short_name||x.full_name),"🚨 "+title,message,"/school/","emergency");return json({ok:true,alert,push_sent:sent});
+  }
+  if(action==="stop_emergency_alert"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);const now=new Date().toISOString(),id=Number(body.id)||0;let q=db.from("multaqa_emergency_alerts").update({active:false,stopped_at:now,updated_at:now}).eq("active",true);if(id)q=q.eq("id",id);const {error}=await q;if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
   if(action==="save_calendar_event"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=clean(body.id,80),title=clean(body.title,220),eventDate=clean(body.event_date,10),eventTime=clean(body.event_time,8)||null,reminderDays=Math.max(0,Math.min(30,Number(body.reminder_days)??1)),audience=clean(body.audience,20)||"all";if(title.length<2||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(eventDate)||!["all","teachers","management"].includes(audience))return json({ok:false,error:"invalid_input"},400);const row={title,event_date:eventDate,event_time:eventTime,details:clean(body.details,1600)||null,reminder_days:reminderDays,audience,published:body.published!==false,reminder_sent_at:null,updated_at:new Date().toISOString()};let result:any;if(id)result=await db.from("multaqa_calendar_events").update(row).eq("id",id).select().single();else result=await db.from("multaqa_calendar_events").insert(row).select().single();if(result.error)return json({ok:false,error:"save_failed"},500);return json({ok:true,item:result.data});
   }

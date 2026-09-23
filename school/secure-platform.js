@@ -28,7 +28,7 @@ async function staffApi(action,p={}){
   let d={};try{d=await r.json()}catch{}if(!r.ok||d.ok===false){const x=new Error(d.error||'request_failed');x.code=d.error||'request_failed';throw x}return d
  }catch(e){if(e&&e.name==='AbortError'){const x=new Error('service_timeout');x.code='service_timeout';throw x}if(['teacher_profiles','save_teacher_profile','save_teacher_project','prepare_teacher_photo_upload','complete_teacher_photo','student_support_lists','classify_student_support','broadcast_schedule','save_broadcast_schedule','mothers_council','save_mothers_council','class_mentors','save_class_mentor'].includes(action)&&!['session_required','forbidden'].includes(e?.code))return featureApi(action,p,true);throw e}finally{clearTimeout(timer)}
 }
-function staffError(e){return({invalid_login:'الاسم أو الرمز السري غير صحيح.',pin_not_issued:'لم تصدر الإدارة رمزًا لهذا الاسم بعد.',temporarily_locked:'تم إيقاف المحاولات 15 دقيقة للحماية.',session_required:'انتهت جلسة الدخول. سجلي الدخول من جديد.',weak_pin:'الرمز يجب أن يكون من 6 إلى 12 رقمًا.',forbidden:'ليست لديك صلاحية لهذه العملية.',not_on_duty:'الإبلاغ متاح لمعلمات مناوبة اليوم.',not_found:'لم يتم العثور على السجل.',save_failed:'تعذر حفظ البيانات.',upload_failed:'تعذر رفع الفيديو. حاولي مرة أخرى.',invalid_input:'أكملي الحقول المطلوبة.',service_timeout:'خدمة الدخول لا تستجيب الآن بسبب عطل مؤقت في قاعدة البيانات. حاولي بعد دقيقة.'}[e?.code]||'تعذر إتمام العملية الآن.')}
+function staffError(e){return({invalid_login:'الاسم أو الرمز السري غير صحيح.',pin_not_issued:'لم تصدر الإدارة رمزًا لهذا الاسم بعد.',temporarily_locked:'تم إيقاف المحاولات 15 دقيقة للحماية.',session_required:'انتهت جلسة الدخول. سجلي الدخول من جديد.',weak_pin:'الرمز يجب أن يكون من 6 إلى 12 رقمًا.',forbidden:'ليست لديك صلاحية لهذه العملية.',not_on_duty:'الإبلاغ متاح لمعلمات مناوبة اليوم.',not_found:'لم يتم العثور على السجل.',coverage_conflict:'لا يمكن إسناد الحصة لهذه المعلمة لوجود تعارض في جدولها أو احتياط آخر.',save_failed:'تعذر حفظ البيانات.',upload_failed:'تعذر رفع الفيديو. حاولي مرة أخرى.',invalid_input:'أكملي الحقول المطلوبة.',service_timeout:'خدمة الدخول لا تستجيب الآن بسبب عطل مؤقت في قاعدة البيانات. حاولي بعد دقيقة.'}[e?.code]||'تعذر إتمام العملية الآن.')}
 function secureAdmin(){return secureEmployee&&['admin','management'].includes(secureEmployee.access_group)}
 function caseAccess(){return secureEmployee&&['admin','management','social'].includes(secureEmployee.access_group)}
 function secureWelcomeName(e){
@@ -164,12 +164,28 @@ async function renderClassMentors(){const d=await staffApi('class_mentors'),map=
 window.saveClassMentor=async()=>{try{await staffApi('save_class_mentor',{class_label:S('mentorClass').value,employee_id:S('mentorEmployee').value,academic_year:S('mentorYear').value,responsibilities:S('mentorResponsibilities').value,notes:S('mentorNotes').value});phCapture('class_mentor_saved');toast('تم حفظ مربية الفصل');renderClassMentors()}catch(e){toast(staffError(e))}};
 window.recordTeacherAttendance=async()=>{try{const d=await staffApi('record_teacher_attendance',{employee_name:S('taEmployee').value,status:S('taStatus').value,reason_category:S('taReasonCat').value||null,reason:S('taNote').value});toast('✅ تم الحفظ'+(d.coverage?.length?' وتوزيع '+d.coverage.length+' حصص احتياط':''));if(d.coverage?.length)staffTab('coverage')}catch(e){toast(staffError(e))}};
 async function renderCoverage(){
- const d=await staffApi('coverage'),items=d.items||[],names=new Map((secureDirectory.employees||[]).map(x=>[x.employee_id,x.short_name||x.full_name]));
+ const d=await staffApi('coverage'),items=d.items||[],names=new Map((secureDirectory.employees||[]).map(x=>[x.employee_id,x.short_name||x.full_name])),admin=secureAdmin();
  const statusLabel=x=>x.status==='assigned'?'تم التعيين':x.status==='proposed'?'تحتاج تعيين':x.status==='completed'?'مكتملة':x.status==='cancelled'?'ملغاة':x.status||'بانتظار التعيين';
- S('staffPane').innerHTML='<h2>🔄 توزيع حصص الاحتياط</h2><p class="staff-help">يظهر هنا اسم المعلمة الغائبة واسم معلمة الاحتياط لكل حصة.</p><div class="coverage-list">'
-  +(items.length?items.map(x=>{const absent=names.get(x.absent_employee_id)||'غير محددة',replacement=x.replacement_employee_id?(names.get(x.replacement_employee_id)||'معلمة محددة بالنظام'):'لم يتم تعيين معلمة بعد';return '<article><span class="period-pill">الحصة '+x.period+'</span><div><b>'+esc(x.class_label)+'</b><small>'+esc(x.subject||'')+' • '+esc(x.day_name)+' '+esc(x.coverage_date)+'</small><p><b>المعلمة الغائبة:</b> '+esc(absent)+'</p><p><b>معلمة الاحتياط:</b> '+esc(replacement)+'</p><p>'+esc(x.reason_summary||'')+'</p></div><strong>'+esc(statusLabel(x))+'</strong></article>'}).join(''):'<div class="staff-empty">لا توجد حصص احتياط مسجلة.</div>')
+ S('staffPane').innerHTML='<div class="today-title"><div><small>توزيع عادل مع منع تعارض الجداول</small><h2>🔄 توزيع حصص الاحتياط</h2></div></div><p class="staff-help">التوزيع الإلكتروني يختار المعلمة المتاحة والأقل تكليفًا. ويمكن للإدارة تعديل أي إسناد يدويًا من قائمة المعلمات المتاحات فقط.</p><div class="coverage-list">'
+  +(items.length?items.map(x=>{const absent=names.get(x.absent_employee_id)||'غير محددة',replacement=x.replacement_employee_id?(names.get(x.replacement_employee_id)||'معلمة محددة بالنظام'):'لم يتم تعيين معلمة بعد';return '<article id="coverage-'+x.id+'"><span class="period-pill">الحصة '+x.period+'</span><div class="coverage-details"><b>'+esc(x.class_label)+'</b><small>'+esc(x.subject||'')+' • '+esc(x.day_name)+' '+esc(x.coverage_date)+'</small><p><b>المعلمة الغائبة:</b> '+esc(absent)+'</p><p><b>معلمة الاحتياط:</b> <span class="coverage-replacement">'+esc(replacement)+'</span></p><p>'+esc(x.reason_summary||'')+'</p><div class="coverage-editor" id="coverageEdit'+x.id+'" hidden></div></div><div class="coverage-side"><strong>'+esc(statusLabel(x))+'</strong>'+(admin?'<div class="coverage-actions"><button class="staff-primary" onclick="autoReassignCoverage('+x.id+')">⚡ توزيع إلكتروني</button><button class="staff-secondary" onclick="openCoverageEditor('+x.id+')">✏️ تعديل يدوي</button></div>':'')+'</div></article>'}).join(''):'<div class="staff-empty">لا توجد حصص احتياط مسجلة.</div>')
   +'</div>'
 }
+window.openCoverageEditor=async id=>{
+ const box=S('coverageEdit'+id);if(!box)return;box.hidden=false;box.innerHTML='<small>جاري فحص الجداول والتعارضات…</small>';
+ try{
+  const d=await staffApi('coverage_candidates',{id}),list=d.candidates||[];
+  if(!list.length){box.innerHTML='<div class="staff-empty">لا توجد معلمة متاحة لهذه الحصة دون تعارض.</div>';return}
+  box.innerHTML='<label>اختاري معلمة الاحتياط<select id="coverageSelect'+id+'">'+list.map(x=>'<option value="'+esc(x.employee_id)+'">'+esc(x.short_name||x.full_name)+' — '+esc(x.reason||'متاحة')+'</option>').join('')+'</select></label><div class="coverage-editor-actions"><button class="staff-primary" onclick="saveCoverageAssignment('+id+')">حفظ التعديل</button><button class="staff-secondary" onclick="closeCoverageEditor('+id+')">إلغاء</button></div>';
+ }catch(e){box.innerHTML='';box.hidden=true;toast(staffError(e))}
+};
+window.closeCoverageEditor=id=>{const box=S('coverageEdit'+id);if(box){box.hidden=true;box.innerHTML=''}};
+window.saveCoverageAssignment=async id=>{
+ const employeeId=S('coverageSelect'+id)?.value;if(!employeeId)return toast('اختاري معلمة الاحتياط');
+ try{await staffApi('save_coverage_assignment',{id,replacement_employee_id:employeeId});toast('✅ تم حفظ التوزيع اليدوي');await renderCoverage()}catch(e){toast(staffError(e))}
+};
+window.autoReassignCoverage=async id=>{
+ try{const d=await staffApi('auto_reassign_coverage',{id});toast(d.replacement_name?'✅ تم التوزيع الإلكتروني على '+d.replacement_name:'⚠️ لا توجد معلمة متاحة دون تعارض');await renderCoverage()}catch(e){toast(staffError(e))}
+};
 async function renderSecureDuty(){
  const [d,w]=await Promise.all([staffApi('duty_today'),staffApi('duty_week')]);
  const slotNames={morning:'الطابور الصباحي',shade:'المظلة',coop:'التعاونية',between:'بين الفصول',cars:'السيارات',buses:'الحافلات',reserve:'احتياط'};

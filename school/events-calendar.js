@@ -16,11 +16,13 @@ const fmtDate=d=>`${EV_DOWS[d.getDay()]} ${d.getDate()} ${EV_MONTHS[d.getMonth()
 const fmtShort=d=>`${d.getDate()} ${EV_MONTHS[d.getMonth()]}`;
 const diffDays=d=>Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-today0)/86400000);
 
-let EV_ALL=[];
+let EV_ALL=[],SCHOOL_EVENTS_RAW=[];
 function buildEvents(){
-  EV_ALL=(typeof EVENTS_RAW!=='undefined'?EVENTS_RAW:[]).map(ev=>{
+  const source=[...(typeof EVENTS_RAW!=='undefined'?EVENTS_RAW:[]),...SCHOOL_EVENTS_RAW];
+  EV_ALL=source.map(ev=>{
     let s;
-    if(ev.hijri){const off=Math.round((CYCLE-2024)*354.37);s=new Date(ev.d[1]>=9?2024:2025,ev.d[1]-1,ev.d[0]);s.setDate(s.getDate()+off);}
+    if(ev.date){const p=String(ev.date).split('-').map(Number);s=new Date(p[0],p[1]-1,p[2]);}
+    else if(ev.hijri){const off=Math.round((CYCLE-2024)*354.37);s=new Date(ev.d[1]>=9?2024:2025,ev.d[1]-1,ev.d[0]);s.setDate(s.getDate()+off);}
     else s=new Date(ev.d[1]>=9?CYCLE:CYCLE+1,ev.d[1]-1,ev.d[0]);
     let en;
     if(ev.end){en=new Date(s.getFullYear(),ev.end[1]-1,ev.end[0]);if(en<s)en=new Date(s.getFullYear()+1,ev.end[1]-1,ev.end[0]);}
@@ -29,6 +31,14 @@ function buildEvents(){
   }).sort((a,b)=>a.startDate-b.startDate);
 }
 buildEvents();
+async function loadSchoolCalendarEvents(){
+ try{
+  const r=await fetch('https://dhhwcqczvcbwdwllfcun.supabase.co/functions/v1/multaqa-public',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'calendar_events'})}),d=await r.json();if(!r.ok||!d.ok)return;
+  SCHOOL_EVENTS_RAW=(d.items||[]).map(x=>({id:'school-'+x.id,n:x.title,date:x.event_date,c:'تعليمي',icon:'📌',dt:(x.event_time?String(x.event_time).slice(0,5)+' • ':'')+'تنبيه قبل '+Number(x.reminder_days||0)+' يوم',def:x.details||'موعد مدرسي مهم مرتبط بتنبيه الخلفية.',ideas:['الاستعداد للموعد ومراجعة المتطلبات قبل انتهائه.'],school:true}));
+  buildEvents();if(typeof window.renderEventsPane==='function')window.renderEventsPane();
+ }catch(_){}
+}
+setTimeout(loadSchoolCalendarEvents,800);
 
 let evState={enabled:false,dayBefore:true,sameDay:true,time:'08:00',muted:{},fired:[]};
 function loadEvState(){try{const s=JSON.parse(localStorage.getItem(EV_KEY));if(s)evState={...evState,...s,muted:s.muted||{}}}catch(_){}}

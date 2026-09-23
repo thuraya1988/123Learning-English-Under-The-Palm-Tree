@@ -349,6 +349,16 @@ window.editSchoolEvent=id=>{const x=schoolCalendarEvents.find(v=>v.id===id);if(!
 window.saveSchoolEvent=async()=>{try{await staffApi('save_calendar_event',{id:S('schoolEventId').value,title:S('schoolEventTitle').value,event_date:S('schoolEventDate').value,event_time:S('schoolEventTime').value,reminder_days:Number(S('schoolEventReminder').value),audience:S('schoolEventAudience').value,details:S('schoolEventDetails').value,published:true});toast('✅ تم حفظ الموعد وربطه بالتقويم والتنبيه');await renderSchoolEvents()}catch(e){toast(staffError(e))}};
 window.deleteSchoolEvent=async id=>{if(!confirm('حذف هذا الموعد من التقويم؟'))return;try{await staffApi('delete_calendar_event',{id});toast('تم حذف الموعد');await renderSchoolEvents()}catch(e){toast(staffError(e))}};
 
+window.canManageEmergencyAlert=()=>secureAdmin();
+window.getEmergencyStatus=()=>staffApi('emergency_status');
+window.saveImportantAnnouncementAdmin=p=>staffApi('save_important_announcement',p);
+window.startEmergencyAlertAdmin=p=>staffApi('start_emergency_alert',p);
+window.stopEmergencyAlertAdmin=id=>staffApi('stop_emergency_alert',{id});
+window.openCoverageCenter=async()=>{
+ if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا لفتح توزيع الاحتياط');return openIdentity()}
+ await openStaffCenter();await staffTab('coverage');
+};
+
 const localTestOpsAlert=window.testOpsAlert;
 window.testOpsAlert=async()=>{
  if(!secureEmployee||!staffToken){

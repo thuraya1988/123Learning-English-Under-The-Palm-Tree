@@ -487,6 +487,33 @@ Deno.serve(async(req)=>{
     const {data}=await db.from("multaqa_class_observations").insert({class_label:classLabel,period,status,note:clean(body.note,800)||null,reported_by_employee_id:e.employee_id,notified_employee_id:notifiedEmployeeId}).select().single();
     return json({ok:true,item:data,notified_teacher:notifiedTeacher,push_sent:sent});
   }
+  if(action==="import_teacher_phones"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const rows=Array.isArray(body.phones)?body.phones:[];const result:any={ok:0,failed:[] as string[]};
+    for(const r of rows){
+      const nameHint=clean(r?.name,220);let digits=String(r?.phone??"").replace(/[٠-٩]/g,(c:string)=>"٠١٢٣٤٥٦٧٨٩".indexOf(c).toString()).replace(/\D/g,"");
+      if(digits.startsWith("00"))digits=digits.slice(2);if(digits.length===8)digits="968"+digits;
+      if(!nameHint||digits.length<11){result.failed.push((nameHint||"?")+": رقم أو اسم غير صالح");continue}
+      const target=await resolveEmployee(db,nameHint);
+      if(!target){result.failed.push(nameHint+" (لم يتم التعرّف على الاسم)");continue}
+      const {error}=await db.from("multaqa_employee_profiles").upsert({employee_id:target.employee_id,contact_phone:digits});
+      if(error)result.failed.push(nameHint+": "+error.message);else result.ok++;
+    }
+    return json({ok:true,...result});
+  }
+  if(action==="send_staff_message"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const names=(Array.isArray(body.employee_names)?body.employee_names:[]).map((x:any)=>clean(x,220)).filter(Boolean).slice(0,120);
+    const title=clean(body.title,120),message=clean(body.message,900);
+    if(!names.length||!title||!message)return json({ok:false,error:"invalid_input"},400);
+    const sent=await pushToNames(db,names,title,message,"/school/","staff_message");
+    return json({ok:true,sent,total:names.length});
+  }
+  if(action==="recent_staff_messages"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const {data}=await db.from("multaqa_notification_log").select("employee_name,title,body,success,created_at").eq("kind","staff_message").order("created_at",{ascending:false}).limit(60);
+    return json({ok:true,items:data||[]});
+  }
   if(action==="my_class_alerts"){
     const since=`${muscatDate()}T00:00:00+04:00`;
     const {data}=await db.from("multaqa_class_observations").select("id,class_label,period,note,created_at").eq("notified_employee_id",e.employee_id).eq("status","no_teacher").is("acknowledged_at",null).gte("created_at",since).order("created_at",{ascending:false});

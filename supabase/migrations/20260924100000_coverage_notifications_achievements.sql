@@ -40,3 +40,5 @@ create table if not exists public.multaqa_teacher_projects (
 create index if not exists idx_teacher_projects_employee on public.multaqa_teacher_projects(employee_id, created_at desc);
 alter table public.multaqa_teacher_projects enable row level security;
 revoke all on public.multaqa_teacher_projects from anon, authenticated;
+
+create index if not exists idx_teacher_projects_created_by on public.multaqa_teacher_projects(created_by_employee_id);

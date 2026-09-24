@@ -111,8 +111,8 @@ async function allocateAbsence(db:any,absent:any,date:string,sourceType:string,s
   for(let i=0;i<7;i++){
     const lesson=clean(slots[i],500);if(!lesson)continue;const parts=lesson.split("•").map(x=>x.trim()),subject=parts[0]||"",classLabel=parts[1]||lesson;
     const list:any[]=await candidatesFor(db,absent,date,i+1,used);const pick=list[0]||null;if(pick)used.add(pick.employee_id);
-    const payload={coverage_date:date,day_name:day,period:i+1,class_label:classLabel,subject,absent_employee_id:absent.employee_id,replacement_employee_id:pick?.employee_id||null,source_type:sourceType,source_id:sourceId,status:pick?"assigned":"proposed",fairness_score:pick?.score??null,reason_summary:pick?.reason||"لا توجد معلمة متاحة دون تعارض",assigned_by_employee_id:by};
-    const {data}=await db.from("multaqa_substitute_assignments").upsert(payload,{onConflict:"coverage_date,period,class_label"}).select().single();if(pick)await pushToNames(db,[pick.short_name||pick.full_name],"حصة احتياط جديدة",`الحصة ${i+1} • ${classLabel}${subject?" • "+subject:""}`,"/school/","coverage");out.push({...data,replacement_name:pick?.short_name||null});
+    const payload={coverage_date:date,day_name:day,period:i+1,class_label:classLabel,subject,absent_employee_id:absent.employee_id,replacement_employee_id:pick?.employee_id||null,source_type:sourceType,source_id:sourceId,status:pick?"assigned":"proposed",fairness_score:pick?.score??null,reason_summary:pick?.reason||"لا توجد معلمة متاحة دون تعارض",assigned_by_employee_id:by,notified_at:null,reminder_sent_at:null,completed_at:null,achievement_recorded_at:null};
+    const {data}=await db.from("multaqa_substitute_assignments").upsert(payload,{onConflict:"coverage_date,period,class_label"}).select().single();out.push({...data,replacement_name:pick?.short_name||null});
   }return out;
 }
 
@@ -152,9 +152,13 @@ Deno.serve(async(req)=>{
       if(!found)return json({ok:false,error:"not_found"},404);
       target=found;
     }
-    const {data:schedule}=await db.from("multaqa_teacher_schedules").select("full_name,page,schedule").eq("full_name",target.full_name).maybeSingle();
+    const today=muscatDate(),untilDate=new Date(`${today}T12:00:00+04:00`);untilDate.setUTCDate(untilDate.getUTCDate()+14);const until=untilDate.toISOString().slice(0,10);
+    const [{data:schedule},{data:coverage}]=await Promise.all([
+      db.from("multaqa_teacher_schedules").select("full_name,page,schedule").eq("full_name",target.full_name).maybeSingle(),
+      db.from("multaqa_substitute_assignments").select("id,coverage_date,day_name,period,class_label,subject,status,notified_at,reminder_sent_at").eq("replacement_employee_id",target.employee_id).gte("coverage_date",today).lte("coverage_date",until).in("status",["assigned","accepted"]).order("coverage_date").order("period")
+    ]);
     if(!schedule)return json({ok:false,error:"not_found"},404);
-    return json({ok:true,employee:{employee_id:target.employee_id,full_name:target.full_name,short_name:target.short_name},schedule});
+    return json({ok:true,employee:{employee_id:target.employee_id,full_name:target.full_name,short_name:target.short_name},schedule,coverage:coverage||[]});
   }
   if(action==="duty_week"){
     const {data}=await db.from("multaqa_duty").select("day_name,teachers,admins,slots");
@@ -365,6 +369,16 @@ Deno.serve(async(req)=>{
     if(!elevated(e))q=q.eq("replacement_employee_id",e.employee_id);
     const {data}=await q;return json({ok:true,items:data||[]});
   }
+  if(action==="publish_coverage"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const date=clean(body.date,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return json({ok:false,error:"invalid_input"},400);
+    const {data:items,error}=await db.from("multaqa_substitute_assignments").select("id,period,class_label,subject,replacement_employee_id").eq("coverage_date",date).in("status",["assigned","accepted"]).not("replacement_employee_id","is",null).order("period");
+    if(error)return json({ok:false,error:"save_failed"},500);if(!(items||[]).length)return json({ok:false,error:"no_coverage"},404);
+    const ids=[...new Set((items||[]).map((x:any)=>x.replacement_employee_id))],{data:emps}=await db.from("multaqa_employees").select("employee_id,full_name,short_name").in("employee_id",ids),names=new Map((emps||[]).map((x:any)=>[x.employee_id,x.short_name||x.full_name]));let sent=0;
+    for(const employeeId of ids){const rows=(items||[]).filter((x:any)=>x.replacement_employee_id===employeeId),name=names.get(employeeId);if(!name)continue;const details=rows.map((x:any)=>`الحصة ${x.period} — ${x.class_label}${x.subject?" • "+x.subject:""}`).join(" | ");sent+=await pushToNames(db,[name],`📚 جدول احتياط ${dayFor(date)}`,`${date} • ${details}`,"/school/?open=schedule","coverage_published")}
+    const now=new Date().toISOString(),assignmentIds=(items||[]).map((x:any)=>x.id);await db.from("multaqa_substitute_assignments").update({notified_at:now,reminder_sent_at:null,completed_at:null,achievement_recorded_at:null,updated_at:now}).in("id",assignmentIds);
+    return json({ok:true,date,assignments:(items||[]).length,teachers:ids.length,sent_devices:sent});
+  }
   if(action==="coverage_candidates"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id);if(!Number.isInteger(id)||id<1)return json({ok:false,error:"invalid_input"},400);
     const {data:item}=await db.from("multaqa_substitute_assignments").select("*").eq("id",id).maybeSingle();if(!item)return json({ok:false,error:"not_found"},404);
@@ -378,16 +392,16 @@ Deno.serve(async(req)=>{
     const [{data:absent},{data:target}]=await Promise.all([db.from("multaqa_employees").select("employee_id,full_name").eq("employee_id",item.absent_employee_id).maybeSingle(),db.from("multaqa_employees").select("employee_id,full_name,short_name,kind").eq("employee_id",replacementId).maybeSingle()]);
     if(!absent||!target||target.kind!=="teacher")return json({ok:false,error:"not_found"},404);
     const candidates:any[]=await candidatesFor(db,absent,item.coverage_date,item.period,new Set(),id),pick=candidates.find((x:any)=>x.employee_id===replacementId);if(!pick)return json({ok:false,error:"coverage_conflict"},409);
-    const {data,error}=await db.from("multaqa_substitute_assignments").update({replacement_employee_id:replacementId,status:"assigned",fairness_score:pick.score,reason_summary:`توزيع يدوي بواسطة ${e.short_name||e.full_name} • ${pick.reason}`,assigned_by_employee_id:e.employee_id,updated_at:new Date().toISOString()}).eq("id",id).select().single();
-    if(error)return json({ok:false,error:"save_failed"},500);await pushToNames(db,[target.short_name||target.full_name],"تم إسناد حصة احتياط لكِ",`الحصة ${item.period} • ${item.class_label}${item.subject?" • "+item.subject:""}`,"/school/","coverage");return json({ok:true,item:data,replacement_name:target.short_name||target.full_name});
+    const {data,error}=await db.from("multaqa_substitute_assignments").update({replacement_employee_id:replacementId,status:"assigned",fairness_score:pick.score,reason_summary:`توزيع يدوي بواسطة ${e.short_name||e.full_name} • ${pick.reason}`,assigned_by_employee_id:e.employee_id,notified_at:null,reminder_sent_at:null,completed_at:null,achievement_recorded_at:null,updated_at:new Date().toISOString()}).eq("id",id).select().single();
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,item:data,replacement_name:target.short_name||target.full_name});
   }
   if(action==="auto_reassign_coverage"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id);if(!Number.isInteger(id)||id<1)return json({ok:false,error:"invalid_input"},400);
     const {data:item}=await db.from("multaqa_substitute_assignments").select("*").eq("id",id).maybeSingle();if(!item)return json({ok:false,error:"not_found"},404);
     const {data:absent}=await db.from("multaqa_employees").select("employee_id,full_name").eq("employee_id",item.absent_employee_id).maybeSingle();if(!absent)return json({ok:false,error:"not_found"},404);
     const candidates:any[]=await candidatesFor(db,absent,item.coverage_date,item.period,new Set(),id),pick=candidates[0]||null;
-    const {data,error}=await db.from("multaqa_substitute_assignments").update({replacement_employee_id:pick?.employee_id||null,status:pick?"assigned":"proposed",fairness_score:pick?.score??null,reason_summary:pick?`توزيع إلكتروني محدّث • ${pick.reason}`:"لا توجد معلمة متاحة دون تعارض",assigned_by_employee_id:e.employee_id,updated_at:new Date().toISOString()}).eq("id",id).select().single();
-    if(error)return json({ok:false,error:"save_failed"},500);if(pick)await pushToNames(db,[pick.short_name||pick.full_name],"تم إسناد حصة احتياط لكِ",`الحصة ${item.period} • ${item.class_label}${item.subject?" • "+item.subject:""}`,"/school/","coverage");return json({ok:true,item:data,replacement_name:pick?.short_name||pick?.full_name||null});
+    const {data,error}=await db.from("multaqa_substitute_assignments").update({replacement_employee_id:pick?.employee_id||null,status:pick?"assigned":"proposed",fairness_score:pick?.score??null,reason_summary:pick?`توزيع إلكتروني محدّث • ${pick.reason}`:"لا توجد معلمة متاحة دون تعارض",assigned_by_employee_id:e.employee_id,notified_at:null,reminder_sent_at:null,completed_at:null,achievement_recorded_at:null,updated_at:new Date().toISOString()}).eq("id",id).select().single();
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,item:data,replacement_name:pick?.short_name||pick?.full_name||null});
   }
   if(action==="search_students"){
     const query=clean(body.query,100),className=clean(body.class_name,100);let q=db.from("multaqa_students").select("school_id,serial,name,class_name").order("class_name").order("serial").limit(80);

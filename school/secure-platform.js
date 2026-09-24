@@ -46,7 +46,26 @@ function setSecureEmployee(e){
  if(S('staffName'))S('staffName').textContent=welcomeName;
  if(S('staffRole'))S('staffRole').textContent=[e.profile?.display_title||e.role,e.profile?.subject].filter(Boolean).join(' • ');
  const img=S('staffPhoto');if(img){img.innerHTML=e.profile?.photo_url?'<img src="'+esc(e.profile.photo_url)+'" alt="">':'<span>'+(e.kind==='teacher'?'👩‍🏫':'🏛️')+'</span>'}
+ checkMyClassAlerts();
+ if(!classAlertTimer)classAlertTimer=setInterval(checkMyClassAlerts,45000);
 }
+let classAlertTimer=null;
+async function checkMyClassAlerts(){
+ if(!secureEmployee)return;
+ const box=S('classAlertBanner');if(!box)return;
+ try{
+  const d=await staffApi('my_class_alerts'),items=d.items||[];
+  if(!items.length){box.style.display='none';box.innerHTML='';return}
+  const wasHidden=box.style.display==='none'||!box.innerHTML;
+  box.style.display='block';
+  box.innerHTML=items.map(x=>'<div class="class-alert-item"><b>🚨 صف '+esc(x.class_label)+' بدون معلمة</b><small>الحصة '+esc(x.period)+(x.note?' • '+esc(x.note):'')+'</small><button class="staff-primary" onclick="ackClassAlert(\''+x.id+'\',this)">✅ تأكيد الاستلام والذهاب</button></div>').join('');
+  if(wasHidden)try{window.playMultaqaAlertSound?.()}catch{}
+ }catch{}
+}
+window.ackClassAlert=async(id,btn)=>{
+ if(btn){btn.disabled=true;btn.textContent='جاري التأكيد…'}
+ try{await staffApi('ack_class_alert',{id});toast('✅ تم تأكيد التوجه للصف');await checkMyClassAlerts()}catch(e){toast(staffError(e));if(btn){btn.disabled=false;btn.textContent='✅ تأكيد الاستلام والذهاب'}}
+};
 function prepareSecureLogin(){
  const box=S('modal')?.querySelector('.modal-box');if(!box)return;
  const sub=box.querySelector('.sub');if(sub)sub.textContent='دخول آمن: الاسم الأول والقبيلة + الرمز السري الشخصي';
@@ -64,7 +83,7 @@ window.changeMyPin=async forced=>{
  const pin=prompt(forced?'هذا رمز مؤقت. اكتبي رمزك الجديد من 6 إلى 12 رقمًا:':'اكتبي الرمز السري الجديد من 6 إلى 12 رقمًا:');if(!pin)return;
  try{await staffApi('change_pin',{pin});toast('✅ تم تغيير الرمز السري')}catch(e){toast(staffError(e));if(forced)setTimeout(()=>changeMyPin(true),300)}
 };
-window.staffLogout=async()=>{try{await staffApi('logout')}catch{}staffToken='';secureEmployee=null;employee=null;localStorage.removeItem('multaqa_staff_session');const g=S('identityGreeting');if(g)g.style.display='none';closeById('staffCenterModal');toast('تم تسجيل الخروج')};
+window.staffLogout=async()=>{try{await staffApi('logout')}catch{}staffToken='';secureEmployee=null;employee=null;localStorage.removeItem('multaqa_staff_session');const g=S('identityGreeting');if(g)g.style.display='none';if(classAlertTimer){clearInterval(classAlertTimer);classAlertTimer=null}const b=S('classAlertBanner');if(b){b.style.display='none';b.innerHTML=''}closeById('staffCenterModal');toast('تم تسجيل الخروج')};
 async function restoreStaff(){
  localStorage.removeItem('multaqa_employee');employee=null;
  if(!staffToken)return;
@@ -75,6 +94,7 @@ function injectStaffCenter(){
  document.body.insertAdjacentHTML('beforeend',`<div class="modal staff-center" id="staffCenterModal"><div class="modal-box">
  <button class="close" onclick="closeById('staffCenterModal')">✕</button>
  <header class="staff-profile"><div class="staff-photo" id="staffPhoto"><span>👩‍🏫</span></div><div><small id="staffWelcome">أهلًا بكِ</small><h3 id="staffName">ملفي المدرسي</h3><p id="staffRole"></p></div><div class="staff-account"><button onclick="changeMyPin(false)">تغيير الرمز</button><button onclick="staffLogout()">خروج</button></div></header>
+ <div id="classAlertBanner" class="class-alert-banner" style="display:none"></div>
  <div class="staff-admin-bar" data-admin-only><button type="button" onclick="staffTab('home')">🏠 العودة إلى لوحة الإدارة الرئيسية</button><span>مديرة النظام • جميع الصلاحيات مفعّلة</span></div>
  <div class="staff-tabs">
   <button data-staff-tab="home" onclick="staffTab('home')">🏠 الرئيسية</button><button data-staff-tab="schedule" onclick="staffTab('schedule')">📚 جدولي</button><button data-staff-tab="attendance" onclick="staffTab('attendance')">✅ الطالبات</button>

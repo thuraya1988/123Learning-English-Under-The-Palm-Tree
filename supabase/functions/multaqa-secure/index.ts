@@ -375,6 +375,24 @@ Deno.serve(async(req)=>{
     const className=clean(body.class_name,60);let q=db.from("multaqa_book_loans").select("id,student_school_id,student_name,class_name,book_title,borrowed_at,due_at,returned_at").order("borrowed_at",{ascending:false}).limit(200);
     if(className)q=q.eq("class_name",className);const {data}=await q;return json({ok:true,items:data||[]});
   }
+  if(action==="save_homework"){
+    const className=clean(body.class_name,60),subject=clean(body.subject,80)||null,description=clean(body.description,1000),homeworkDate=clean(body.homework_date,10)||muscatDate();
+    if(!className||!description)return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_homework").insert({class_name:className,subject,description,homework_date:homeworkDate,created_by_employee_id:e.employee_id});
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="delete_homework"){
+    const id=clean(body.id,60);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {data:row}=await db.from("multaqa_homework").select("created_by_employee_id").eq("id",id).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
+    if(row.created_by_employee_id!==e.employee_id&&!elevated(e))return json({ok:false,error:"forbidden"},403);
+    await db.from("multaqa_homework").delete().eq("id",id);return json({ok:true});
+  }
+  if(action==="class_homework"){
+    const className=clean(body.class_name,60);if(!className)return json({ok:false,error:"invalid_input"},400);
+    const since=new Date(Date.now()-14*86400000).toISOString().slice(0,10);
+    const {data}=await db.from("multaqa_homework").select("id,subject,description,homework_date,created_by_employee_id").eq("class_name",className).gte("homework_date",since).order("homework_date",{ascending:false});
+    return json({ok:true,items:data||[]});
+  }
   if(action==="prepare_lost_item_upload"){
     const mime=clean(body.mime_type,120),allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
     if(!allowed[mime])return json({ok:false,error:"invalid_input"},400);

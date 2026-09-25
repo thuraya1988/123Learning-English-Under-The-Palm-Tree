@@ -119,13 +119,14 @@ Deno.serve(async(req)=>{
     const saved=digits(student.guardian_phone),verified=saved?phoneOk(phone)&&phone===saved:studentName&&norm(studentName)===norm(student.name);
     if(!verified)return json({ok:false,error:"verification_failed"},403);
     const since=new Date(Date.now()-7*86400000).toISOString().slice(0,10);
-    const [{data:att},{data:badges}]=await Promise.all([
+    const [{data:att},{data:badges},{data:homework}]=await Promise.all([
       db.from("multaqa_student_attendance").select("attendance_date,status").eq("student_school_id",schoolId).eq("period",0).gte("attendance_date",since).order("attendance_date"),
-      db.from("multaqa_student_badges").select("badge_label,note,awarded_at").eq("student_school_id",schoolId).gte("awarded_at",since+"T00:00:00").order("awarded_at",{ascending:false})
+      db.from("multaqa_student_badges").select("badge_label,note,awarded_at").eq("student_school_id",schoolId).gte("awarded_at",since+"T00:00:00").order("awarded_at",{ascending:false}),
+      db.from("multaqa_homework").select("subject,description,homework_date").eq("class_name",student.class_name).gte("homework_date",since).order("homework_date",{ascending:false})
     ]);
     const counts:Record<string,number>={present:0,absent:0,late:0,excused:0,permission:0};
     (att||[]).forEach((x:any)=>{if(counts[x.status]!=null)counts[x.status]++});
-    return json({ok:true,student:{name:student.name,class_name:student.class_name},from:since,attendance:{days:att||[],counts},badges:badges||[]});
+    return json({ok:true,student:{name:student.name,class_name:student.class_name},from:since,attendance:{days:att||[],counts},badges:badges||[],homework:homework||[]});
   }
   if(action==="lost_items"){
     const {data,error}=await db.from("multaqa_lost_found").select("id,item_desc,found_location,photo_path,created_at").eq("status","open").order("created_at",{ascending:false}).limit(100);

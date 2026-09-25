@@ -102,7 +102,7 @@ function injectStaffCenter(){
   <button data-staff-tab="profile" onclick="staffTab('profile')">ملفي المهني</button><button data-staff-tab="staff" data-admin-only onclick="staffTab('staff')">المعلمات</button><button data-staff-tab="mentors" onclick="staffTab('mentors')">مربيات الفصول</button><button data-staff-tab="coverage" onclick="staffTab('coverage')">🔄 الاحتياط</button>
   <button data-staff-tab="excellence" data-admin-only onclick="staffTab('excellence')">🏆 التميز</button><button data-staff-tab="cases" onclick="staffTab('cases')">🧩 الحالات</button>
   <button data-staff-tab="activities" onclick="staffTab('activities')">الأنشطة</button><button data-staff-tab="events" onclick="staffTab('events')">📅 المواعيد المهمة</button><button data-staff-tab="gifted" onclick="staffTab('gifted')">الموهوبات</button><button data-staff-tab="support" data-case-only onclick="staffTab('support')">ملفات الدعم الدراسي والاجتماعي</button><button data-staff-tab="social" onclick="staffTab('social')">الأخصائية</button>
-  <button data-staff-tab="buses" onclick="staffTab('buses')">🚌 الحافلات</button><button data-staff-tab="booking" onclick="staffTab('booking')">📅 حجز الموارد</button><button data-staff-tab="poll" onclick="staffTab('poll')">🗳️ استطلاع رأي</button><button data-staff-tab="badges" onclick="staffTab('badges')">🏅 شارات الطالبات</button><button data-staff-tab="certificates" onclick="staffTab('certificates')">🎓 شهادات تقدير</button><button data-staff-tab="loans" onclick="staffTab('loans')">📚 استعارة الكتب</button><button data-staff-tab="lostfound" onclick="staffTab('lostfound')">🔍 المفقودات</button><button data-staff-tab="analytics" data-admin-only onclick="staffTab('analytics')">📊 المؤشرات</button>
+  <button data-staff-tab="buses" onclick="staffTab('buses')">🚌 الحافلات</button><button data-staff-tab="booking" onclick="staffTab('booking')">📅 حجز الموارد</button><button data-staff-tab="poll" onclick="staffTab('poll')">🗳️ استطلاع رأي</button><button data-staff-tab="badges" onclick="staffTab('badges')">🏅 شارات الطالبات</button><button data-staff-tab="certificates" onclick="staffTab('certificates')">🎓 شهادات تقدير</button><button data-staff-tab="loans" onclick="staffTab('loans')">📚 استعارة الكتب</button><button data-staff-tab="lostfound" onclick="staffTab('lostfound')">🔍 المفقودات</button><button data-staff-tab="homework" onclick="staffTab('homework')">📝 الواجبات</button><button data-staff-tab="analytics" data-admin-only onclick="staffTab('analytics')">📊 المؤشرات</button>
   <button data-staff-tab="security" data-admin-only onclick="staffTab('security')">🔐 الرموز</button>
  </div><main id="staffPane" class="staff-pane"></main></div></div>`);
  const strip=S('portalStrip');if(strip&&!S('staffCenterEntry'))strip.insertAdjacentHTML('afterbegin','<button class="portal-entry featured" id="staffCenterEntry" onclick="openStaffCenter()"><em>📊</em><b>مركز التشغيل والتحليل</b><small>الحضور • الاستئذان • المناوبة • الاحتياط • المؤشرات</small></button>');
@@ -125,7 +125,7 @@ window.openStaffCenter=async()=>{
 window.staffTab=async tab=>{
  if(tab!=='broadcast')stopBroadcastCamera(true);
  document.querySelectorAll('[data-staff-tab]').forEach(x=>x.classList.toggle('active',x.dataset.staffTab===tab));const pane=S('staffPane');pane.innerHTML='<div class="staff-loading">جاري تحميل الوحدة…</div>';
- phCapture('school_module_opened',{module:tab});try{if(tab==='home')await renderHome();if(tab==='schedule')await renderSecureSchedule();if(tab==='attendance')renderGrades();if(tab==='permissions')await renderPermissions();if(tab==='duty')await renderSecureDuty();if(tab==='broadcast')await renderBroadcasts();if(tab==='profile')await renderTeacherProfiles(false);if(tab==='staff')renderStaffAdmin();if(tab==='mentors')await renderClassMentors();if(tab==='coverage')await renderCoverage();if(tab==='excellence')renderExcellence();if(tab==='cases')renderCases();if(tab==='activities')await renderActivities();if(tab==='events')await renderSchoolEvents();if(tab==='gifted')await renderGifted();if(tab==='support')await renderStudentSupport();if(tab==='social')renderSocialWorker();if(tab==='buses')renderBuses();if(tab==='booking')await renderResourceBooking();if(tab==='poll')await renderPoll();if(tab==='badges')await renderBadges();if(tab==='certificates')await renderCertificates();if(tab==='loans')await renderBookLoans();if(tab==='lostfound')await renderLostFound();if(tab==='analytics')await renderAnalytics();if(tab==='security')renderSecurity()}catch(e){pane.innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
+ phCapture('school_module_opened',{module:tab});try{if(tab==='home')await renderHome();if(tab==='schedule')await renderSecureSchedule();if(tab==='attendance')renderGrades();if(tab==='permissions')await renderPermissions();if(tab==='duty')await renderSecureDuty();if(tab==='broadcast')await renderBroadcasts();if(tab==='profile')await renderTeacherProfiles(false);if(tab==='staff')renderStaffAdmin();if(tab==='mentors')await renderClassMentors();if(tab==='coverage')await renderCoverage();if(tab==='excellence')renderExcellence();if(tab==='cases')renderCases();if(tab==='activities')await renderActivities();if(tab==='events')await renderSchoolEvents();if(tab==='gifted')await renderGifted();if(tab==='support')await renderStudentSupport();if(tab==='social')renderSocialWorker();if(tab==='buses')renderBuses();if(tab==='booking')await renderResourceBooking();if(tab==='poll')await renderPoll();if(tab==='badges')await renderBadges();if(tab==='certificates')await renderCertificates();if(tab==='loans')await renderBookLoans();if(tab==='lostfound')await renderLostFound();if(tab==='homework')await renderHomework();if(tab==='analytics')await renderAnalytics();if(tab==='security')renderSecurity()}catch(e){pane.innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
 };
 async function renderSecureSchedule(){
  const chosen=secureAdmin()?S('adminScheduleTeacher')?.value||'':'' ,d=await staffApi('teacher_schedule',chosen?{employee_name:chosen}:{}),row=d.schedule||{},schedule=row.schedule||{},coverage=d.coverage||[],days=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
@@ -574,6 +574,27 @@ window.reportLostItemUI=async()=>{
 window.claimLostItemUI=async id=>{
  const claimed_by=prompt('اسم من استلم الغرض (اختياري):','')||'';
  try{await staffApi('claim_lost_item',{id,claimed_by});toast('✅ تم تسجيل التسليم');await renderLostFound()}catch(e){toast(staffError(e))}
+};
+let homeworkClass='';
+async function renderHomework(){
+ const cls=homeworkClass||secureDirectory.classes[0]||'';
+ const classOptions=secureDirectory.classes.map(c=>'<option '+(c===cls?'selected':'')+'>'+esc(c)+'</option>').join('');
+ const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat'}).format(new Date());
+ S('staffPane').innerHTML='<div class="today-title"><div><small>يظهر تلقائيًا لولي الأمر في التقرير الأسبوعي</small><h2>📝 الواجبات اليومية</h2></div><select id="hwClassSel" onchange="homeworkClass=this.value;renderHomework()">'+classOptions+'</select></div><section class="staff-card"><h3>إضافة واجب</h3><div class="form-row"><input id="hwSubject" placeholder="المادة (اختياري)"><input id="hwDate" type="date" value="'+today+'"></div><textarea id="hwDesc" rows="2" placeholder="وصف الواجب"></textarea><button class="staff-primary" onclick="saveHomeworkUI()">📝 حفظ</button></section><h3 class="staff-section-title">واجبات آخر أسبوعين</h3><div id="hwList" class="staff-loading">جاري التحميل…</div>';
+ if(!cls)return;
+ homeworkClass=cls;
+ try{
+  const d=await staffApi('class_homework',{class_name:cls}),items=d.items||[];
+  S('hwList').innerHTML=items.length?'<div class="request-list">'+items.map(x=>'<article><b>'+(x.subject?esc(x.subject)+' — ':'')+esc(x.description)+'</b><small>'+esc(x.homework_date)+'</small>'+((x.created_by_employee_id===secureEmployee?.employee_id||secureAdmin())?' <button onclick="deleteHomeworkUI(\''+x.id+'\')">حذف</button>':'')+'</article>').join('')+'</div>':'<div class="staff-empty">لا توجد واجبات مسجلة لهذا الصف.</div>';
+ }catch(e){S('hwList').innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
+}
+window.saveHomeworkUI=async()=>{
+ const description=S('hwDesc').value.trim();if(!description)return toast('اكتبي وصف الواجب أولًا');
+ try{await staffApi('save_homework',{class_name:homeworkClass,subject:S('hwSubject').value.trim(),description,homework_date:S('hwDate').value});toast('✅ تم حفظ الواجب');await renderHomework()}catch(e){toast(staffError(e))}
+};
+window.deleteHomeworkUI=async id=>{
+ if(!confirm('حذف هذا الواجب؟'))return;
+ try{await staffApi('delete_homework',{id});toast('تم الحذف');await renderHomework()}catch(e){toast(staffError(e))}
 };
 window.saveBus=async()=>{try{await staffApi('save_bus',{route_name:S('busRoute').value,departure_label:S('busLabel').value,driver_name:S('busDriver').value,driver_phone:S('busPhone').value});secureDirectory=await staffApi('directory');toast('✅ تم حفظ الحافلة');renderBuses()}catch(e){toast(staffError(e))}};
 async function renderAnalytics(){

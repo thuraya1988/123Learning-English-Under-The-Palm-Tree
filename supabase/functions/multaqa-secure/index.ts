@@ -360,6 +360,21 @@ Deno.serve(async(req)=>{
     const {data}=await db.from("multaqa_student_badges").select("id,student_school_id,student_name,badge_key,badge_label,note,awarded_at").eq("class_name",className).order("awarded_at",{ascending:false}).limit(200);
     return json({ok:true,items:data||[],badges:BADGES});
   }
+  if(action==="create_book_loan"){
+    const studentId=clean(body.student_school_id,30),studentName=clean(body.student_name,200),className=clean(body.class_name,60),bookTitle=clean(body.book_title,200),dueAt=clean(body.due_at,10);
+    if(!studentId||!studentName||!className||!bookTitle||!dueAt)return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_book_loans").insert({student_school_id:studentId,student_name:studentName,class_name:className,book_title:bookTitle,due_at:dueAt,borrowed_by_employee_id:e.employee_id});
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="return_book_loan"){
+    const id=clean(body.id,60);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_book_loans").update({returned_at:new Date().toISOString()}).eq("id",id).is("returned_at",null);
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="book_loans"){
+    const className=clean(body.class_name,60);let q=db.from("multaqa_book_loans").select("id,student_school_id,student_name,class_name,book_title,borrowed_at,due_at,returned_at").order("borrowed_at",{ascending:false}).limit(200);
+    if(className)q=q.eq("class_name",className);const {data}=await q;return json({ok:true,items:data||[]});
+  }
   if(action==="create_poll"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);
     const question=clean(body.question,300),options=(Array.isArray(body.options)?body.options:[]).map((x:any)=>clean(x,120)).filter(Boolean).slice(0,6);

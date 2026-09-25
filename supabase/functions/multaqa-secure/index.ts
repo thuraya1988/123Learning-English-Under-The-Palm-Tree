@@ -375,6 +375,24 @@ Deno.serve(async(req)=>{
     const className=clean(body.class_name,60);let q=db.from("multaqa_book_loans").select("id,student_school_id,student_name,class_name,book_title,borrowed_at,due_at,returned_at").order("borrowed_at",{ascending:false}).limit(200);
     if(className)q=q.eq("class_name",className);const {data}=await q;return json({ok:true,items:data||[]});
   }
+  if(action==="save_equipment_item"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const id=clean(body.id,60)||null,itemName=clean(body.item_name,200),category=clean(body.category,60)||null,resourceKey=clean(body.resource_key,40)||null,notes=clean(body.notes,500)||null;
+    const totalQty=Math.max(0,Number(body.total_qty)||0),workingQty=Math.max(0,Number(body.working_qty)||0),damagedQty=Math.max(0,Number(body.damaged_qty)||0);
+    if(!itemName)return json({ok:false,error:"invalid_input"},400);
+    const payload={item_name:itemName,category,resource_key:resourceKey,total_qty:totalQty,working_qty:workingQty,damaged_qty:damagedQty,notes,updated_by_employee_id:e.employee_id,updated_at:new Date().toISOString()};
+    const {error}=id?await db.from("multaqa_equipment_inventory").update(payload).eq("id",id):await db.from("multaqa_equipment_inventory").insert(payload);
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="delete_equipment_item"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const id=clean(body.id,60);if(!id)return json({ok:false,error:"invalid_input"},400);
+    await db.from("multaqa_equipment_inventory").delete().eq("id",id);return json({ok:true});
+  }
+  if(action==="equipment_inventory"){
+    const {data}=await db.from("multaqa_equipment_inventory").select("id,item_name,category,resource_key,total_qty,working_qty,damaged_qty,notes,updated_at").order("category").order("item_name");
+    return json({ok:true,items:data||[]});
+  }
   if(action==="save_meeting_minutes"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);
     const meetingDate=clean(body.meeting_date,10)||muscatDate(),title=clean(body.title,300),decisions=clean(body.decisions,3000)||null;

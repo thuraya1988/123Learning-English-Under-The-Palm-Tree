@@ -102,7 +102,7 @@ function injectStaffCenter(){
   <button data-staff-tab="profile" onclick="staffTab('profile')">ملفي المهني</button><button data-staff-tab="staff" data-admin-only onclick="staffTab('staff')">المعلمات</button><button data-staff-tab="mentors" onclick="staffTab('mentors')">مربيات الفصول</button><button data-staff-tab="coverage" onclick="staffTab('coverage')">🔄 الاحتياط</button>
   <button data-staff-tab="excellence" data-admin-only onclick="staffTab('excellence')">🏆 التميز</button><button data-staff-tab="cases" onclick="staffTab('cases')">🧩 الحالات</button>
   <button data-staff-tab="activities" onclick="staffTab('activities')">الأنشطة</button><button data-staff-tab="events" onclick="staffTab('events')">📅 المواعيد المهمة</button><button data-staff-tab="gifted" onclick="staffTab('gifted')">الموهوبات</button><button data-staff-tab="support" data-case-only onclick="staffTab('support')">ملفات الدعم الدراسي والاجتماعي</button><button data-staff-tab="social" onclick="staffTab('social')">الأخصائية</button>
-  <button data-staff-tab="buses" onclick="staffTab('buses')">🚌 الحافلات</button><button data-staff-tab="booking" onclick="staffTab('booking')">📅 حجز الموارد</button><button data-staff-tab="poll" onclick="staffTab('poll')">🗳️ استطلاع رأي</button><button data-staff-tab="badges" onclick="staffTab('badges')">🏅 شارات الطالبات</button><button data-staff-tab="analytics" data-admin-only onclick="staffTab('analytics')">📊 المؤشرات</button>
+  <button data-staff-tab="buses" onclick="staffTab('buses')">🚌 الحافلات</button><button data-staff-tab="booking" onclick="staffTab('booking')">📅 حجز الموارد</button><button data-staff-tab="poll" onclick="staffTab('poll')">🗳️ استطلاع رأي</button><button data-staff-tab="badges" onclick="staffTab('badges')">🏅 شارات الطالبات</button><button data-staff-tab="certificates" onclick="staffTab('certificates')">🎓 شهادات تقدير</button><button data-staff-tab="analytics" data-admin-only onclick="staffTab('analytics')">📊 المؤشرات</button>
   <button data-staff-tab="security" data-admin-only onclick="staffTab('security')">🔐 الرموز</button>
  </div><main id="staffPane" class="staff-pane"></main></div></div>`);
  const strip=S('portalStrip');if(strip&&!S('staffCenterEntry'))strip.insertAdjacentHTML('afterbegin','<button class="portal-entry featured" id="staffCenterEntry" onclick="openStaffCenter()"><em>📊</em><b>مركز التشغيل والتحليل</b><small>الحضور • الاستئذان • المناوبة • الاحتياط • المؤشرات</small></button>');
@@ -125,7 +125,7 @@ window.openStaffCenter=async()=>{
 window.staffTab=async tab=>{
  if(tab!=='broadcast')stopBroadcastCamera(true);
  document.querySelectorAll('[data-staff-tab]').forEach(x=>x.classList.toggle('active',x.dataset.staffTab===tab));const pane=S('staffPane');pane.innerHTML='<div class="staff-loading">جاري تحميل الوحدة…</div>';
- phCapture('school_module_opened',{module:tab});try{if(tab==='home')await renderHome();if(tab==='schedule')await renderSecureSchedule();if(tab==='attendance')renderGrades();if(tab==='permissions')await renderPermissions();if(tab==='duty')await renderSecureDuty();if(tab==='broadcast')await renderBroadcasts();if(tab==='profile')await renderTeacherProfiles(false);if(tab==='staff')renderStaffAdmin();if(tab==='mentors')await renderClassMentors();if(tab==='coverage')await renderCoverage();if(tab==='excellence')renderExcellence();if(tab==='cases')renderCases();if(tab==='activities')await renderActivities();if(tab==='events')await renderSchoolEvents();if(tab==='gifted')await renderGifted();if(tab==='support')await renderStudentSupport();if(tab==='social')renderSocialWorker();if(tab==='buses')renderBuses();if(tab==='booking')await renderResourceBooking();if(tab==='poll')await renderPoll();if(tab==='badges')await renderBadges();if(tab==='analytics')await renderAnalytics();if(tab==='security')renderSecurity()}catch(e){pane.innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
+ phCapture('school_module_opened',{module:tab});try{if(tab==='home')await renderHome();if(tab==='schedule')await renderSecureSchedule();if(tab==='attendance')renderGrades();if(tab==='permissions')await renderPermissions();if(tab==='duty')await renderSecureDuty();if(tab==='broadcast')await renderBroadcasts();if(tab==='profile')await renderTeacherProfiles(false);if(tab==='staff')renderStaffAdmin();if(tab==='mentors')await renderClassMentors();if(tab==='coverage')await renderCoverage();if(tab==='excellence')renderExcellence();if(tab==='cases')renderCases();if(tab==='activities')await renderActivities();if(tab==='events')await renderSchoolEvents();if(tab==='gifted')await renderGifted();if(tab==='support')await renderStudentSupport();if(tab==='social')renderSocialWorker();if(tab==='buses')renderBuses();if(tab==='booking')await renderResourceBooking();if(tab==='poll')await renderPoll();if(tab==='badges')await renderBadges();if(tab==='certificates')await renderCertificates();if(tab==='analytics')await renderAnalytics();if(tab==='security')renderSecurity()}catch(e){pane.innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
 };
 async function renderSecureSchedule(){
  const chosen=secureAdmin()?S('adminScheduleTeacher')?.value||'':'' ,d=await staffApi('teacher_schedule',chosen?{employee_name:chosen}:{}),row=d.schedule||{},schedule=row.schedule||{},coverage=d.coverage||[],days=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
@@ -427,6 +427,83 @@ window.awardBadgeUI=async btn=>{
  btn.disabled=true;
  try{await staffApi('award_badge',{student_school_id:sid,student_name:name,class_name:badgeClass,badge_key,note});toast('🏅 تم منح الشارة لـ '+name);await renderBadges()}catch(e){toast(staffError(e));btn.disabled=false}
 };
+const CERT_TYPES=['شهادة تقدير','شهادة شكر وتقدير','شهادة تفوق دراسي','شهادة حضور مثالي','شهادة مشاركة فعّالة'];
+const PRINCIPAL_NAME='الاستاذة بهية الراشدية';
+let certClass='';
+async function renderCertificates(){
+ const cls=certClass||secureDirectory.classes[0]||'';
+ const classOptions=secureDirectory.classes.map(c=>'<option '+(c===cls?'selected':'')+'>'+esc(c)+'</option>').join('');
+ S('staffPane').innerHTML='<div class="today-title"><div><small>إصدار شهادات تقدير جاهزة للطباعة</small><h2>🎓 شهادات تقدير</h2></div><select id="certClassSel" onchange="certClass=this.value;renderCertificates()">'+classOptions+'</select></div><div id="certBody" class="staff-loading">جاري التحميل…</div>';
+ if(!cls)return;
+ certClass=cls;
+ try{
+  const roster=await staffApi('class_roster',{class_name:cls,period:0}),students=roster.students||[];
+  const rows=students.map(s=>'<div class="roster-row"><b>'+esc(s.name)+'</b><button onclick="openCertificateForm(this)" data-sid="'+esc(s.school_id)+'" data-name="'+esc(s.name)+'">🎓 إصدار شهادة</button></div>').join('');
+  S('certBody').innerHTML='<section class="staff-card"><h3>طالبات '+esc(cls)+'</h3><p class="staff-help">اختاري الطالبة لتعبئة نوع الشهادة وسبب التكريم، ثم اطبعيها أو احفظيها PDF مباشرة.</p><div class="roster">'+(rows||'<div class="staff-empty">لا توجد طالبات مسجلات لهذا الصف.</div>')+'</div></section><div id="certFormWrap"></div>';
+ }catch(e){S('certBody').innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
+}
+window.openCertificateForm=btn=>{
+ const name=btn.dataset.name;
+ S('certFormWrap').innerHTML='<section class="staff-card cert-form-card"><h3>🎓 شهادة للطالبة: '+esc(name)+'</h3>'
+  +'<div class="form-row"><select id="certType">'+CERT_TYPES.map(t=>'<option>'+esc(t)+'</option>').join('')+'</select><input id="certTeacher" placeholder="اسم المعلمة (اختياري)" value="'+esc(secureEmployee?.short_name||'')+'"></div>'
+  +'<textarea id="certReason" rows="2" placeholder="سبب التكريم (اختياري)، مثال: لتفوقها في مادة الرياضيات هذا الفصل"></textarea>'
+  +'<button class="staff-primary" onclick="printCertificateUI()">🖨️ إنشاء الشهادة وطباعتها</button></section>';
+};
+window.printCertificateUI=()=>{
+ const win=window.open('','_blank');
+ if(!win){toast('يرجى السماح بالنوافذ المنبثقة لإصدار الشهادة');return}
+ win.document.write(buildCertificateHTML({
+  studentName:S('certFormWrap').querySelector('h3').textContent.replace('🎓 شهادة للطالبة: ',''),
+  className:certClass,
+  certType:S('certType').value,
+  reason:S('certReason').value.trim(),
+  teacherName:S('certTeacher').value.trim()
+ }));
+ win.document.close();
+};
+function buildCertificateHTML({studentName,className,certType,reason,teacherName}){
+ const dateStr=new Intl.DateTimeFormat('ar-OM',{year:'numeric',month:'long',day:'numeric'}).format(new Date());
+ const flags=['#1b2b4b','#7c1f33','#c79020','#1b2b4b','#7c1f33','#c79020','#1b2b4b','#7c1f33','#c79020','#1b2b4b','#7c1f33','#c79020','#1b2b4b'].map(c=>'<i style="background:'+c+'"></i>').join('');
+ return '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>'+esc(certType)+' — '+esc(studentName)+'</title>'
+ +'<style>'
+ +'@page{size:A4 landscape;margin:0}'
+ +'*{box-sizing:border-box}'
+ +'body{margin:0;font-family:Cairo,Tahoma,sans-serif;background:#e9dfc9;display:flex;align-items:center;justify-content:center;min-height:100vh}'
+ +'.cert-page{width:277mm;height:190mm;background:#fbf8f1;border:10px solid #1b2b4b;outline:4px solid #c79020;outline-offset:-20px;position:relative;padding:30px 60px;text-align:center;overflow:hidden}'
+ +'.bunting{position:absolute;top:0;right:0;left:0;display:flex;justify-content:space-evenly;height:34px}'
+ +'.bunting i{display:inline-block;width:0;height:0;border-left:17px solid transparent;border-right:17px solid transparent;border-top:30px solid;margin-top:-2px}'
+ +'.doodle{position:absolute;font-size:40px;opacity:.85}'
+ +'.d1{top:46px;right:40px}.d2{top:46px;left:40px}.d3{bottom:60px;right:50px}.d4{bottom:60px;left:50px}.d5{top:110px;left:90px;font-size:28px}.d6{top:110px;right:90px;font-size:28px}'
+ +'.medal{font-size:54px;margin-top:56px}'
+ +'.cert-title{font-size:48px;font-weight:900;color:#1b2b4b;margin:6px 0 4px}'
+ +'.cert-sub{font-size:16px;color:#5e1526;font-weight:700;margin-bottom:18px}'
+ +'.cert-name{font-size:38px;font-weight:900;color:#7c1f33;border-bottom:3px dashed #c79020;display:inline-block;padding:4px 34px 10px;margin:6px 0 14px}'
+ +'.cert-class{font-size:18px;font-weight:700;color:#1b2b4b;margin-bottom:10px}'
+ +'.cert-reason{font-size:16px;color:#24365c;font-weight:600;max-width:640px;margin:0 auto 14px;min-height:22px}'
+ +'.cert-footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:26px;padding:0 30px}'
+ +'.cert-footer div{text-align:center;font-weight:800;color:#1b2b4b;font-size:14px}'
+ +'.cert-footer div small{display:block;font-weight:600;color:#5e1526;margin-top:4px}'
+ +'.cert-date{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-size:12px;color:#8a7a56;font-weight:700}'
+ +'.footer-illus{position:absolute;bottom:0;right:0;left:0;font-size:26px;opacity:.8;letter-spacing:18px;padding-bottom:6px}'
+ +'.print-bar{position:fixed;top:10px;left:10px;z-index:9}'
+ +'.print-bar button{font-family:inherit;font-weight:800;padding:10px 18px;border-radius:10px;border:none;background:#1b2b4b;color:#fbf8f1;cursor:pointer}'
+ +'@media print{.print-bar{display:none}body{background:#fff}}'
+ +'</style></head><body>'
+ +'<div class="print-bar"><button onclick="window.print()">🖨️ طباعة / حفظ PDF</button></div>'
+ +'<div class="cert-page">'
+ +'<div class="bunting">'+flags+'</div>'
+ +'<span class="doodle d1">👑</span><span class="doodle d2">🌍</span><span class="doodle d3">🎓</span><span class="doodle d4">✈️</span><span class="doodle d5">📕</span><span class="doodle d6">✏️</span>'
+ +'<div class="medal">🏅</div>'
+ +'<div class="cert-title">'+esc(certType)+'</div>'
+ +'<div class="cert-sub">تتقدم إدارة مدرسة ملتقى المعارف للتعليم الأساسي (١–٦) بهذه الشهادة إلى الطالبة</div>'
+ +'<div class="cert-name">'+esc(studentName)+'</div>'
+ +'<div class="cert-class">من صف: '+esc(className)+'</div>'
+ +(reason?'<div class="cert-reason">تقديرًا '+esc(reason)+'</div>':'')
+ +'<div class="cert-footer"><div>المديرة<small>'+esc(PRINCIPAL_NAME)+'</small></div><div>المعلمة<small>'+(teacherName?esc(teacherName):'ـــــــــــ')+'</small></div></div>'
+ +'<div class="footer-illus">🚌 🏫 🚌</div>'
+ +'<div class="cert-date">'+dateStr+'</div>'
+ +'</div></body></html>';
+}
 window.saveBus=async()=>{try{await staffApi('save_bus',{route_name:S('busRoute').value,departure_label:S('busLabel').value,driver_name:S('busDriver').value,driver_phone:S('busPhone').value});secureDirectory=await staffApi('directory');toast('✅ تم حفظ الحافلة');renderBuses()}catch(e){toast(staffError(e))}};
 async function renderAnalytics(){
  const now=new Date(),from=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10),to=now.toISOString().slice(0,10),d=await staffApi('analytics',{from,to});const bar=(obj,labels={})=>{const a=Object.entries(obj||{}),max=Math.max(1,...a.map(x=>x[1]));return '<div class="bars">'+a.map(([k,v])=>'<div><span>'+esc(labels[k]||activityNames[k]||k)+'</span><i><b style="width:'+Math.round(v/max*100)+'%"></b></i><strong>'+v+'</strong></div>').join('')+'</div>'};const st={present:'حضور',absent:'غياب',late:'تأخر',excused:'بعذر',permission:'استئذان',partial_permission:'استئذان جزئي',approved:'موافق',pending:'قيد الانتظار',active:'نشط',completed:'مكتمل',organized:'صف منظم',no_teacher:'بلا معلمة',problem:'مشكلة'},rs={health:'صحي',medical_appointment:'موعد طبي',family:'أسري',child:'طفل',government:'جهة حكومية',emergency:'طارئ',official_task:'مهمة رسمية',transport:'مواصلات',other:'أخرى'};S('staffPane').innerHTML='<div class="today-title"><div><small>من '+from+' إلى '+to+'</small><h2>📊 مؤشرات الشهر</h2></div><span class="posthog-chip">PostHog • تحديث دوري</span></div><div class="kpi-grid compact"><div><small>الأنشطة</small><b>'+d.activities.total+'</b></div><div><small>مهام الأنشطة</small><b>'+d.activity_tasks.total+'</b></div><div><small>الموهوبات</small><b>'+d.gifted.total+'</b></div><div><small>متابعات الحالات</small><b>'+d.case_followups.total+'</b></div></div><div class="analytics-grid"><section class="staff-card"><h3>حضور الطالبات</h3>'+bar(d.students.status,st)+'</section><section class="staff-card"><h3>حضور المعلمات</h3>'+bar(d.teachers.status,st)+'</section><section class="staff-card"><h3>أسباب الاستئذان</h3>'+bar(d.permissions.reasons,rs)+'</section><section class="staff-card"><h3>بلاغات الفصول</h3>'+bar(d.observations.status,st)+'</section><section class="staff-card"><h3>الأنشطة حسب النوع</h3>'+bar(d.activities.types)+'</section><section class="staff-card"><h3>حالة مهام الأنشطة</h3>'+bar(d.activity_tasks.status,st)+'</section><section class="staff-card"><h3>مجالات المواهب</h3>'+bar(d.gifted.talents)+'</section><section class="staff-card"><h3>أنواع متابعة الحالات</h3>'+bar(d.case_followups.types)+'</section></div>';phCapture('analytics_viewed',{period:'month'})}

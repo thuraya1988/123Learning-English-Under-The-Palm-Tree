@@ -174,6 +174,15 @@ Deno.serve(async(req)=>{
       for(const employeeId of employeeIds){const rows=(done||[]).filter((x:any)=>x.replacement_employee_id===employeeId),{data:profile}=await db.from("multaqa_employee_profiles").select("achievements").eq("employee_id",employeeId).maybeSingle(),lessonText=rows.map((x:any)=>`الحصة ${x.period} (${x.class_label})`).join("، "),entry=`تغطية حصص احتياط — ${dateLabel}: ${lessonText}`,achievements=Array.isArray(profile?.achievements)?profile.achievements:[];if(!achievements.includes(entry))await db.from("multaqa_employee_profiles").upsert({employee_id:employeeId,achievements:[...achievements,entry],updated_at:stamp},{onConflict:"employee_id"})}
       if((done||[]).length)await db.from("multaqa_substitute_assignments").update({status:"completed",completed_at:stamp,achievement_recorded_at:stamp,updated_at:stamp}).in("id",(done||[]).map((x:any)=>x.id));
     }
+    if(hh===15&&mm<=5){
+      const cutoff=new Date(Date.now()-20*3600*1000).toISOString();
+      const {data:pending}=await db.from("multaqa_web_requests").select("tracking_code,service_title,target_names,student_name,class_name,created_at,reminder_sent_at,status").eq("status","pending").lt("created_at",cutoff).or(`reminder_sent_at.is.null,reminder_sent_at.lt.${cutoff}`);
+      for(const r of pending||[]){
+        const names=(r.target_names||[]) as string[];if(!names.length)continue;
+        const count=await pushTo(db,names,"⏳ طلب بانتظار الرد",`${r.service_title} — ${r.student_name} (${r.class_name}) لم يُرد عليه بعد.`,"/school/","pending_request");
+        if(count>0){sent+=count;await db.from("multaqa_web_requests").update({reminder_sent_at:new Date().toISOString()}).eq("tracking_code",r.tracking_code)}
+      }
+    }
     const {data:alert}=await db.from("multaqa_emergency_alerts").select("*").eq("active",true).order("started_at",{ascending:false}).limit(1).maybeSingle();
     if(alert){const last=alert.last_sent_at?new Date(alert.last_sent_at).getTime():0,due=Date.now()-last>=Number(alert.repeat_minutes||5)*60000;if(due){const {data:allEmps}=await db.from("multaqa_employees").select("short_name,full_name");const count=await pushTo(db,(allEmps||[]).map((x:any)=>x.short_name||x.full_name),"🚨 "+alert.title,alert.body,"/school/","emergency");sent+=count;if(count>0)await db.from("multaqa_emergency_alerts").update({last_sent_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",alert.id).eq("active",true)}}
     return json({ok:true,sent});

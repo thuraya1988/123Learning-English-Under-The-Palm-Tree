@@ -111,6 +111,22 @@ Deno.serve(async(req)=>{
     if(!verified)return json({ok:false,error:"verification_failed"},403);
     return json({ok:true,student:{school_id:data.school_id,name:data.name,class_name:data.class_name}});
   }
+  if(action==="weekly_report"){
+    const schoolId=digits(body.school_id),phone=digits(body.guardian_phone),studentName=clean(body.student_name,220);
+    if(!idOk(schoolId))return json({ok:false,error:"invalid_input"},400);
+    const {data:student,error}=await db.from("multaqa_students").select("school_id,name,class_name,guardian_phone").eq("school_id",schoolId).maybeSingle();
+    if(error)return json({ok:false,error:"server_error"},500);if(!student)return json({ok:false,error:"not_found"},404);
+    const saved=digits(student.guardian_phone),verified=saved?phoneOk(phone)&&phone===saved:studentName&&norm(studentName)===norm(student.name);
+    if(!verified)return json({ok:false,error:"verification_failed"},403);
+    const since=new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+    const [{data:att},{data:badges}]=await Promise.all([
+      db.from("multaqa_student_attendance").select("attendance_date,status").eq("student_school_id",schoolId).eq("period",0).gte("attendance_date",since).order("attendance_date"),
+      db.from("multaqa_student_badges").select("badge_label,note,awarded_at").eq("student_school_id",schoolId).gte("awarded_at",since+"T00:00:00").order("awarded_at",{ascending:false})
+    ]);
+    const counts:Record<string,number>={present:0,absent:0,late:0,excused:0,permission:0};
+    (att||[]).forEach((x:any)=>{if(counts[x.status]!=null)counts[x.status]++});
+    return json({ok:true,student:{name:student.name,class_name:student.class_name},from:since,attendance:{days:att||[],counts},badges:badges||[]});
+  }
   if(action==="submit_request"){
     const serviceId=clean(body.service_id,50),serviceTitle=clean(body.service_title,100),targetGroup=clean(body.target_group,50);
     const schoolId=digits(body.school_id),phone=digits(body.guardian_phone),studentName=clean(body.student_name,220);

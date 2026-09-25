@@ -9,6 +9,8 @@ const clean=(v:unknown,max=1000)=>String(v??"").trim().slice(0,max);
 const norm=(v:unknown)=>clean(v,220).replace(/^أ\.\s*/,"").replace(/[إأآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/ؤ/g,"و").replace(/ئ/g,"ي").replace(/ـ/g,"").replace(/[ًٌٍَُِّْ]/g,"").replace(/\s+/g," ").toLowerCase();
 const pinOk=(v:string)=>/^\d{6,12}$/.test(v);
 const omDays=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+const RESOURCES=[{key:"resources_room",label:"غرفة المصادر"},{key:"lab",label:"المختبر"},{key:"activities_hall",label:"قاعة الأنشطة"},{key:"projector",label:"جهاز العرض"}];
+const RESOURCE_OWNERS:Record<string,string>={resources_room:"أصيلة الوهيبية"};
 const gradeWords=["","الأول","الثاني","الثالث","الرابع","الخامس","السادس"];
 const classCode=(label:string)=>{const t=clean(label,100),g=gradeWords.findIndex((x,i)=>i>0&&t.includes(x)),s=t.match(/[\/\\]\s*(\d+)/)?.[1];return g&&s?g+"/"+s:t};
 const scheduleLabel=(code:string)=>{const m=clean(code,30).match(/^([1-6])\s*\/\s*(\d+)$/);return m?gradeWords[+m[1]]+" / "+m[2]:code};
@@ -500,6 +502,33 @@ Deno.serve(async(req)=>{
       if(error)result.failed.push(nameHint+": "+error.message);else result.ok++;
     }
     return json({ok:true,...result});
+  }
+  if(action==="resource_bookings"){
+    const from=clean(body.from,10)||muscatDate(),to=clean(body.to,10)||from;
+    const {data}=await db.from("multaqa_resource_bookings").select("id,resource_key,resource_label,booking_date,period,note,booked_by_employee_id").gte("booking_date",from).lte("booking_date",to).order("booking_date").order("period");
+    const ids=[...new Set((data||[]).map((x:any)=>x.booked_by_employee_id))];
+    const {data:emps}=ids.length?await db.from("multaqa_employees").select("employee_id,short_name,full_name").in("employee_id",ids):{data:[]};
+    const nameOf=(id:string)=>{const x=(emps||[]).find((v:any)=>v.employee_id===id);return x?.short_name||x?.full_name||"—"};
+    const items=(data||[]).map((x:any)=>({...x,booked_by_name:nameOf(x.booked_by_employee_id)}));
+    return json({ok:true,resources:RESOURCES,items});
+  }
+  if(action==="create_resource_booking"){
+    const resourceKey=clean(body.resource_key,40),resource=RESOURCES.find(r=>r.key===resourceKey);
+    if(!resource)return json({ok:false,error:"invalid_input"},400);
+    const date=clean(body.booking_date,10),period=Number(body.period);
+    if(!date||!period||period<1||period>7)return json({ok:false,error:"invalid_input"},400);
+    const note=clean(body.note,300)||null,owner=RESOURCE_OWNERS[resourceKey]||null;
+    const {error}=await db.from("multaqa_resource_bookings").insert({resource_key:resourceKey,resource_label:resource.label,booking_date:date,period,note,booked_by_employee_id:e.employee_id,notified_to:owner});
+    if(error){if(String((error as any).code)==="23505")return json({ok:false,error:"already_booked"},409);return json({ok:false,error:"save_failed"},500);}
+    let sent=0;
+    if(owner&&norm(owner)!==norm(e.short_name)&&norm(owner)!==norm(e.full_name))sent=await pushToNames(db,[owner],"📅 حجز جديد: "+resource.label,`${e.short_name||e.full_name} حجزت ${resource.label} يوم ${date} — الحصة ${period}${note?" • "+note:""}`,"/school/","resource_booking");
+    return json({ok:true,notified:!!owner,push_sent:sent});
+  }
+  if(action==="cancel_resource_booking"){
+    const id=clean(body.id,60);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {data:row}=await db.from("multaqa_resource_bookings").select("id,booked_by_employee_id").eq("id",id).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
+    if(row.booked_by_employee_id!==e.employee_id&&!elevated(e))return json({ok:false,error:"forbidden"},403);
+    await db.from("multaqa_resource_bookings").delete().eq("id",id);return json({ok:true});
   }
   if(action==="send_staff_message"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);

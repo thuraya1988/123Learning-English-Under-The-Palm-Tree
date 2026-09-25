@@ -102,7 +102,7 @@ function injectStaffCenter(){
   <button data-staff-tab="profile" onclick="staffTab('profile')">ملفي المهني</button><button data-staff-tab="staff" data-admin-only onclick="staffTab('staff')">المعلمات</button><button data-staff-tab="mentors" onclick="staffTab('mentors')">مربيات الفصول</button><button data-staff-tab="coverage" onclick="staffTab('coverage')">🔄 الاحتياط</button>
   <button data-staff-tab="excellence" data-admin-only onclick="staffTab('excellence')">🏆 التميز</button><button data-staff-tab="cases" onclick="staffTab('cases')">🧩 الحالات</button>
   <button data-staff-tab="activities" onclick="staffTab('activities')">الأنشطة</button><button data-staff-tab="events" onclick="staffTab('events')">📅 المواعيد المهمة</button><button data-staff-tab="gifted" onclick="staffTab('gifted')">الموهوبات</button><button data-staff-tab="support" data-case-only onclick="staffTab('support')">ملفات الدعم الدراسي والاجتماعي</button><button data-staff-tab="social" onclick="staffTab('social')">الأخصائية</button>
-  <button data-staff-tab="buses" onclick="staffTab('buses')">🚌 الحافلات</button><button data-staff-tab="booking" onclick="staffTab('booking')">📅 حجز الموارد</button><button data-staff-tab="poll" onclick="staffTab('poll')">🗳️ استطلاع رأي</button><button data-staff-tab="analytics" data-admin-only onclick="staffTab('analytics')">📊 المؤشرات</button>
+  <button data-staff-tab="buses" onclick="staffTab('buses')">🚌 الحافلات</button><button data-staff-tab="booking" onclick="staffTab('booking')">📅 حجز الموارد</button><button data-staff-tab="poll" onclick="staffTab('poll')">🗳️ استطلاع رأي</button><button data-staff-tab="badges" onclick="staffTab('badges')">🏅 شارات الطالبات</button><button data-staff-tab="analytics" data-admin-only onclick="staffTab('analytics')">📊 المؤشرات</button>
   <button data-staff-tab="security" data-admin-only onclick="staffTab('security')">🔐 الرموز</button>
  </div><main id="staffPane" class="staff-pane"></main></div></div>`);
  const strip=S('portalStrip');if(strip&&!S('staffCenterEntry'))strip.insertAdjacentHTML('afterbegin','<button class="portal-entry featured" id="staffCenterEntry" onclick="openStaffCenter()"><em>📊</em><b>مركز التشغيل والتحليل</b><small>الحضور • الاستئذان • المناوبة • الاحتياط • المؤشرات</small></button>');
@@ -125,7 +125,7 @@ window.openStaffCenter=async()=>{
 window.staffTab=async tab=>{
  if(tab!=='broadcast')stopBroadcastCamera(true);
  document.querySelectorAll('[data-staff-tab]').forEach(x=>x.classList.toggle('active',x.dataset.staffTab===tab));const pane=S('staffPane');pane.innerHTML='<div class="staff-loading">جاري تحميل الوحدة…</div>';
- phCapture('school_module_opened',{module:tab});try{if(tab==='home')await renderHome();if(tab==='schedule')await renderSecureSchedule();if(tab==='attendance')renderGrades();if(tab==='permissions')await renderPermissions();if(tab==='duty')await renderSecureDuty();if(tab==='broadcast')await renderBroadcasts();if(tab==='profile')await renderTeacherProfiles(false);if(tab==='staff')renderStaffAdmin();if(tab==='mentors')await renderClassMentors();if(tab==='coverage')await renderCoverage();if(tab==='excellence')renderExcellence();if(tab==='cases')renderCases();if(tab==='activities')await renderActivities();if(tab==='events')await renderSchoolEvents();if(tab==='gifted')await renderGifted();if(tab==='support')await renderStudentSupport();if(tab==='social')renderSocialWorker();if(tab==='buses')renderBuses();if(tab==='booking')await renderResourceBooking();if(tab==='poll')await renderPoll();if(tab==='analytics')await renderAnalytics();if(tab==='security')renderSecurity()}catch(e){pane.innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
+ phCapture('school_module_opened',{module:tab});try{if(tab==='home')await renderHome();if(tab==='schedule')await renderSecureSchedule();if(tab==='attendance')renderGrades();if(tab==='permissions')await renderPermissions();if(tab==='duty')await renderSecureDuty();if(tab==='broadcast')await renderBroadcasts();if(tab==='profile')await renderTeacherProfiles(false);if(tab==='staff')renderStaffAdmin();if(tab==='mentors')await renderClassMentors();if(tab==='coverage')await renderCoverage();if(tab==='excellence')renderExcellence();if(tab==='cases')renderCases();if(tab==='activities')await renderActivities();if(tab==='events')await renderSchoolEvents();if(tab==='gifted')await renderGifted();if(tab==='support')await renderStudentSupport();if(tab==='social')renderSocialWorker();if(tab==='buses')renderBuses();if(tab==='booking')await renderResourceBooking();if(tab==='poll')await renderPoll();if(tab==='badges')await renderBadges();if(tab==='analytics')await renderAnalytics();if(tab==='security')renderSecurity()}catch(e){pane.innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
 };
 async function renderSecureSchedule(){
  const chosen=secureAdmin()?S('adminScheduleTeacher')?.value||'':'' ,d=await staffApi('teacher_schedule',chosen?{employee_name:chosen}:{}),row=d.schedule||{},schedule=row.schedule||{},coverage=d.coverage||[],days=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
@@ -403,6 +403,29 @@ window.votePollUI=async(pollId,optionIndex)=>{
 window.closePollUI=async id=>{
  if(!confirm('إغلاق هذا الاستطلاع؟'))return;
  try{await staffApi('close_poll',{id});toast('⏹ تم إغلاق الاستطلاع');await renderPoll()}catch(e){toast(staffError(e))}
+};
+const BADGE_TYPES=[['star_week','🌟 نجمة الأسبوع'],['reading','📚 قارئة متميزة'],['teamwork','🤝 روح التعاون'],['creativity','🎨 إبداع'],['academic','🧮 تفوق دراسي'],['behavior','🕌 سلوك مثالي'],['helper','🤲 يد العون'],['attendance','✅ التزام الحضور']];
+let badgeClass='';
+async function renderBadges(){
+ const cls=badgeClass||secureDirectory.classes[0]||'';
+ const classOptions=secureDirectory.classes.map(c=>'<option '+(c===cls?'selected':'')+'>'+esc(c)+'</option>').join('');
+ S('staffPane').innerHTML='<div class="today-title"><div><small>تحفيز يومي مرئي للطالبات</small><h2>🏅 شارات الطالبات</h2></div><select id="badgeClassSel" onchange="badgeClass=this.value;renderBadges()">'+classOptions+'</select></div><div id="badgeBody" class="staff-loading">جاري التحميل…</div>';
+ if(!cls)return;
+ badgeClass=cls;
+ try{
+  const [roster,feed]=await Promise.all([staffApi('class_roster',{class_name:cls,period:0}),staffApi('class_badges',{class_name:cls})]);
+  const students=roster.students||[],items=feed.items||[];
+  const counts=new Map();items.forEach(x=>counts.set(x.student_school_id,(counts.get(x.student_school_id)||0)+1));
+  const rows=students.map(s=>'<div class="roster-row"><span class="serial">'+(counts.get(s.school_id)||0)+'</span><b>'+esc(s.name)+'</b><select class="badge-pick" data-sid="'+esc(s.school_id)+'" data-name="'+esc(s.name)+'">'+BADGE_TYPES.map(b=>'<option value="'+b[0]+'">'+b[1]+'</option>').join('')+'</select><button onclick="awardBadgeUI(this)">🏅 منح</button></div>').join('');
+  const feedList=items.length?'<div class="request-list">'+items.slice(0,30).map(x=>'<article><b>'+esc(x.badge_label)+'</b><small>'+esc(x.student_name)+' • '+new Intl.DateTimeFormat('ar-OM',{dateStyle:'short',timeStyle:'short',hour12:true}).format(new Date(x.awarded_at))+(x.note?' • '+esc(x.note):'')+'</small></article>').join('')+'</div>':'<div class="staff-empty">لا توجد شارات ممنوحة بعد لهذا الصف.</div>';
+  S('badgeBody').innerHTML='<section class="staff-card"><h3>طالبات '+esc(cls)+'</h3><p class="staff-help">الرقم قبل كل اسم هو عدد الشارات المكتسبة هذا الفصل.</p><div class="roster">'+(rows||'<div class="staff-empty">لا توجد طالبات مسجلات لهذا الصف.</div>')+'</div></section><h3 class="staff-section-title">آخر الشارات الممنوحة</h3>'+feedList;
+ }catch(e){S('badgeBody').innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
+}
+window.awardBadgeUI=async btn=>{
+ const sel=btn.previousElementSibling,sid=sel.dataset.sid,name=sel.dataset.name,badge_key=sel.value;
+ const note=prompt('ملاحظة اختيارية (اتركيه فارغًا لتجاوزه):','')||'';
+ btn.disabled=true;
+ try{await staffApi('award_badge',{student_school_id:sid,student_name:name,class_name:badgeClass,badge_key,note});toast('🏅 تم منح الشارة لـ '+name);await renderBadges()}catch(e){toast(staffError(e));btn.disabled=false}
 };
 window.saveBus=async()=>{try{await staffApi('save_bus',{route_name:S('busRoute').value,departure_label:S('busLabel').value,driver_name:S('busDriver').value,driver_phone:S('busPhone').value});secureDirectory=await staffApi('directory');toast('✅ تم حفظ الحافلة');renderBuses()}catch(e){toast(staffError(e))}};
 async function renderAnalytics(){

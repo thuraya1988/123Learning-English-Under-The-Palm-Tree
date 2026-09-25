@@ -11,6 +11,7 @@ const pinOk=(v:string)=>/^\d{6,12}$/.test(v);
 const omDays=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
 const RESOURCES=[{key:"resources_room",label:"غرفة المصادر"},{key:"lab",label:"المختبر"},{key:"activities_hall",label:"قاعة الأنشطة"},{key:"projector",label:"جهاز العرض"}];
 const RESOURCE_OWNERS:Record<string,string>={resources_room:"أصيلة الوهيبية"};
+const BADGES:Record<string,string>={star_week:"🌟 نجمة الأسبوع",reading:"📚 قارئة متميزة",teamwork:"🤝 روح التعاون",creativity:"🎨 إبداع",academic:"🧮 تفوق دراسي",behavior:"🕌 سلوك مثالي",helper:"🤲 يد العون",attendance:"✅ التزام الحضور"};
 const gradeWords=["","الأول","الثاني","الثالث","الرابع","الخامس","السادس"];
 const classCode=(label:string)=>{const t=clean(label,100),g=gradeWords.findIndex((x,i)=>i>0&&t.includes(x)),s=t.match(/[\/\\]\s*(\d+)/)?.[1];return g&&s?g+"/"+s:t};
 const scheduleLabel=(code:string)=>{const m=clean(code,30).match(/^([1-6])\s*\/\s*(\d+)$/);return m?gradeWords[+m[1]]+" / "+m[2]:code};
@@ -347,6 +348,17 @@ Deno.serve(async(req)=>{
     const row={id:Date.now(),content_type:"announcement",title,body:message,media_url:clean(body.media_url,1000)||null,event_date:eventDate,test_name:clean(body.test_name,220)||title,subject:clean(body.subject,160)||null,day_name:clean(body.day_name,60)||null,published:true,sort_order:0,updated_at:new Date().toISOString()};const {data,error}=await db.from("multaqa_content").insert(row).select().single();if(error)return json({ok:false,error:"save_failed"},500);
     let sent=0;if(body.send_push===true){const {data:emps}=await db.from("multaqa_employees").select("short_name,full_name");sent=await pushToNames(db,(emps||[]).map((x:any)=>x.short_name||x.full_name),"📣 إعلان هام",message||title,"/school/","important_announcement")}
     return json({ok:true,item:data,push_sent:sent});
+  }
+  if(action==="award_badge"){
+    const studentId=clean(body.student_school_id,30),studentName=clean(body.student_name,200),className=clean(body.class_name,60),badgeKey=clean(body.badge_key,40);
+    const label=BADGES[badgeKey];if(!studentId||!studentName||!className||!label)return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_student_badges").insert({student_school_id:studentId,student_name:studentName,class_name:className,badge_key:badgeKey,badge_label:label,note:clean(body.note,300)||null,awarded_by_employee_id:e.employee_id});
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="class_badges"){
+    const className=clean(body.class_name,60);if(!className)return json({ok:false,error:"invalid_input"},400);
+    const {data}=await db.from("multaqa_student_badges").select("id,student_school_id,student_name,badge_key,badge_label,note,awarded_at").eq("class_name",className).order("awarded_at",{ascending:false}).limit(200);
+    return json({ok:true,items:data||[],badges:BADGES});
   }
   if(action==="create_poll"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);

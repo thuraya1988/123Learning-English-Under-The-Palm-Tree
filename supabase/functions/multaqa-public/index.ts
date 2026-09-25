@@ -238,6 +238,15 @@ Deno.serve(async(req)=>{
       for(const employeeId of employeeIds){const rows=(done||[]).filter((x:any)=>x.replacement_employee_id===employeeId),{data:profile}=await db.from("multaqa_employee_profiles").select("achievements").eq("employee_id",employeeId).maybeSingle(),lessonText=rows.map((x:any)=>`الحصة ${x.period} (${x.class_label})`).join("، "),entry=`تغطية حصص احتياط — ${dateLabel}: ${lessonText}`,achievements=Array.isArray(profile?.achievements)?profile.achievements:[];if(!achievements.includes(entry))await db.from("multaqa_employee_profiles").upsert({employee_id:employeeId,achievements:[...achievements,entry],updated_at:stamp},{onConflict:"employee_id"})}
       if((done||[]).length)await db.from("multaqa_substitute_assignments").update({status:"completed",completed_at:stamp,achievement_recorded_at:stamp,updated_at:stamp}).in("id",(done||[]).map((x:any)=>x.id));
     }
+    if(hh===8&&mm>=10&&mm<=20){
+      const tomorrow=new Date(`${today}T12:00:00+04:00`);tomorrow.setDate(tomorrow.getDate()+1);const tomorrowStr=tomorrow.toISOString().slice(0,10);
+      const {data:tasks}=await db.from("multaqa_meeting_tasks").select("id,task,due_date,assignee_employee_id,assignee_name").eq("due_date",tomorrowStr).eq("done",false).is("reminder_sent_at",null);
+      for(const t of tasks||[]){
+        if(!t.assignee_employee_id||!t.assignee_name)continue;
+        const count=await pushTo(db,[t.assignee_name],"⏰ تذكير بمهمة من الاجتماع",`مهمة: ${t.task} — موعدها غدًا`,"/school/","meeting_task");
+        if(count>0){sent+=count;await db.from("multaqa_meeting_tasks").update({reminder_sent_at:new Date().toISOString()}).eq("id",t.id)}
+      }
+    }
     if(hh===15&&mm<=5){
       const cutoff=new Date(Date.now()-20*3600*1000).toISOString();
       const {data:pending}=await db.from("multaqa_web_requests").select("tracking_code,service_title,target_names,student_name,class_name,created_at,reminder_sent_at,status").eq("status","pending").lt("created_at",cutoff).or(`reminder_sent_at.is.null,reminder_sent_at.lt.${cutoff}`);

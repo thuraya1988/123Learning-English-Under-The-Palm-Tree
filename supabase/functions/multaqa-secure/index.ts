@@ -375,6 +375,37 @@ Deno.serve(async(req)=>{
     const className=clean(body.class_name,60);let q=db.from("multaqa_book_loans").select("id,student_school_id,student_name,class_name,book_title,borrowed_at,due_at,returned_at").order("borrowed_at",{ascending:false}).limit(200);
     if(className)q=q.eq("class_name",className);const {data}=await q;return json({ok:true,items:data||[]});
   }
+  if(action==="save_meeting_minutes"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const meetingDate=clean(body.meeting_date,10)||muscatDate(),title=clean(body.title,300),decisions=clean(body.decisions,3000)||null;
+    if(!title)return json({ok:false,error:"invalid_input"},400);
+    const {data:minutes,error}=await db.from("multaqa_meeting_minutes").insert({meeting_date:meetingDate,title,decisions,created_by_employee_id:e.employee_id}).select("id").single();
+    if(error||!minutes)return json({ok:false,error:"save_failed"},500);
+    const tasks=(Array.isArray(body.tasks)?body.tasks:[]).slice(0,30);
+    if(tasks.length){
+      const rows=await Promise.all(tasks.map(async(t:any)=>{const name=clean(t?.task,500),assigneeName=clean(t?.assignee_name,220),dueDate=clean(t?.due_date,10)||null;if(!name)return null;const assignee=assigneeName?await resolveEmployee(db,assigneeName):null;return{minutes_id:minutes.id,task:name,assignee_employee_id:assignee?.employee_id||null,assignee_name:assignee?.short_name||assigneeName||null,due_date:dueDate}}));
+      const valid=rows.filter(Boolean);if(valid.length)await db.from("multaqa_meeting_tasks").insert(valid);
+    }
+    return json({ok:true,id:minutes.id});
+  }
+  if(action==="meeting_minutes"){
+    const {data:minutes}=await db.from("multaqa_meeting_minutes").select("id,meeting_date,title,decisions,created_at").order("meeting_date",{ascending:false}).limit(60);
+    const ids=(minutes||[]).map((m:any)=>m.id);
+    const {data:tasks}=ids.length?await db.from("multaqa_meeting_tasks").select("id,minutes_id,task,assignee_name,due_date,done").in("minutes_id",ids):{data:[]};
+    const items=(minutes||[]).map((m:any)=>({...m,tasks:(tasks||[]).filter((t:any)=>t.minutes_id===m.id)}));
+    return json({ok:true,items});
+  }
+  if(action==="my_meeting_tasks"){
+    const {data}=await db.from("multaqa_meeting_tasks").select("id,task,due_date,done,minutes_id").eq("assignee_employee_id",e.employee_id).eq("done",false).order("due_date");
+    return json({ok:true,items:data||[]});
+  }
+  if(action==="toggle_meeting_task"){
+    const id=clean(body.id,60);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {data:row}=await db.from("multaqa_meeting_tasks").select("assignee_employee_id").eq("id",id).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
+    if(row.assignee_employee_id!==e.employee_id&&!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const {data:cur}=await db.from("multaqa_meeting_tasks").select("done").eq("id",id).maybeSingle();
+    await db.from("multaqa_meeting_tasks").update({done:!cur?.done}).eq("id",id);return json({ok:true});
+  }
   if(action==="mark_bus_arrival"){
     const routeName=clean(body.route_name,120);if(!routeName)return json({ok:false,error:"invalid_input"},400);
     const {error}=await db.from("multaqa_bus_arrivals").upsert({route_name:routeName,arrival_date:muscatDate(),arrived_at:new Date().toISOString(),recorded_by_employee_id:e.employee_id},{onConflict:"route_name,arrival_date"});

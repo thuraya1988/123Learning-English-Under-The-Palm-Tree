@@ -375,6 +375,30 @@ Deno.serve(async(req)=>{
     const className=clean(body.class_name,60);let q=db.from("multaqa_book_loans").select("id,student_school_id,student_name,class_name,book_title,borrowed_at,due_at,returned_at").order("borrowed_at",{ascending:false}).limit(200);
     if(className)q=q.eq("class_name",className);const {data}=await q;return json({ok:true,items:data||[]});
   }
+  if(action==="prepare_lost_item_upload"){
+    const mime=clean(body.mime_type,120),allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
+    if(!allowed[mime])return json({ok:false,error:"invalid_input"},400);
+    const path=`items/${crypto.randomUUID()}.${allowed[mime]}`;
+    const {data:signed,error}=await db.storage.from("lost-found-photos").createSignedUploadUrl(path);if(error||!signed)return json({ok:false,error:"upload_failed"},500);
+    return json({ok:true,path,signed_url:signed.signedUrl});
+  }
+  if(action==="report_lost_item"){
+    const itemDesc=clean(body.item_desc,300),location=clean(body.found_location,200)||null,photoPath=clean(body.photo_path,700)||null;
+    if(!itemDesc)return json({ok:false,error:"invalid_input"},400);if(photoPath&&!photoPath.startsWith("items/"))return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_lost_found").insert({item_desc:itemDesc,found_location:location,photo_path:photoPath,created_by_employee_id:e.employee_id});
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="claim_lost_item"){
+    const id=clean(body.id,60),claimedBy=clean(body.claimed_by,200);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_lost_found").update({status:"claimed",claimed_by:claimedBy||null,claimed_at:new Date().toISOString()}).eq("id",id);
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="lost_items"){
+    const status=clean(body.status,20)||"open";
+    const {data}=await db.from("multaqa_lost_found").select("id,item_desc,found_location,photo_path,status,claimed_by,claimed_at,created_at").eq("status",status).order("created_at",{ascending:false}).limit(200);
+    const items=await Promise.all((data||[]).map(async(x:any)=>{let photo_url=null;if(x.photo_path){const {data:u}=await db.storage.from("lost-found-photos").createSignedUrl(x.photo_path,3600);photo_url=u?.signedUrl||null}return{...x,photo_url}}));
+    return json({ok:true,items});
+  }
   if(action==="create_poll"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);
     const question=clean(body.question,300),options=(Array.isArray(body.options)?body.options:[]).map((x:any)=>clean(x,120)).filter(Boolean).slice(0,6);

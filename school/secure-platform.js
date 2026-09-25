@@ -102,7 +102,7 @@ function injectStaffCenter(){
   <button data-staff-tab="profile" onclick="staffTab('profile')">ملفي المهني</button><button data-staff-tab="staff" data-admin-only onclick="staffTab('staff')">المعلمات</button><button data-staff-tab="mentors" onclick="staffTab('mentors')">مربيات الفصول</button><button data-staff-tab="coverage" onclick="staffTab('coverage')">🔄 الاحتياط</button>
   <button data-staff-tab="excellence" data-admin-only onclick="staffTab('excellence')">🏆 التميز</button><button data-staff-tab="cases" onclick="staffTab('cases')">🧩 الحالات</button>
   <button data-staff-tab="activities" onclick="staffTab('activities')">الأنشطة</button><button data-staff-tab="events" onclick="staffTab('events')">📅 المواعيد المهمة</button><button data-staff-tab="gifted" onclick="staffTab('gifted')">الموهوبات</button><button data-staff-tab="support" data-case-only onclick="staffTab('support')">ملفات الدعم الدراسي والاجتماعي</button><button data-staff-tab="social" onclick="staffTab('social')">الأخصائية</button>
-  <button data-staff-tab="buses" onclick="staffTab('buses')">🚌 الحافلات</button><button data-staff-tab="booking" onclick="staffTab('booking')">📅 حجز الموارد</button><button data-staff-tab="poll" onclick="staffTab('poll')">🗳️ استطلاع رأي</button><button data-staff-tab="badges" onclick="staffTab('badges')">🏅 شارات الطالبات</button><button data-staff-tab="certificates" onclick="staffTab('certificates')">🎓 شهادات تقدير</button><button data-staff-tab="loans" onclick="staffTab('loans')">📚 استعارة الكتب</button><button data-staff-tab="analytics" data-admin-only onclick="staffTab('analytics')">📊 المؤشرات</button>
+  <button data-staff-tab="buses" onclick="staffTab('buses')">🚌 الحافلات</button><button data-staff-tab="booking" onclick="staffTab('booking')">📅 حجز الموارد</button><button data-staff-tab="poll" onclick="staffTab('poll')">🗳️ استطلاع رأي</button><button data-staff-tab="badges" onclick="staffTab('badges')">🏅 شارات الطالبات</button><button data-staff-tab="certificates" onclick="staffTab('certificates')">🎓 شهادات تقدير</button><button data-staff-tab="loans" onclick="staffTab('loans')">📚 استعارة الكتب</button><button data-staff-tab="lostfound" onclick="staffTab('lostfound')">🔍 المفقودات</button><button data-staff-tab="analytics" data-admin-only onclick="staffTab('analytics')">📊 المؤشرات</button>
   <button data-staff-tab="security" data-admin-only onclick="staffTab('security')">🔐 الرموز</button>
  </div><main id="staffPane" class="staff-pane"></main></div></div>`);
  const strip=S('portalStrip');if(strip&&!S('staffCenterEntry'))strip.insertAdjacentHTML('afterbegin','<button class="portal-entry featured" id="staffCenterEntry" onclick="openStaffCenter()"><em>📊</em><b>مركز التشغيل والتحليل</b><small>الحضور • الاستئذان • المناوبة • الاحتياط • المؤشرات</small></button>');
@@ -125,7 +125,7 @@ window.openStaffCenter=async()=>{
 window.staffTab=async tab=>{
  if(tab!=='broadcast')stopBroadcastCamera(true);
  document.querySelectorAll('[data-staff-tab]').forEach(x=>x.classList.toggle('active',x.dataset.staffTab===tab));const pane=S('staffPane');pane.innerHTML='<div class="staff-loading">جاري تحميل الوحدة…</div>';
- phCapture('school_module_opened',{module:tab});try{if(tab==='home')await renderHome();if(tab==='schedule')await renderSecureSchedule();if(tab==='attendance')renderGrades();if(tab==='permissions')await renderPermissions();if(tab==='duty')await renderSecureDuty();if(tab==='broadcast')await renderBroadcasts();if(tab==='profile')await renderTeacherProfiles(false);if(tab==='staff')renderStaffAdmin();if(tab==='mentors')await renderClassMentors();if(tab==='coverage')await renderCoverage();if(tab==='excellence')renderExcellence();if(tab==='cases')renderCases();if(tab==='activities')await renderActivities();if(tab==='events')await renderSchoolEvents();if(tab==='gifted')await renderGifted();if(tab==='support')await renderStudentSupport();if(tab==='social')renderSocialWorker();if(tab==='buses')renderBuses();if(tab==='booking')await renderResourceBooking();if(tab==='poll')await renderPoll();if(tab==='badges')await renderBadges();if(tab==='certificates')await renderCertificates();if(tab==='loans')await renderBookLoans();if(tab==='analytics')await renderAnalytics();if(tab==='security')renderSecurity()}catch(e){pane.innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
+ phCapture('school_module_opened',{module:tab});try{if(tab==='home')await renderHome();if(tab==='schedule')await renderSecureSchedule();if(tab==='attendance')renderGrades();if(tab==='permissions')await renderPermissions();if(tab==='duty')await renderSecureDuty();if(tab==='broadcast')await renderBroadcasts();if(tab==='profile')await renderTeacherProfiles(false);if(tab==='staff')renderStaffAdmin();if(tab==='mentors')await renderClassMentors();if(tab==='coverage')await renderCoverage();if(tab==='excellence')renderExcellence();if(tab==='cases')renderCases();if(tab==='activities')await renderActivities();if(tab==='events')await renderSchoolEvents();if(tab==='gifted')await renderGifted();if(tab==='support')await renderStudentSupport();if(tab==='social')renderSocialWorker();if(tab==='buses')renderBuses();if(tab==='booking')await renderResourceBooking();if(tab==='poll')await renderPoll();if(tab==='badges')await renderBadges();if(tab==='certificates')await renderCertificates();if(tab==='loans')await renderBookLoans();if(tab==='lostfound')await renderLostFound();if(tab==='analytics')await renderAnalytics();if(tab==='security')renderSecurity()}catch(e){pane.innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
 };
 async function renderSecureSchedule(){
  const chosen=secureAdmin()?S('adminScheduleTeacher')?.value||'':'' ,d=await staffApi('teacher_schedule',chosen?{employee_name:chosen}:{}),row=d.schedule||{},schedule=row.schedule||{},coverage=d.coverage||[],days=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
@@ -540,6 +540,40 @@ window.createBookLoanUI=async btn=>{
 };
 window.returnBookLoanUI=async id=>{
  try{await staffApi('return_book_loan',{id});toast('✅ تم تسجيل إرجاع الكتاب');await renderBookLoans()}catch(e){toast(staffError(e))}
+};
+let lostFoundPhotoPath='';
+async function renderLostFound(){
+ S('staffPane').innerHTML='<div class="today-title"><div><small>تسجيل الأغراض المفقودة وعرضها لأولياء الأمور</small><h2>🔍 المفقودات</h2></div></div><section class="staff-card"><h3>تسجيل غرض مفقود</h3><input id="lfDesc" placeholder="وصف الغرض (مثال: زجاجة ماء زرقاء)"><input id="lfLocation" placeholder="مكان العثور عليه (اختياري)"><label class="profile-photo-pick" style="display:block;margin-top:8px"><input type="file" accept="image/jpeg,image/png,image/webp" onchange="useLostFoundPhoto(this)">📷 إضافة صورة (اختياري)</label><div id="lfPhotoState" class="staff-help"></div><button class="staff-primary" onclick="reportLostItemUI()">🔍 تسجيل</button></section><h3 class="staff-section-title">أغراض غير مطالب بها</h3><div id="lfOpenList" class="staff-loading">جاري التحميل…</div><h3 class="staff-section-title">أغراض تم تسليمها</h3><div id="lfClaimedList" class="staff-loading">جاري التحميل…</div>';
+ loadLostFoundList('open','lfOpenList',true);
+ loadLostFoundList('claimed','lfClaimedList',false);
+}
+async function loadLostFoundList(status,elId,claimable){
+ try{
+  const d=await staffApi('lost_items',{status}),items=d.items||[];
+  S(elId).innerHTML=items.length?'<div class="lost-found-grid">'+items.map(x=>'<article class="lost-found-card">'+(x.photo_url?'<img src="'+esc(x.photo_url)+'" alt="">':'<div class="lost-found-noimg">🔍</div>')+'<b>'+esc(x.item_desc)+'</b><small>'+(x.found_location?esc(x.found_location)+' • ':'')+new Intl.DateTimeFormat('ar-OM',{dateStyle:'medium'}).format(new Date(x.created_at))+'</small>'+(claimable?'<button onclick="claimLostItemUI(\''+x.id+'\')">✅ تم التسليم</button>':'<small>سُلّم إلى: '+esc(x.claimed_by||'—')+'</small>')+'</article>').join('')+'</div>':'<div class="staff-empty">لا توجد عناصر.</div>';
+ }catch(e){S(elId).innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
+}
+window.useLostFoundPhoto=async input=>{
+ const f=input.files&&input.files[0];if(!f)return;
+ if(f.size>5*1024*1024){input.value='';return toast('حجم الصورة يجب ألا يتجاوز 5 MB')}
+ S('lfPhotoState').textContent='جاري رفع الصورة…';
+ try{
+  const u=await staffApi('prepare_lost_item_upload',{mime_type:f.type});
+  const up=await fetch(u.signed_url,{method:'PUT',headers:{'Content-Type':f.type},body:f});
+  if(!up.ok)throw Object.assign(new Error('upload_failed'),{code:'upload_failed'});
+  lostFoundPhotoPath=u.path;S('lfPhotoState').textContent='✅ تم رفع الصورة';
+ }catch(e){lostFoundPhotoPath='';S('lfPhotoState').textContent='';toast(staffError(e))}
+};
+window.reportLostItemUI=async()=>{
+ const item_desc=S('lfDesc').value.trim();if(!item_desc)return toast('اكتبي وصف الغرض أولًا');
+ try{
+  await staffApi('report_lost_item',{item_desc,found_location:S('lfLocation').value.trim(),photo_path:lostFoundPhotoPath||null});
+  toast('✅ تم تسجيل الغرض');lostFoundPhotoPath='';await renderLostFound();
+ }catch(e){toast(staffError(e))}
+};
+window.claimLostItemUI=async id=>{
+ const claimed_by=prompt('اسم من استلم الغرض (اختياري):','')||'';
+ try{await staffApi('claim_lost_item',{id,claimed_by});toast('✅ تم تسجيل التسليم');await renderLostFound()}catch(e){toast(staffError(e))}
 };
 window.saveBus=async()=>{try{await staffApi('save_bus',{route_name:S('busRoute').value,departure_label:S('busLabel').value,driver_name:S('busDriver').value,driver_phone:S('busPhone').value});secureDirectory=await staffApi('directory');toast('✅ تم حفظ الحافلة');renderBuses()}catch(e){toast(staffError(e))}};
 async function renderAnalytics(){

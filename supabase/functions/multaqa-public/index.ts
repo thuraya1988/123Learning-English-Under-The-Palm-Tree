@@ -127,6 +127,12 @@ Deno.serve(async(req)=>{
     (att||[]).forEach((x:any)=>{if(counts[x.status]!=null)counts[x.status]++});
     return json({ok:true,student:{name:student.name,class_name:student.class_name},from:since,attendance:{days:att||[],counts},badges:badges||[]});
   }
+  if(action==="lost_items"){
+    const {data,error}=await db.from("multaqa_lost_found").select("id,item_desc,found_location,photo_path,created_at").eq("status","open").order("created_at",{ascending:false}).limit(100);
+    if(error)return json({ok:false,error:"server_error"},500);
+    const items=await Promise.all((data||[]).map(async(x:any)=>{let photo_url=null;if(x.photo_path){const {data:u}=await db.storage.from("lost-found-photos").createSignedUrl(x.photo_path,3600);photo_url=u?.signedUrl||null}return{id:x.id,item_desc:x.item_desc,found_location:x.found_location,created_at:x.created_at,photo_url}}));
+    return json({ok:true,items});
+  }
   if(action==="submit_request"){
     const serviceId=clean(body.service_id,50),serviceTitle=clean(body.service_title,100),targetGroup=clean(body.target_group,50);
     const schoolId=digits(body.school_id),phone=digits(body.guardian_phone),studentName=clean(body.student_name,220);

@@ -348,6 +348,17 @@ Deno.serve(async(req)=>{
     let sent=0;if(body.send_push===true){const {data:emps}=await db.from("multaqa_employees").select("short_name,full_name");sent=await pushToNames(db,(emps||[]).map((x:any)=>x.short_name||x.full_name),"📣 إعلان هام",message||title,"/school/","important_announcement")}
     return json({ok:true,item:data,push_sent:sent});
   }
+  if(action==="save_news"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);const title=clean(body.title,220),message=clean(body.body,1600);if(title.length<2)return json({ok:false,error:"invalid_input"},400);
+    const row={id:Date.now(),content_type:"news",title,body:message,media_url:clean(body.media_url,1000)||null,event_date:clean(body.event_date,10)||null,published:true,sort_order:Date.now(),updated_at:new Date().toISOString()};
+    const {data,error}=await db.from("multaqa_content").insert(row).select().single();if(error)return json({ok:false,error:"save_failed"},500);
+    let sent=0;if(body.send_push===true){const {data:emps}=await db.from("multaqa_employees").select("short_name,full_name");sent=await pushToNames(db,(emps||[]).map((x:any)=>x.short_name||x.full_name),"📰 "+title,message||title,"/school/","news")}
+    return json({ok:true,item:data,push_sent:sent});
+  }
+  if(action==="delete_news"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_content").delete().eq("id",id).eq("content_type","news");if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
   if(action==="emergency_status"){
     const {data}=await db.from("multaqa_emergency_alerts").select("*").eq("active",true).order("started_at",{ascending:false}).limit(1).maybeSingle();return json({ok:true,alert:data||null,can_manage:elevated(e)});
   }

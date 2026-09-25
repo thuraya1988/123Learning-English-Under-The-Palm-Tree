@@ -375,6 +375,24 @@ Deno.serve(async(req)=>{
     const className=clean(body.class_name,60);let q=db.from("multaqa_book_loans").select("id,student_school_id,student_name,class_name,book_title,borrowed_at,due_at,returned_at").order("borrowed_at",{ascending:false}).limit(200);
     if(className)q=q.eq("class_name",className);const {data}=await q;return json({ok:true,items:data||[]});
   }
+  if(action==="save_meeting_slots"){
+    const slots=(Array.isArray(body.slots)?body.slots:[]).map((s:any)=>({employee_id:e.employee_id,slot_date:clean(s?.slot_date,10),slot_time:clean(s?.slot_time,10),status:"open"})).filter((s:any)=>s.slot_date&&s.slot_time).slice(0,40);
+    if(!slots.length)return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_meeting_slots").upsert(slots,{onConflict:"employee_id,slot_date,slot_time",ignoreDuplicates:true});
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,created:slots.length});
+  }
+  if(action==="my_meeting_slots"){
+    const targetId=elevated(e)&&clean(body.employee_id,30)?clean(body.employee_id,30):e.employee_id;
+    const today=muscatDate();
+    const {data}=await db.from("multaqa_meeting_slots").select("id,slot_date,slot_time,status,booked_student_name,booked_guardian_phone,note").eq("employee_id",targetId).gte("slot_date",today).neq("status","cancelled").order("slot_date").order("slot_time");
+    return json({ok:true,items:data||[]});
+  }
+  if(action==="cancel_meeting_slot"){
+    const id=clean(body.id,60);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {data:row}=await db.from("multaqa_meeting_slots").select("employee_id").eq("id",id).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
+    if(row.employee_id!==e.employee_id&&!elevated(e))return json({ok:false,error:"forbidden"},403);
+    await db.from("multaqa_meeting_slots").update({status:"cancelled"}).eq("id",id);return json({ok:true});
+  }
   if(action==="save_homework"){
     const className=clean(body.class_name,60),subject=clean(body.subject,80)||null,description=clean(body.description,1000),homeworkDate=clean(body.homework_date,10)||muscatDate();
     if(!className||!description)return json({ok:false,error:"invalid_input"},400);

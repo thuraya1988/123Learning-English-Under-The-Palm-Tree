@@ -134,6 +134,27 @@ Deno.serve(async(req)=>{
     const items=await Promise.all((data||[]).map(async(x:any)=>{let photo_url=null;if(x.photo_path){const {data:u}=await db.storage.from("lost-found-photos").createSignedUrl(x.photo_path,3600);photo_url=u?.signedUrl||null}return{id:x.id,item_desc:x.item_desc,found_location:x.found_location,created_at:x.created_at,photo_url}}));
     return json({ok:true,items});
   }
+  if(action==="teacher_meeting_slots"){
+    const emp=await resolveEmployee(db,clean(body.teacher_name,220));if(!emp||emp.kind!=="teacher")return json({ok:false,error:"not_found"},404);
+    const {data:full}=await db.from("multaqa_employees").select("employee_id").eq("full_name",emp.full_name).maybeSingle();if(!full)return json({ok:false,error:"not_found"},404);
+    const {data,error}=await db.from("multaqa_meeting_slots").select("id,slot_date,slot_time").eq("employee_id",full.employee_id).eq("status","open").gte("slot_date",new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat"}).format(new Date())).order("slot_date").order("slot_time").limit(60);
+    if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,teacher:emp.short_name,items:data||[]});
+  }
+  if(action==="book_meeting_slot"){
+    const slotId=clean(body.slot_id,60),schoolId=digits(body.school_id),phone=digits(body.guardian_phone),studentName=clean(body.student_name,220);
+    if(!slotId||!idOk(schoolId))return json({ok:false,error:"invalid_input"},400);
+    const {data:student,error:se}=await db.from("multaqa_students").select("school_id,name,class_name,guardian_phone").eq("school_id",schoolId).maybeSingle();
+    if(se)return json({ok:false,error:"server_error"},500);if(!student)return json({ok:false,error:"not_found"},404);
+    const saved=digits(student.guardian_phone),verified=saved?phoneOk(phone)&&phone===saved:studentName&&norm(studentName)===norm(student.name);
+    if(!verified)return json({ok:false,error:"verification_failed"},403);
+    const {data:slot}=await db.from("multaqa_meeting_slots").select("id,employee_id,slot_date,slot_time,status").eq("id",slotId).maybeSingle();
+    if(!slot)return json({ok:false,error:"not_found"},404);if(slot.status!=="open")return json({ok:false,error:"already_booked"},409);
+    const {data:updated,error:ue}=await db.from("multaqa_meeting_slots").update({status:"booked",booked_student_school_id:student.school_id,booked_student_name:student.name,booked_guardian_phone:phone||saved}).eq("id",slotId).eq("status","open").select("id").maybeSingle();
+    if(ue)return json({ok:false,error:"server_error"},500);if(!updated)return json({ok:false,error:"already_booked"},409);
+    const {data:teacher}=await db.from("multaqa_employees").select("short_name,full_name").eq("employee_id",slot.employee_id).maybeSingle();
+    if(teacher)await pushTo(db,[teacher.short_name||teacher.full_name],"📅 حجز موعد اجتماع",`ولي أمر ${student.name} (${student.class_name}) حجز موعدًا يوم ${slot.slot_date} الساعة ${slot.slot_time}`,"/school/","meeting_booked");
+    return json({ok:true,slot_date:slot.slot_date,slot_time:slot.slot_time});
+  }
   if(action==="submit_request"){
     const serviceId=clean(body.service_id,50),serviceTitle=clean(body.service_title,100),targetGroup=clean(body.target_group,50);
     const schoolId=digits(body.school_id),phone=digits(body.guardian_phone),studentName=clean(body.student_name,220);

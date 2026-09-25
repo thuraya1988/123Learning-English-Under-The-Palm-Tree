@@ -47,7 +47,7 @@ const msgSchedule=(name,day,date,periods)=>'📚 '+SCHOOL+'\n\nالأستاذة 
 
 /* ——— تخزين استجابات الخادم لاستخدامها في الرسائل ——— */
 const orig=window.staffApi;
-if(typeof orig==='function')window.staffApi=async(action,p={})=>{const d=await orig(action,p);if(['coverage','duty_today','duty_week','calendar_events','teacher_schedule'].includes(action))cache[action]=d;if(action==='save_teacher_profile')profilePhones=null;return d};
+if(typeof orig==='function')window.staffApi=async(action,p={})=>{const d=await orig(action,p);if(['coverage','duty_today','duty_week','calendar_events','teacher_schedule','resource_bookings'].includes(action))cache[action]=d;if(action==='save_teacher_profile')profilePhones=null;return d};
 
 /* ——— الاحتياط ——— */
 function enhanceCoverage(pane){
@@ -85,9 +85,25 @@ function enhanceSchedule(pane){
  pane.querySelectorAll('.secure-day-card').forEach(card=>{const day=card.querySelector('h3')?.textContent.trim(),periods=schedule[day]||[];if(!periods.some(Boolean))return;const date=nextDateFor(day);card.insertAdjacentHTML('beforeend',btn({empId:e.employee_id,text:msgSchedule(name,day,date,periods),sentKey:'sch:'+e.employee_id+':'+date},'📲 إرسال حصص '+h(day),'wa-sched-btn'))});
 }
 
+/* ——— حجز الموارد ——— */
+const RESOURCE_OWNERS={resources_room:'أصيلة الوهيبية'};
+function enhanceBooking(pane){
+ const items=cache.resource_bookings?.items||[];if(!items.length)return;
+ const arts=pane.querySelectorAll('.request-list article');
+ arts.forEach((art,i)=>{
+  const x=items[i];if(!x||art.querySelector('.wa-btn'))return;
+  const owner=RESOURCE_OWNERS[x.resource_key];if(!owner)return;
+  const myName=secureEmployee?(secureEmployee.short_name||secureEmployee.full_name):'';
+  if(myName&&nm(owner)===nm(myName))return;
+  const e=empByName(owner);if(!e)return;
+  const msg='📅 '+SCHOOL+'\n\nالأستاذة '+owner+'، تحية طيبة،\nتم حجز '+x.resource_label+' يوم '+fmtDate(x.booking_date)+' — الحصة '+x.period+' من قِبل '+(x.booked_by_name||'')+'.'+(x.note?'\nملاحظة: '+x.note:'')+sign;
+  art.insertAdjacentHTML('beforeend','<div class="wa-row">'+btn({empId:e.employee_id,text:msg,sentKey:'book:'+x.id},'📲 إبلاغ '+h(owner)+' عبر واتساب')+editBtn(e.employee_id)+'</div>');
+ });
+}
+
 /* ——— ربط بالشاشات ——— */
 let timer;
-function enhance(){const pane=document.getElementById('staffPane');if(!pane||!isAdmin())return;const tab=document.querySelector('[data-staff-tab].active')?.dataset.staffTab;try{if(tab==='coverage')enhanceCoverage(pane);if(tab==='duty')enhanceDuty(pane);if(tab==='events')enhanceEvents(pane);if(tab==='schedule')enhanceSchedule(pane)}catch(err){console.warn('wa-notify',err)}}
+function enhance(){const pane=document.getElementById('staffPane');if(!pane)return;const tab=document.querySelector('[data-staff-tab].active')?.dataset.staffTab;try{if(tab==='booking')enhanceBooking(pane);if(!isAdmin())return;if(tab==='coverage')enhanceCoverage(pane);if(tab==='duty')enhanceDuty(pane);if(tab==='events')enhanceEvents(pane);if(tab==='schedule')enhanceSchedule(pane)}catch(err){console.warn('wa-notify',err)}}
 new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(enhance,120)}).observe(document.body,{childList:true,subtree:true});
 
 const css=document.createElement('style');css.textContent=`

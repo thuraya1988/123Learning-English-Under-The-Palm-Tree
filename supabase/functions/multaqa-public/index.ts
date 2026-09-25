@@ -128,6 +128,17 @@ Deno.serve(async(req)=>{
     (att||[]).forEach((x:any)=>{if(counts[x.status]!=null)counts[x.status]++});
     return json({ok:true,student:{name:student.name,class_name:student.class_name},from:since,attendance:{days:att||[],counts},badges:badges||[],homework:homework||[]});
   }
+  if(action==="bus_status"){
+    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat"}).format(new Date());
+    const [{data:arrivals,error},{data:buses}]=await Promise.all([
+      db.from("multaqa_bus_arrivals").select("route_name,arrived_at").eq("arrival_date",today),
+      db.from("multaqa_buses").select("route_name,departure_label")
+    ]);
+    if(error)return json({ok:false,error:"server_error"},500);
+    const arrivedMap=new Map((arrivals||[]).map((x:any)=>[x.route_name,x.arrived_at]));
+    const items=(buses||[]).map((b:any)=>({route_name:b.route_name,departure_label:b.departure_label,arrived_at:arrivedMap.get(b.route_name)||null}));
+    return json({ok:true,items});
+  }
   if(action==="lost_items"){
     const {data,error}=await db.from("multaqa_lost_found").select("id,item_desc,found_location,photo_path,created_at").eq("status","open").order("created_at",{ascending:false}).limit(100);
     if(error)return json({ok:false,error:"server_error"},500);

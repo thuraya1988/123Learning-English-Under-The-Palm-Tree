@@ -375,6 +375,15 @@ Deno.serve(async(req)=>{
     const className=clean(body.class_name,60);let q=db.from("multaqa_book_loans").select("id,student_school_id,student_name,class_name,book_title,borrowed_at,due_at,returned_at").order("borrowed_at",{ascending:false}).limit(200);
     if(className)q=q.eq("class_name",className);const {data}=await q;return json({ok:true,items:data||[]});
   }
+  if(action==="mark_bus_arrival"){
+    const routeName=clean(body.route_name,120);if(!routeName)return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_bus_arrivals").upsert({route_name:routeName,arrival_date:muscatDate(),arrived_at:new Date().toISOString(),recorded_by_employee_id:e.employee_id},{onConflict:"route_name,arrival_date"});
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="bus_arrivals_today"){
+    const {data}=await db.from("multaqa_bus_arrivals").select("route_name,arrived_at").eq("arrival_date",muscatDate());
+    return json({ok:true,items:data||[]});
+  }
   if(action==="save_meeting_slots"){
     const slots=(Array.isArray(body.slots)?body.slots:[]).map((s:any)=>({employee_id:e.employee_id,slot_date:clean(s?.slot_date,10),slot_time:clean(s?.slot_time,10),status:"open"})).filter((s:any)=>s.slot_date&&s.slot_time).slice(0,40);
     if(!slots.length)return json({ok:false,error:"invalid_input"},400);

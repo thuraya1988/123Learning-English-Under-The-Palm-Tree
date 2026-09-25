@@ -128,6 +128,15 @@ Deno.serve(async(req)=>{
     (att||[]).forEach((x:any)=>{if(counts[x.status]!=null)counts[x.status]++});
     return json({ok:true,student:{name:student.name,class_name:student.class_name},from:since,attendance:{days:att||[],counts},badges:badges||[],homework:homework||[]});
   }
+  if(action==="honor_board"){
+    const now=muscatNow(),since=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10);
+    const {data,error}=await db.from("multaqa_student_badges").select("student_name,class_name").gte("awarded_at",since+"T00:00:00");
+    if(error)return json({ok:false,error:"server_error"},500);
+    const counts=new Map<string,{student_name:string,class_name:string,count:number}>();
+    (data||[]).forEach((x:any)=>{const key=x.student_name+"|"+x.class_name,row=counts.get(key)||{student_name:x.student_name,class_name:x.class_name,count:0};row.count++;counts.set(key,row)});
+    const items=[...counts.values()].sort((a,b)=>b.count-a.count).slice(0,15);
+    return json({ok:true,items,month_label:new Intl.DateTimeFormat("ar-OM",{month:"long",year:"numeric",timeZone:"Asia/Muscat"}).format(now)});
+  }
   if(action==="bus_status"){
     const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat"}).format(new Date());
     const [{data:arrivals,error},{data:buses}]=await Promise.all([

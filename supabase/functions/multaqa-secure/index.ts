@@ -348,6 +348,43 @@ Deno.serve(async(req)=>{
     let sent=0;if(body.send_push===true){const {data:emps}=await db.from("multaqa_employees").select("short_name,full_name");sent=await pushToNames(db,(emps||[]).map((x:any)=>x.short_name||x.full_name),"📣 إعلان هام",message||title,"/school/","important_announcement")}
     return json({ok:true,item:data,push_sent:sent});
   }
+  if(action==="create_poll"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const question=clean(body.question,300),options=(Array.isArray(body.options)?body.options:[]).map((x:any)=>clean(x,120)).filter(Boolean).slice(0,6);
+    if(question.length<2||options.length<2)return json({ok:false,error:"invalid_input"},400);
+    await db.from("multaqa_polls").update({active:false,closed_at:new Date().toISOString()}).eq("active",true);
+    const {data,error}=await db.from("multaqa_polls").insert({question,options,created_by_employee_id:e.employee_id}).select().single();
+    if(error)return json({ok:false,error:"save_failed"},500);
+    let sent=0;if(body.send_push===true){const {data:emps}=await db.from("multaqa_employees").select("short_name,full_name");sent=await pushToNames(db,(emps||[]).map((x:any)=>x.short_name||x.full_name),"🗳️ استطلاع رأي جديد",question,"/school/","poll")}
+    return json({ok:true,item:data,push_sent:sent});
+  }
+  if(action==="active_poll"){
+    const {data:poll}=await db.from("multaqa_polls").select("*").eq("active",true).order("created_at",{ascending:false}).limit(1).maybeSingle();
+    if(!poll)return json({ok:true,poll:null});
+    const {data:votes}=await db.from("multaqa_poll_votes").select("employee_id,option_index").eq("poll_id",poll.id);
+    const counts=(poll.options||[]).map((_:any,i:number)=>(votes||[]).filter((v:any)=>v.option_index===i).length);
+    const mine=(votes||[]).find((v:any)=>v.employee_id===e.employee_id);
+    const {count:total}=await db.from("multaqa_employees").select("employee_id",{count:"exact",head:true});
+    return json({ok:true,poll,counts,total_votes:(votes||[]).length,total_employees:total||0,my_vote:mine?mine.option_index:null,can_manage:elevated(e)});
+  }
+  if(action==="vote_poll"){
+    const pollId=clean(body.poll_id,60),optionIndex=Number(body.option_index);
+    const {data:poll}=await db.from("multaqa_polls").select("id,options,active").eq("id",pollId).maybeSingle();
+    if(!poll||!poll.active)return json({ok:false,error:"not_found"},404);
+    if(!(optionIndex>=0&&optionIndex<(poll.options||[]).length))return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_poll_votes").upsert({poll_id:pollId,employee_id:e.employee_id,option_index:optionIndex,voted_at:new Date().toISOString()});
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="close_poll"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=clean(body.id,60);if(!id)return json({ok:false,error:"invalid_input"},400);
+    await db.from("multaqa_polls").update({active:false,closed_at:new Date().toISOString()}).eq("id",id);return json({ok:true});
+  }
+  if(action==="poll_history"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const {data:polls}=await db.from("multaqa_polls").select("*").order("created_at",{ascending:false}).limit(10);
+    const items=await Promise.all((polls||[]).map(async(p:any)=>{const {data:votes}=await db.from("multaqa_poll_votes").select("option_index").eq("poll_id",p.id);const counts=(p.options||[]).map((_:any,i:number)=>(votes||[]).filter((v:any)=>v.option_index===i).length);return {...p,counts,total_votes:(votes||[]).length}}));
+    return json({ok:true,items});
+  }
   if(action==="save_news"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const title=clean(body.title,220),message=clean(body.body,1600);if(title.length<2)return json({ok:false,error:"invalid_input"},400);
     const row={id:Date.now(),content_type:"news",title,body:message,media_url:clean(body.media_url,1000)||null,event_date:clean(body.event_date,10)||null,published:true,sort_order:Date.now(),updated_at:new Date().toISOString()};

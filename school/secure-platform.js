@@ -102,7 +102,7 @@ function injectStaffCenter(){
   <button data-staff-tab="profile" onclick="staffTab('profile')">ملفي المهني</button><button data-staff-tab="staff" data-admin-only onclick="staffTab('staff')">المعلمات</button><button data-staff-tab="mentors" onclick="staffTab('mentors')">مربيات الفصول</button><button data-staff-tab="coverage" onclick="staffTab('coverage')">🔄 الاحتياط</button>
   <button data-staff-tab="excellence" data-admin-only onclick="staffTab('excellence')">🏆 التميز</button><button data-staff-tab="cases" onclick="staffTab('cases')">🧩 الحالات</button>
   <button data-staff-tab="activities" onclick="staffTab('activities')">الأنشطة</button><button data-staff-tab="events" onclick="staffTab('events')">📅 المواعيد المهمة</button><button data-staff-tab="gifted" onclick="staffTab('gifted')">الموهوبات</button><button data-staff-tab="support" data-case-only onclick="staffTab('support')">ملفات الدعم الدراسي والاجتماعي</button><button data-staff-tab="social" onclick="staffTab('social')">الأخصائية</button>
-  <button data-staff-tab="buses" onclick="staffTab('buses')">🚌 الحافلات</button><button data-staff-tab="booking" onclick="staffTab('booking')">📅 حجز الموارد</button><button data-staff-tab="analytics" data-admin-only onclick="staffTab('analytics')">📊 المؤشرات</button>
+  <button data-staff-tab="buses" onclick="staffTab('buses')">🚌 الحافلات</button><button data-staff-tab="booking" onclick="staffTab('booking')">📅 حجز الموارد</button><button data-staff-tab="poll" onclick="staffTab('poll')">🗳️ استطلاع رأي</button><button data-staff-tab="analytics" data-admin-only onclick="staffTab('analytics')">📊 المؤشرات</button>
   <button data-staff-tab="security" data-admin-only onclick="staffTab('security')">🔐 الرموز</button>
  </div><main id="staffPane" class="staff-pane"></main></div></div>`);
  const strip=S('portalStrip');if(strip&&!S('staffCenterEntry'))strip.insertAdjacentHTML('afterbegin','<button class="portal-entry featured" id="staffCenterEntry" onclick="openStaffCenter()"><em>📊</em><b>مركز التشغيل والتحليل</b><small>الحضور • الاستئذان • المناوبة • الاحتياط • المؤشرات</small></button>');
@@ -125,7 +125,7 @@ window.openStaffCenter=async()=>{
 window.staffTab=async tab=>{
  if(tab!=='broadcast')stopBroadcastCamera(true);
  document.querySelectorAll('[data-staff-tab]').forEach(x=>x.classList.toggle('active',x.dataset.staffTab===tab));const pane=S('staffPane');pane.innerHTML='<div class="staff-loading">جاري تحميل الوحدة…</div>';
- phCapture('school_module_opened',{module:tab});try{if(tab==='home')await renderHome();if(tab==='schedule')await renderSecureSchedule();if(tab==='attendance')renderGrades();if(tab==='permissions')await renderPermissions();if(tab==='duty')await renderSecureDuty();if(tab==='broadcast')await renderBroadcasts();if(tab==='profile')await renderTeacherProfiles(false);if(tab==='staff')renderStaffAdmin();if(tab==='mentors')await renderClassMentors();if(tab==='coverage')await renderCoverage();if(tab==='excellence')renderExcellence();if(tab==='cases')renderCases();if(tab==='activities')await renderActivities();if(tab==='events')await renderSchoolEvents();if(tab==='gifted')await renderGifted();if(tab==='support')await renderStudentSupport();if(tab==='social')renderSocialWorker();if(tab==='buses')renderBuses();if(tab==='booking')await renderResourceBooking();if(tab==='analytics')await renderAnalytics();if(tab==='security')renderSecurity()}catch(e){pane.innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
+ phCapture('school_module_opened',{module:tab});try{if(tab==='home')await renderHome();if(tab==='schedule')await renderSecureSchedule();if(tab==='attendance')renderGrades();if(tab==='permissions')await renderPermissions();if(tab==='duty')await renderSecureDuty();if(tab==='broadcast')await renderBroadcasts();if(tab==='profile')await renderTeacherProfiles(false);if(tab==='staff')renderStaffAdmin();if(tab==='mentors')await renderClassMentors();if(tab==='coverage')await renderCoverage();if(tab==='excellence')renderExcellence();if(tab==='cases')renderCases();if(tab==='activities')await renderActivities();if(tab==='events')await renderSchoolEvents();if(tab==='gifted')await renderGifted();if(tab==='support')await renderStudentSupport();if(tab==='social')renderSocialWorker();if(tab==='buses')renderBuses();if(tab==='booking')await renderResourceBooking();if(tab==='poll')await renderPoll();if(tab==='analytics')await renderAnalytics();if(tab==='security')renderSecurity()}catch(e){pane.innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
 };
 async function renderSecureSchedule(){
  const chosen=secureAdmin()?S('adminScheduleTeacher')?.value||'':'' ,d=await staffApi('teacher_schedule',chosen?{employee_name:chosen}:{}),row=d.schedule||{},schedule=row.schedule||{},coverage=d.coverage||[],days=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
@@ -368,6 +368,41 @@ window.createResourceBooking=async()=>{
 window.cancelResourceBooking=async id=>{
  if(!confirm('إلغاء هذا الحجز؟'))return;
  try{await staffApi('cancel_resource_booking',{id});toast('تم إلغاء الحجز');await renderResourceBooking()}catch(e){toast(staffError(e))}
+};
+function pollBars(poll,counts,total){
+ const max=Math.max(1,...counts);
+ return '<div class="poll-bars">'+poll.options.map((o,i)=>'<div class="poll-bar-row"><div class="poll-bar-label"><b>'+esc(o)+'</b><span>'+counts[i]+' ('+(total?Math.round(counts[i]/total*100):0)+'%)</span></div><div class="bar"><i style="width:'+Math.round(counts[i]/max*100)+'%"></i></div></div>').join('')+'</div>';
+}
+async function renderPoll(){
+ const d=await staffApi('active_poll'),admin=secureAdmin();
+ const createForm=admin?'<section class="staff-card"><h3>🗳️ إنشاء استطلاع جديد</h3><p class="staff-help">إنشاء استطلاع جديد يُغلق أي استطلاع نشط حاليًا تلقائيًا.</p><label>السؤال<input id="pollQuestion" placeholder="مثال: أي يوم يناسبكن للاجتماع القادم؟"></label><div class="form-row"><input id="pollOpt1" placeholder="الخيار الأول"><input id="pollOpt2" placeholder="الخيار الثاني"></div><div class="form-row"><input id="pollOpt3" placeholder="الخيار الثالث (اختياري)"><input id="pollOpt4" placeholder="الخيار الرابع (اختياري)"></div><label style="display:flex;gap:8px;align-items:center;margin:10px 0"><input id="pollPush" type="checkbox" checked> إرسال إشعار فوري لجميع المعلمات</label><button class="staff-primary" onclick="createPollUI()">🗳️ نشر الاستطلاع</button></section>':'';
+ let current='';
+ if(d.poll){
+  const voted=d.my_vote!=null;
+  current='<section class="staff-card"><h3>'+esc(d.poll.question)+'</h3><p class="staff-help">'+d.total_votes+' صوّتن من '+d.total_employees+' موظفة</p>'
+   +(voted||admin?pollBars(d.poll,d.counts,d.total_votes):'<div class="btnrow">'+d.poll.options.map((o,i)=>'<button class="staff-primary" onclick="votePollUI(\''+d.poll.id+'\','+i+')">'+esc(o)+'</button>').join('')+'</div>')
+   +(admin?'<button class="staff-secondary" style="margin-top:10px" onclick="closePollUI(\''+d.poll.id+'\')">⏹ إغلاق الاستطلاع</button>':'')
+   +'</section>';
+ } else current='<div class="staff-empty">لا يوجد استطلاع نشط حاليًا.</div>';
+ let history='';
+ if(admin){
+  try{const h=await staffApi('poll_history'),items=(h.items||[]).filter(p=>!d.poll||p.id!==d.poll.id);
+   if(items.length)history='<h3 class="staff-section-title">استطلاعات سابقة</h3>'+items.map(p=>'<section class="staff-card"><h4>'+esc(p.question)+(p.active?' <small style="color:#1f8f4e">(نشط)</small>':'')+'</h4>'+pollBars(p,p.counts,p.total_votes)+'</section>').join('');
+  }catch(_){}
+ }
+ S('staffPane').innerHTML='<div class="today-title"><div><small>سؤال سريع لكل المعلمات</small><h2>🗳️ استطلاع الرأي</h2></div></div>'+createForm+current+history;
+}
+window.createPollUI=async()=>{
+ const question=S('pollQuestion').value.trim(),options=[S('pollOpt1').value,S('pollOpt2').value,S('pollOpt3').value,S('pollOpt4').value].map(x=>x.trim()).filter(Boolean);
+ if(!question||options.length<2)return toast('اكتبي السؤال وخيارين على الأقل');
+ try{const d=await staffApi('create_poll',{question,options,send_push:S('pollPush').checked});toast(d.push_sent?'✅ نُشر الاستطلاع ووصل الإشعار':'✅ نُشر الاستطلاع');await renderPoll()}catch(e){toast(staffError(e))}
+};
+window.votePollUI=async(pollId,optionIndex)=>{
+ try{await staffApi('vote_poll',{poll_id:pollId,option_index:optionIndex});toast('✅ تم تسجيل صوتك');await renderPoll()}catch(e){toast(staffError(e))}
+};
+window.closePollUI=async id=>{
+ if(!confirm('إغلاق هذا الاستطلاع؟'))return;
+ try{await staffApi('close_poll',{id});toast('⏹ تم إغلاق الاستطلاع');await renderPoll()}catch(e){toast(staffError(e))}
 };
 window.saveBus=async()=>{try{await staffApi('save_bus',{route_name:S('busRoute').value,departure_label:S('busLabel').value,driver_name:S('busDriver').value,driver_phone:S('busPhone').value});secureDirectory=await staffApi('directory');toast('✅ تم حفظ الحافلة');renderBuses()}catch(e){toast(staffError(e))}};
 async function renderAnalytics(){

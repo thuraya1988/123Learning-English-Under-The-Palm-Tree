@@ -94,7 +94,15 @@ Deno.serve(async(req)=>{
   }
   if(action==="content"){
     const type=clean(body.content_type,40); let q=db.from("multaqa_content").select("id,content_type,title,body,media_url,event_date,test_name,subject,day_name,sort_order,created_at").eq("published",true).order("sort_order").order("created_at",{ascending:false});
-    if(type&&type!=="all")q=q.eq("content_type",type); const {data,error}=await q; if(error)return json({ok:false,error:"server_error"},500); return json({ok:true,items:data||[]});
+    if(type&&type!=="all")q=q.eq("content_type",type); const {data,error}=await q; if(error)return json({ok:false,error:"server_error"},500);
+    const items=await Promise.all((data||[]).map(async(x:any)=>{
+      if(x.content_type==="gallery"&&x.media_url&&!/^https?:\/\//.test(x.media_url)){
+        const {data:u}=await db.storage.from("gallery-art").createSignedUrl(x.media_url,3600);
+        return {...x,media_url:u?.signedUrl||null};
+      }
+      return x;
+    }));
+    return json({ok:true,items});
   }
   if(action==="calendar_events"){
     const {data,error}=await db.from("multaqa_calendar_events").select("id,title,event_date,event_time,details,reminder_days,audience").eq("published",true).order("event_date",{ascending:true}).limit(300);if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,items:data||[]});

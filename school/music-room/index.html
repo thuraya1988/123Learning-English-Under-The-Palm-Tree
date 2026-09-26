@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ar" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>غرفة الموسيقى — بيانو تفاعلي</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #222;
+            font-family: 'Cairo', system-ui, sans-serif;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        .home-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            font-size: 20px;
+            backdrop-filter: blur(10px);
+            transition: background 0.2s;
+        }
+
+        .home-link:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* mode selector */
+        .mode-selector {
+            position: fixed;
+            top: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 50px;
+            backdrop-filter: blur(10px);
+        }
+
+        .mode-btn {
+            padding: 10px 20px;
+            border: 2px solid #444;
+            background: transparent;
+            color: #fff;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: 'Cairo', system-ui, sans-serif;
+            font-weight: 700;
+            transition: all 0.3s;
+            outline: none;
+        }
+
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .mode-btn.active {
+            background: #ffd700;
+            color: #000;
+            border-color: #ffd700;
+            font-weight: bold;
+        }
+
+        .mode-btn[data-mode="piano"].active { background: #ffd700; }
+        .mode-btn[data-mode="organ"].active { background: #ff6b6b; }
+        .mode-btn[data-mode="synth"].active { background: #4ecdc4; }
+        .mode-btn[data-mode="electric"].active { background: #a855f7; }
+
+        #viewport {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            cursor: grab;
+        }
+
+        #viewport.dragging {
+            cursor: grabbing;
+        }
+
+        .piano-wrapper {
+            display: flex;
+            align-items: center;
+            transition: transform 0.05s ease-out;
+            pointer-events: none;
+        }
+
+        .piano-wrapper * {
+            pointer-events: auto;
+        }
+
+        .piano-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            background: #1a1a1a;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            flex-shrink: 0;
+        }
+
+        .key {
+            position: relative;
+            cursor: pointer;
+            border-radius: 0 0 8px 8px;
+            transition: all 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 15px;
+            font-weight: bold;
+            font-size: 18px;
+            color: #ccc;
+        }
+
+        .key.white {
+            width: 80px;
+            height: 350px;
+            background: white;
+            border: 1px solid #ccc;
+            z-index: 1;
+            margin: 0 3px;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+        }
+
+        .key.white.active {
+            background: #eee;
+            transform: scale(0.98);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            background: linear-gradient(to bottom, #fff 0%, #d1d1d1 100%);
+            border-bottom: 5px solid #999;
+        }
+
+        .key.black {
+            width: 50px;
+            height: 220px;
+            background: #000;
+            position: absolute;
+            top: 0;
+            z-index: 2;
+            color: white;
+            border: 1px solid #333;
+            box-shadow: 2px 5px 10px rgba(0,0,0,0.4);
+            border-radius: 0 0 5px 5px;
+        }
+
+        .key.black.active {
+            background: #222;
+            transform: scale(0.98);
+            border-bottom: 3px solid #555;
+        }
+
+        /* black key positions */
+        .key[data-note="C#3"] { left: 63px; }
+        .key[data-note="D#3"] { left: 149px; }
+        .key[data-note="F#3"] { left: 321px; }
+        .key[data-note="G#3"] { left: 407px; }
+        .key[data-note="A#3"] { left: 493px; }
+
+        .key[data-note="C#4"] { left: 751px; }
+        .key[data-note="D#4"] { left: 837px; }
+        .key[data-note="F#4"] { left: 1009px; }
+        .key[data-note="G#4"] { left: 1095px; }
+        .key[data-note="A#4"] { left: 1181px; }
+        .key[data-note="C#5"] { left: 1353px; }
+
+        .empty-space {
+            width: 400px;
+            height: 350px;
+            flex-shrink: 0;
+            background: transparent;
+        }
+
+        @media (max-width: 900px) {
+            .key.white { width: 55px; height: 280px; }
+            .key.black { width: 38px; height: 180px; }
+            .empty-space { width: 150px; height: 280px; }
+            .piano-container { padding: 25px; }
+
+            .key[data-note="C#3"] { left: 43px; } .key[data-note="D#3"] { left: 103px; }
+            .key[data-note="F#3"] { left: 223px; } .key[data-note="G#3"] { left: 283px; }
+            .key[data-note="A#3"] { left: 343px; }
+
+            .key[data-note="C#4"] { left: 523px; } .key[data-note="D#4"] { left: 583px; }
+            .key[data-note="F#4"] { left: 703px; } .key[data-note="G#4"] { left: 763px; }
+            .key[data-note="A#4"] { left: 823px; }
+            .key[data-note="C#5"] { left: 943px; }
+
+            .mode-selector {
+                flex-wrap: wrap;
+                justify-content: center;
+                max-width: 90%;
+            }
+
+            .mode-btn {
+                padding: 8px 15px;
+                font-size: 12px;
+            }
+
+            .home-link {
+                width: 40px;
+                height: 40px;
+                font-size: 17px;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .key.white { width: 45px; height: 220px; }
+            .key.black { width: 32px; height: 140px; }
+            .empty-space { width: 100px; height: 220px; }
+            .piano-container { padding: 20px; }
+
+            .key[data-note="C#3"] { left: 35px; } .key[data-note="D#3"] { left: 83px; }
+            .key[data-note="F#3"] { left: 179px; } .key[data-note="G#3"] { left: 227px; }
+            .key[data-note="A#3"] { left: 275px; }
+
+            .key[data-note="C#4"] { left: 419px; } .key[data-note="D#4"] { left: 467px; }
+            .key[data-note="F#4"] { left: 563px; } .key[data-note="G#4"] { left: 611px; }
+            .key[data-note="A#4"] { left: 659px; }
+            .key[data-note="C#5"] { left: 755px; }
+        }
+    </style>
+</head>
+<body>
+
+<a class="home-link" href="../index.html" title="الرئيسية">🏠</a>
+
+<!-- mode selector -->
+<div class="mode-selector">
+    <button class="mode-btn active" data-mode="piano">🎹 بيانو</button>
+    <button class="mode-btn" data-mode="organ">🎼 أورغن</button>
+    <button class="mode-btn" data-mode="synth">🎵 سينث</button>
+    <button class="mode-btn" data-mode="electric">⚡ إلكتروني</button>
+</div>
+
+<div id="viewport">
+    <div class="piano-wrapper" id="pianoWrapper">
+        <div class="empty-space"></div>
+
+        <div class="piano-container" id="piano">
+            <!-- octave 3 -->
+            <div class="key white" data-note="C3" data-key="z" data-freq="130.81"></div>
+            <div class="key white" data-note="D3" data-key="x" data-freq="146.83"></div>
+            <div class="key white" data-note="E3" data-key="c" data-freq="164.81"></div>
+            <div class="key white" data-note="F3" data-key="v" data-freq="174.61"></div>
+            <div class="key white" data-note="G3" data-key="b" data-freq="196.00"></div>
+            <div class="key white" data-note="A3" data-key="n" data-freq="220.00"></div>
+            <div class="key white" data-note="B3" data-key="m" data-freq="246.94"></div>
+
+            <!-- octave 4 -->
+            <div class="key white" data-note="C4" data-key="a" data-freq="261.63"></div>
+            <div class="key white" data-note="D4" data-key="s" data-freq="293.66"></div>
+            <div class="key white" data-note="E4" data-key="d" data-freq="329.63"></div>
+            <div class="key white" data-note="F4" data-key="f" data-freq="349.23"></div>
+            <div class="key white" data-note="G4" data-key="g" data-freq="392.00"></div>
+            <div class="key white" data-note="A4" data-key="h" data-freq="440.00"></div>
+            <div class="key white" data-note="B4" data-key="j" data-freq="493.88"></div>
+            <div class="key white" data-note="C5" data-key="k" data-freq="523.25"></div>
+
+            <!-- black keys octave 3 -->
+            <div class="key black" data-note="C#3" data-key="q" data-freq="138.59"></div>
+            <div class="key black" data-note="D#3" data-key="w" data-freq="155.56"></div>
+            <div class="key black" data-note="F#3" data-key="r" data-freq="185.00"></div>
+            <div class="key black" data-note="G#3" data-key="t" data-freq="207.65"></div>
+            <div class="key black" data-note="A#3" data-key="y" data-freq="233.08"></div>
+
+            <!-- black keys octave 4 -->
+            <div class="key black" data-note="C#4" data-key="u" data-freq="277.18"></div>
+            <div class="key black" data-note="D#4" data-key="i" data-freq="311.13"></div>
+            <div class="key black" data-note="F#4" data-key="o" data-freq="369.99"></div>
+            <div class="key black" data-note="G#4" data-key="p" data-freq="415.30"></div>
+            <div class="key black" data-note="A#4" data-key="[" data-freq="466.16"></div>
+            <div class="key black" data-note="C#5" data-key="]" data-freq="554.37"></div>
+        </div>
+
+        <div class="empty-space"></div>
+    </div>
+</div>
+
+<script>
+    // volume settings
+    const volumeSettings = {
+        "C3": 1.0, "D3": 1.0, "E3": 1.0, "F3": 1.0, "G3": 1.0, "A3": 1.0, "B3": 1.0,
+        "C4":  1.0,
+        "C#4": 0.5,
+        "D4":  0.8,
+        "D#4": 1.0, "E4": 1.0, "F4": 1.0, "F#4": 1.0, "G4": 1.0, "G#4": 1.0, "A4": 1.0, "A#4": 1.0, "B4": 1.0, "C5": 1.0, "C#5": 1.0
+    };
+
+    // sound modes
+    const soundModes = {
+        piano: {
+            type: 'triangle',
+            attack: 0.01,
+            decay: 1.5,
+            volumeMultiplier: 1.5
+        },
+        organ: {
+            type: 'sine',
+            attack: 0.05,
+            decay: 2.0,
+            volumeMultiplier: 2.0
+        },
+        synth: {
+            type: 'sawtooth',
+            attack: 0.01,
+            decay: 1.0,
+            volumeMultiplier: 1.0
+        },
+        electric: {
+            type: 'square',
+            attack: 0.001,
+            decay: 0.8,
+            volumeMultiplier: 1.0
+        }
+    };
+
+    let currentMode = 'piano';
+
+    // sound generator
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSynthesizedSound(frequency, volume, mode) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const modeSettings = soundModes[mode] || soundModes.piano;
+
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.type = modeSettings.type;
+        oscillator.frequency.value = frequency;
+
+        // apply mode volume multiplier
+        const finalVolume = volume * modeSettings.volumeMultiplier;
+
+        // gain envelope: attack + decay
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(finalVolume, audioCtx.currentTime + modeSettings.attack);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + modeSettings.decay);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + modeSettings.decay);
+    }
+
+    function playNote(note, frequency) {
+        const volume = volumeSettings[note] || 1.0;
+        playSynthesizedSound(frequency, volume, currentMode);
+    }
+
+    // mode switching
+    const modeButtons = document.querySelectorAll('.mode-btn');
+    modeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            modeButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentMode = btn.getAttribute('data-mode');
+
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+        });
+    });
+
+    // piano scrolling
+    const viewport = document.getElementById('viewport');
+    const pianoWrapper = document.getElementById('pianoWrapper');
+
+    let currentPos = 0;
+    const maxPos = 400;
+    const minPos = -400;
+    const step = 100;
+
+    function updatePosition(newPos) {
+        currentPos = Math.max(minPos, Math.min(maxPos, newPos));
+        pianoWrapper.style.transform = `translateX(${currentPos}px)`;
+    }
+
+    // arrow key controls
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            updatePosition(currentPos - step);
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            updatePosition(currentPos + step);
+        }
+
+        if (!e.ctrlKey && !e.altKey) {
+            const key = e.key.toLowerCase();
+            const keyElement = document.querySelector(`.key[data-key="${key}"]`);
+
+            if (keyElement && !e.repeat) {
+                const note = keyElement.getAttribute('data-note');
+                const freq = keyElement.getAttribute('data-freq');
+                playNote(note, freq);
+                keyElement.classList.add('active');
+            }
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        const key = e.key.toLowerCase();
+        const keyElement = document.querySelector(`.key[data-key="${key}"]`);
+        if (keyElement) {
+            keyElement.classList.remove('active');
+        }
+    });
+
+    // mouse and touch drag
+    let isDragging = false;
+    let startDragX = 0;
+    let startDragPos = 0;
+
+    document.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.key') || e.target.closest('.mode-btn') || e.target.closest('.home-link')) return;
+        isDragging = true;
+        startDragX = e.clientX;
+        startDragPos = currentPos;
+        viewport.classList.add('dragging');
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+        viewport.classList.remove('dragging');
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const deltaX = e.clientX - startDragX;
+        updatePosition(startDragPos + deltaX);
+    });
+
+    document.addEventListener('touchstart', (e) => {
+        if (e.target.closest('.key') || e.target.closest('.mode-btn') || e.target.closest('.home-link')) return;
+        isDragging = true;
+        startDragX = e.touches[0].clientX;
+        startDragPos = currentPos;
+        viewport.classList.add('dragging');
+    }, { passive: false });
+
+    document.addEventListener('touchend', () => {
+        isDragging = false;
+        viewport.classList.remove('dragging');
+    });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const deltaX = e.touches[0].clientX - startDragX;
+        updatePosition(startDragPos + deltaX);
+    }, { passive: false });
+
+    // key press handling
+    const keys = document.querySelectorAll('.key');
+    keys.forEach(key => {
+        key.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            const note = key.getAttribute('data-note');
+            const freq = key.getAttribute('data-freq');
+            playNote(note, freq);
+            key.classList.add('active');
+        });
+
+        key.addEventListener('mouseup', () => key.classList.remove('active'));
+        key.addEventListener('mouseleave', () => key.classList.remove('active'));
+
+        key.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const note = key.getAttribute('data-note');
+            const freq = key.getAttribute('data-freq');
+            playNote(note, freq);
+            key.classList.add('active');
+        });
+
+        key.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            key.classList.remove('active');
+        });
+    });
+</script>
+
+</body>
+</html>

@@ -40,7 +40,7 @@ const elevated=(e:any)=>["admin","management"].includes(e?.access_group);
 const caseTeam=(e:any)=>["admin","management","social"].includes(e?.access_group);
 async function profile(db:any,e:any){
   const [{data:p},{data:w}]=await Promise.all([
-    db.from("multaqa_employee_profiles").select("display_title,subject,photo_url,welcome_name,bio_line,work_email,phone,contact_phone,class_labels,achievements").eq("employee_id",e.employee_id).maybeSingle(),
+    db.from("multaqa_employee_profiles").select("display_title,subject,photo_url,welcome_name,bio_line,work_email,phone,contact_phone,class_labels,achievements,is_coordinator").eq("employee_id",e.employee_id).maybeSingle(),
     db.from("multaqa_welcome_messages").select("message").eq("active",true).in("audience",["all",e.access_group||e.kind]).limit(250)
   ]);
   const list=w||[],msg=(list[Math.floor(Math.random()*Math.max(list.length,1))]?.message||"مرحبًا {name}، يومك مليء بالإنجاز").replace("{name}",p?.welcome_name||e.short_name);
@@ -253,7 +253,7 @@ Deno.serve(async(req)=>{
     if(!elevated(e))q=q.eq("employee_id",e.employee_id);
     const {data:employees}=await q;const ids=(employees||[]).map((x:any)=>x.employee_id);
     const [{data:profiles},{data:projects}]=await Promise.all([
-      ids.length?db.from("multaqa_employee_profiles").select("employee_id,display_title,subject,photo_url,welcome_name,bio_line,work_email,phone,contact_phone,class_labels,achievements").in("employee_id",ids):Promise.resolve({data:[]}),
+      ids.length?db.from("multaqa_employee_profiles").select("employee_id,display_title,subject,photo_url,welcome_name,bio_line,work_email,phone,contact_phone,class_labels,achievements,is_coordinator").in("employee_id",ids):Promise.resolve({data:[]}),
       ids.length?db.from("multaqa_teacher_projects").select("*").in("employee_id",ids).order("created_at",{ascending:false}):Promise.resolve({data:[]})
     ]);
     const pm=new Map((profiles||[]).map((x:any)=>[x.employee_id,x]));
@@ -265,7 +265,8 @@ Deno.serve(async(req)=>{
     const {data:target}=await db.from("multaqa_employees").select("employee_id,kind").eq("employee_id",targetId).maybeSingle();
     if(!target||target.kind!=="teacher")return json({ok:false,error:"not_found"},404);
     const email=clean(body.work_email,220);if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return json({ok:false,error:"invalid_input"},400);
-    const row={employee_id:targetId,display_title:clean(body.display_title,160)||null,subject:clean(body.subject,180)||null,work_email:email||null,phone:clean(body.phone,30)||null,contact_phone:clean(body.contact_phone,30)||null,bio_line:clean(body.bio_line,600)||null,class_labels:(Array.isArray(body.class_labels)?body.class_labels:[]).map((x:any)=>clean(x,100)).filter(Boolean).slice(0,40),achievements:(Array.isArray(body.achievements)?body.achievements:[]).map((x:any)=>clean(x,300)).filter(Boolean).slice(0,80)};
+    const row:any={employee_id:targetId,display_title:clean(body.display_title,160)||null,subject:clean(body.subject,180)||null,work_email:email||null,phone:clean(body.phone,30)||null,contact_phone:clean(body.contact_phone,30)||null,bio_line:clean(body.bio_line,600)||null,class_labels:(Array.isArray(body.class_labels)?body.class_labels:[]).map((x:any)=>clean(x,100)).filter(Boolean).slice(0,40),achievements:(Array.isArray(body.achievements)?body.achievements:[]).map((x:any)=>clean(x,300)).filter(Boolean).slice(0,80)};
+    if(elevated(e))row.is_coordinator=body.is_coordinator===true;
     const {error}=await db.from("multaqa_employee_profiles").upsert(row);if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
   if(action==="save_teacher_project"){

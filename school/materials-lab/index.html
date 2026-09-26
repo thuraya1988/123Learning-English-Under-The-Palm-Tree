@@ -204,6 +204,26 @@ td.n{font-family:var(--mono);color:var(--txt)}
 .modcard p{font-size:12.5px;color:var(--mut);line-height:1.6}
 .modcard .std{margin-top:11px;font-family:var(--mono);font-size:10.5px;color:var(--dim);border-top:1px dashed var(--line);padding-top:9px}
 
+.navbtn.fun{color:var(--am)}
+.navbtn.fun:hover{color:var(--am);background:rgba(199,144,32,.08)}
+.navbtn.fun.active{color:var(--am);border-bottom-color:var(--am);background:linear-gradient(180deg,transparent,rgba(199,144,32,.1))}
+.disc-intro{background:linear-gradient(135deg,rgba(199,144,32,.12),rgba(124,31,51,.05));border:1px solid rgba(199,144,32,.35);border-radius:16px;padding:18px 20px;margin-bottom:18px}
+.disc-intro h3{color:var(--am);margin-bottom:6px;font-size:17px}
+.disc-intro p{color:var(--mut);font-size:13.5px;line-height:1.8}
+.disc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}
+.disc-card{background:linear-gradient(160deg,#fff,var(--bg2));border:1px solid var(--line);border-radius:16px;padding:18px;position:relative;overflow:hidden}
+.disc-card::after{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:3px;background:var(--c,var(--am))}
+.disc-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.disc-emoji{font-size:26px;line-height:1}
+.disc-head h4{font-size:15.5px;font-weight:700}
+.disc-sec{margin-bottom:10px;font-size:13px}
+.disc-sec b{display:block;margin-bottom:5px;color:var(--txt)}
+.disc-sec ul,.disc-sec ol{padding-inline-start:20px;color:var(--mut);line-height:1.75}
+.disc-why{background:rgba(31,143,78,.06);border:1px solid rgba(31,143,78,.2);border-inline-start:3px solid var(--em);border-radius:10px;padding:10px 13px;font-size:12.5px;color:var(--mut);line-height:1.75;margin-top:10px}
+.disc-warn{background:rgba(155,28,49,.06);border:1px solid rgba(155,28,49,.22);border-inline-start:3px solid var(--ro);border-radius:10px;padding:9px 13px;font-size:12px;color:var(--mut);line-height:1.7;margin-top:8px}
+.disc-done{margin-top:12px;width:100%;justify-content:center}
+.disc-done.on{background:var(--em)!important;color:#fff!important;border-color:var(--em)!important}
+
 .libgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,400px);gap:18px;align-items:start}
 @media(max-width:1150px){.libgrid{grid-template-columns:1fr}}
 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:12px}
@@ -324,6 +344,7 @@ footer b{color:var(--mut)}
   <button class="navbtn" data-view="thermal"><svg><use href="#i-th"/></svg>المختبر الحراري</button>
   <button class="navbtn" data-view="ashby"><svg><use href="#i-chart"/></svg>خرائط أشبي</button>
   <button class="navbtn" data-view="notebook"><svg><use href="#i-nb"/></svg>دفتر المختبر<span class="badge" id="nbBadge" style="display:none">0</span></button>
+  <button class="navbtn fun" data-view="discover"><svg><use href="#i-flask"/></svg>🔬 جرّب واكتشف</button>
 </div></nav>
 
 <main>
@@ -646,6 +667,15 @@ footer b{color:var(--mut)}
   <div id="nbList"></div>
 </section>
 
+<!-- ================= DISCOVER (FUN EXPERIMENTS) ================= -->
+<section class="view" id="v-discover">
+  <div class="disc-intro">
+    <h3>🔬 جرّب واكتشف</h3>
+    <p>تجارب بسيطة وممتعة بأدوات منزلية بسيطة، خارج المنهج تمامًا — للتسلية والاكتشاف الحر. جربيها في البيت أو بإشراف معلمة في الصف، وسجّلي كل تجربة جرّبتها بالضغط على "✅ جربتها".</p>
+  </div>
+  <div class="disc-grid" id="discGrid"></div>
+</section>
+
 </main>
 
 <footer>
@@ -747,13 +777,13 @@ function setMat(id,silent){ if(!byId(id))return; S.mat=id; $('#globalMat').value
 function refreshAll(){ renderGrid(); drawSS(); drawSpec(0,0,false); }
 
 /* ---------- NAV ---------- */
-const VIEWS=['home','library','tensile','hardness','crystal','thermal','ashby','notebook'];
+const VIEWS=['home','library','tensile','hardness','crystal','thermal','ashby','notebook','discover'];
 function go(v){ S.view=v; $$('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   $$('.view').forEach(s=>s.classList.toggle('active',s.id==='v-'+v));
   window.scrollTo({top:0,behavior:'smooth'});
   if(v==='tensile'){drawSS();drawSpec(0,0,false);} if(v==='ashby')drawAshby();
   if(v==='crystal'){setTimeout(cryResize,60);} if(v==='thermal'){drawHeat();drawExp();drawBi();drawCond();}
-  if(v==='notebook')renderNB(); if(v==='library')renderGrid(); if(v==='home')renderHome();
+  if(v==='notebook')renderNB(); if(v==='library')renderGrid(); if(v==='home')renderHome(); if(v==='discover')renderDiscover();
 }
 $('#nav').addEventListener('click',e=>{const b=e.target.closest('.navbtn'); if(b)go(b.dataset.view);});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-go]'); if(b)go(b.dataset.go);});
@@ -791,6 +821,66 @@ function renderHome(){
   $('#modCards').innerHTML=mods.map(m=>`<button class="modcard" data-go="${m.v}" style="--c:${m.c}">
     <div class="ic"><svg><use href="#${m.i}"/></svg></div><h4>${m.t}</h4><p>${m.d}</p><div class="std">${m.s}</div></button>`).join('');
 }
+/* ---------- DISCOVER (FUN EXPERIMENTS) ---------- */
+const DISCOVER=[
+ {id:'pepper',emo:'🌶️',c:'#7c1f33',t:'هروب حبيبات الفلفل',
+  tools:['طبق','ماء أو حليب','فلفل أسود مطحون (بودرة)','صابون سائل','أعواد تنظيف الأسنان أو الأذن'],
+  steps:['أحضري طبقًا وضعي فيه ماءً أو حليبًا حتى منتصفه.','انثري الفلفل الأسود على سطح الماء أو الحليب.','اغمسي طرف عود تنظيف الأسنان أو الأذن في الصابون السائل.','ضعي العود في منتصف الطبق ولاحظي هروب حبيبات الفلفل فورًا نحو الأطراف!'],
+  why:'الصابون يكسر التوتر السطحي للماء عند نقطة ملامسته، فتندفع جزيئات الماء (وحبيبات الفلفل فوقها) بعيدًا عن تلك النقطة في كل الاتجاهات.'},
+ {id:'palette',emo:'🎨',c:'#24365c',t:'لوحة الألوان في الماء',
+  tools:['طبق أو وعاء شفاف','ماء','ألوان طعام (عدة ألوان)','قطارة أو ملعقة صغيرة'],
+  steps:['املئي الطبق بالماء حتى يستقر السطح تمامًا.','أسقطي نقطة واحدة من كل لون طعام في أماكن متفرقة على سطح الماء بلطف.','راقبي كيف ينتشر كل لون على شكل خيوط ودوائر متداخلة فترسم لوحة فنية طبيعية.','حرّكي الطبق بلطف لمزيد من الأشكال المتغيّرة.'],
+  why:'يذوب صبغ اللون تدريجيًا في الماء وينتشر بفعل الانتشار الجزيئي (Diffusion)، فتتكوّن أشكال عشوائية جميلة قبل أن تمتزج الألوان تمامًا.'},
+ {id:'milk',emo:'🥛',c:'#c79020',t:'انتشار الألوان في الحليب',
+  tools:['طبق','حليب كامل الدسم','ألوان طعام (عدة ألوان)','صابون سائل','عود تنظيف أذن'],
+  steps:['اسكبي الحليب في الطبق حتى يغطي القاع بطبقة رقيقة.','أضيفي عدة نقاط من ألوان طعام مختلفة فوق الحليب دون تحريك.','اغمسي عود تنظيف الأذن في الصابون السائل.','المسي مركز الطبق بالعود ولاحظي انفجار الألوان وحركتها الراقصة!'],
+  why:'دهون الحليب تتفاعل مع جزيئات الصابون وتتفكك بسرعة في كل الاتجاهات، فتدفع الألوان معها في حركة دائرية مذهلة.'},
+ {id:'balloon',emo:'🎈',c:'#1f8f4e',t:'انتفاخ البالون تلقائيًا',
+  tools:['زجاجة بلاستيكية فارغة','بالون','خل','بيكربونات الصوديوم (صودا الخبز)','قمع صغير'],
+  steps:['ضعي 2-3 ملاعق من صودا الخبز داخل البالون (بمساعدة قمع صغير).','اسكبي كوبًا من الخل داخل الزجاجة.','ثبّتي فتحة البالون على فوهة الزجاجة دون إسقاط الصودا بعد.','ارفعي البالون ليسقط مسحوق الصودا في الخل، وراقبي البالون ينتفخ تلقائيًا!'],
+  why:'تفاعل الخل (حمض) مع صودا الخبز (قاعدة) ينتج غاز ثاني أكسيد الكربون الذي يملأ الزجاجة ثم يندفع لينفخ البالون.'},
+ {id:'icesalt',emo:'🧊',c:'#5b6475',t:'خدعة قطع الثلج بالملح',
+  tools:['مكعب ثلج','خيط قطني','ملح طعام'],
+  steps:['ضعي مكعب الثلج في طبق، وضعي طرف الخيط فوقه مباشرة.','انثري القليل من الملح على الخيط فوق الثلج.','انتظري نصف دقيقة تقريبًا دون تحريك الخيط.','ارفعي طرف الخيط بلطف... سيرتفع مكعب الثلج معلّقًا به!'],
+  why:'الملح يخفض درجة تجمّد الماء عند نقطة التماس فيذوب الثلج قليلًا حول الخيط، ثم يتجمد الماء الذائب مجددًا محتجزًا الخيط بداخله.',
+  warn:'تأكدي أن الخيط قطني (وليس بلاستيكيًا أملسًا) ليتماسك جيدًا مع الثلج.'},
+ {id:'eggvolcano',emo:'🥚',c:'#9b1c31',t:'بركان البيض',
+  tools:['بيضة (تُفرغ ويُحتفظ بنصف القشرة)','بيكربونات الصوديوم','خل','ألوان طعام','قطعة عجين أو صلصال لتثبيت البيضة'],
+  steps:['بإشراف المعلمة، أفرغي محتوى بيضة بحذر واغسلي نصف القشرة وجففيه.','ثبّتي نصف القشرة داخل قطعة عجين لتقف مستقيمة كبركان صغير.','ضعي ملعقة صغيرة من صودا الخبز داخل القشرة، وأضيفي نقطة لون طعام أحمر أو برتقالي.','صبّي القليل من الخل داخل القشرة وراقبي "الحمم" تفور من البركان الصغير!'],
+  why:'نفس تفاعل الحمض والقاعدة (خل + صودا) الذي ينتج فقاعات ثاني أكسيد الكربون بشكل مفاجئ يشبه ثوران البركان الحقيقي.',
+  warn:'يُفضّل إشراف المعلمة عند تفريغ قشرة البيضة لتجنّب الجروح من حوافها.'},
+ {id:'lava',emo:'🌋',c:'#7c1f33',t:'حمم من الألوان',
+  tools:['كوب زجاجي شفاف','ماء','زيت طعام','ألوان طعام','قرص فوّار (فيتامين سي الفوّار مثلًا)'],
+  steps:['املئي ثلث الكوب بالماء وأضيفي إليه نقطتين من لون الطعام.','اسكبي الزيت فوق الماء حتى يمتلئ باقي الكوب (سيطفو فوق الماء دون أن يمتزج به).','قسّمي القرص الفوّار لقطع صغيرة وأسقطي قطعة واحدة داخل الكوب.','راقبي فقاعات ملونة تتصاعد وتهبط كأنها "حمم" متحركة!'],
+  why:'الماء أثقل من الزيت فيبقى أسفله، والقرص الفوّار يولّد فقاعات غاز تحمل قطرات الماء الملوّن معها صعودًا عبر الزيت، فتهبط مجددًا عند فراغ الفقاعة.'},
+ {id:'floategg',emo:'🥚',c:'#24365c',t:'طفو البيضة بالملح',
+  tools:['كوبان طويلان','بيضة','ماء','ملح طعام'],
+  steps:['املئي الكوب الأول بماء عادي وضعي البيضة فيه — ستغرق.','في الكوب الثاني، ذوّبي عدة ملاعق ملح في الماء جيدًا.','ضعي نفس البيضة في الكوب المالح — ستطفو هذه المرة!'],
+  why:'الماء المالح أكثر كثافة من الماء العادي، فيصبح قادرًا على حمل وزن البيضة ودفعها للأعلى.'},
+ {id:'lemonink',emo:'🍋',c:'#c79020',t:'الحبر السري بالليمون',
+  tools:['عصير ليمون','عود قطن أو فرشاة رفيعة','ورقة بيضاء','مصدر حرارة خفيف (بإشراف المعلمة)'],
+  steps:['اغمسي عود القطن في عصير الليمون واكتبي به رسالة على الورقة.','اتركي الورقة حتى تجف تمامًا (تختفي الكتابة تمامًا!).','لكشف الرسالة، قرّبي الورقة بحذر من مصدر حرارة خفيف بإشراف المعلمة.','شاهدي الكتابة تظهر تدريجيًا باللون البني!'],
+  why:'عصير الليمون مادة عضوية تحترق وتتحول للون البني بحرارة أقل من الورقة نفسها، فتظهر الكتابة قبل أن تحترق الورقة.',
+  warn:'خطوة التسخين تحت إشراف المعلمة فقط، وبعيدًا عن اللهب المباشر.'}
+];
+function discDone(){return store.get('ab1_discover_done',{})}
+function renderDiscover(){
+  const done=discDone();
+  $('#discGrid').innerHTML=DISCOVER.map(x=>`
+    <div class="disc-card" style="--c:${x.c}">
+      <div class="disc-head"><span class="disc-emoji">${x.emo}</span><h4>${x.t}</h4></div>
+      <div class="disc-sec"><b>🧰 الأدوات</b><ul>${x.tools.map(t=>`<li>${t}</li>`).join('')}</ul></div>
+      <div class="disc-sec"><b>🧪 خطوات التجربة</b><ol>${x.steps.map(s=>`<li>${s}</li>`).join('')}</ol></div>
+      <div class="disc-why">🔍 ليش تصير كذا؟ ${x.why}</div>
+      ${x.warn?`<div class="disc-warn">⚠️ ${x.warn}</div>`:''}
+      <button class="btn sm disc-done${done[x.id]?' on':''}" data-done="${x.id}">${done[x.id]?'✅ جربتها':'وسّمي أنك جربتها'}</button>
+    </div>`).join('');
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-done]'); if(!b)return;
+  const d=discDone(),id=b.dataset.done; d[id]=!d[id]; store.set('ab1_discover_done',d);
+  b.classList.toggle('on',d[id]); b.textContent=d[id]?'✅ جربتها':'وسّمي أنك جربتها';
+});
 function renderQuick(){
   const m=byId(S.mat); if(!m)return;
   $('#qkEn').textContent=m.en;

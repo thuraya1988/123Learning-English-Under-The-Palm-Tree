@@ -22,12 +22,22 @@ async function loadContent(){
       await renderAnnouncementAdminControls(x);
       return;
     }
-    $('schoolContentBody').innerHTML=a.length?a.map(x=>`<article class="content-card">${contentTab==='gallery'?`<div class="cover">${x.media_url?`<img src="${esc(x.media_url)}">`:'🖼️'}</div>`:contentTab==='videos'?'<div class="cover">🎬</div>':''}<div class="body"><h4>${esc(x.title||'')}</h4><p style="white-space:pre-line">${esc(x.body||'')}</p>${x.event_date?`<small>${esc(x.event_date)}</small>`:''}${contentTab==='videos'&&x.media_url?`<a class="video-link-btn" href="${esc(x.media_url)}" target="_blank">▶ فتح الفيديو</a>`:''}${contentTab==='news'&&typeof window.canManageEmergencyAlert==='function'&&window.canManageEmergencyAlert()?`<button class="btn btn-ghost" style="margin-top:8px" onclick="deleteNewsUI(${x.id})">🗑 حذف الخبر</button>`:''}</div></article>`).join(''):'<div class="content-empty">لا يوجد محتوى منشور في هذا القسم حتى الآن.</div>';
+    $('schoolContentBody').innerHTML=a.length?a.map(x=>`<article class="content-card">${contentTab==='gallery'?`<div class="cover">${x.media_url?`<img src="${esc(x.media_url)}">`:'🖼️'}</div>`:contentTab==='videos'?'<div class="cover">🎬</div>':''}<div class="body"><h4>${esc(x.title||'')}</h4><p style="white-space:pre-line">${esc(x.body||'')}</p>${x.event_date?`<small>${esc(x.event_date)}</small>`:''}${contentTab==='videos'&&x.media_url?`<a class="video-link-btn" href="${esc(x.media_url)}" target="_blank">▶ فتح الفيديو</a>`:''}${contentTab==='news'&&typeof window.canManageEmergencyAlert==='function'&&window.canManageEmergencyAlert()?`<button class="btn btn-ghost" style="margin-top:8px" onclick="deleteNewsUI(${x.id})">🗑 حذف الخبر</button>`:''}${contentTab==='gallery'&&typeof window.canManageEmergencyAlert==='function'&&window.canManageEmergencyAlert()?`<button class="btn btn-ghost" style="margin-top:8px" onclick="deleteGalleryUI(${x.id})">🗑 حذف العمل</button>`:''}</div></article>`).join(''):'<div class="content-empty">لا يوجد محتوى منشور في هذا القسم حتى الآن.</div>';
     if(contentTab==='news')await renderNewsAdminControls();
+    if(contentTab==='gallery')renderGalleryAdminNote();
   }catch(x){
     $('schoolContentBody').innerHTML=`<div class="content-empty">${err(x)}</div>`;
   }
 }
+function renderGalleryAdminNote(){
+ const wrap=$('contentFormWrap');if(!wrap)return;
+ wrap.style.display='block';
+ wrap.innerHTML='<section style="border:1px solid #ead8c3;border-radius:18px;padding:16px;margin-bottom:14px;background:#fffaf3;text-align:center"><h4 style="margin:0 0 10px">🎨 غرفة الفنون الرقمية</h4><p style="margin:0 0 12px">ارسمي لوحتك في سبورة الرسم، ثم انشريها هنا في الجاليري مباشرة.</p><button class="btn btn-solid" onclick="location.href=\'art-studio/index.html\'">افتحي سبورة الرسم</button></section>';
+}
+window.deleteGalleryUI=async id=>{
+ if(!confirm('حذف هذا العمل الفني من الجاليري؟'))return;
+ try{await window.deleteGalleryAdmin(id);toast('🗑 تم حذف العمل الفني');await loadContent()}catch(e){toast(typeof staffError==='function'?staffError(e):'تعذر حذف العمل الفني')}
+};
 async function renderNewsAdminControls(){
  const wrap=$('contentFormWrap');if(!wrap)return;
  if(typeof window.canManageEmergencyAlert!=='function'||!window.canManageEmergencyAlert()){wrap.style.display='none';return}

@@ -831,6 +831,7 @@ window.getEmergencyStatus=()=>staffApi('emergency_status');
 window.saveImportantAnnouncementAdmin=p=>staffApi('save_important_announcement',p);
 window.saveNewsAdmin=p=>staffApi('save_news',p);
 window.deleteNewsAdmin=id=>staffApi('delete_news',{id});
+window.deleteGalleryAdmin=id=>staffApi('delete_gallery_item',{id});
 window.startEmergencyAlertAdmin=p=>staffApi('start_emergency_alert',p);
 window.stopEmergencyAlertAdmin=id=>staffApi('stop_emergency_alert',{id});
 window.openAdminAnnouncement=()=>{

@@ -541,6 +541,24 @@ Deno.serve(async(req)=>{
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id);if(!id)return json({ok:false,error:"invalid_input"},400);
     const {error}=await db.from("multaqa_content").delete().eq("id",id).eq("content_type","news");if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
+  if(action==="prepare_gallery_upload"){
+    const mime=clean(body.mime_type,120),allowed:any={"image/png":"png","image/jpeg":"jpg"};
+    if(!allowed[mime])return json({ok:false,error:"invalid_input"},400);
+    const path=`art/${crypto.randomUUID()}.${allowed[mime]}`;
+    const {data:signed,error}=await db.storage.from("gallery-art").createSignedUploadUrl(path);if(error||!signed)return json({ok:false,error:"upload_failed"},500);
+    return json({ok:true,path,signed_url:signed.signedUrl});
+  }
+  if(action==="save_gallery_item"){
+    const path=clean(body.path,700),title=clean(body.title,160)||"عمل فني من سبورة الرسم";
+    if(!path||!path.startsWith("art/"))return json({ok:false,error:"invalid_input"},400);
+    const row={id:Date.now(),content_type:"gallery",title,body:"",media_url:path,event_date:null,test_name:null,subject:null,day_name:null,published:true,sort_order:Date.now(),updated_at:new Date().toISOString()};
+    const {data,error}=await db.from("multaqa_content").insert(row).select().single();if(error)return json({ok:false,error:"save_failed"},500);
+    return json({ok:true,item:data});
+  }
+  if(action==="delete_gallery_item"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_content").delete().eq("id",id).eq("content_type","gallery");if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
   if(action==="emergency_status"){
     const {data}=await db.from("multaqa_emergency_alerts").select("*").eq("active",true).order("started_at",{ascending:false}).limit(1).maybeSingle();return json({ok:true,alert:data||null,can_manage:elevated(e)});
   }

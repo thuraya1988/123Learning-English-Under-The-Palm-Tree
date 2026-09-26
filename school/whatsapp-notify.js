@@ -86,7 +86,7 @@ function enhanceSchedule(pane){
 }
 
 /* ——— حجز الموارد ——— */
-const RESOURCE_OWNERS={resources_room:'أصيلة الوهيبية'};
+const RESOURCE_OWNERS={resources_room:'أصيلة الوهيبية',lab:'عبير السليمية'};
 function enhanceBooking(pane){
  const items=cache.resource_bookings?.items||[];if(!items.length)return;
  const arts=pane.querySelectorAll('.request-list article');

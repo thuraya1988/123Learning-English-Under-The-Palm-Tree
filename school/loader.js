@@ -5,7 +5,7 @@
   const tmp=document.createElement('div');
   tmp.innerHTML=parts.join('');
   while(tmp.firstChild)document.body.appendChild(tmp.firstChild);
-  for(const src of ['app-core.js?v=20260926-meetings','app-services.js?v=20260927-resource-diary','app-content.js?v=20260925-news-push','bell-notifications.js?v=20260926-custom-sound','events-data.js?v=20260912-events','events-calendar.js?v=20260923-school-deadlines','app-extensions.js?v=20260927-portal-booking','secure-platform.js?v=20260927-portal-booking','interactive-schedules.js?v=20260926-custom-sound','whatsapp-notify.js?v=20260927-lab-owner']){
+  for(const src of ['app-core.js?v=20260926-meetings','app-services.js?v=20260927-resource-diary','app-content.js?v=20260925-news-push','bell-notifications.js?v=20260926-custom-sound','events-data.js?v=20260912-events','events-calendar.js?v=20260923-school-deadlines','app-extensions.js?v=20260927-portal-booking','secure-platform.js?v=20260927-standalone-booking','interactive-schedules.js?v=20260926-custom-sound','whatsapp-notify.js?v=20260927-lab-owner']){
    await new Promise((ok,fail)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=fail;document.body.appendChild(s)})
   }
   const wait=Math.max(0,MIN_SPLASH-(Date.now()-started));

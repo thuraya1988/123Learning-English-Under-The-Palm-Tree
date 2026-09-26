@@ -216,7 +216,15 @@ td.n{font-family:var(--mono);color:var(--txt)}
 .disc-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .disc-emoji{font-size:26px;line-height:1}
 .disc-head h4{font-size:15.5px;font-weight:700}
-.disc-cv{width:100%;height:140px;display:block;border-radius:12px;background:var(--bg2);border:1px solid var(--line);margin-bottom:12px}
+.disc-cv{width:100%;height:140px;display:block;border-radius:12px;background:var(--bg2);border:1px solid var(--line);margin-bottom:10px}
+.disc-cv[data-clickable="1"],.disc-cv[data-drag="1"]{cursor:pointer}
+.disc-ctrl{margin-bottom:12px}
+.disc-hint{font-size:11.5px;color:var(--dim);margin-bottom:8px;line-height:1.6}
+.disc-swatches{display:flex;gap:7px;margin-bottom:9px}
+.disc-sw{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0}
+.disc-sw.on{border-color:var(--txt);transform:scale(1.15)}
+.disc-ctrl .btn.on{background:linear-gradient(135deg,#1f8f4e,#176d3c);border-color:#1f8f4e55;color:#fff}
+.disc-ctrl input[type=range]{width:100%;margin:6px 0;accent-color:var(--cy)}
 .disc-sec{margin-bottom:10px;font-size:13px}
 .disc-sec b{display:block;margin-bottom:5px;color:var(--txt)}
 .disc-sec ul,.disc-sec ol{padding-inline-start:20px;color:var(--mut);line-height:1.75}
@@ -867,147 +875,186 @@ const DISCOVER=[
 function discDone(){return store.get('ab1_discover_done',{})}
 function renderDiscover(){
   const done=discDone();
+  discState={};
+  DISCOVER.forEach(x=>discState[x.id]=DISC_APP[x.id].init());
   $('#discGrid').innerHTML=DISCOVER.map(x=>`
     <div class="disc-card" style="--c:${x.c}">
       <div class="disc-head"><span class="disc-emoji">${x.emo}</span><h4>${x.t}</h4></div>
-      <canvas class="disc-cv" id="disc-cv-${x.id}" width="300" height="150"></canvas>
+      <canvas class="disc-cv" id="disc-cv-${x.id}" data-id="${x.id}" width="300" height="150"${DISC_APP[x.id].clickable?' data-clickable="1"':''}></canvas>
+      <div class="disc-ctrl" id="disc-ctrl-${x.id}"></div>
       <div class="disc-sec"><b>🧰 الأدوات</b><ul>${x.tools.map(t=>`<li>${t}</li>`).join('')}</ul></div>
       <div class="disc-sec"><b>🧪 خطوات التجربة</b><ol>${x.steps.map(s=>`<li>${s}</li>`).join('')}</ol></div>
       <div class="disc-why">🔍 ليش تصير كذا؟ ${x.why}</div>
       ${x.warn?`<div class="disc-warn">⚠️ ${x.warn}</div>`:''}
-      <button class="btn sm disc-done${done[x.id]?' on':''}" data-done="${x.id}">${done[x.id]?'✅ جربتها':'وسّمي أنك جربتها'}</button>
+      <button class="btn sm disc-done${done[x.id]?' on':''}" data-done="${x.id}">${done[x.id]?'✅ تم التجربة':'تم التجربة'}</button>
     </div>`).join('');
+  DISCOVER.forEach(x=>renderDiscCtrl(x.id));
   startDiscAnim();
 }
+function renderDiscCtrl(id){const el=$('#disc-ctrl-'+id);if(el)el.innerHTML=DISC_APP[id].controlsHTML(discState[id])}
 document.addEventListener('click',e=>{
-  const b=e.target.closest('[data-done]'); if(!b)return;
-  const d=discDone(),id=b.dataset.done; d[id]=!d[id]; store.set('ab1_discover_done',d);
-  b.classList.toggle('on',d[id]); b.textContent=d[id]?'✅ جربتها':'وسّمي أنك جربتها';
+  const done=e.target.closest('[data-done]');
+  if(done){const d=discDone(),id=done.dataset.done;d[id]=!d[id];store.set('ab1_discover_done',d);done.classList.toggle('on',d[id]);done.textContent=d[id]?'✅ تم التجربة':'تم التجربة';return}
+  const act=e.target.closest('[data-act]');
+  if(act&&act.closest('.disc-ctrl')){const id=act.dataset.id,app=DISC_APP[id];if(app&&app.onAction){app.onAction(discState[id],act.dataset.act,act.dataset.val);renderDiscCtrl(id)}return}
+  const cv=e.target.closest('.disc-cv[data-clickable="1"]');
+  if(cv){const id=cv.dataset.id,app=DISC_APP[id];if(app&&app.onClick){const p=discXY(cv,e);app.onClick(discState[id],p.x,p.y);renderDiscCtrl(id)}return}
+});
+document.addEventListener('input',e=>{
+  const r=e.target.closest('.disc-ctrl input[type=range]');
+  if(!r)return;const id=r.dataset.id,app=DISC_APP[id];if(!app||!app.onInput)return;
+  app.onInput(discState[id],r.value);
+  const lbl=document.getElementById('disc-'+id+'-val');if(lbl)lbl.textContent=app.valLabel?app.valLabel(discState[id]):discState[id].salt;
+});
+document.addEventListener('pointerdown',e=>{
+  const cv=e.target.closest('.disc-cv[data-drag="1"]');if(!cv)return;
+  const id=cv.dataset.id,app=DISC_APP[id];if(!app||!app.onDrag)return;
+  cv.setPointerCapture(e.pointerId);const p=discXY(cv,e);app.onDrag(discState[id],p.x,p.y);
+  const move=ev=>{if(ev.pointerId!==e.pointerId)return;const p2=discXY(cv,ev);app.onDrag(discState[id],p2.x,p2.y)};
+  const up=ev=>{if(ev.pointerId!==e.pointerId)return;cv.removeEventListener('pointermove',move);cv.removeEventListener('pointerup',up)};
+  cv.addEventListener('pointermove',move);cv.addEventListener('pointerup',up);
 });
 
-/* ---------- DISCOVER MINI-ANIMATIONS (تقريبية للمعاينة، ليست محاكاة دقيقة) ---------- */
-const ease=p=>1-Math.pow(1-Math.min(1,Math.max(0,p)),2);
-const loopP=(t,dur)=>(t%dur)/dur;
+/* ---------- DISCOVER: تجارب رقمية تفاعلية (تقريبية، ليست محاكاة فيزيائية دقيقة) ---------- */
+function discXY(cv,evt){const r=cv.getBoundingClientRect();const cx=(evt.clientX-r.left)*(cv.width/r.width),cy=(evt.clientY-r.top)*(cv.height/r.height);return{x:cx,y:cy}}
 function discBg(ctx,w,h,color){ctx.clearRect(0,0,w,h);ctx.fillStyle=color;ctx.fillRect(0,0,w,h);}
-function discDot(ctx,x,y,r,color,alpha=1){ctx.globalAlpha=alpha;ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
+function discDot(ctx,x,y,r,color,alpha=1){if(r<=0)return;ctx.globalAlpha=alpha;ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
 function discCup(ctx,x,y,w,h,stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+h);ctx.lineTo(x+w,y+h);ctx.lineTo(x+w,y);ctx.stroke();}
-function discLabel(ctx,x,y,text,color){ctx.fillStyle=color;ctx.font='11px Cairo, Tahoma, sans-serif';ctx.textAlign='center';ctx.fillText(text,x,y);}
+function discLabel(ctx,x,y,text,color){ctx.fillStyle=color;ctx.font='10.5px Cairo, Tahoma, sans-serif';ctx.textAlign='center';ctx.fillText(text,x,y);}
+function discSwatches(id,colors,sel){return colors.map(c=>`<button class="disc-sw${c===sel?' on':''}" data-id="${id}" data-act="color" data-val="${c}" style="background:${c}"></button>`).join('')}
+const RND_PEPPER=()=>({x:60+Math.random()*180,y:35+Math.random()*75});
+let discState={};
 
-const DISC_ANIM={
-  pepper(ctx,w,h,t){
-    discBg(ctx,w,h,'#dfeaf5');
-    const cx=w/2,cy=h/2,p=loopP(t,3.2);
-    const grow=p<0.55?ease((p-0.1)/0.45):1-ease((p-0.85)/0.15);
-    const r=Math.max(0,grow)*70;
-    for(let i=0;i<16;i++){
-      const ang=i*(Math.PI*2/16)+i*0.15;
-      const jr=6+((i*37)%9);
-      const x=cx+Math.cos(ang)*(jr+r),y=cy+Math.sin(ang)*(jr+r)*0.6;
-      discDot(ctx,x,y,2.6,'#20222a');
-    }
-    if(p>0.08&&p<0.75){discDot(ctx,cx,cy,7,'#fff');discDot(ctx,cx,cy,3,'#e0524a');}
+const DISC_APP={
+  pepper:{
+    clickable:true,
+    init(){const pts=Array.from({length:18},()=>{const p=RND_PEPPER();return{x:p.x,y:p.y,tx:p.x,ty:p.y}});return{pts}},
+    onClick(s,mx,my){s.pts.forEach(p=>{const dx=p.tx-mx,dy=p.ty-my,dist=Math.hypot(dx,dy)||0.0001;if(dist<95){const push=(95-dist)/95*45+12;p.tx=clamp(p.tx+dx/dist*push,12,288);p.ty=clamp(p.ty+dy/dist*push*0.6,18,122)}})},
+    onAction(s,act){if(act==='reset')s.pts.forEach(p=>{const n=RND_PEPPER();p.tx=n.x;p.ty=n.y})},
+    update(s){s.pts.forEach(p=>{p.x=lerp(p.x,p.tx,0.14);p.y=lerp(p.y,p.ty,0.14)})},
+    draw(ctx,w,h,s){discBg(ctx,w,h,'#dfeaf5');s.pts.forEach(p=>discDot(ctx,p.x,p.y,2.6,'#20222a'))},
+    controlsHTML(){return`<div class="disc-hint">👆 المسي سطح الماء بإصبعك لتقليد لمسة الصابون</div><button class="btn sm" data-id="pepper" data-act="reset">🔄 رشّي الفلفل من جديد</button>`}
   },
-  palette(ctx,w,h,t){
-    discBg(ctx,w,h,'#eaf3fb');
-    const spots=[[70,50],[150,90],[220,45],[100,105],[195,110]];
-    const colors=['#e0524a','#3f7dc9','#e0b23f','#4a9d6e','#9b5fc0'];
-    spots.forEach((s,i)=>{
-      const p=loopP(t+i*0.55,3.0);
-      const r=ease(p)*30,a=1-p;
-      discDot(ctx,s[0],s[1],r,colors[i],Math.max(0,a*0.75));
-      discDot(ctx,s[0],s[1],3,colors[i],1);
-    });
+  palette:{
+    clickable:true,
+    colors:['#e0524a','#3f7dc9','#e0b23f','#4a9d6e','#9b5fc0'],
+    init(){return{sel:this.colors[0],blooms:[]}},
+    onClick(s,mx,my){s.blooms.push({x:mx,y:my,color:s.sel,age:0});if(s.blooms.length>8)s.blooms.shift()},
+    onAction(s,act,val){if(act==='color')s.sel=val;if(act==='reset')s.blooms=[]},
+    update(s){s.blooms.forEach(b=>b.age=Math.min(b.age+1,90))},
+    draw(ctx,w,h,s){discBg(ctx,w,h,'#eaf3fb');s.blooms.forEach(b=>{const p=b.age/90,r=Math.min(p*2,1)*30,a=Math.max(0,1-p);discDot(ctx,b.x,b.y,r,b.color,a*0.7);discDot(ctx,b.x,b.y,3,b.color,1)})},
+    controlsHTML(s){return`<div class="disc-hint">👆 اختاري لونًا وانقري على الماء لتُسقطي قطرة</div><div class="disc-swatches">${discSwatches('palette',this.colors,s.sel)}</div><button class="btn sm" data-id="palette" data-act="reset">🔄 امسحي اللوحة</button>`}
   },
-  milk(ctx,w,h,t){
-    discBg(ctx,w,h,'#fbf6ea');
-    const cx=w/2,cy=h/2,p=loopP(t,3.0);
-    const colors=['#e0524a','#3f7dc9','#e0b23f','#4a9d6e'];
-    colors.forEach((c,i)=>discDot(ctx,40+i*70,20+((i%2)*100),5,c,0.85));
-    const grow=p<0.6?ease((p-0.15)/0.45):1-ease((p-0.85)/0.15);
-    const r=Math.max(0,grow)*80;
-    if(r>0)colors.forEach((c,i)=>{
-      const ang=i*(Math.PI*2/4)+p*4;
-      discDot(ctx,cx+Math.cos(ang)*r,cy+Math.sin(ang)*r*0.55,4,c,0.8);
-      discDot(ctx,cx+Math.cos(ang+0.9)*r*0.7,cy+Math.sin(ang+0.9)*r*0.4,3,c,0.6);
-    });
-    if(p>0.05&&p<0.7)discDot(ctx,cx,cy,5,'#cbb994');
+  milk:{
+    clickable:true,
+    colors:['#e0524a','#3f7dc9','#e0b23f','#4a9d6e'],
+    init(){return{sel:this.colors[0],dots:[],burstAge:-1}},
+    onClick(s,mx,my){if(s.dots.length>=6)s.dots.shift();s.dots.push({x:mx,y:my,color:s.sel})},
+    onAction(s,act,val){if(act==='color')s.sel=val;if(act==='soap'&&s.dots.length)s.burstAge=0;if(act==='reset'){s.dots=[];s.burstAge=-1}},
+    update(s){if(s.burstAge>=0)s.burstAge=Math.min(s.burstAge+1,70)},
+    draw(ctx,w,h,s){
+      discBg(ctx,w,h,'#fbf6ea');const cx=w/2,cy=h/2;
+      s.dots.forEach((d,i)=>{
+        if(s.burstAge>=0){
+          const p=s.burstAge/70,ang=Math.atan2(d.y-cy,d.x-cx)+p*3,dist=Math.hypot(d.x-cx,d.y-cy)*(1+p*1.4);
+          discDot(ctx,cx+Math.cos(ang)*dist,cy+Math.sin(ang)*dist,4,d.color,Math.max(0,0.85-p*0.5));
+        }else discDot(ctx,d.x,d.y,5,d.color,0.85);
+      });
+      if(s.burstAge>=0&&s.burstAge<20)discDot(ctx,cx,cy,5,'#cbb994',1-s.burstAge/20);
+    },
+    controlsHTML(s){return`<div class="disc-hint">${s.dots.length?'👆 انقري "المسي بالصابون" لتفجير الألوان':'👆 اختاري لونًا وانقري على الحليب لوضع قطرات (حتى 6)'}</div><div class="disc-swatches">${discSwatches('milk',this.colors,s.sel)}</div><button class="btn sm" data-id="milk" data-act="soap">🧴 المسي بالصابون!</button> <button class="btn sm" data-id="milk" data-act="reset">🔄 مسح</button>`}
   },
-  balloon(ctx,w,h,t){
-    discBg(ctx,w,h,'#eef6f0');
-    const p=loopP(t,3.4);
-    const scale=0.45+ease(p<0.7?p/0.7:1-((p-0.7)/0.3))*0.55;
-    ctx.fillStyle='#cfe0d6';ctx.fillRect(w/2-22,h-46,44,40);
-    ctx.fillStyle='#9db6a8';ctx.fillRect(w/2-6,h-58,12,14);
-    ctx.save();ctx.translate(w/2,h-64);ctx.scale(scale,scale);
-    ctx.fillStyle='#4a9d6e';ctx.beginPath();ctx.ellipse(0,-30,26,32,0,0,Math.PI*2);ctx.fill();
-    ctx.restore();
-    for(let i=0;i<3;i++){const bp=(p*2+i*0.33)%1;discDot(ctx,w/2-10+i*10,h-18-bp*20,3,'#fff',0.7*(1-bp));}
+  balloon:{
+    init(){return{vinegar:false,soda:0,scale:0.45,bubblePhase:0}},
+    onAction(s,act){if(act==='vinegar')s.vinegar=true;if(act==='soda'&&s.soda<4)s.soda++;if(act==='reset'){s.vinegar=false;s.soda=0}},
+    update(s){const target=0.45+(s.vinegar?Math.min(s.soda,4)*0.12:0);s.scale=lerp(s.scale,target,0.07);if(s.vinegar&&s.soda>0)s.bubblePhase+=0.03},
+    draw(ctx,w,h,s){
+      discBg(ctx,w,h,'#eef6f0');
+      ctx.fillStyle='#cfe0d6';ctx.fillRect(w/2-22,h-46,44,40);ctx.fillStyle='#9db6a8';ctx.fillRect(w/2-6,h-58,12,14);
+      ctx.save();ctx.translate(w/2,h-64);ctx.scale(s.scale,s.scale);ctx.fillStyle='#4a9d6e';ctx.beginPath();ctx.ellipse(0,-30,26,32,0,0,Math.PI*2);ctx.fill();ctx.restore();
+      if(s.vinegar&&s.soda>0)for(let i=0;i<3;i++){const bp=(s.bubblePhase+i*0.33)%1;discDot(ctx,w/2-10+i*10,h-18-bp*20,3,'#fff',0.7*(1-bp))}
+    },
+    controlsHTML(s){return`<div class="disc-hint">${!s.vinegar&&s.soda>0?'🧪 اسكبي الخل الآن ليبدأ التفاعل!':'👇 جربي الترتيب بنفسك'}</div><button class="btn sm${s.vinegar?' on':''}" data-id="balloon" data-act="vinegar">${s.vinegar?'✅ تم صب الخل':'🧪 اسكبي الخل بالزجاجة'}</button> <button class="btn sm" data-id="balloon" data-act="soda">🧂 أضيفي صودا (${s.soda}/4)</button> <button class="btn sm" data-id="balloon" data-act="reset">🔄</button>`}
   },
-  icesalt(ctx,w,h,t){
-    discBg(ctx,w,h,'#eef2f7');
-    const p=loopP(t,3.4);
-    const lift=p<0.55?0:ease((p-0.55)/0.35)*36;
-    ctx.save();ctx.translate(0,-lift);
-    ctx.fillStyle='rgba(150,195,230,.55)';ctx.strokeStyle='#7fa8cc';ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.roundRect(w/2-32,h/2-16,64,48,8);ctx.fill();ctx.stroke();
-    ctx.strokeStyle='#5b6475';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(w/2-45,h/2-16);ctx.lineTo(w/2+45,h/2-16);ctx.stroke();
-    ctx.restore();
-    if(p<0.35)for(let i=0;i<8;i++){const sp=(p/0.35+i*0.1)%1;discDot(ctx,w/2-30+i*8,h/2-16-6+sp*10,1.6,'#fff',1-sp);}
+  icesalt:{
+    init(){return{salt:0,lifted:false,liftCur:0,liftTarget:0,warn:false}},
+    onAction(s,act){if(act==='salt'&&s.salt<4)s.salt++;if(act==='lift'){if(s.salt>=3){s.lifted=true;s.liftTarget=36;s.warn=false}else s.warn=true}if(act==='reset'){s.salt=0;s.lifted=false;s.liftTarget=0;s.warn=false}},
+    update(s){s.liftCur=lerp(s.liftCur,s.liftTarget,0.08)},
+    draw(ctx,w,h,s){
+      discBg(ctx,w,h,'#eef2f7');ctx.save();ctx.translate(0,-s.liftCur);
+      ctx.fillStyle='rgba(150,195,230,.55)';ctx.strokeStyle='#7fa8cc';ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(w/2-32,h/2-16,64,48,8);ctx.fill();ctx.stroke();
+      ctx.strokeStyle='#5b6475';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(w/2-45,h/2-16);ctx.lineTo(w/2+45,h/2-16);ctx.stroke();ctx.restore();
+      for(let i=0;i<s.salt*2;i++)discDot(ctx,w/2-30+((i*11)%64),h/2-16-s.liftCur-2+((i*7)%6),1.5,'#fff',0.9);
+    },
+    controlsHTML(s){return`<div class="disc-hint">${s.warn?'⚠️ أضيفي ملحًا أكثر أولًا (٣ رشّات على الأقل)!':'👆 رشّي الملح ثم ارفعي الخيط'}</div><button class="btn sm" data-id="icesalt" data-act="salt">🧂 رشّي قليل ملح (${s.salt}/4)</button> <button class="btn sm" data-id="icesalt" data-act="lift">🪢 ارفعي الخيط</button> <button class="btn sm" data-id="icesalt" data-act="reset">🔄</button>`}
   },
-  eggvolcano(ctx,w,h,t){
-    discBg(ctx,w,h,'#f7efe0');
-    ctx.fillStyle='#b98a55';ctx.beginPath();ctx.ellipse(w/2,h-24,50,14,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#f3ecdd';ctx.beginPath();ctx.moveTo(w/2-26,h-30);ctx.lineTo(w/2,h-84);ctx.lineTo(w/2+26,h-30);ctx.closePath();ctx.fill();
-    const p=loopP(t,2.6);
-    for(let i=0;i<10;i++){
-      const bp=(p+i*0.09)%1,side=(i%2===0?-1:1);
-      const x=w/2+side*bp*30,y=h-84+bp*66;
-      discDot(ctx,x,y,4-bp*2,i%2===0?'#e0524a':'#e08a3f',1-bp*0.8);
-    }
+  eggvolcano:{
+    init(){return{soda:false,burstAge:-1,warn:false}},
+    onAction(s,act){if(act==='soda'){s.soda=true;s.warn=false}if(act==='vinegar'){if(s.soda){s.burstAge=0}else s.warn=true}if(act==='reset'){s.soda=false;s.burstAge=-1;s.warn=false}},
+    update(s){if(s.burstAge>=0)s.burstAge=Math.min(s.burstAge+1,60)},
+    draw(ctx,w,h,s){
+      discBg(ctx,w,h,'#f7efe0');
+      ctx.fillStyle='#b98a55';ctx.beginPath();ctx.ellipse(w/2,h-24,50,14,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#f3ecdd';ctx.beginPath();ctx.moveTo(w/2-26,h-30);ctx.lineTo(w/2,h-84);ctx.lineTo(w/2+26,h-30);ctx.closePath();ctx.fill();
+      if(s.burstAge>=0)for(let i=0;i<10;i++){const bp=Math.min((s.burstAge/60)+i*0.09,1)%1,side=(i%2===0?-1:1);discDot(ctx,w/2+side*bp*30,h-84+bp*66,4-bp*2,i%2===0?'#e0524a':'#e08a3f',1-bp*0.8)}
+    },
+    controlsHTML(s){return`<div class="disc-hint">${s.warn?'⚠️ ضيفي الصودا داخل القشرة أولًا!':'👆 جهّزي البركان ثم فجّريه'}</div><button class="btn sm${s.soda?' on':''}" data-id="eggvolcano" data-act="soda">${s.soda?'✅ الصودا جاهزة':'🧂 ضيفي صودا داخل القشرة'}</button> <button class="btn sm" data-id="eggvolcano" data-act="vinegar">🧪 صبّي الخل</button> <button class="btn sm" data-id="eggvolcano" data-act="reset">🔄</button>`}
   },
-  lava(ctx,w,h,t){
-    discBg(ctx,w,h,'#f6f1e4');
-    discCup(ctx,w/2-40,20,80,110,'#96324a');
-    ctx.fillStyle='rgba(120,170,210,.55)';ctx.fillRect(w/2-40,80,80,50);
-    ctx.fillStyle='rgba(230,196,90,.5)';ctx.fillRect(w/2-40,20,80,60);
-    const p=t%4;
-    for(let i=0;i<5;i++){
-      const ph=(p/4+i*0.2)%1;
-      const y=128-ph*100;
-      discDot(ctx,w/2-25+i*12,y,6,'#e0703f',0.85);
-    }
+  lava:{
+    init(){return{fizz:0,phase:0}},
+    onAction(s,act){if(act==='fizz')s.fizz=Math.min(s.fizz+1,5);if(act==='reset')s.fizz=0},
+    update(s){s.fizz=Math.max(0,s.fizz-0.006);s.phase+=0.01+s.fizz*0.012},
+    draw(ctx,w,h,s){
+      discBg(ctx,w,h,'#f6f1e4');discCup(ctx,w/2-40,20,80,110,'#96324a');
+      ctx.fillStyle='rgba(120,170,210,.55)';ctx.fillRect(w/2-40,80,80,50);
+      ctx.fillStyle='rgba(230,196,90,.5)';ctx.fillRect(w/2-40,20,80,60);
+      const n=Math.max(1,Math.round(s.fizz));
+      for(let i=0;i<n;i++){const ph=(s.phase+i*0.22)%1,y=128-ph*100;discDot(ctx,w/2-25+i*12,y,6,'#e0703f',0.85)}
+    },
+    controlsHTML(s){return`<div class="disc-hint">👆 أضيفي قطعًا من القرص الفوّار وراقبي الحمم</div><button class="btn sm" data-id="lava" data-act="fizz">💊 أضيفي قطعة (شدة ${Math.round(s.fizz)}/5)</button> <button class="btn sm" data-id="lava" data-act="reset">🔄</button>`}
   },
-  floategg(ctx,w,h,t){
-    discBg(ctx,w,h,'#eef3f8');
-    const bob=Math.sin(t*2)*3;
-    discCup(ctx,w/2-120,25,70,95,'#7fa8cc');
-    ctx.fillStyle='rgba(150,195,230,.4)';ctx.fillRect(w/2-120,45,70,75);
-    ctx.fillStyle='#e7d9b0';ctx.beginPath();ctx.ellipse(w/2-85,110+bob,13,17,0,0,Math.PI*2);ctx.fill();
-    discLabel(ctx,w/2-85,40,'ماء عادي — تغرق','#5b6475');
-    discCup(ctx,w/2+50,25,70,95,'#7fa8cc');
-    ctx.fillStyle='rgba(150,195,230,.55)';ctx.fillRect(w/2+50,45,70,75);
-    for(let i=0;i<10;i++)discDot(ctx,w/2+55+((i*13)%62),55+((i*23)%55),0.9,'#fff',0.6);
-    ctx.fillStyle='#e7d9b0';ctx.beginPath();ctx.ellipse(w/2+85,55+bob,13,17,0,0,Math.PI*2);ctx.fill();
-    discLabel(ctx,w/2+85,40,'ماء مالح — تطفو','#5b6475');
+  floategg:{
+    init(){return{salt:0,saltCur:0}},
+    onInput(s,val){s.salt=+val},
+    valLabel(s){return s.salt+' '+(s.salt===1?'ملعقة':'ملاعق')},
+    update(s){s.saltCur=lerp(s.saltCur,s.salt,0.1)},
+    draw(ctx,w,h,s){
+      discBg(ctx,w,h,'#eef3f8');
+      discCup(ctx,w/2-120,25,70,95,'#7fa8cc');ctx.fillStyle='rgba(150,195,230,.4)';ctx.fillRect(w/2-120,45,70,75);
+      ctx.fillStyle='#e7d9b0';ctx.beginPath();ctx.ellipse(w/2-85,110,13,17,0,0,Math.PI*2);ctx.fill();
+      discLabel(ctx,w/2-85,40,'ماء عادي — تغرق','#5b6475');
+      discCup(ctx,w/2+50,25,70,95,'#7fa8cc');ctx.fillStyle='rgba(150,195,230,.55)';ctx.fillRect(w/2+50,45,70,75);
+      for(let i=0;i<s.saltCur*3;i++)discDot(ctx,w/2+55+((i*13)%62),55+((i*23)%75),0.9,'#fff',0.6);
+      const eggY=lerp(110,55,s.saltCur/8);
+      ctx.fillStyle='#e7d9b0';ctx.beginPath();ctx.ellipse(w/2+85,eggY,13,17,0,0,Math.PI*2);ctx.fill();
+      discLabel(ctx,w/2+85,40,'ماء مالح','#5b6475');
+    },
+    controlsHTML(s){return`<div class="disc-hint">🧂 حرّكي كمية الملح بالكوب اليمين وراقبي البيضة</div><input type="range" min="0" max="8" step="1" value="${s.salt}" data-id="floategg"> <b id="disc-floategg-val">${this.valLabel(s)}</b>`}
   },
-  lemonink(ctx,w,h,t){
-    discBg(ctx,w,h,'#fdfaf1');
-    ctx.strokeStyle='#e9dfc9';ctx.lineWidth=1;ctx.strokeRect(20,15,w-40,h-30);
-    const p=loopP(t,3.6);
-    const sweepX=20+ease(p<0.7?p/0.7:1)* (w-40);
-    ctx.save();ctx.beginPath();ctx.rect(20,15,Math.min(w-40,Math.max(0,sweepX-20)),h-30);ctx.clip();
-    ctx.strokeStyle='#8a5a2b';ctx.lineWidth=2;ctx.beginPath();
-    ctx.moveTo(35,50);ctx.quadraticCurveTo(70,35,100,55);ctx.quadraticCurveTo(140,75,170,50);
-    ctx.moveTo(35,80);ctx.quadraticCurveTo(90,65,150,85);ctx.quadraticCurveTo(200,100,240,75);
-    ctx.stroke();ctx.restore();
-    if(p<0.75){ctx.fillStyle='rgba(199,144,32,.55)';ctx.fillRect(sweepX-6,15,6,h-30);}
+  lemonink:{
+    dragAttr:true,
+    init(){return{reveal:0,revealCur:0}},
+    onAction(s,act){if(act==='reset'){s.reveal=0}},
+    onDrag(s,mx){s.reveal=clamp((mx-20)/(300-40),0,1)},
+    update(s){s.revealCur=lerp(s.revealCur,s.reveal,0.2)},
+    draw(ctx,w,h,s){
+      discBg(ctx,w,h,'#fdfaf1');ctx.strokeStyle='#e9dfc9';ctx.lineWidth=1;ctx.strokeRect(20,15,w-40,h-30);
+      const revealX=20+s.revealCur*(w-40);
+      ctx.save();ctx.beginPath();ctx.rect(20,15,Math.max(0,revealX-20),h-30);ctx.clip();
+      ctx.strokeStyle='#8a5a2b';ctx.lineWidth=2;ctx.beginPath();
+      ctx.moveTo(35,50);ctx.quadraticCurveTo(70,35,100,55);ctx.quadraticCurveTo(140,75,170,50);
+      ctx.moveTo(35,80);ctx.quadraticCurveTo(90,65,150,85);ctx.quadraticCurveTo(200,100,240,75);
+      ctx.stroke();ctx.restore();
+      ctx.font='16px Cairo';ctx.textAlign='center';ctx.fillText('🔥',revealX,30);
+    },
+    controlsHTML(){return`<div class="disc-hint">👆 اسحبي شعلة الحرارة 🔥 فوق الورقة لتكشف الرسالة تدريجيًا</div><button class="btn sm" data-id="lemonink" data-act="reset">🔄 أخفي الرسالة</button>`}
   }
 };
 let discRAF=0,discCanvases=[];
 function startDiscAnim(){
   stopDiscAnim();
-  discCanvases=DISCOVER.map(x=>{const cv=$('#disc-cv-'+x.id);if(!cv)return null;return{ctx:cv.getContext('2d'),w:cv.width,h:cv.height,draw:DISC_ANIM[x.id]}}).filter(Boolean);
-  const loop=now=>{const t=now/1000;discCanvases.forEach(c=>c.draw&&c.draw(c.ctx,c.w,c.h,t));discRAF=requestAnimationFrame(loop)};
+  discCanvases=DISCOVER.map(x=>{const cv=$('#disc-cv-'+x.id);if(!cv)return null;if(DISC_APP[x.id].dragAttr)cv.dataset.drag='1';return{ctx:cv.getContext('2d'),w:cv.width,h:cv.height,id:x.id}}).filter(Boolean);
+  const loop=()=>{discCanvases.forEach(c=>{const app=DISC_APP[c.id],s=discState[c.id];if(app.update)app.update(s);app.draw(c.ctx,c.w,c.h,s)});discRAF=requestAnimationFrame(loop)};
   discRAF=requestAnimationFrame(loop);
 }
 function stopDiscAnim(){if(discRAF){cancelAnimationFrame(discRAF);discRAF=0}discCanvases=[]}

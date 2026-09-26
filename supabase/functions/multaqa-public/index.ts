@@ -128,6 +128,13 @@ Deno.serve(async(req)=>{
     (att||[]).forEach((x:any)=>{if(counts[x.status]!=null)counts[x.status]++});
     return json({ok:true,student:{name:student.name,class_name:student.class_name},from:since,attendance:{days:att||[],counts},badges:badges||[],homework:homework||[]});
   }
+  if(action==="resource_diary_public"){
+    const resourceKey=clean(body.resource_key,40);if(!resourceKey)return json({ok:false,error:"invalid_input"},400);
+    const {data,error}=await db.from("multaqa_resource_diary").select("id,caption,photo_path,media_url,created_at").eq("resource_key",resourceKey).order("created_at",{ascending:false}).limit(30);
+    if(error)return json({ok:false,error:"server_error"},500);
+    const items=await Promise.all((data||[]).map(async(x:any)=>{let photo_url=null;if(x.photo_path){const {data:u}=await db.storage.from("resource-diary-media").createSignedUrl(x.photo_path,3600);photo_url=u?.signedUrl||null}return{id:x.id,caption:x.caption,photo_url,media_url:x.media_url,created_at:x.created_at}}));
+    return json({ok:true,items});
+  }
   if(action==="honor_board"){
     const now=muscatNow(),since=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10);
     const {data,error}=await db.from("multaqa_student_badges").select("student_name,class_name").gte("awarded_at",since+"T00:00:00");

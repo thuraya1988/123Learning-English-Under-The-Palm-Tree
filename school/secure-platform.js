@@ -363,22 +363,25 @@ window.markBusArrivalUI=async route_name=>{
 };
 const BOOKING_RESOURCES=[{key:'resources_room',label:'📚 غرفة المصادر'},{key:'lab',label:'🧪 المختبر'},{key:'activities_hall',label:'🎭 قاعة الأنشطة'},{key:'projector',label:'📽️ جهاز العرض'}];
 const RESOURCE_OWNERS_UI={resources_room:'أصيلة الوهيبية',lab:'عبير السليمية'};
-let bookingItemsCache=[],bookingTableRes='';
-async function renderResourceBooking(){
+let bookingItemsCache=[],bookingTableRes='',diaryPhotoPath='';
+function isResourceOwner(key){const myName=secureEmployee?(secureEmployee.short_name||secureEmployee.full_name):'';const owner=RESOURCE_OWNERS_UI[key];return !!owner&&!!myName&&(owner===myName||owner===secureEmployee.full_name)}
+async function renderResourceBooking(openKey){
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat'}).format(new Date());
  const to=new Date(new Date(today+'T12:00:00').getTime()+6*86400000).toISOString().slice(0,10);
  const d=await staffApi('resource_bookings',{from:today,to}),items=d.items||[];
  bookingItemsCache=items;
  const form='<section class="staff-card"><h3>حجز مورد جديد</h3><div class="form-row"><select id="bookResource">'+BOOKING_RESOURCES.map(r=>'<option value="'+r.key+'">'+r.label+'</option>').join('')+'</select><input id="bookDate" type="date" value="'+today+'" min="'+today+'"></div><div class="form-row"><select id="bookPeriod">'+[1,2,3,4,5,6,7].map(p=>'<option value="'+p+'">الحصة '+p+'</option>').join('')+'</select><input id="bookNote" placeholder="ملاحظة (اختياري)"></div><button class="staff-primary" onclick="createResourceBooking()">📅 احجز</button><div id="bookResult"></div></section>';
- const myName=secureEmployee?(secureEmployee.short_name||secureEmployee.full_name):'';
- const myOwnedKeys=Object.keys(RESOURCE_OWNERS_UI).filter(k=>myName&&(RESOURCE_OWNERS_UI[k]===myName||RESOURCE_OWNERS_UI[k]===secureEmployee.full_name));
- const myItems=items.filter(x=>myOwnedKeys.includes(x.resource_key));
- const ownerCard=myItems.length?'<section class="staff-card booking-owner-highlight booking-alert-pulse"><h3>🔔 تنبيه: حجوزات جديدة على '+esc(BOOKING_RESOURCES.find(r=>r.key===myOwnedKeys[0])?.label||'')+' — مسؤوليتكِ</h3><p class="staff-help">هذه الحجوزات وصلت إليكِ لأنكِ المسؤولة عن هذا المورد.</p><div class="owner-request-list">'+myItems.map(x=>'<article><b>'+esc(x.resource_label)+'</b><small>'+esc(x.booking_date)+' • الحصة '+x.period+' • حجزتها: '+esc(x.booked_by_name)+(x.note?' • '+esc(x.note):'')+'</small></article>').join('')+'</div></section>':'';
- const list=items.length?'<div class="request-list">'+items.map(x=>'<article><b>'+esc(x.resource_label)+'</b><small>'+esc(x.booking_date)+' • الحصة '+x.period+' • '+esc(x.booked_by_name)+(x.note?' • '+esc(x.note):'')+'</small>'+((secureEmployee&&x.booked_by_employee_id===secureEmployee.employee_id)||secureAdmin()?' <button onclick="cancelResourceBooking(\''+x.id+'\')">إلغاء</button>':'')+'</article>').join('')+'</div>':'<div class="staff-empty">لا توجد حجوزات هذا الأسبوع.</div>';
- if(!bookingTableRes)bookingTableRes=BOOKING_RESOURCES[0].key;
- const tableSel='<select id="bookTableSel" onchange="bookingTableRes=this.value;renderBookingTable()">'+BOOKING_RESOURCES.map(r=>'<option value="'+r.key+'" '+(r.key===bookingTableRes?'selected':'')+'>'+r.label+'</option>').join('')+'</select>';
- S('staffPane').innerHTML='<div class="today-title"><div><small>غرفة المصادر • المختبر • قاعة الأنشطة • جهاز العرض</small><h2>📅 حجز الموارد المشتركة</h2></div></div>'+ownerCard+form+'<h3 class="staff-section-title">🗓️ جدول الحجوزات هذا الأسبوع</h3><div class="today-title"><div></div>'+tableSel+'</div><div id="bookingTableWrap"></div><h3 class="staff-section-title">قائمة الحجوزات</h3>'+list;
+ const myOwnedKeys=Object.keys(RESOURCE_OWNERS_UI).filter(isResourceOwner);
+ const pendingMine=items.filter(x=>myOwnedKeys.includes(x.resource_key)&&x.status==='pending');
+ const ownerCard=pendingMine.length?'<section class="staff-card booking-owner-highlight booking-alert-pulse"><h3>🔔 طلبات حجز بانتظار موافقتكِ</h3><p class="staff-help">هذه الحجوزات وصلت إليكِ لأنكِ المسؤولة عن هذا المورد — الحجز لن يتأكد إلا بعد موافقتكِ.</p><div class="owner-request-list">'+pendingMine.map(x=>'<article><b>'+esc(x.resource_label)+'</b><small>'+esc(x.booking_date)+' • الحصة '+x.period+' • طلبتها: '+esc(x.booked_by_name)+(x.note?' • '+esc(x.note):'')+'</small><div class="owner-approve-actions"><button class="staff-primary sm" onclick="approveResourceBookingUI(\''+x.id+'\')">✅ موافقة</button> <button class="staff-ghost sm" onclick="rejectResourceBookingUI(\''+x.id+'\')">❌ رفض</button></div></article>').join('')+'</div></section>':'';
+ const statusTag=x=>x.status==='pending'?' <span class="booking-status-pending">⏳ قيد الموافقة</span>':'';
+ const list=items.length?'<div class="request-list">'+items.map(x=>'<article><b>'+esc(x.resource_label)+'</b><small>'+esc(x.booking_date)+' • الحصة '+x.period+' • '+esc(x.booked_by_name)+(x.note?' • '+esc(x.note):'')+'</small>'+statusTag(x)+((secureEmployee&&x.booked_by_employee_id===secureEmployee.employee_id)||secureAdmin()?' <button onclick="cancelResourceBooking(\''+x.id+'\')">إلغاء</button>':'')+'</article>').join('')+'</div>':'<div class="staff-empty">لا توجد حجوزات هذا الأسبوع.</div>';
+ if(openKey)bookingTableRes=openKey;else if(!bookingTableRes)bookingTableRes=BOOKING_RESOURCES[0].key;
+ const tableSel='<select id="bookTableSel" onchange="bookingTableRes=this.value;renderBookingTable();renderResourceDiary()">'+BOOKING_RESOURCES.map(r=>'<option value="'+r.key+'" '+(r.key===bookingTableRes?'selected':'')+'>'+r.label+'</option>').join('')+'</select>';
+ S('staffPane').innerHTML='<div class="today-title"><div><small>غرفة المصادر • المختبر • قاعة الأنشطة • جهاز العرض</small><h2>📅 حجز الموارد المشتركة</h2></div></div>'+ownerCard+form+'<h3 class="staff-section-title">🗓️ جدول الحجوزات هذا الأسبوع</h3><div class="today-title"><div></div>'+tableSel+'</div><div id="bookingTableWrap"></div><h3 class="staff-section-title">قائمة الحجوزات</h3>'+list+'<h3 class="staff-section-title">📰 يوميات المورد</h3><div id="diaryFormWrap"></div><div id="diaryList" class="staff-loading">جاري التحميل…</div>';
+ if(openKey)S('bookResource').value=openKey;
  renderBookingTable();
+ renderResourceDiary();
 }
 window.renderBookingTable=()=>{
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat'}).format(new Date());
@@ -387,20 +390,63 @@ window.renderBookingTable=()=>{
  const items=bookingItemsCache.filter(x=>x.resource_key===bookingTableRes);
  const cellFor=(date,period)=>items.find(x=>x.booking_date===date&&x.period===period);
  const head='<tr><th>الحصة</th>'+days.map(d=>'<th>'+dayName(d)+'</th>').join('')+'</tr>';
- const rows=[1,2,3,4,5,6,7].map(p=>'<tr><td class="booking-table-period">'+p+'</td>'+days.map(d=>{const c=cellFor(d,p);return '<td class="'+(c?'booking-taken':'booking-free')+'">'+(c?esc(c.booked_by_name):'—')+'</td>'}).join('')+'</tr>').join('');
+ const rows=[1,2,3,4,5,6,7].map(p=>'<tr><td class="booking-table-period">'+p+'</td>'+days.map(d=>{const c=cellFor(d,p);const cls=c?(c.status==='pending'?'booking-pending':'booking-taken'):'booking-free';const txt=c?(c.status==='pending'?'⏳ ':'')+esc(c.booked_by_name):'—';return '<td class="'+cls+'">'+txt+'</td>'}).join('')+'</tr>').join('');
  S('bookingTableWrap').innerHTML='<div class="booking-table-scroll"><table class="booking-table">'+head+rows+'</table></div>';
 };
 window.createResourceBooking=async()=>{
  const resource_key=S('bookResource').value,booking_date=S('bookDate').value,period=+S('bookPeriod').value,note=S('bookNote').value.trim();
  try{
   const d=await staffApi('create_resource_booking',{resource_key,booking_date,period,note});
-  toast(d.notified?'✅ تم الحجز وتنبيه المسؤولة':'✅ تم الحجز');
+  toast(d.status==='pending'?'⏳ تم إرسال طلب الحجز، بانتظار موافقة المسؤولة':'✅ تم الحجز');
   await renderResourceBooking();
  }catch(e){toast(staffError(e))}
 };
 window.cancelResourceBooking=async id=>{
  if(!confirm('إلغاء هذا الحجز؟'))return;
  try{await staffApi('cancel_resource_booking',{id});toast('تم إلغاء الحجز');await renderResourceBooking()}catch(e){toast(staffError(e))}
+};
+window.approveResourceBookingUI=async id=>{
+ try{await staffApi('approve_resource_booking',{id});toast('✅ تم قبول الحجز');await renderResourceBooking()}catch(e){toast(staffError(e))}
+};
+window.rejectResourceBookingUI=async id=>{
+ if(!confirm('رفض هذا الطلب؟ سيُحذف ويصبح الموعد متاحًا من جديد.'))return;
+ try{await staffApi('reject_resource_booking',{id});toast('تم رفض الطلب');await renderResourceBooking()}catch(e){toast(staffError(e))}
+};
+window.openResourceBookingDirect=async key=>{
+ if(!staffToken||!secureEmployee){toast('سجلي الدخول بالاسم والرمز السري أولًا');return openIdentity()}
+ await openStaffCenter();await staffTab('booking');await renderResourceBooking(key);
+};
+async function renderResourceDiary(){
+ const key=bookingTableRes,canPost=isResourceOwner(key)||secureAdmin();
+ const label=(BOOKING_RESOURCES.find(r=>r.key===key)||{}).label||'';
+ diaryPhotoPath='';
+ S('diaryFormWrap').innerHTML=canPost?'<section class="staff-card"><h3>📰 إضافة جديد '+esc(label)+'</h3><textarea id="diaryCaption" rows="2" placeholder="ويش صار؟ اكتبي خبرًا أو وصفًا..."></textarea><label class="profile-photo-pick" style="display:block;margin-top:8px"><input type="file" accept="image/jpeg,image/png,image/webp" onchange="useDiaryPhoto(this)">📷 إضافة صورة (اختياري)</label><div id="diaryPhotoState" class="staff-help"></div><input id="diaryMediaUrl" placeholder="رابط فيديو (اختياري)" style="margin-top:8px"><button class="staff-primary" onclick="saveDiaryEntryUI()">📰 نشر</button></section>':'';
+ try{
+  const d=await staffApi('resource_diary',{resource_key:key}),items=d.items||[];
+  S('diaryList').innerHTML=items.length?'<div class="diary-grid">'+items.map(x=>'<article class="diary-card">'+(x.photo_url?'<img src="'+esc(x.photo_url)+'" alt="">':'')+'<p>'+esc(x.caption)+'</p>'+(x.media_url?'<a href="'+esc(x.media_url)+'" target="_blank" rel="noopener">🎬 مشاهدة الفيديو</a>':'')+'<small>'+new Intl.DateTimeFormat('ar-OM',{dateStyle:'medium',timeStyle:'short'}).format(new Date(x.created_at))+'</small>'+(canPost?' <button class="staff-ghost sm" onclick="deleteDiaryEntryUI(\''+x.id+'\')">حذف</button>':'')+'</article>').join('')+'</div>':'<div class="staff-empty">لا توجد منشورات بعد لهذا المورد.</div>';
+ }catch(e){S('diaryList').innerHTML='<div class="staff-empty">'+staffError(e)+'</div>'}
+}
+window.useDiaryPhoto=async input=>{
+ const f=input.files&&input.files[0];if(!f)return;
+ if(f.size>5*1024*1024){input.value='';return toast('حجم الصورة يجب ألا يتجاوز 5 MB')}
+ S('diaryPhotoState').textContent='جاري رفع الصورة…';
+ try{
+  const u=await staffApi('prepare_diary_upload',{mime_type:f.type});
+  const up=await fetch(u.signed_url,{method:'PUT',headers:{'Content-Type':f.type},body:f});
+  if(!up.ok)throw Object.assign(new Error('upload_failed'),{code:'upload_failed'});
+  diaryPhotoPath=u.path;S('diaryPhotoState').textContent='✅ تم رفع الصورة';
+ }catch(e){diaryPhotoPath='';S('diaryPhotoState').textContent='';toast(staffError(e))}
+};
+window.saveDiaryEntryUI=async()=>{
+ const caption=S('diaryCaption').value.trim();if(!caption)return toast('اكتبي وصفًا أولًا');
+ try{
+  await staffApi('save_diary_entry',{resource_key:bookingTableRes,caption,photo_path:diaryPhotoPath||null,media_url:S('diaryMediaUrl').value.trim()||null});
+  toast('✅ تم النشر');diaryPhotoPath='';await renderResourceDiary();
+ }catch(e){toast(staffError(e))}
+};
+window.deleteDiaryEntryUI=async id=>{
+ if(!confirm('حذف هذا المنشور؟'))return;
+ try{await staffApi('delete_diary_entry',{id});toast('تم الحذف');await renderResourceDiary()}catch(e){toast(staffError(e))}
 };
 function pollBars(poll,counts,total){
  const max=Math.max(1,...counts);

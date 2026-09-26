@@ -705,7 +705,7 @@ Deno.serve(async(req)=>{
   }
   if(action==="resource_bookings"){
     const from=clean(body.from,10)||muscatDate(),to=clean(body.to,10)||from;
-    const {data}=await db.from("multaqa_resource_bookings").select("id,resource_key,resource_label,booking_date,period,note,booked_by_employee_id").gte("booking_date",from).lte("booking_date",to).order("booking_date").order("period");
+    const {data}=await db.from("multaqa_resource_bookings").select("id,resource_key,resource_label,booking_date,period,note,booked_by_employee_id,status").gte("booking_date",from).lte("booking_date",to).order("booking_date").order("period");
     const ids=[...new Set((data||[]).map((x:any)=>x.booked_by_employee_id))];
     const {data:emps}=ids.length?await db.from("multaqa_employees").select("employee_id,short_name,full_name").in("employee_id",ids):{data:[]};
     const nameOf=(id:string)=>{const x=(emps||[]).find((v:any)=>v.employee_id===id);return x?.short_name||x?.full_name||"—"};
@@ -718,17 +718,70 @@ Deno.serve(async(req)=>{
     const date=clean(body.booking_date,10),period=Number(body.period);
     if(!date||!period||period<1||period>7)return json({ok:false,error:"invalid_input"},400);
     const note=clean(body.note,300)||null,owner=RESOURCE_OWNERS[resourceKey]||null;
-    const {error}=await db.from("multaqa_resource_bookings").insert({resource_key:resourceKey,resource_label:resource.label,booking_date:date,period,note,booked_by_employee_id:e.employee_id,notified_to:owner});
+    const isOwner=owner&&(norm(owner)===norm(e.short_name)||norm(owner)===norm(e.full_name));
+    const needsApproval=!!owner&&!isOwner,status=needsApproval?"pending":"confirmed";
+    const {error}=await db.from("multaqa_resource_bookings").insert({resource_key:resourceKey,resource_label:resource.label,booking_date:date,period,note,booked_by_employee_id:e.employee_id,notified_to:owner,status});
     if(error){if(String((error as any).code)==="23505")return json({ok:false,error:"already_booked"},409);return json({ok:false,error:"save_failed"},500);}
     let sent=0;
-    if(owner&&norm(owner)!==norm(e.short_name)&&norm(owner)!==norm(e.full_name))sent=await pushToNames(db,[owner],"📅 حجز جديد: "+resource.label,`${e.short_name||e.full_name} حجزت ${resource.label} يوم ${date} — الحصة ${period}${note?" • "+note:""}`,"/school/","resource_booking");
-    return json({ok:true,notified:!!owner,push_sent:sent});
+    if(needsApproval)sent=await pushToNames(db,[owner as string],"⏳ طلب حجز بانتظار موافقتك: "+resource.label,`${e.short_name||e.full_name} تطلب حجز ${resource.label} يوم ${date} — الحصة ${period}${note?" • "+note:""}`,"/school/","resource_booking_pending");
+    else if(owner&&!isOwner)sent=await pushToNames(db,[owner],"📅 حجز جديد: "+resource.label,`${e.short_name||e.full_name} حجزت ${resource.label} يوم ${date} — الحصة ${period}${note?" • "+note:""}`,"/school/","resource_booking");
+    return json({ok:true,notified:!!owner,push_sent:sent,status});
+  }
+  if(action==="approve_resource_booking"||action==="reject_resource_booking"){
+    const id=clean(body.id,60);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {data:row}=await db.from("multaqa_resource_bookings").select("id,resource_key,resource_label,booking_date,period,booked_by_employee_id,status").eq("id",id).maybeSingle();
+    if(!row)return json({ok:false,error:"not_found"},404);
+    const owner=RESOURCE_OWNERS[row.resource_key]||null;
+    const allowed=elevated(e)||(owner&&(norm(owner)===norm(e.short_name)||norm(owner)===norm(e.full_name)));
+    if(!allowed)return json({ok:false,error:"forbidden"},403);
+    if(row.status!=="pending")return json({ok:false,error:"invalid_input"},400);
+    const {data:booker}=await db.from("multaqa_employees").select("short_name,full_name").eq("employee_id",row.booked_by_employee_id).maybeSingle();
+    const bookerName=booker?.short_name||booker?.full_name;
+    if(action==="approve_resource_booking"){
+      await db.from("multaqa_resource_bookings").update({status:"confirmed"}).eq("id",id);
+      if(bookerName)await pushToNames(db,[bookerName],"✅ تم قبول حجزك",`${row.resource_label} يوم ${row.booking_date} — الحصة ${row.period}`,"/school/","resource_booking_approved");
+    }else{
+      await db.from("multaqa_resource_bookings").delete().eq("id",id);
+      if(bookerName)await pushToNames(db,[bookerName],"❌ لم تتم الموافقة على حجزك",`${row.resource_label} يوم ${row.booking_date} — الحصة ${row.period}`,"/school/","resource_booking_rejected");
+    }
+    return json({ok:true});
   }
   if(action==="cancel_resource_booking"){
     const id=clean(body.id,60);if(!id)return json({ok:false,error:"invalid_input"},400);
     const {data:row}=await db.from("multaqa_resource_bookings").select("id,booked_by_employee_id").eq("id",id).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
     if(row.booked_by_employee_id!==e.employee_id&&!elevated(e))return json({ok:false,error:"forbidden"},403);
     await db.from("multaqa_resource_bookings").delete().eq("id",id);return json({ok:true});
+  }
+  if(action==="prepare_diary_upload"){
+    const mime=clean(body.mime_type,120),allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
+    if(!allowed[mime])return json({ok:false,error:"invalid_input"},400);
+    const path=`diary/${crypto.randomUUID()}.${allowed[mime]}`;
+    const {data:signed,error}=await db.storage.from("resource-diary-media").createSignedUploadUrl(path);if(error||!signed)return json({ok:false,error:"upload_failed"},500);
+    return json({ok:true,path,signed_url:signed.signedUrl});
+  }
+  if(action==="save_diary_entry"){
+    const resourceKey=clean(body.resource_key,40),resource=RESOURCES.find(r=>r.key===resourceKey);if(!resource)return json({ok:false,error:"invalid_input"},400);
+    const owner=RESOURCE_OWNERS[resourceKey]||null;
+    const allowed=elevated(e)||(owner&&(norm(owner)===norm(e.short_name)||norm(owner)===norm(e.full_name)));
+    if(!allowed)return json({ok:false,error:"forbidden"},403);
+    const caption=clean(body.caption,1000),photoPath=clean(body.photo_path,700)||null,mediaUrl=clean(body.media_url,500)||null;
+    if(!caption)return json({ok:false,error:"invalid_input"},400);if(photoPath&&!photoPath.startsWith("diary/"))return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_resource_diary").insert({resource_key:resourceKey,caption,photo_path:photoPath,media_url:mediaUrl,created_by_employee_id:e.employee_id});
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="delete_diary_entry"){
+    const id=clean(body.id,60);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {data:row}=await db.from("multaqa_resource_diary").select("resource_key,created_by_employee_id").eq("id",id).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
+    const owner=RESOURCE_OWNERS[row.resource_key]||null;
+    const allowed=elevated(e)||row.created_by_employee_id===e.employee_id||(owner&&(norm(owner)===norm(e.short_name)||norm(owner)===norm(e.full_name)));
+    if(!allowed)return json({ok:false,error:"forbidden"},403);
+    await db.from("multaqa_resource_diary").delete().eq("id",id);return json({ok:true});
+  }
+  if(action==="resource_diary"){
+    const resourceKey=clean(body.resource_key,40);if(!resourceKey)return json({ok:false,error:"invalid_input"},400);
+    const {data}=await db.from("multaqa_resource_diary").select("id,caption,photo_path,media_url,created_at").eq("resource_key",resourceKey).order("created_at",{ascending:false}).limit(50);
+    const items=await Promise.all((data||[]).map(async(x:any)=>{let photo_url=null;if(x.photo_path){const {data:u}=await db.storage.from("resource-diary-media").createSignedUrl(x.photo_path,3600);photo_url=u?.signedUrl||null}return{...x,photo_url}}));
+    return json({ok:true,items});
   }
   if(action==="send_staff_message"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);

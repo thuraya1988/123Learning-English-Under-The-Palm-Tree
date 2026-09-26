@@ -161,7 +161,7 @@ main{flex:1; position:relative; padding:6px 28px 4px; min-height:0;}
   <!-- COVER -->
   <section id="coverView" class="view">
     <div id="coverStage" class="stage"></div>
-    <div class="cover-hint">🖱️ Drag to rotate • Scroll to zoom • Tap the paper &amp; symbols!</div>
+    <div class="cover-hint">🖱️ Drag to rotate • Scroll to zoom • Tap the plane &amp; clouds!</div>
     <div class="cover-overlay">
       <svg class="cover-dash" viewBox="0 0 260 16" aria-hidden="true"><line x1="6" y1="8" x2="254" y2="8" stroke="#7fa8d9" stroke-width="10" stroke-linecap="round" stroke-dasharray="34 24"/></svg>
       <h1>The Mystery<br>Weekly Planner</h1>
@@ -441,24 +441,59 @@ function pencilGroup(){
   return g;
 }
 
-/* ============ SCENES ============ */
+/* ============ SHARED COVER (plane + clouds + rainbow — same on every story) ============ */
+function buildAirplane(scale=1){
+  const g=new THREE.Group();
+  const coral=mat(0xc4705c), cream=mat(0xf2d8a7), teal=mat(0x7fb8b0), blue=mat(0x6fa8dc), gold=mat(0xe8b64c);
+  const fus=new THREE.Mesh(new THREE.CapsuleGeometry(.42,1.5,8,18), cream); fus.rotation.z=Math.PI/2; g.add(fus);
+  const nose=new THREE.Mesh(new THREE.SphereGeometry(.34,16,12), gold); nose.position.x=1.0; nose.scale.set(.85,1,1); g.add(nose);
+  const prop=new THREE.Group(); prop.position.x=1.34;
+  prop.add(new THREE.Mesh(new THREE.SphereGeometry(.12,12,10), teal));
+  for(let i=0;i<2;i++){ const b=new THREE.Mesh(new THREE.CapsuleGeometry(.07,1.25,6,12), teal); b.rotation.x=i*Math.PI/2; prop.add(b); }
+  g.add(prop); g.userData.prop=prop;
+  const wT=new THREE.Mesh(new THREE.BoxGeometry(1.0,.1,3.4), coral); wT.position.y=.62; g.add(wT);
+  const wB=new THREE.Mesh(new THREE.BoxGeometry(.9,.09,2.6), coral); wB.position.y=-.28; g.add(wB);
+  const sg=new THREE.CylinderGeometry(.035,.035,.85,8);
+  [-1,1].forEach(sz=>[-0.28,0.28].forEach(sx=>{ const s=new THREE.Mesh(sg,cream); s.position.set(sx,.17,sz*1.0); g.add(s); }));
+  const tH=new THREE.Mesh(new THREE.BoxGeometry(.55,.08,1.4), coral); tH.position.set(-1.05,.12,0); g.add(tH);
+  const tV=new THREE.Mesh(new THREE.BoxGeometry(.5,.7,.08), coral); tV.position.set(-1.05,.42,0); g.add(tV);
+  const cock=new THREE.Mesh(new THREE.SphereGeometry(.26,16,12,0,Math.PI*2,0,Math.PI/2), teal); cock.position.set(.15,.34,0); g.add(cock);
+  [-0.42,0.42].forEach(sz=>{ const w=new THREE.Mesh(new THREE.CylinderGeometry(.26,.26,.14,16), blue); w.rotation.x=Math.PI/2; w.position.set(.35,-.62,sz); g.add(w);
+    const st=new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,.45,8), coral); st.position.set(.35,-.42,sz*.55); st.rotation.x=sz>0?.5:-.5; g.add(st); });
+  g.scale.setScalar(scale); return g;
+}
+function cloudMesh(color=0xffffff,s=1){
+  const g=new THREE.Group(); const m=mat(color,{roughness:.9});
+  [[0,0,0,1],[.85,.12,.1,.72],[-.85,.08,-.05,.68],[.35,.45,.15,.6],[-.4,.42,-.18,.55],[0,.25,-.5,.6]].forEach(d=>{
+    const sp=new THREE.Mesh(new THREE.SphereGeometry(.62,20,16),m); sp.position.set(d[0],d[1],d[2]); sp.scale.setScalar(d[3]); g.add(sp); });
+  g.scale.setScalar(s); return g;
+}
+function addRainbow(group){
+  const cols=[[0xa9dcea,'light blue'],[0x7fa8d9,'blue'],[0xefc97e,'yellow'],[0xe8956d,'coral'],[0xa9dcea,'light blue'],[0x7fa8d9,'blue'],[0xefc97e,'yellow']];
+  cols.forEach((c,i)=>{ const r=3.5-i*.36;
+    const m=mat(c[0],{emissive:c[0],emissiveIntensity:0});
+    const t=new THREE.Mesh(new THREE.TorusGeometry(r,.15,20,80,Math.PI),m);
+    group.add(t); });
+  const e1=cloudMesh(0xffffff,1.05); e1.position.set(-3.7,-.15,0); group.add(e1);
+  const e2=cloudMesh(0xffffff,1.05); e2.position.set(3.7,-.15,0); group.add(e2);
+}
 function buildCover(){
   const g=new THREE.Group(); addLights(g);
-  const desk=deskGroup(); desk.scale.setScalar(1.1); g.add(desk);
-  const book=bookGroup(); book.scale.setScalar(1.5); book.position.set(-.5,.98,0); book.rotation.y=.15; g.add(book);
-  const paperTex=paperTexture(['?  ♞  ○','▢  ▣']);
-  const paper=new THREE.Mesh(new THREE.PlaneGeometry(1.3,.95), new THREE.MeshStandardMaterial({map:paperTex,side:THREE.DoubleSide,roughness:.8}));
-  paper.position.set(.35,1.15,.1); const holder=new THREE.Group(); holder.add(paper); g.add(holder);
-  const icons=[]; const emojis=[['♞',0xc4574a],['●',0x7fa8d9],['▢',0x8b5cf6],['▣',0xefc97e]];
-  emojis.forEach((e,i)=>{ const s=textSprite(e[0],'#'+e[1].toString(16).padStart(6,'0'),150); s.scale.set(.55,.55,1);
-    s.userData.a0=i/emojis.length*Math.PI*2; s.userData.onClick=()=>{ popSound(); s.userData.burst=1; };
-    g.add(s); icons.push(s); });
-  return {group:g, cam:[0,1.6,6.2], target:[0,.7,0], update(t,dt){
-    holder.rotation.y=Math.sin(t*.8)*.25; holder.position.y=1.15+Math.sin(t*1.4)*.04;
-    icons.forEach(s=>{ const a=s.userData.a0+t*.5; s.userData.burst=(s.userData.burst||0)*Math.exp(-dt*2.5);
-      s.position.set(Math.cos(a)*2.3, 1.6+Math.sin(a*1.4)*.5, Math.sin(a)*2.3); s.scale.setScalar(.55*(1+ (s.userData.burst||0)*.7)); });
+  addRainbow(g);
+  const holder=new THREE.Group(); const plane=buildAirplane(.8); plane.rotation.z=.3; holder.add(plane); g.add(holder);
+  const clouds=[]; for(let i=0;i<3;i++){ const c=cloudMesh(0xffffff,.8+Math.random()*.6);
+    c.position.set(-6+Math.random()*12, 1.6+Math.random()*1.4, -3+Math.random()*3); c.userData.sp=.5+Math.random()*.7; g.add(c); clouds.push(c); }
+  clouds.forEach(c=>{ c.userData.onClick=()=>{ c.userData.pt=0; popSound(); }; c.userData.pt=9; });
+  return {group:g, cam:[0,1.4,10.5], target:[0,.4,0], update(t,dt){
+    const a=t*.3; holder.position.set(Math.cos(a)*4.8,.7+Math.sin(t*1.4)*.25,Math.sin(a)*4.8);
+    const dx=-Math.sin(a), dz=Math.cos(a); holder.rotation.y=Math.atan2(-dz,dx);
+    plane.userData.prop.rotation.x+=dt*10;
+    clouds.forEach(c=>{ c.position.x-=c.userData.sp*dt; if(c.position.x<-9)c.position.x=9;
+      c.userData.pt+=dt; const k=Math.sin(c.userData.pt*10)*Math.exp(-c.userData.pt*4)*.3; c.scale.setScalar(c.userData.base??(c.userData.base=c.scale.x)); c.scale.setScalar(c.userData.base*(1+k)); });
   }};
 }
+
+/* ============ PAGE SCENES ============ */
 function buildFallout(){
   const g=new THREE.Group(); addLights(g);
   const desk=deskGroup(); g.add(desk);

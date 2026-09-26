@@ -159,7 +159,7 @@ function startReminderClock(){
   const now=currentPeriod();if(now.period<0||now.day<0||now.day>4)return;
   const reminders=readReminders(),stamp=reminderStamp();
   reminders.filter(x=>x.day===now.day&&x.period===now.period&&x.last!==stamp).forEach(item=>{
-   item.last=stamp;try{new Audio('assets/alert-sound.mp3').play().catch(()=>{})}catch{}
+   item.last=stamp;try{new Audio('assets/notify-chime.wav').play().catch(()=>{})}catch{}
    const lesson=parseLesson(item.value);if('Notification'in window&&Notification.permission==='granted')try{new Notification('بدأت الحصة',{body:`${lesson.subject} — ${item.label}`,icon:'school-logo.png'})}catch{}
    if(typeof toast==='function')toast(`🔔 بدأت ${lesson.subject} — ${item.label}`);
   });

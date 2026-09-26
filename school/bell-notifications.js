@@ -1,6 +1,6 @@
 (()=>{
   const PERIOD_NOTICE_BODY='تنبيه موعد الحصة — مدرسة ملتقى المعارف للتعليم الأساسي (١–٦)';
-  const ALERT_SOUND_SRC='assets/notify-chime.wav';
+  const ALERT_SOUND_SRC='assets/notify-chime.mp3';
   let alertAudioEl=null;
   function getAlertAudio(){
     if(!alertAudioEl){ alertAudioEl=new Audio(ALERT_SOUND_SRC); alertAudioEl.preload='auto'; }

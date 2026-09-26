@@ -416,6 +416,7 @@ window.openResourceBookingDirect=async key=>{
  if(!staffToken||!secureEmployee){toast('سجلي الدخول بالاسم والرمز السري أولًا');return openIdentity()}
  await openStaffCenter();await staffTab('booking');await renderResourceBooking(key);
 };
+window.openResourceBookingPortal=()=>openResourceBookingDirect();
 async function renderResourceDiary(){
  const key=bookingTableRes,canPost=isResourceOwner(key)||secureAdmin();
  const label=(BOOKING_RESOURCES.find(r=>r.key===key)||{}).label||'';

@@ -362,7 +362,7 @@ window.markBusArrivalUI=async route_name=>{
  try{await staffApi('mark_bus_arrival',{route_name});toast('✅ تم تسجيل وصول '+route_name);await renderBuses()}catch(e){toast(staffError(e))}
 };
 const BOOKING_RESOURCES=[{key:'resources_room',label:'📚 غرفة المصادر'},{key:'lab',label:'🧪 المختبر'},{key:'activities_hall',label:'🎭 قاعة الأنشطة'},{key:'projector',label:'📽️ جهاز العرض'}];
-const RESOURCE_OWNERS_UI={resources_room:'أصيلة الوهيبية'};
+const RESOURCE_OWNERS_UI={resources_room:'أصيلة الوهيبية',lab:'عبير السليمية'};
 async function renderResourceBooking(){
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat'}).format(new Date());
  const to=new Date(new Date(today+'T12:00:00').getTime()+6*86400000).toISOString().slice(0,10);

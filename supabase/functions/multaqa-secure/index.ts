@@ -10,7 +10,7 @@ const norm=(v:unknown)=>clean(v,220).replace(/^أ\.\s*/,"").replace(/[إأآ]/g,
 const pinOk=(v:string)=>/^\d{6,12}$/.test(v);
 const omDays=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
 const RESOURCES=[{key:"resources_room",label:"غرفة المصادر"},{key:"lab",label:"المختبر"},{key:"activities_hall",label:"قاعة الأنشطة"},{key:"projector",label:"جهاز العرض"}];
-const RESOURCE_OWNERS:Record<string,string>={resources_room:"أصيلة الوهيبية"};
+const RESOURCE_OWNERS:Record<string,string>={resources_room:"أصيلة الوهيبية",lab:"عبير السليمية"};
 const BADGES:Record<string,string>={star_week:"🌟 نجمة الأسبوع",reading:"📚 قارئة متميزة",teamwork:"🤝 روح التعاون",creativity:"🎨 إبداع",academic:"🧮 تفوق دراسي",behavior:"🕌 سلوك مثالي",helper:"🤲 يد العون",attendance:"✅ التزام الحضور"};
 const gradeWords=["","الأول","الثاني","الثالث","الرابع","الخامس","السادس"];
 const classCode=(label:string)=>{const t=clean(label,100),g=gradeWords.findIndex((x,i)=>i>0&&t.includes(x)),s=t.match(/[\/\\]\s*(\d+)/)?.[1];return g&&s?g+"/"+s:t};

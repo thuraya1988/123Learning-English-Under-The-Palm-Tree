@@ -363,18 +363,33 @@ window.markBusArrivalUI=async route_name=>{
 };
 const BOOKING_RESOURCES=[{key:'resources_room',label:'📚 غرفة المصادر'},{key:'lab',label:'🧪 المختبر'},{key:'activities_hall',label:'🎭 قاعة الأنشطة'},{key:'projector',label:'📽️ جهاز العرض'}];
 const RESOURCE_OWNERS_UI={resources_room:'أصيلة الوهيبية',lab:'عبير السليمية'};
+let bookingItemsCache=[],bookingTableRes='';
 async function renderResourceBooking(){
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat'}).format(new Date());
  const to=new Date(new Date(today+'T12:00:00').getTime()+6*86400000).toISOString().slice(0,10);
  const d=await staffApi('resource_bookings',{from:today,to}),items=d.items||[];
+ bookingItemsCache=items;
  const form='<section class="staff-card"><h3>حجز مورد جديد</h3><div class="form-row"><select id="bookResource">'+BOOKING_RESOURCES.map(r=>'<option value="'+r.key+'">'+r.label+'</option>').join('')+'</select><input id="bookDate" type="date" value="'+today+'" min="'+today+'"></div><div class="form-row"><select id="bookPeriod">'+[1,2,3,4,5,6,7].map(p=>'<option value="'+p+'">الحصة '+p+'</option>').join('')+'</select><input id="bookNote" placeholder="ملاحظة (اختياري)"></div><button class="staff-primary" onclick="createResourceBooking()">📅 احجز</button><div id="bookResult"></div></section>';
  const myName=secureEmployee?(secureEmployee.short_name||secureEmployee.full_name):'';
  const myOwnedKeys=Object.keys(RESOURCE_OWNERS_UI).filter(k=>myName&&(RESOURCE_OWNERS_UI[k]===myName||RESOURCE_OWNERS_UI[k]===secureEmployee.full_name));
  const myItems=items.filter(x=>myOwnedKeys.includes(x.resource_key));
- const ownerCard=myItems.length?'<section class="staff-card booking-owner-highlight"><h3>🔔 حجوزات على '+esc(BOOKING_RESOURCES.find(r=>r.key===myOwnedKeys[0])?.label||'')+' — مسؤوليتكِ</h3><p class="staff-help">هذه الحجوزات وصلت إليكِ لأنكِ المسؤولة عن هذا المورد.</p><div class="owner-request-list">'+myItems.map(x=>'<article><b>'+esc(x.resource_label)+'</b><small>'+esc(x.booking_date)+' • الحصة '+x.period+' • حجزتها: '+esc(x.booked_by_name)+(x.note?' • '+esc(x.note):'')+'</small></article>').join('')+'</div></section>':'';
+ const ownerCard=myItems.length?'<section class="staff-card booking-owner-highlight booking-alert-pulse"><h3>🔔 تنبيه: حجوزات جديدة على '+esc(BOOKING_RESOURCES.find(r=>r.key===myOwnedKeys[0])?.label||'')+' — مسؤوليتكِ</h3><p class="staff-help">هذه الحجوزات وصلت إليكِ لأنكِ المسؤولة عن هذا المورد.</p><div class="owner-request-list">'+myItems.map(x=>'<article><b>'+esc(x.resource_label)+'</b><small>'+esc(x.booking_date)+' • الحصة '+x.period+' • حجزتها: '+esc(x.booked_by_name)+(x.note?' • '+esc(x.note):'')+'</small></article>').join('')+'</div></section>':'';
  const list=items.length?'<div class="request-list">'+items.map(x=>'<article><b>'+esc(x.resource_label)+'</b><small>'+esc(x.booking_date)+' • الحصة '+x.period+' • '+esc(x.booked_by_name)+(x.note?' • '+esc(x.note):'')+'</small>'+((secureEmployee&&x.booked_by_employee_id===secureEmployee.employee_id)||secureAdmin()?' <button onclick="cancelResourceBooking(\''+x.id+'\')">إلغاء</button>':'')+'</article>').join('')+'</div>':'<div class="staff-empty">لا توجد حجوزات هذا الأسبوع.</div>';
- S('staffPane').innerHTML='<div class="today-title"><div><small>غرفة المصادر • المختبر • قاعة الأنشطة • جهاز العرض</small><h2>📅 حجز الموارد المشتركة</h2></div></div>'+ownerCard+form+'<h3 class="staff-section-title">حجوزات هذا الأسبوع</h3>'+list;
+ if(!bookingTableRes)bookingTableRes=BOOKING_RESOURCES[0].key;
+ const tableSel='<select id="bookTableSel" onchange="bookingTableRes=this.value;renderBookingTable()">'+BOOKING_RESOURCES.map(r=>'<option value="'+r.key+'" '+(r.key===bookingTableRes?'selected':'')+'>'+r.label+'</option>').join('')+'</select>';
+ S('staffPane').innerHTML='<div class="today-title"><div><small>غرفة المصادر • المختبر • قاعة الأنشطة • جهاز العرض</small><h2>📅 حجز الموارد المشتركة</h2></div></div>'+ownerCard+form+'<h3 class="staff-section-title">🗓️ جدول الحجوزات هذا الأسبوع</h3><div class="today-title"><div></div>'+tableSel+'</div><div id="bookingTableWrap"></div><h3 class="staff-section-title">قائمة الحجوزات</h3>'+list;
+ renderBookingTable();
 }
+window.renderBookingTable=()=>{
+ const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat'}).format(new Date());
+ const days=Array.from({length:7},(_,i)=>{const dt=new Date(today+'T12:00:00');dt.setDate(dt.getDate()+i);return dt.toISOString().slice(0,10)});
+ const dayName=iso=>new Intl.DateTimeFormat('ar-OM',{weekday:'short',day:'numeric',month:'numeric'}).format(new Date(iso+'T12:00:00'));
+ const items=bookingItemsCache.filter(x=>x.resource_key===bookingTableRes);
+ const cellFor=(date,period)=>items.find(x=>x.booking_date===date&&x.period===period);
+ const head='<tr><th>الحصة</th>'+days.map(d=>'<th>'+dayName(d)+'</th>').join('')+'</tr>';
+ const rows=[1,2,3,4,5,6,7].map(p=>'<tr><td class="booking-table-period">'+p+'</td>'+days.map(d=>{const c=cellFor(d,p);return '<td class="'+(c?'booking-taken':'booking-free')+'">'+(c?esc(c.booked_by_name):'—')+'</td>'}).join('')+'</tr>').join('');
+ S('bookingTableWrap').innerHTML='<div class="booking-table-scroll"><table class="booking-table">'+head+rows+'</table></div>';
+};
 window.createResourceBooking=async()=>{
  const resource_key=S('bookResource').value,booking_date=S('bookDate').value,period=+S('bookPeriod').value,note=S('bookNote').value.trim();
  try{

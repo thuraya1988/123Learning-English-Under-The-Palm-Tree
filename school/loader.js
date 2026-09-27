@@ -1,7 +1,7 @@
 (async()=>{
  const started=Date.now(),MIN_SPLASH=650;
  try{
-  const parts=await Promise.all(['ui-1.html?v=20260921-official-names','ui-2.html?v=20260927-portal-booking','ui-3.html?v=20260927-resource-diary','ui-4.html?v=20260923-emergency-coverage-2'].map(x=>fetch(x).then(r=>{if(!r.ok)throw new Error(x);return r.text()})));
+  const parts=await Promise.all(['ui-1.html?v=20260927-new-schedules','ui-2.html?v=20260927-portal-booking','ui-3.html?v=20260927-new-schedules','ui-4.html?v=20260923-emergency-coverage-2'].map(x=>fetch(x).then(r=>{if(!r.ok)throw new Error(x);return r.text()})));
   const tmp=document.createElement('div');
   tmp.innerHTML=parts.join('');
   while(tmp.firstChild)document.body.appendChild(tmp.firstChild);

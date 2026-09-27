@@ -16,6 +16,20 @@ const idOk=(v:string)=>/^\d{8,20}$/.test(v);
 const norm=(v:unknown)=>clean(v,220).replace(/^أ\.\s*/,"").replace(/[إأآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/ؤ/g,"و").replace(/ئ/g,"ي").replace(/ـ/g,"").replace(/[ًٌٍَُِّْ]/g,"").replace(/\s+/g," ").toLowerCase();
 const shortName=(v:string)=>{const t=clean(v,220).replace(/^أ\.\s*/,"").split(/\s+/).filter(Boolean);return t.length>1?`${t[0]} ${t[t.length-1]}`:(t[0]||v)};
 const omDays=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+const TEACHER_SCHEDULE_NAMES:Record<string,string>={T015:"تىهانى اسماعيل",T021:"رزان السوطية",T024:"زينب الحبسية",T032:"سلامه الحارثية",T047:"لمياء حسانين",T059:"هبه الرمحية",T066:"تميمه الحضرمية",T067:"ميساء الجابرية"};
+const teacherScheduleName=(e:any)=>TEACHER_SCHEDULE_NAMES[e?.employee_id]||e?.short_name||e?.full_name||"";
+const DUTY_SLOT_INFO:Record<string,{label:string,time:string,count:number,note:string}>={
+ morning:{label:"المناوبة الصباحية — استقبال الطلبة",time:"10:45",count:3,note:"استقبال الطلبة"},
+ entry1:{label:"نقطة الدخول ح١",time:"11:50",count:1,note:"منع التداخل مع طلاب المدرسة الصباحية والالتزام بالطابور"},
+ entry2:{label:"نقطة الدخول ح٢",time:"11:50",count:1,note:"منع التداخل مع طلاب المدرسة الصباحية والالتزام بالطابور"},
+ coop:{label:"فسحة الجمعية",time:"14:40",count:2,note:"تنظيم الطلبة عند الشـراء"},
+ shade:{label:"فسحة المظلة",time:"14:40",count:2,note:"تنظيم الطلبة والحث على النظافة"},
+ corridors:{label:"فسحة الممرات",time:"14:40",count:1,note:"التأكد من خلو الفصول ومتابعة الممرات العلوية خصوصًا"},
+ buses:{label:"المسائية — الحافلات",time:"16:40",count:2,note:"الوصول قبل الموعد بخمس دقائق"},
+ cars:{label:"المسائية — السيارات الخاصة",time:"16:40",count:1,note:"لا يخرج الطالب إلا مع تصريح"}
+};
+const DUTY_SLOT_KEYS=["morning","entry1","entry2","coop","shade","corridors","buses","cars"];
+const DUTY_PERIODS=[{period:1,start:"12:20",alert:"12:15",minute:735},{period:2,start:"12:55",alert:"12:50",minute:770},{period:3,start:"13:30",alert:"13:25",minute:805},{period:4,start:"14:05",alert:"14:00",minute:840},{period:5,start:"15:00",alert:"14:55",minute:895},{period:6,start:"15:35",alert:"15:30",minute:930},{period:7,start:"16:10",alert:"16:05",minute:965}];
 const muscatNow=()=>new Date(new Date().toLocaleString("en-US",{timeZone:"Asia/Muscat"}));
 const dayName=()=>omDays[muscatNow().getDay()];
 let vapidReady=false;
@@ -24,7 +38,7 @@ async function prepareWebPush(db:any){if(vapidReady)return true;const c=await pu
 
 async function resolveEmployee(db:any,input:string){
   const q=norm(input); if(!q) return null;
-  const {data}=await db.from("multaqa_employees").select("full_name,short_name,role,kind,teacher_page");
+  const {data}=await db.from("multaqa_employees").select("employee_id,full_name,short_name,role,kind,access_group,teacher_page");
   const rows=data||[];
   let m=rows.filter((e:any)=>norm(e.short_name)===q||norm(e.full_name)===q);
   if(m.length===1)return m[0];
@@ -33,8 +47,22 @@ async function resolveEmployee(db:any,input:string){
   m=rows.filter((e:any)=>{const t=clean(e.full_name,220).split(/\s+/).filter(Boolean).map(norm);return t[0]===f&&t[t.length-1]===l});
   return m.length===1?m[0]:null;
 }
-async function dutyRow(db:any,day:string){const {data}=await db.from("multaqa_duty").select("day_name,teachers,admins").eq("day_name",day).maybeSingle();return data||null}
+async function dutyRow(db:any,day:string){const {data}=await db.from("multaqa_duty").select("day_name,teachers,admins,slots").eq("day_name",day).maybeSingle();return data||null}
 function onDuty(emp:any,d:any){if(!emp||!d)return false;const names=[emp.full_name,emp.short_name].map(norm);return [...(d.teachers||[]),...(d.admins||[])].some((x:any)=>names.includes(norm(x))||names.some(n=>norm(x).includes(n)||n.includes(norm(x))))}
+function employeeForDutyName(name:string,emps:any[]){const q=norm(name);let found=emps.filter((e:any)=>norm(e.short_name)===q||norm(e.full_name)===q);if(found.length===1)return found[0];const parts=clean(name,220).split(/\s+/).filter(Boolean);if(parts.length<2)return null;const first=norm(parts[0]),last=norm(parts[parts.length-1]);found=emps.filter((e:any)=>{const words=clean(e.full_name||e.short_name,220).split(/\s+/).filter(Boolean);return norm(words[0])===first&&norm(words[words.length-1])===last});return found.length===1?found[0]:null}
+async function dutyBetweenAssignments(db:any,day:string,slots:any,date:string){
+ const [{data:emps},{data:schedules},{data:attendance},{data:permissions},{data:coverage}]=await Promise.all([
+  db.from("multaqa_employees").select("employee_id,full_name,short_name,kind").eq("kind","teacher"),
+  db.from("multaqa_teacher_schedules").select("full_name,schedule"),
+  db.from("multaqa_teacher_attendance").select("employee_id,status").eq("attendance_date",date).in("status",["absent","full_exit","official_task","leave"]),
+  db.from("multaqa_teacher_permissions").select("employee_id,from_period,to_period").eq("permission_date",date).eq("status","approved"),
+  db.from("multaqa_substitute_assignments").select("replacement_employee_id,period").eq("coverage_date",date).in("status",["assigned","accepted"])
+ ]);
+ const teachers=emps||[],scheduleByName=new Map((schedules||[]).map((x:any)=>[norm(x.full_name),x.schedule||{}])),namesFor=(keys:string[])=>keys.flatMap(k=>Array.isArray(slots?.[k])?slots[k]:[]);
+ const excludedIds=new Set(namesFor(["morning","buses","cars"]).map((n:string)=>employeeForDutyName(n,teachers)?.employee_id).filter(Boolean)),preferredIds=new Set(namesFor(["entry1","entry2","coop","shade","corridors"]).map((n:string)=>employeeForDutyName(n,teachers)?.employee_id).filter(Boolean)),unavailableIds=new Set((attendance||[]).map((x:any)=>x.employee_id)),used=new Map<string,number>();
+ const rows=teachers.map((e:any)=>{const schedule:any=scheduleByName.get(norm(teacherScheduleName(e)))||scheduleByName.get(norm(e.short_name))||scheduleByName.get(norm(e.full_name));if(!schedule||excludedIds.has(e.employee_id)||unavailableIds.has(e.employee_id))return null;const todaySlots:any[]=schedule[day]||[],daily=todaySlots.filter((x:any)=>clean(x,500)).length;return{employee_id:e.employee_id,name:e.short_name||e.full_name,schedule:todaySlots,daily,preferred:preferredIds.has(e.employee_id)}}).filter(Boolean);
+ return DUTY_PERIODS.map((period:any)=>{const free=(rows as any[]).filter((x:any)=>!clean(x.schedule[period.period-1],500)&&!(permissions||[]).some((q:any)=>q.employee_id===x.employee_id&&period.period>=Number(q.from_period||1)&&period.period<=Number(q.to_period||7))&&!(coverage||[]).some((q:any)=>q.replacement_employee_id===x.employee_id&&Number(q.period)===period.period));free.sort((x:any,y:any)=>{const xs=(used.get(x.employee_id)||0)*10000+(x.preferred?0:1000)+x.daily*10,ys=(used.get(y.employee_id)||0)*10000+(y.preferred?0:1000)+y.daily*10;return xs-ys||norm(x.name).localeCompare(norm(y.name),"ar")});const pick=free[0]||null;if(pick)used.set(pick.employee_id,(used.get(pick.employee_id)||0)+1);return{...period,employee_id:pick?.employee_id||null,teacher_name:pick?.name||null}});
+}
 async function pushTo(db:any,names:string[],title:string,body:string,url="/school/",kind="general"){
   if(!(await prepareWebPush(db)))return 0;
   const wanted=new Set(names.map(norm).filter(Boolean)); wanted.add(norm("ثرياء الناعبية"));
@@ -88,9 +116,14 @@ Deno.serve(async(req)=>{
   }
   if(action==="duty_for_name"){
     const emp=await resolveEmployee(db,clean(body.name,220)); if(!emp)return json({ok:false,error:"not_found"},404);
-    const {data,error}=await db.from("multaqa_duty").select("day_name,teachers,admins"); if(error)return json({ok:false,error:"server_error"},500);
-    const matches=(data||[]).filter((d:any)=>onDuty(emp,d)).map((d:any)=>({day_name:d.day_name,is_admin:(d.admins||[]).some((x:any)=>norm(x)===norm(emp.short_name)||norm(x)===norm(emp.full_name))}));
+    const {data,error}=await db.from("multaqa_duty").select("day_name,teachers,admins,slots"); if(error)return json({ok:false,error:"server_error"},500);
+    const matches=(data||[]).filter((d:any)=>onDuty(emp,d)).map((d:any)=>({day_name:d.day_name,is_admin:(d.admins||[]).some((x:any)=>norm(x)===norm(emp.short_name)||norm(x)===norm(emp.full_name)),roles:DUTY_SLOT_KEYS.filter(k=>(d.slots?.[k]||[]).some((n:string)=>norm(n)===norm(emp.short_name)||norm(n)===norm(emp.full_name)))}));
     return json({ok:true,employee:emp.short_name,today:dayName(),matches});
+  }
+  if(action==="duty_schedule"){
+    const requested=clean(body.day_name,20),day=omDays.slice(0,5).includes(requested)?requested:dayName(),d=await dutyRow(db,day);if(!d)return json({ok:false,error:"not_found"},404);
+    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),between=day===dayName()?await dutyBetweenAssignments(db,day,d.slots||{},today):[];
+    return json({ok:true,day:{...d,between_periods:between},slot_info:DUTY_SLOT_INFO,slot_keys:DUTY_SLOT_KEYS});
   }
   if(action==="content"){
     const type=clean(body.content_type,40); let q=db.from("multaqa_content").select("id,content_type,title,body,media_url,event_date,test_name,subject,day_name,sort_order,created_at").eq("published",true).order("sort_order").order("created_at",{ascending:false});
@@ -269,12 +302,46 @@ Deno.serve(async(req)=>{
     const {data,error}=await db.from("multaqa_duty_tracking").insert({employee_name:emp.short_name,duty_day:day,event_type:eventType,class_label:classLabel,round_status:roundStatus,note}).select("id,employee_name,duty_day,event_type,class_label,round_status,note,occurred_at").single(); if(error)return json({ok:false,error:"server_error"},500); return json({ok:true,event:data});
   }
   if(action==="duty_history"){
-    const emp=await resolveEmployee(db,clean(body.employee_name,220)); if(!emp)return json({ok:false,error:"not_found"},404); const {data,error}=await db.from("multaqa_duty_tracking").select("id,duty_day,event_type,class_label,round_status,note,occurred_at").eq("employee_name",emp.short_name).order("occurred_at",{ascending:false}).limit(60); if(error)return json({ok:false,error:"server_error"},500); return json({ok:true,events:data||[]});
+    const emp=await resolveEmployee(db,clean(body.employee_name,220)); if(!emp)return json({ok:false,error:"not_found"},404);
+    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),from=`${today}T00:00:00+04:00`,next=new Date(`${today}T12:00:00+04:00`);next.setDate(next.getDate()+1);const to=next.toISOString();
+    const [{data,error},{data:evaluation}]=await Promise.all([
+      db.from("multaqa_duty_tracking").select("id,duty_day,event_type,class_label,round_status,note,occurred_at").eq("employee_name",emp.short_name).order("occurred_at",{ascending:false}).limit(60),
+      db.from("multaqa_duty_evaluations").select("attendance_status,effectiveness,reason,updated_at").eq("employee_name",emp.short_name).eq("duty_date",today).maybeSingle()
+    ]);
+    if(error)return json({ok:false,error:"server_error"},500);const events=data||[],ended_today=events.some((x:any)=>x.event_type==="end"&&x.occurred_at>=from&&x.occurred_at<to);
+    return json({ok:true,events,ended_today,evaluation:evaluation||null});
+  }
+  if(action==="save_duty_evaluation"){
+    const emp=await resolveEmployee(db,clean(body.employee_name,220));if(!emp)return json({ok:false,error:"not_found"},404);
+    const day=dayName(),d=await dutyRow(db,day);if(!onDuty(emp,d))return json({ok:false,error:"not_on_duty_today"},403);
+    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),from=`${today}T00:00:00+04:00`,next=new Date(`${today}T12:00:00+04:00`);next.setDate(next.getDate()+1);
+    const {data:ended}=await db.from("multaqa_duty_tracking").select("id").eq("employee_name",emp.short_name).eq("event_type","end").gte("occurred_at",from).lt("occurred_at",next.toISOString()).limit(1);
+    if(!(ended||[]).length)return json({ok:false,error:"duty_not_ended"},409);
+    const attendance=clean(body.attendance_status,20),effectiveness=attendance==="absent"?"inactive":clean(body.effectiveness,20),reason=clean(body.reason,1200);
+    if(!["committed","late","absent"].includes(attendance)||!["active","inactive"].includes(effectiveness))return json({ok:false,error:"invalid_input"},400);
+    if((attendance!=="committed"||effectiveness==="inactive")&&!reason)return json({ok:false,error:"reason_required"},400);
+    const row={duty_date:today,employee_name:emp.short_name,attendance_status:attendance,effectiveness,reason:reason||null,updated_at:new Date().toISOString()};
+    const {data,error}=await db.from("multaqa_duty_evaluations").upsert(row,{onConflict:"duty_date,employee_name"}).select("attendance_status,effectiveness,reason,updated_at").single();
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,evaluation:data});
   }
   if(action==="scheduled_push"){
     const secret=clean(body.secret,100),cfg=await pushConfig(db); if(!cfg?.scheduler_secret||secret!==cfg.scheduler_secret)return json({ok:false,error:"forbidden"},403);
     const now=muscatNow(),day=dayName(),today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()); const hh=now.getHours(),mm=now.getMinutes(); let sent=0;
-    if(!["الجمعة","السبت"].includes(day)&&hh===12&&mm>=18&&mm<=22){const d=await dutyRow(db,day); if(d)sent+=await pushTo(db,[...(d.teachers||[]),...(d.admins||[])],"مناوبة اليوم",`لديكِ مناوبة اليوم — ${day}. بدأت الحصة الأولى الساعة 12:20 م.`,"/school/","duty");}
+    const minuteNow=hh*60+mm;
+    if(!["الجمعة","السبت"].includes(day)){const d=await dutyRow(db,day);if(d){
+      const staticAlerts=[
+       {minute:645,key:"morning",title:"🦺 تبدأ المناوبة الصباحية",body:"الساعة 10:45 — الرجاء البدء باستقبال الطلبة."},
+       {minute:710,key:"entry1",title:"🚪 نقطة الدخول ح١",body:"الساعة 11:50 — حث الطلبة على عدم التداخل مع طلاب المدرسة الصباحية والالتزام بالوقوف في الطابور."},
+       {minute:710,key:"entry2",title:"🚪 نقطة الدخول ح٢",body:"الساعة 11:50 — حث الطلبة على عدم التداخل مع طلاب المدرسة الصباحية والالتزام بالوقوف في الطابور."},
+       {minute:880,key:"coop",title:"🛍️ مناوبة فسحة الجمعية",body:"الساعة 2:40 — تنظيم الطلبة عند الشراء."},
+       {minute:880,key:"shade",title:"🧹 مناوبة فسحة المظلة",body:"الساعة 2:40 — تنظيم الطلبة والحث على النظافة أمر ضروري."},
+       {minute:880,key:"corridors",title:"🏫 مناوبة فسحة الممرات",body:"الساعة 2:40 — التأكد من خلو الفصول من الطلبة ومتابعة الممرات كاملة، وخصوصًا الممرات العلوية."},
+       {minute:995,key:"buses",title:"🚌 المناوبة المسائية — الحافلات",body:"موعد المناوبة 4:40 — الرجاء الوصول الآن قبل الموعد بخمس دقائق."},
+       {minute:995,key:"cars",title:"🚗 المناوبة المسائية — السيارات الخاصة",body:"موعد المناوبة 4:40 — الرجاء الوصول الآن، ولا يخرج أي طالب دون تصريح."}
+      ];
+      for(const alert of staticAlerts.filter(x=>x.minute===minuteNow)){const names=Array.isArray(d.slots?.[alert.key])?d.slots[alert.key]:[];if(names.length)sent+=await pushTo(db,names,alert.title,alert.body,"/school/?open=duty","duty_"+alert.key)}
+      const period=DUTY_PERIODS.find(x=>x.minute===minuteNow);if(period){const assignments=await dutyBetweenAssignments(db,day,d.slots||{},today),current=assignments.find((x:any)=>x.period===period.period);if(current?.teacher_name)sent+=await pushTo(db,[current.teacher_name],`🔄 مناوبة ما بين الفصول — الحصة ${period.period}`,`تبدأ الحصة ${period.period} الساعة ${period.start}. الرجاء متابعة الممرات والفصول ومنع تداخل الطلبة.`,"/school/?open=duty","duty_between")}
+    }}
     if(hh===8&&mm<=9){
       const {data:events}=await db.from("multaqa_calendar_events").select("*").eq("published",true).is("reminder_sent_at",null);const {data:emps}=await db.from("multaqa_employees").select("full_name,short_name,kind,access_group");
       for(const ev of events||[]){const due=new Date(`${ev.event_date}T12:00:00+04:00`);due.setDate(due.getDate()-Number(ev.reminder_days||0));const dueDate=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(due);if(dueDate!==today)continue;const names=(emps||[]).filter((x:any)=>ev.audience==="all"||(ev.audience==="teachers"&&x.kind==="teacher")||(ev.audience==="management"&&["admin","management"].includes(x.access_group))).map((x:any)=>x.short_name||x.full_name);const days=Number(ev.reminder_days||0),title=days===0?"📅 موعد اليوم":days===1?"⏰ تذكير لموعد الغد":`⏰ تذكير قبل ${days} أيام`;const count=await pushTo(db,names,title,`${ev.title} — ${ev.event_date}${ev.event_time?" • "+String(ev.event_time).slice(0,5):""}`,"/school/","calendar_event");sent+=count;if(count>0)await db.from("multaqa_calendar_events").update({reminder_sent_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",ev.id)}

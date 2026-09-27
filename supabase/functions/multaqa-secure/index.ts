@@ -860,7 +860,16 @@ Deno.serve(async(req)=>{
     const {error:attendanceError}=await db.from("multaqa_teacher_attendance").upsert({employee_id:target.employee_id,attendance_date:date,status,late_at:clean(body.late_at,8)||null,reason_category:clean(body.reason_category,40)||null,reason:clean(body.reason,500)||null,note:clean(body.note,800)||null,recorded_by_employee_id:e.employee_id,updated_at:new Date().toISOString()},{onConflict:"employee_id,attendance_date"});if(attendanceError)return json({ok:false,error:"save_failed"},500);let coverage:any[]=[],coverage_issue:string|null=null;if(status==="absent"){const allocation=await allocateAbsence(db,target,date,"absence",`${target.employee_id}:${date}`,e.employee_id);if(allocation.save_errors.length)return json({ok:false,error:"coverage_save_failed",attendance_saved:true,details:allocation.save_errors},500);coverage=allocation.items;coverage_issue=!allocation.schedule_found?"schedule_missing":allocation.lesson_count===0?"no_lessons_for_day":null}return json({ok:true,coverage,coverage_issue});
   }
   if(action==="duty_today"){
-    const date=clean(body.date,10)||muscatDate(),day=dayFor(date),{data:d}=await db.from("multaqa_duty").select("teachers,admins,slots").eq("day_name",day).maybeSingle();const teachers=d?.teachers||[],admins=d?.admins||[],betweenPeriods=await dutyBetweenAssignments(db,day,d?.slots||{},date),names=[...new Set([...teachers,...admins,...betweenPeriods.map((x:any)=>x.teacher_name).filter(Boolean)])];const {data:emps}=await db.from("multaqa_employees").select("employee_id,full_name,short_name");const resolved=names.map((n:string)=>(emps||[]).find((x:any)=>norm(x.short_name)===norm(n)||norm(x.full_name)===norm(n))).filter(Boolean);const isSupervisor=admins.some((n:string)=>norm(n)===norm(e.short_name)||norm(n)===norm(e.full_name))||elevated(e),canEdit=await canEditDutyRoles(db,e,admins);const {data:checks}=await db.from("multaqa_duty_attendance").select("*").eq("duty_date",date);return json({ok:true,date,day,slots:d?.slots||{},teachers,admins,members:resolved,checks:checks||[],between_periods:betweenPeriods,slot_info:DUTY_SLOT_INFO,slot_keys:DUTY_SLOT_KEYS,is_supervisor:isSupervisor,can_edit_roles:canEdit});
+    const date=clean(body.date,10)||muscatDate(),day=dayFor(date),{data:d}=await db.from("multaqa_duty").select("teachers,admins,slots").eq("day_name",day).maybeSingle();
+    const teachers=d?.teachers||[],admins=d?.admins||[],betweenPeriods=await dutyBetweenAssignments(db,day,d?.slots||{},date),names=[...new Set([...teachers,...admins,...betweenPeriods.map((x:any)=>x.teacher_name).filter(Boolean)])];
+    const {data:emps}=await db.from("multaqa_employees").select("employee_id,full_name,short_name,kind,access_group");
+    const resolved=names.map((n:string)=>(emps||[]).find((x:any)=>norm(x.short_name)===norm(n)||norm(x.full_name)===norm(n))).filter(Boolean);
+    const isSupervisor=admins.some((n:string)=>norm(n)===norm(e.short_name)||norm(n)===norm(e.full_name))||elevated(e),canEdit=await canEditDutyRoles(db,e,admins);
+    const [{data:checks},{data:evaluations}]=await Promise.all([
+      db.from("multaqa_duty_attendance").select("*").eq("duty_date",date),
+      db.from("multaqa_duty_evaluations").select("employee_name,attendance_status,effectiveness,reason,evaluated_by_employee_id,evaluated_by_name,evaluated_at,evaluation_source,updated_at").eq("duty_date",date)
+    ]);
+    return json({ok:true,date,day,slots:d?.slots||{},teachers,admins,members:resolved,checks:checks||[],evaluations:evaluations||[],between_periods:betweenPeriods,slot_info:DUTY_SLOT_INFO,slot_keys:DUTY_SLOT_KEYS,is_supervisor:isSupervisor,can_edit_roles:canEdit,can_evaluate:canEdit});
   }
   if(action==="save_duty_admins"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);
@@ -878,6 +887,25 @@ Deno.serve(async(req)=>{
     for(const key of keys)if(slots[key].length!==DUTY_SLOT_INFO[key].count)return json({ok:false,error:"duty_capacity"},409);
     const oldSlots:any=d.slots||{},oldRole=new Map<string,string>(),newRole=new Map<string,string>();for(const key of keys){for(const n of oldSlots[key]||[])oldRole.set(norm(n),key);for(const n of slots[key]||[])newRole.set(norm(n),key)}
     const {error}=await db.from("multaqa_duty").update({slots}).eq("day_name",day);if(error)return json({ok:false,error:"save_failed"},500);for(const name of teachers){const before=oldRole.get(norm(name)),after=newRole.get(norm(name));if(before!==after){const info=DUTY_SLOT_INFO[after||""];await pushToNames(db,[name],"تم تغيير دور مناوبتك",`مناوبة ${day}: ${info?.label||after} • ${info?.time||""}`,"/school/","duty")}}return json({ok:true,day,slots});
+  }
+  if(action==="save_duty_evaluation"){
+    const date=clean(body.date,10)||muscatDate(),day=dayFor(date),{data:d}=await db.from("multaqa_duty").select("teachers,admins,slots").eq("day_name",day).maybeSingle();
+    if(!d)return json({ok:false,error:"not_found"},404);
+    const admins:string[]=d.admins||[],allowed=await canEditDutyRoles(db,e,admins);if(!allowed)return json({ok:false,error:"forbidden"},403);
+    const target=await resolveEmployee(db,clean(body.employee_name,220));if(!target)return json({ok:false,error:"not_found"},404);
+    const betweenPeriods=await dutyBetweenAssignments(db,day,d.slots||{},date);
+    const dutyNames=[...(d.teachers||[]),...admins,...betweenPeriods.map((x:any)=>x.teacher_name).filter(Boolean)];
+    if(!dutyNames.some((n:string)=>norm(n)===norm(target.short_name)||norm(n)===norm(target.full_name)))return json({ok:false,error:"not_on_duty"},403);
+    const attendance=clean(body.attendance_status,20),effectiveness=attendance==="absent"?"inactive":clean(body.effectiveness,20),reason=clean(body.reason,1200);
+    if(!["committed","late","absent"].includes(attendance)||!["active","inactive"].includes(effectiveness))return json({ok:false,error:"invalid_input"},400);
+    if((attendance!=="committed"||effectiveness==="inactive")&&!reason)return json({ok:false,error:"reason_required"},400);
+    const stamp=new Date().toISOString(),row={
+      duty_date:date,employee_name:target.short_name||target.full_name,attendance_status:attendance,effectiveness,reason:reason||null,
+      evaluated_by_employee_id:e.employee_id,evaluated_by_name:e.short_name||e.full_name,evaluated_at:stamp,evaluation_source:"supervisor",updated_at:stamp
+    };
+    const {data,error}=await db.from("multaqa_duty_evaluations").upsert(row,{onConflict:"duty_date,employee_name"}).select("employee_name,attendance_status,effectiveness,reason,evaluated_by_employee_id,evaluated_by_name,evaluated_at,evaluation_source,updated_at").single();
+    if(error)return json({ok:false,error:"save_failed"},500);
+    return json({ok:true,evaluation:data});
   }
     if(action==="confirm_duty"){
     const date=clean(body.date,10)||muscatDate(),day=dayFor(date),{data:d}=await db.from("multaqa_duty").select("admins").eq("day_name",day).maybeSingle();const allowed=elevated(e)||(d?.admins||[]).some((n:string)=>norm(n)===norm(e.short_name)||norm(n)===norm(e.full_name));if(!allowed)return json({ok:false,error:"forbidden"},403);const target=await resolveEmployee(db,clean(body.employee_name,220)),status=clean(body.status,20),stars=Math.max(0,Math.min(5,Number(body.stars)||0));if(!target||!["present","absent","late","excused"].includes(status))return json({ok:false,error:"invalid_input"},400);await db.from("multaqa_duty_attendance").upsert({duty_date:date,duty_day:day,employee_id:target.employee_id,status,stars,note:clean(body.note,500)||null,confirmed_by_employee_id:e.employee_id,confirmed_at:new Date().toISOString()},{onConflict:"duty_date,employee_id"});return json({ok:true});

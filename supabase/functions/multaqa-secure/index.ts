@@ -560,6 +560,38 @@ Deno.serve(async(req)=>{
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id);if(!id)return json({ok:false,error:"invalid_input"},400);
     const {error}=await db.from("multaqa_content").delete().eq("id",id).eq("content_type","gallery");if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
+  if(action==="list_science_challenges_admin"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const kind=clean(body.kind,10)==="lab"?"lab":"quiz";
+    const {data,error}=await db.from("multaqa_science_challenges").select("*").eq("kind",kind).order("level").order("sort_order");
+    if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,items:data||[]});
+  }
+  if(action==="save_science_challenge"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const kind=clean(body.kind,10)==="lab"?"lab":"quiz",title=clean(body.title,220);
+    if(!title)return json({ok:false,error:"invalid_input"},400);
+    const questions=(Array.isArray(body.questions)?body.questions:[]).map((x:any)=>({q:clean(x?.q,600),choices:(Array.isArray(x?.choices)?x.choices:[]).map((c:any)=>clean(c,220)).slice(0,6),correct:Number(x?.correct)||0})).filter((x:any)=>x.q&&x.choices.length>=2).slice(0,40);
+    const id=Number(body.id)||Date.now();
+    const row={id,kind,level:kind==="quiz"?(Number(body.level)||1):null,title,subject:clean(body.subject,120)||null,tools:clean(body.tools,1200)||null,materials:clean(body.materials,1200)||null,steps:clean(body.steps,4000)||null,questions,published:body.published!==false,sort_order:Number(body.sort_order)||id,created_by_employee_id:e.employee_id,updated_at:new Date().toISOString()};
+    const {data,error}=await db.from("multaqa_science_challenges").upsert(row).select().single();
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,item:data});
+  }
+  if(action==="delete_science_challenge"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_science_challenges").delete().eq("id",id);if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="science_attempts"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const challengeId=Number(body.challenge_id)||null;
+    let q=db.from("multaqa_science_attempts").select("id,challenge_id,student_school_id,student_name,class_name,score,total,passed,submitted_at").order("submitted_at",{ascending:false}).limit(300);
+    if(challengeId)q=q.eq("challenge_id",challengeId);
+    const {data,error}=await q;if(error)return json({ok:false,error:"server_error"},500);
+    const ids=[...new Set((data||[]).map((x:any)=>x.challenge_id))];
+    const {data:challenges}=ids.length?await db.from("multaqa_science_challenges").select("id,title,kind,level").in("id",ids):{data:[]};
+    const titleOf=(id:number)=>(challenges||[]).find((c:any)=>c.id===id);
+    const items=(data||[]).map((x:any)=>({...x,challenge:titleOf(x.challenge_id)||null}));
+    return json({ok:true,items});
+  }
   if(action==="emergency_status"){
     const {data}=await db.from("multaqa_emergency_alerts").select("*").eq("active",true).order("started_at",{ascending:false}).limit(1).maybeSingle();return json({ok:true,alert:data||null,can_manage:elevated(e)});
   }

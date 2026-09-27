@@ -152,6 +152,43 @@ Deno.serve(async(req)=>{
     const items=[...counts.values()].sort((a,b)=>b.count-a.count).slice(0,15);
     return json({ok:true,items,month_label:new Intl.DateTimeFormat("ar-OM",{month:"long",year:"numeric",timeZone:"Asia/Muscat"}).format(now)});
   }
+  if(action==="science_challenges"){
+    const kind=clean(body.kind,10)==="lab"?"lab":"quiz",schoolId=digits(body.student_school_id);
+    let q=db.from("multaqa_science_challenges").select("id,kind,level,title,subject,tools,materials,steps,sort_order").eq("published",true).eq("kind",kind).order("level").order("sort_order");
+    const {data,error}=await q;if(error)return json({ok:false,error:"server_error"},500);
+    let items=data||[];
+    if(kind==="quiz"){
+      let unlocked=1;
+      if(idOk(schoolId)){
+        const {data:passes}=await db.from("multaqa_science_attempts").select("challenge_id,passed").eq("student_school_id",schoolId).eq("passed",true);
+        const passedIds=new Set((passes||[]).map((x:any)=>x.challenge_id));
+        const levels=([...new Set(items.map((x:any)=>x.level))] as number[]).sort((a:number,b:number)=>a-b);
+        for(const lv of levels){const chIds=items.filter((x:any)=>x.level===lv).map((x:any)=>x.id);if(chIds.some((id:number)=>passedIds.has(id)))unlocked=lv+1;else break}
+      }
+      items=items.map((x:any)=>({...x,locked:x.level>unlocked}));
+    }
+    return json({ok:true,items});
+  }
+  if(action==="science_challenge"){
+    const id=Number(body.id);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {data,error}=await db.from("multaqa_science_challenges").select("id,kind,level,title,subject,tools,materials,steps,questions").eq("id",id).eq("published",true).maybeSingle();
+    if(error)return json({ok:false,error:"server_error"},500);if(!data)return json({ok:false,error:"not_found"},404);
+    const questions=(Array.isArray(data.questions)?data.questions:[]).map((x:any)=>({q:x.q,choices:x.choices}));
+    return json({ok:true,item:{...data,questions}});
+  }
+  if(action==="submit_science_attempt"){
+    const id=Number(body.challenge_id),schoolId=digits(body.student_school_id),studentName=clean(body.student_name,220),className=clean(body.class_name,60);
+    const answers=Array.isArray(body.answers)?body.answers:[];
+    if(!id||!idOk(schoolId)||!studentName)return json({ok:false,error:"invalid_input"},400);
+    const {data:ch,error}=await db.from("multaqa_science_challenges").select("id,questions").eq("id",id).eq("published",true).maybeSingle();
+    if(error)return json({ok:false,error:"server_error"},500);if(!ch)return json({ok:false,error:"not_found"},404);
+    const questions=Array.isArray(ch.questions)?ch.questions:[];
+    let score=0;questions.forEach((q:any,i:number)=>{if(Number(answers[i])===Number(q.correct))score++});
+    const total=questions.length,passed=total>0&&score/total>=0.7;
+    const {error:insErr}=await db.from("multaqa_science_attempts").insert({id:Date.now(),challenge_id:id,student_school_id:schoolId,student_name:studentName,class_name:className||null,score,total,passed});
+    if(insErr)return json({ok:false,error:"save_failed"},500);
+    return json({ok:true,score,total,passed});
+  }
   if(action==="bus_status"){
     const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat"}).format(new Date());
     const [{data:arrivals,error},{data:buses}]=await Promise.all([

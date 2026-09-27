@@ -614,6 +614,22 @@ Deno.serve(async(req)=>{
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id);if(!id)return json({ok:false,error:"invalid_input"},400);
     const {error}=await db.from("multaqa_content").delete().eq("id",id).eq("content_type","gallery");if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
+  if(action==="save_magazine_post"){
+    if(e?.kind!=="teacher"&&!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const title=clean(body.title,220),message=clean(body.body,3000),category=clean(body.category,60)||"عام";
+    if(title.length<2||message.length<2)return json({ok:false,error:"invalid_input"},400);
+    const row={id:Date.now(),content_type:"magazine",title,body:message,media_url:null,event_date:null,test_name:null,subject:category,day_name:e.short_name||e.full_name||"",published:true,sort_order:Date.now(),updated_at:new Date().toISOString()};
+    const {data,error}=await db.from("multaqa_content").insert(row).select().single();if(error)return json({ok:false,error:"save_failed"},500);
+    let sent=0;if(body.send_push===true){const {data:emps}=await db.from("multaqa_employees").select("short_name,full_name");sent=await pushToNames(db,(emps||[]).map((x:any)=>x.short_name||x.full_name),"📰 مجلة ملتقى المعارف",title,"/school/magazine/","magazine")}
+    return json({ok:true,item:data,push_sent:sent});
+  }
+  if(action==="delete_magazine_post"){
+    const id=Number(body.id);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {data:row}=await db.from("multaqa_content").select("day_name").eq("id",id).eq("content_type","magazine").maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
+    const isOwner=norm(row.day_name)===norm(e.short_name)||norm(row.day_name)===norm(e.full_name);
+    if(!elevated(e)&&!isOwner)return json({ok:false,error:"forbidden"},403);
+    const {error}=await db.from("multaqa_content").delete().eq("id",id).eq("content_type","magazine");if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
   if(action==="list_science_challenges_admin"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);
     const kind=clean(body.kind,10)==="lab"?"lab":"quiz";

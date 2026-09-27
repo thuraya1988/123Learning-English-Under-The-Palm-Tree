@@ -45,9 +45,10 @@ const msgDuty=(name,day,date,slot)=>'🦺 '+SCHOOL+'\n\nالأستاذة '+name+
 const msgEvent=x=>'📅 '+SCHOOL+' — موعد مهم\n\n📌 '+x.title+'\n🗓️ يوم '+dayOf(x.event_date)+' بتاريخ '+fmtDate(x.event_date)+(x.event_time?'\n⏰ الساعة '+String(x.event_time).slice(0,5):'')+(x.details?'\n📝 '+x.details:'')+sign;
 const msgSchedule=(name,day,date,periods)=>'📚 '+SCHOOL+'\n\nالأستاذة '+name+'، حصصكِ يوم '+day+(date?' بتاريخ '+fmtDate(date):'')+':\n'+periods.map((p,i)=>p?'• الحصة '+(i+1)+': '+p:'').filter(Boolean).join('\n')+sign;
 
+const msgClassAlert=(name,classLabel,period)=>'🚨 '+SCHOOL+'\n\nالأستاذة '+name+'، \nالصف '+classLabel+' • الحصة '+period+'.\nيرجى التوجه إلى الصف الآن (حصة احتياط)'+sign;
 /* ——— تخزين استجابات الخادم لاستخدامها في الرسائل ——— */
 const orig=window.staffApi;
-if(typeof orig==='function')window.staffApi=async(action,p={})=>{const d=await orig(action,p);if(['coverage','duty_today','duty_week','calendar_events','teacher_schedule','resource_bookings'].includes(action))cache[action]=d;if(action==='save_teacher_profile')profilePhones=null;return d};
+if(typeof orig==='function')window.staffApi=async(action,p={})=>{const d=await orig(action,p);if(['coverage','duty_today','duty_week','calendar_events','teacher_schedule','resource_bookings'].includes(action))cache[action]=d;if(action==='save_teacher_profile')profilePhones=null;if(action==='report_class'&&d?.item?.notified_employee_id){const empId=d.item.notified_employee_id,name=d.notified_teacher||label(empById(empId))||'';const host=document.querySelector('.report-class');if(host&&name){let box=host.querySelector('#classAlertWaResult');if(!box){box=document.createElement('div');box.id='classAlertWaResult';box.className='wa-row';host.appendChild(box)}box.innerHTML=btn({empId,text:msgClassAlert(name,d.item.class_label,d.item.period),sentKey:'clsalert:'+d.item.id},'📲 إبلاغ '+h(name)+' عبر واتساب')+editBtn(empId)}}return d};
 
 /* ——— الاحتياط ——— */
 function enhanceCoverage(pane){

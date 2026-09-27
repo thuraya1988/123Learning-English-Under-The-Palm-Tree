@@ -890,6 +890,10 @@ window.openCoverageCenter=async()=>{
  if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا لفتح توزيع الاحتياط');return openIdentity()}
  await openStaffCenter();await staffTab('coverage');
 };
+window.openDutyEditFromOps=async()=>{
+ if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا لتعديل المناوبات');return openIdentity()}
+ await openStaffCenter();await staffTab('duty');
+};
 
 const localTestOpsAlert=window.testOpsAlert;
 window.testOpsAlert=async()=>{

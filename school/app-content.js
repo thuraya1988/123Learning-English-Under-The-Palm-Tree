@@ -1,4 +1,6 @@
-const CT={announcement:'📣 الإعلان الهام',news:'📰 نشرة الأخبار',events:'🎉 الفعاليات والمناسبات',gallery:'🖼️ الجاليري',videos:'🎬 الفيديوهات'};
+const CT={announcement:'📣 الإعلان الهام',news:'📰 نشرة الأخبار',events:'🎉 الفعاليات والمناسبات',gallery:'🖼️ الجاليري',videos:'🎬 الفيديوهات',rules:'📘 قوانين المدرسة'};
+let newsAdminFile=null;
+function newsMediaHtml(x){if(!x?.media_url)return '';const kind=x.media_kind||(/\.pdf(?:\?|$)/i.test(x.media_url)?'pdf':/\.(mp4|webm|mov)(?:\?|$)/i.test(x.media_url)?'video':'image');if(kind==='pdf')return `<a class="video-link-btn" href="${esc(x.media_url)}" target="_blank" rel="noopener">📄 فتح ملف PDF المرفق</a>`;if(kind==='video')return `<video controls playsinline style="width:100%;max-height:55vh;background:#111;border-radius:14px" src="${esc(x.media_url)}"></video>`;return `<a href="${esc(x.media_url)}" target="_blank" rel="noopener"><img src="${esc(x.media_url)}" alt="${esc(x.title||'مرفق الخبر')}" style="display:block;width:100%;height:auto;max-height:55vh;object-fit:contain;border-radius:14px"></a>`}
 window.openSchoolContent=t=>{contentTab=t;openById('schoolContentModal');loadContent()};
 window.switchSchoolContent=t=>{contentTab=t;loadContent()};
 async function loadContent(){
@@ -22,7 +24,13 @@ async function loadContent(){
       await renderAnnouncementAdminControls(x);
       return;
     }
-    $('schoolContentBody').innerHTML=a.length?a.map(x=>`<article class="content-card">${contentTab==='gallery'?`<div class="cover">${x.media_url?`<img src="${esc(x.media_url)}">`:'🖼️'}</div>`:contentTab==='videos'?'<div class="cover">🎬</div>':''}<div class="body"><h4>${esc(x.title||'')}</h4><p style="white-space:pre-line">${esc(x.body||'')}</p>${x.event_date?`<small>${esc(x.event_date)}</small>`:''}${contentTab==='videos'&&x.media_url?`<a class="video-link-btn" href="${esc(x.media_url)}" target="_blank">▶ فتح الفيديو</a>`:''}${contentTab==='news'&&typeof window.canManageEmergencyAlert==='function'&&window.canManageEmergencyAlert()?`<button class="btn btn-ghost" style="margin-top:8px" onclick="deleteNewsUI(${x.id})">🗑 حذف الخبر</button>`:''}${contentTab==='gallery'&&typeof window.canManageEmergencyAlert==='function'&&window.canManageEmergencyAlert()?`<button class="btn btn-ghost" style="margin-top:8px" onclick="deleteGalleryUI(${x.id})">🗑 حذف العمل</button>`:''}</div></article>`).join(''):'<div class="content-empty">لا يوجد محتوى منشور في هذا القسم حتى الآن.</div>';
+    if(contentTab==='rules'){
+      const x=a[0];
+      $('schoolContentBody').innerHTML=x?`<article class="content-card"><div class="body"><h4>${esc(x.title||'قوانين المدرسة')}</h4><p style="white-space:pre-line;line-height:2">${esc(x.body||'')}</p></div></article>`:'<div class="content-empty">لم تُنشر قوانين المدرسة بعد.</div>';
+      await renderRulesAdminControls(x);
+      return;
+    }
+    $('schoolContentBody').innerHTML=a.length?a.map(x=>`<article class="content-card">${contentTab==='gallery'?`<div class="cover">${x.media_url?`<img src="${esc(x.media_url)}">`:'🖼️'}</div>`:contentTab==='videos'?'<div class="cover">🎬</div>':contentTab==='news'?newsMediaHtml(x):''}<div class="body"><h4>${esc(x.title||'')}</h4><p style="white-space:pre-line">${esc(x.body||'')}</p>${x.event_date?`<small>${esc(x.event_date)}</small>`:''}${contentTab==='videos'&&x.media_url?`<a class="video-link-btn" href="${esc(x.media_url)}" target="_blank">▶ فتح الفيديو</a>`:''}${contentTab==='news'&&typeof window.canManageEmergencyAlert==='function'&&window.canManageEmergencyAlert()?`<button class="btn btn-ghost" style="margin-top:8px" onclick="deleteNewsUI(${x.id})">🗑 حذف الخبر</button>`:''}${contentTab==='gallery'&&typeof window.canManageEmergencyAlert==='function'&&window.canManageEmergencyAlert()?`<button class="btn btn-ghost" style="margin-top:8px" onclick="deleteGalleryUI(${x.id})">🗑 حذف العمل</button>`:''}</div></article>`).join(''):'<div class="content-empty">لا يوجد محتوى منشور في هذا القسم حتى الآن.</div>';
     if(contentTab==='news')await renderNewsAdminControls();
     if(contentTab==='gallery')renderGalleryAdminNote();
   }catch(x){
@@ -41,12 +49,41 @@ window.deleteGalleryUI=async id=>{
 async function renderNewsAdminControls(){
  const wrap=$('contentFormWrap');if(!wrap)return;
  if(typeof window.canPublishNews!=='function'||!window.canPublishNews()){wrap.style.display='none';return}
- wrap.style.display='block';
- wrap.innerHTML='<section style="border:1px solid #ead8c3;border-radius:18px;padding:16px;margin-bottom:14px;background:#fffaf3"><h4 style="margin:0 0 12px">📰 نشر خبر جديد</h4><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px"><label>عنوان الخبر<input id="newsAdminTitle" placeholder="عنوان الخبر"></label><label>التاريخ<input id="newsAdminDate" type="date"></label><label>رابط صورة (اختياري)<input id="newsAdminMedia" placeholder="اختياري"></label></div><label>نص الخبر<textarea id="newsAdminBody" rows="3" placeholder="اكتبي تفاصيل الخبر"></textarea></label><label style="display:flex;gap:8px;align-items:center;margin:10px 0"><input id="newsAdminPush" type="checkbox" checked> إرسال إشعار فوري لجميع المعلمات</label><button class="btn btn-solid" onclick="saveNewsUI()">نشر الخبر</button></section>';
+ newsAdminFile=null;wrap.style.display='block';
+ wrap.innerHTML='<section style="border:1px solid #ead8c3;border-radius:18px;padding:16px;margin-bottom:14px;background:#fffaf3"><h4 style="margin:0 0 12px">📰 نشر خبر جديد</h4><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px"><label>عنوان الخبر<input id="newsAdminTitle" placeholder="عنوان الخبر"></label><label>التاريخ<input id="newsAdminDate" type="date"></label><label>رابط خارجي (اختياري)<input id="newsAdminMedia" placeholder="صورة أو فيديو أو PDF"></label></div><label>نص الخبر<textarea id="newsAdminBody" rows="3" placeholder="اكتبي تفاصيل الخبر"></textarea></label><label style="display:block;margin:10px 0;font-weight:800">📎 إرفاق ملف من الجهاز (اختياري)<input id="newsAdminFile" type="file" accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" onchange="useNewsAdminFile(this)" style="display:block;margin-top:6px"><small id="newsAdminFileState" style="display:block;margin-top:5px;color:#6b7280">يدعم PDF، صورة، أو فيديو حتى 250 MB.</small></label><label style="display:flex;gap:8px;align-items:center;margin:10px 0"><input id="newsAdminPush" type="checkbox" checked> 🔔 إرسال إشعار فوري لجميع المعلمات</label><button class="btn btn-solid" id="newsPublishBtn" onclick="saveNewsUI()">نشر الخبر</button></section>';
 }
+window.useNewsAdminFile=input=>{
+ const f=input.files&&input.files[0];newsAdminFile=f||null;const st=$('newsAdminFileState');if(!f){if(st)st.textContent='يدعم PDF، صورة، أو فيديو حتى 250 MB.';return}
+ if(f.size>250*1024*1024){input.value='';newsAdminFile=null;if(st)st.textContent='❌ الملف أكبر من 250 MB';return toast('حجم الملف يجب ألا يتجاوز 250 MB')}
+ if(st)st.textContent='✅ '+f.name+' • '+Math.max(1,Math.round(f.size/1024/1024))+' MB';
+};
 window.saveNewsUI=async()=>{
- const title=$('newsAdminTitle').value.trim(),body=$('newsAdminBody').value.trim();if(!title)return toast('اكتبي عنوان الخبر');
- try{const d=await window.saveNewsAdmin({title,body,event_date:$('newsAdminDate').value,media_url:$('newsAdminMedia').value,send_push:$('newsAdminPush').checked});toast(d.push_sent?'✅ نُشر الخبر ووصل الإشعار لجميع المعلمات':'✅ نُشر الخبر'+($('newsAdminPush').checked?'، ولا توجد أجهزة مفعّلة حاليًا':''));await loadContent()}catch(e){toast(typeof staffError==='function'?staffError(e):'تعذر نشر الخبر')}
+ const title=$('newsAdminTitle').value.trim(),body=$('newsAdminBody').value.trim(),btn=$('newsPublishBtn');if(!title)return toast('اكتبي عنوان الخبر');
+ try{
+  if(btn){btn.disabled=true;btn.textContent='جاري النشر…'}
+  let media_url=$('newsAdminMedia').value.trim();
+  if(newsAdminFile){
+   if(typeof window.prepareNewsUploadAdmin!=='function')throw Object.assign(new Error('upload_failed'),{code:'upload_failed'});
+   const u=await window.prepareNewsUploadAdmin({mime_type:newsAdminFile.type,file_name:newsAdminFile.name});
+   const up=await fetch(u.signed_url,{method:'PUT',headers:{'Content-Type':newsAdminFile.type,'x-upsert':'false'},body:newsAdminFile});
+   if(!up.ok)throw Object.assign(new Error('upload_failed'),{code:'upload_failed'});
+   media_url=u.path;
+  }
+  const d=await window.saveNewsAdmin({title,body,event_date:$('newsAdminDate').value,media_url,send_push:$('newsAdminPush').checked});
+  toast(d.push_sent?'✅ نُشر الخبر ووصل الإشعار':'✅ نُشر الخبر'+($('newsAdminPush').checked?'، ولا توجد أجهزة أخرى مفعّلة حاليًا':''));
+  newsAdminFile=null;await loadContent()
+ }catch(e){toast(typeof staffError==='function'?staffError(e):'تعذر نشر الخبر')}
+ finally{if(btn){btn.disabled=false;btn.textContent='نشر الخبر'}}
+};
+async function renderRulesAdminControls(current){
+ const wrap=$('contentFormWrap');if(!wrap)return;
+ if(typeof window.canManageEmergencyAlert!=='function'||!window.canManageEmergencyAlert()){wrap.style.display='none';return}
+ wrap.style.display='block';
+ wrap.innerHTML='<section style="border:1px solid #ead8c3;border-radius:18px;padding:16px;margin-bottom:14px;background:#fffaf3"><h4 style="margin:0 0 12px">📘 تعديل قوانين المدرسة</h4><label>العنوان<input id="rulesAdminTitle" value="'+esc(current?.title||'قوانين المدرسة')+'"></label><label>القوانين والتعليمات<textarea id="rulesAdminBody" rows="12" placeholder="اكتبي كل قانون في سطر مستقل">'+esc(current?.body||'')+'</textarea></label><button class="btn btn-solid" onclick="saveSchoolRulesUI()">حفظ ونشر القوانين</button></section>';
+}
+window.saveSchoolRulesUI=async()=>{
+ const title=$('rulesAdminTitle').value.trim(),body=$('rulesAdminBody').value.trim();if(!body)return toast('اكتبي قوانين المدرسة أولًا');
+ try{await window.saveSchoolRulesAdmin({title,body});toast('✅ تم حفظ ونشر قوانين المدرسة');await loadContent()}catch(e){toast(typeof staffError==='function'?staffError(e):'تعذر حفظ القوانين')}
 };
 window.deleteNewsUI=async id=>{
  if(!confirm('حذف هذا الخبر؟'))return;

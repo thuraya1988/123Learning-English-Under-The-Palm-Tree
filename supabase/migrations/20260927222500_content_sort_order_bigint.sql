@@ -1,0 +1,1 @@
+alter table public.multaqa_content alter column sort_order type bigint using sort_order::bigint;

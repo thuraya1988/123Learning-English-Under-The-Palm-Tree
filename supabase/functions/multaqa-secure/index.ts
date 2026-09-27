@@ -132,13 +132,25 @@ async function candidatesFor(db:any,absent:any,date:string,period:number,used:Se
   }).filter(Boolean).sort((a:any,b:any)=>a.score-b.score);
 }
 async function allocateAbsence(db:any,absent:any,date:string,sourceType:string,sourceId:string,by:string){
-  const day=dayFor(date),scheduleNames=[teacherScheduleName(absent),absent.short_name,absent.full_name].map((x:any)=>clean(x,220)).filter(Boolean),{data:rows}=await db.from("multaqa_teacher_schedules").select("full_name,schedule").in("full_name",[...new Set(scheduleNames)]);const row=(rows||[]).find((x:any)=>norm(x.full_name)===norm(teacherScheduleName(absent)))||(rows||[])[0];const slots:any[]=row?.schedule?.[day]||[],used=new Set<string>(),out:any[]=[];
+  const day=dayFor(date),scheduleNames=[teacherScheduleName(absent),absent.short_name,absent.full_name].map((x:any)=>clean(x,220)).filter(Boolean);
+  const {data:allRows,error:scheduleError}=await db.from("multaqa_teacher_schedules").select("full_name,schedule");
+  const wanted=new Set(scheduleNames.map(norm)),row=(allRows||[]).find((x:any)=>wanted.has(norm(x.full_name)));
+  const slots:any[]=row?.schedule?.[day]||[],lessonCount=slots.filter((x:any)=>clean(x,500)).length;
+  if(scheduleError)return {items:[],schedule_found:false,lesson_count:0,save_errors:[{message:scheduleError.message||"schedule_read_failed"}]};
+  if(!row)return {items:[],schedule_found:false,lesson_count:0,save_errors:[]};
+  if(!lessonCount)return {items:[],schedule_found:true,lesson_count:0,save_errors:[]};
+  const used=new Set<string>(),out:any[]=[],saveErrors:any[]=[];
   for(let i=0;i<7;i++){
-    const lesson=clean(slots[i],500);if(!lesson)continue;const parts=lesson.split(/\s*[•—]\s*/).map(x=>x.trim()),subject=parts[0]||"",classLabel=parts[1]||lesson;
-    const list:any[]=await candidatesFor(db,absent,date,i+1,used);const pick=list[0]||null;if(pick)used.add(pick.employee_id);
+    const lesson=clean(slots[i],500);if(!lesson)continue;
+    const parts=lesson.split(/\s*[•—]\s*/).map(x=>x.trim()).filter(Boolean),subject=parts[0]||"",classLabel=parts.slice(1).join(" — ")||lesson;
+    const list:any[]=await candidatesFor(db,absent,date,i+1,used),pick=list[0]||null;if(pick)used.add(pick.employee_id);
     const payload={coverage_date:date,day_name:day,period:i+1,class_label:classLabel,subject,absent_employee_id:absent.employee_id,replacement_employee_id:pick?.employee_id||null,source_type:sourceType,source_id:sourceId,status:pick?"assigned":"proposed",fairness_score:pick?.score??null,reason_summary:pick?.reason||"لا توجد معلمة متاحة دون تعارض",assigned_by_employee_id:by,notified_at:null,reminder_sent_at:null,completed_at:null,achievement_recorded_at:null};
-    const {data}=await db.from("multaqa_substitute_assignments").upsert(payload,{onConflict:"coverage_date,period,class_label"}).select().single();if(data&&pick)await notifyCoverageAssignment(db,data,pick.short_name||pick.full_name);out.push({...data,replacement_name:pick?.short_name||null});
-  }return out;
+    const {data,error}=await db.from("multaqa_substitute_assignments").upsert(payload,{onConflict:"coverage_date,period,class_label"}).select().single();
+    if(error||!data){saveErrors.push({period:i+1,class_label:classLabel,message:error?.message||"save_failed"});continue}
+    if(pick)await notifyCoverageAssignment(db,data,pick.short_name||pick.full_name);
+    out.push({...data,replacement_name:pick?.short_name||null});
+  }
+  return {items:out,schedule_found:true,lesson_count:lessonCount,save_errors:saveErrors};
 }
 
 Deno.serve(async(req)=>{
@@ -633,9 +645,17 @@ Deno.serve(async(req)=>{
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=clean(body.id,80);if(!id)return json({ok:false,error:"invalid_input"},400);const {error}=await db.from("multaqa_calendar_events").delete().eq("id",id);if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
   if(action==="coverage"){
+    const date=clean(body.date,10),validDate=/^\d{4}-\d{2}-\d{2}$/.test(date);
     let q=db.from("multaqa_substitute_assignments").select("*").order("coverage_date",{ascending:false}).order("period").limit(250);
+    if(validDate)q=q.eq("coverage_date",date);
     if(!elevated(e))q=q.eq("replacement_employee_id",e.employee_id);
-    const {data}=await q;return json({ok:true,items:data||[]});
+    const {data,error}=await q;if(error)return json({ok:false,error:"load_failed"},500);
+    let absences:any[]=[];
+    if(elevated(e)&&validDate){
+      const {data:a}=await db.from("multaqa_teacher_attendance").select("employee_id,status").eq("attendance_date",date).eq("status","absent");
+      absences=a||[];
+    }
+    return json({ok:true,date:validDate?date:null,items:data||[],absences});
   }
   if(action==="publish_coverage"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);
@@ -721,11 +741,11 @@ Deno.serve(async(req)=>{
   if(action==="decide_permission"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=clean(body.id,80),status=clean(body.status,20);if(!["approved","rejected"].includes(status))return json({ok:false,error:"invalid_input"},400);
     const {data:p}=await db.from("multaqa_teacher_permissions").select("*").eq("id",id).maybeSingle();if(!p)return json({ok:false,error:"not_found"},404);await db.from("multaqa_teacher_permissions").update({status,decision_note:clean(body.note,800)||null,decided_by_employee_id:e.employee_id,decided_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id);
-    let coverage:any[]=[];if(status==="approved"){const {data:absent}=await db.from("multaqa_employees").select("employee_id,full_name,short_name").eq("employee_id",p.employee_id).single();coverage=await allocateAbsence(db,absent,p.permission_date,"permission",p.id,e.employee_id)}return json({ok:true,coverage});
+    let coverage:any[]=[],coverage_issue:string|null=null;if(status==="approved"){const {data:absent}=await db.from("multaqa_employees").select("employee_id,full_name,short_name").eq("employee_id",p.employee_id).single();const allocation=await allocateAbsence(db,absent,p.permission_date,"permission",p.id,e.employee_id);if(allocation.save_errors.length)return json({ok:false,error:"coverage_save_failed",permission_saved:true,details:allocation.save_errors},500);coverage=allocation.items;coverage_issue=!allocation.schedule_found?"schedule_missing":allocation.lesson_count===0?"no_lessons_for_day":null}return json({ok:true,coverage,coverage_issue});
   }
   if(action==="record_teacher_attendance"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const target=await resolveEmployee(db,clean(body.employee_name,220)),status=clean(body.status,30),date=clean(body.date,10)||muscatDate();if(!target||!["present","late","absent","partial_permission","full_exit","official_task","leave"].includes(status))return json({ok:false,error:"invalid_input"},400);
-    await db.from("multaqa_teacher_attendance").upsert({employee_id:target.employee_id,attendance_date:date,status,late_at:clean(body.late_at,8)||null,reason_category:clean(body.reason_category,40)||null,reason:clean(body.reason,500)||null,note:clean(body.note,800)||null,recorded_by_employee_id:e.employee_id,updated_at:new Date().toISOString()},{onConflict:"employee_id,attendance_date"});let coverage:any[]=[];if(status==="absent")coverage=await allocateAbsence(db,target,date,"absence",`${target.employee_id}:${date}`,e.employee_id);return json({ok:true,coverage});
+    const {error:attendanceError}=await db.from("multaqa_teacher_attendance").upsert({employee_id:target.employee_id,attendance_date:date,status,late_at:clean(body.late_at,8)||null,reason_category:clean(body.reason_category,40)||null,reason:clean(body.reason,500)||null,note:clean(body.note,800)||null,recorded_by_employee_id:e.employee_id,updated_at:new Date().toISOString()},{onConflict:"employee_id,attendance_date"});if(attendanceError)return json({ok:false,error:"save_failed"},500);let coverage:any[]=[],coverage_issue:string|null=null;if(status==="absent"){const allocation=await allocateAbsence(db,target,date,"absence",`${target.employee_id}:${date}`,e.employee_id);if(allocation.save_errors.length)return json({ok:false,error:"coverage_save_failed",attendance_saved:true,details:allocation.save_errors},500);coverage=allocation.items;coverage_issue=!allocation.schedule_found?"schedule_missing":allocation.lesson_count===0?"no_lessons_for_day":null}return json({ok:true,coverage,coverage_issue});
   }
   if(action==="duty_today"){
     const date=clean(body.date,10)||muscatDate(),day=dayFor(date),{data:d}=await db.from("multaqa_duty").select("teachers,admins,slots").eq("day_name",day).maybeSingle();const teachers=d?.teachers||[],admins=d?.admins||[],names=[...teachers,...admins];const {data:emps}=await db.from("multaqa_employees").select("employee_id,full_name,short_name");const resolved=names.map((n:string)=>(emps||[]).find((x:any)=>norm(x.short_name)===norm(n)||norm(x.full_name)===norm(n))).filter(Boolean);const isSupervisor=admins.some((n:string)=>norm(n)===norm(e.short_name)||norm(n)===norm(e.full_name))||elevated(e),canEdit=await canEditDutyRoles(db,e,admins);const {data:checks}=await db.from("multaqa_duty_attendance").select("*").eq("duty_date",date);return json({ok:true,date,day,slots:d?.slots||{},teachers,admins,members:resolved,checks:checks||[],is_supervisor:isSupervisor,can_edit_roles:canEdit});

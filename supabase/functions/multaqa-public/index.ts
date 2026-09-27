@@ -333,7 +333,9 @@ Deno.serve(async(req)=>{
     const attendance=clean(body.attendance_status,20),effectiveness=attendance==="absent"?"inactive":clean(body.effectiveness,20),reason=clean(body.reason,1200);
     if(!["committed","late","absent"].includes(attendance)||!["active","inactive"].includes(effectiveness))return json({ok:false,error:"invalid_input"},400);
     if((attendance!=="committed"||effectiveness==="inactive")&&!reason)return json({ok:false,error:"reason_required"},400);
-    const row={duty_date:today,employee_name:emp.short_name,attendance_status:attendance,effectiveness,reason:reason||null,updated_at:new Date().toISOString()};
+    const {data:existing}=await db.from("multaqa_duty_evaluations").select("evaluation_source").eq("duty_date",today).eq("employee_name",emp.short_name).maybeSingle();
+    if(existing?.evaluation_source==="supervisor")return json({ok:false,error:"evaluation_locked_by_supervisor"},409);
+    const row={duty_date:today,employee_name:emp.short_name,attendance_status:attendance,effectiveness,reason:reason||null,evaluation_source:"self",updated_at:new Date().toISOString()};
     const {data,error}=await db.from("multaqa_duty_evaluations").upsert(row,{onConflict:"duty_date,employee_name"}).select("attendance_status,effectiveness,reason,updated_at").single();
     if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,evaluation:data});
   }

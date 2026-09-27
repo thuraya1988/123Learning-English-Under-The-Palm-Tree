@@ -660,6 +660,30 @@ Deno.serve(async(req)=>{
     let sent=0;if(body.send_push===true){const {data:emps}=await db.from("multaqa_employees").select("short_name,full_name");sent=await pushToNames(db,(emps||[]).map((x:any)=>x.short_name||x.full_name),"📰 "+title,message||title,"/school/","news")}
     return json({ok:true,item:data,push_sent:sent});
   }
+  if(action==="content_reaction_summaries"){
+    const type=clean(body.target_type,20),keys=(Array.isArray(body.target_keys)?body.target_keys:[]).map((x:any)=>clean(x,220)).filter(Boolean).slice(0,120);
+    if(!["article","rules"].includes(type)||!keys.length)return json({ok:false,error:"invalid_input"},400);
+    const {data,error}=await db.from("multaqa_content_reactions").select("target_key,employee_id,liked,rating").eq("target_type",type).in("target_key",keys);
+    if(error)return json({ok:false,error:"server_error"},500);
+    const out:any={};for(const key of keys)out[key]={likes:0,rating_count:0,rating_average:0,my_like:false,my_rating:null};
+    const sums=new Map<string,{sum:number,count:number}>();
+    for(const r of data||[]){const x=out[r.target_key]||(out[r.target_key]={likes:0,rating_count:0,rating_average:0,my_like:false,my_rating:null});if(r.liked)x.likes++;if(Number(r.rating)>0){const a=sums.get(r.target_key)||{sum:0,count:0};a.sum+=Number(r.rating);a.count++;sums.set(r.target_key,a)}if(r.employee_id===e.employee_id){x.my_like=!!r.liked;x.my_rating=r.rating||null}}
+    for(const [key,a] of sums){out[key].rating_count=a.count;out[key].rating_average=a.count?Math.round((a.sum/a.count)*10)/10:0}
+    return json({ok:true,items:out});
+  }
+  if(action==="save_content_reaction"){
+    if(e?.kind!=="teacher"&&!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const type=clean(body.target_type,20),key=clean(body.target_key,220),liked=body.liked===true,rating=body.rating==null||body.rating===""?null:Number(body.rating);
+    if(!["article","rules"].includes(type)||!key||(rating!==null&&(!Number.isInteger(rating)||rating<1||rating>5)))return json({ok:false,error:"invalid_input"},400);
+    if(!liked&&rating===null){await db.from("multaqa_content_reactions").delete().eq("target_type",type).eq("target_key",key).eq("employee_id",e.employee_id)}
+    else{
+      const {error}=await db.from("multaqa_content_reactions").upsert({target_type:type,target_key:key,employee_id:e.employee_id,liked,rating,updated_at:new Date().toISOString()},{onConflict:"target_type,target_key,employee_id"});
+      if(error)return json({ok:false,error:"save_failed"},500);
+    }
+    const {data:rows}=await db.from("multaqa_content_reactions").select("employee_id,liked,rating").eq("target_type",type).eq("target_key",key);
+    const likes=(rows||[]).filter((x:any)=>x.liked).length,ratings=(rows||[]).map((x:any)=>Number(x.rating)||0).filter((x:number)=>x>0);
+    return json({ok:true,summary:{likes,rating_count:ratings.length,rating_average:ratings.length?Math.round((ratings.reduce((a:number,b:number)=>a+b,0)/ratings.length)*10)/10:0,my_like:liked,my_rating:rating}});
+  }
   if(action==="save_school_rules"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);
     const title=clean(body.title,220)||"قوانين المدرسة",message=clean(body.body,6000);if(message.length<3)return json({ok:false,error:"invalid_input"},400);
@@ -692,9 +716,10 @@ Deno.serve(async(req)=>{
   }
   if(action==="save_magazine_post"){
     if(e?.kind!=="teacher"&&!elevated(e))return json({ok:false,error:"forbidden"},403);
-    const title=clean(body.title,220),message=clean(body.body,3000),category=clean(body.category,60)||"عام";
+    const title=clean(body.title,220),message=clean(body.body,3000),category=clean(body.category,60)||"عام",media=clean(body.media_url,1000)||null;
     if(title.length<2||message.length<2)return json({ok:false,error:"invalid_input"},400);
-    const row={id:Date.now(),content_type:"magazine",title,body:message,media_url:null,event_date:null,test_name:null,subject:category,day_name:e.short_name||e.full_name||"",published:true,sort_order:Date.now(),updated_at:new Date().toISOString()};
+    if(media&&!/^https?:\/\//.test(media)&&!media.startsWith("/public/"))return json({ok:false,error:"invalid_input"},400);
+    const row={id:Date.now(),content_type:"magazine",title,body:message,media_url:media,event_date:clean(body.event_date,10)||null,test_name:null,subject:category,day_name:e.short_name||e.full_name||"",published:true,sort_order:Date.now(),updated_at:new Date().toISOString()};
     const {data,error}=await db.from("multaqa_content").insert(row).select().single();if(error)return json({ok:false,error:"save_failed"},500);
     let sent=0;if(body.send_push===true){const {data:emps}=await db.from("multaqa_employees").select("short_name,full_name");sent=await pushToNames(db,(emps||[]).map((x:any)=>x.short_name||x.full_name),"📰 مجلة ملتقى المعارف",title,"/school/magazine/","magazine")}
     return json({ok:true,item:data,push_sent:sent});

@@ -13,6 +13,8 @@ const RESOURCES=[{key:"resources_room",label:"غرفة المصادر"},{key:"la
 const RESOURCE_OWNERS:Record<string,string>={resources_room:"أصيلة الوهيبية",lab:"عبير السليمية"};
 const BADGES:Record<string,string>={star_week:"🌟 نجمة الأسبوع",reading:"📚 قارئة متميزة",teamwork:"🤝 روح التعاون",creativity:"🎨 إبداع",academic:"🧮 تفوق دراسي",behavior:"🕌 سلوك مثالي",helper:"🤲 يد العون",attendance:"✅ التزام الحضور"};
 const gradeWords=["","الأول","الثاني","الثالث","الرابع","الخامس","السادس"];
+const TEACHER_SCHEDULE_NAMES:Record<string,string>={T015:"تىهانى اسماعيل",T021:"رزان السوطية",T024:"زينب الحبسية",T032:"سلامه الحارثية",T047:"لمياء حسانين",T059:"هبه الرمحية"};
+const teacherScheduleName=(e:any)=>TEACHER_SCHEDULE_NAMES[e?.employee_id]||e?.short_name||e?.full_name||"";
 const classCode=(label:string)=>{const t=clean(label,100),g=gradeWords.findIndex((x,i)=>i>0&&t.includes(x)),s=t.match(/[\/\\]\s*(\d+)/)?.[1];return g&&s?g+"/"+s:t};
 const scheduleLabel=(code:string)=>{const m=clean(code,30).match(/^([1-6])\s*\/\s*(\d+)$/);return m?gradeWords[+m[1]]+" / "+m[2]:code};
 const muscatDate=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
@@ -112,7 +114,7 @@ async function candidatesFor(db:any,absent:any,date:string,period:number,used:Se
   const byName=new Map((schedules||[]).map((x:any)=>[norm(x.full_name),x.schedule||{}]));const counts=new Map<string,number>();
   for(const x of activeRecent)if(x.replacement_employee_id)counts.set(x.replacement_employee_id,(counts.get(x.replacement_employee_id)||0)+1);
   return (emps||[]).filter((e:any)=>e.employee_id!==absent.employee_id).map((e:any)=>{
-    const s:any=byName.get(norm(e.full_name))||{},slots:any[]=s[day]||[],i=period-1;
+    const s:any=byName.get(norm(teacherScheduleName(e)))||byName.get(norm(e.short_name))||byName.get(norm(e.full_name))||{},slots:any[]=s[day]||[],i=period-1;
     if(clean(slots[i]))return null;
     if(activeToday.some((x:any)=>x.replacement_employee_id===e.employee_id&&x.period===period))return null;
     const busy=(j:number)=>j>=0&&j<7&&(clean(slots[j])||activeToday.some((x:any)=>x.replacement_employee_id===e.employee_id&&x.period===j+1));
@@ -124,7 +126,7 @@ async function candidatesFor(db:any,absent:any,date:string,period:number,used:Se
   }).filter(Boolean).sort((a:any,b:any)=>a.score-b.score);
 }
 async function allocateAbsence(db:any,absent:any,date:string,sourceType:string,sourceId:string,by:string){
-  const day=dayFor(date),{data:row}=await db.from("multaqa_teacher_schedules").select("schedule").eq("full_name",absent.full_name).maybeSingle();const slots:any[]=row?.schedule?.[day]||[],used=new Set<string>(),out:any[]=[];
+  const day=dayFor(date),scheduleNames=[teacherScheduleName(absent),absent.short_name,absent.full_name].map((x:any)=>clean(x,220)).filter(Boolean),{data:rows}=await db.from("multaqa_teacher_schedules").select("full_name,schedule").in("full_name",[...new Set(scheduleNames)]);const row=(rows||[]).find((x:any)=>norm(x.full_name)===norm(teacherScheduleName(absent)))||(rows||[])[0];const slots:any[]=row?.schedule?.[day]||[],used=new Set<string>(),out:any[]=[];
   for(let i=0;i<7;i++){
     const lesson=clean(slots[i],500);if(!lesson)continue;const parts=lesson.split(/\s*[•—]\s*/).map(x=>x.trim()),subject=parts[0]||"",classLabel=parts[1]||lesson;
     const list:any[]=await candidatesFor(db,absent,date,i+1,used);const pick=list[0]||null;if(pick)used.add(pick.employee_id);
@@ -171,7 +173,7 @@ Deno.serve(async(req)=>{
     }
     const today=muscatDate(),untilDate=new Date(`${today}T12:00:00+04:00`);untilDate.setUTCDate(untilDate.getUTCDate()+14);const until=untilDate.toISOString().slice(0,10);
     const [{data:schedule},{data:coverage}]=await Promise.all([
-      db.from("multaqa_teacher_schedules").select("full_name,page,schedule").eq("full_name",target.full_name).maybeSingle(),
+      db.from("multaqa_teacher_schedules").select("full_name,page,schedule").in("full_name",[...new Set([teacherScheduleName(target),target.short_name,target.full_name].map((x:any)=>clean(x,220)).filter(Boolean))]).limit(1).maybeSingle(),
       db.from("multaqa_substitute_assignments").select("id,coverage_date,day_name,period,class_label,subject,status,notified_at,reminder_sent_at").eq("replacement_employee_id",target.employee_id).gte("coverage_date",today).lte("coverage_date",until).in("status",["assigned","accepted"]).order("coverage_date").order("period")
     ]);
     if(!schedule)return json({ok:false,error:"not_found"},404);
@@ -344,9 +346,9 @@ Deno.serve(async(req)=>{
       if(!hint||!schedule||typeof schedule!=="object"){result.teachers.failed.push(hint||"?");continue}
       const target=await resolveEmployee(db,hint);
       if(!target){result.teachers.failed.push(hint+" (لم يتم التعرّف على الموظفة)");continue}
-      const {data:old}=await db.from("multaqa_teacher_schedules").select("page").eq("full_name",target.full_name).maybeSingle();
+      const scheduleKey=teacherScheduleName(target);const {data:old}=await db.from("multaqa_teacher_schedules").select("page").eq("full_name",scheduleKey).maybeSingle();
       const page=Number.isInteger(old?.page)?old.page:(Number.isInteger(target.teacher_page)?target.teacher_page:i);
-      const {error}=await db.from("multaqa_teacher_schedules").upsert({full_name:target.full_name,page,schedule},{onConflict:"full_name"});
+      const {error}=await db.from("multaqa_teacher_schedules").upsert({full_name:scheduleKey,page,schedule},{onConflict:"full_name"});
       if(error)result.teachers.failed.push(hint+": "+error.message);else result.teachers.ok++;
     }
     return json({ok:true,...result});

@@ -51,6 +51,15 @@ body{
 .date{font-size:10.5px;color:var(--muted);white-space:nowrap}
 .card h3{margin:0;font-size:15.5px;font-weight:700;line-height:1.5;color:var(--acc2)}
 .card p{margin:0;font-size:13px;color:#4a3c28;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere}
+.card-media{width:100%;max-height:420px;object-fit:contain;background:#efe3cf;border:1px solid var(--line);border-radius:13px;cursor:zoom-in}
+.source-link{font-size:11.5px;font-weight:700;color:var(--acc);text-decoration:none}
+.reaction-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:8px;border-top:1px dashed var(--line)}
+.react-btn,.star-btn{border:1px solid var(--line);background:var(--panel2);color:var(--txt);border-radius:10px;padding:6px 9px;font-family:inherit;cursor:pointer;font-size:12px}
+.react-btn.on,.star-btn.on{background:#f1dbe2;border-color:#b56a7f;color:var(--acc)}
+.reaction-summary{font-size:11px;color:var(--muted);font-weight:700}
+.tomorrow{max-width:1100px;margin:12px auto 0;padding:0 16px}
+.tomorrow-card{background:#fff7e7;border:1px solid #d6ba7f;border-radius:16px;padding:13px 16px;line-height:1.8;font-size:13px}
+.tomorrow-card b{color:var(--acc2)}
 .card-foot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--line)}
 .author{font-size:11.5px;color:var(--muted);font-weight:700}
 .del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px;border-radius:8px;transition:.15s}
@@ -100,6 +109,7 @@ body{
   </div>
 </div>
 
+<div class="tomorrow"><div class="tomorrow-card" id="tomorrowBox">📅 جاري التحقق من فعاليات الغد…</div></div>
 <div class="filters" id="filters"></div>
 <main class="feed" id="feed"><div class="empty"><span>⏳</span>جاري تحميل المجلة…</div></main>
 
@@ -147,11 +157,15 @@ const CATS={
   'قصة نجاح':{emoji:'🌟',color:'#7b1e3a'},
   'سؤال وجواب':{emoji:'❓',color:'#3a5075'},
   'تذكير':{emoji:'🔔',color:'#a13a56'},
+  'إعلان إداري':{emoji:'📋',color:'#1f5b8f'},
+  'تطوير مهني':{emoji:'🎓',color:'#3b4d8a'},
+  'منصة نور':{emoji:'💻',color:'#3f7d52'},
+  'مناسبة':{emoji:'🎉',color:'#b08d29'},
   'نشرة توعوية':{emoji:'📢',color:'#5c1630'},
   'قانون اليوم':{emoji:'⚖️',color:'#16213e'},
   'عام':{emoji:'📌',color:'#8a7550'}
 };
-let allItems=[],activeCat='الكل';
+let allItems=[],activeCat='الكل',reactionMap={};
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2800)}
@@ -200,10 +214,18 @@ function renderFeed(){
     const cat=CATS[item.subject]?item.subject:'عام';
     const meta=CATS[cat];
     const date=item.created_at?new Intl.DateTimeFormat('ar-OM',{dateStyle:'medium'}).format(new Date(item.created_at)):'';
+    const key=String(item.id),rx=reactionMap[key]||{likes:0,rating_count:0,rating_average:0,my_like:false,my_rating:null};
+    const token=localStorage.getItem('multaqa_staff_session')||'';
+    const stars=token?[1,2,3,4,5].map(n=>`<button class="star-btn ${Number(rx.my_rating)===n?'on':''}" onclick="rateMagazinePost('${key}',${n})" title="تقييم ${n}">${n<=Number(rx.my_rating)?'★':'☆'}</button>`).join(''):'';
     return `<article class="card">
       <div class="card-head"><span class="badge" style="--c:${meta.color}">${meta.emoji?meta.emoji+' ':''}${esc(cat)}</span><span class="date">${date}</span></div>
+      ${item.media_url?`<img class="card-media" src="${esc(item.media_url)}" alt="${esc(item.title)}" onclick="window.open('${esc(item.media_url)}','_blank')">`:''}
       <h3>${esc(item.title)}</h3>
       <p>${esc(item.body)}</p>
+      ${item.test_name&&/^https?:\/\//.test(item.test_name)?`<a class="source-link" href="${esc(item.test_name)}" target="_blank" rel="noopener">🔗 المصدر الرسمي</a>`:''}
+      <div class="reaction-bar">
+        ${token?`<button class="react-btn ${rx.my_like?'on':''}" onclick="toggleMagazineLike('${key}')">👍 ${rx.my_like?'أعجبني':'إعجاب'} · ${Number(rx.likes||0)}</button><span class="reaction-summary">تقييم المعلمات: ${rx.rating_count?Number(rx.rating_average||0).toFixed(1)+' / 5 ('+rx.rating_count+')':'لا يوجد تقييم بعد'}</span><span>${stars}</span>`:'<span class="reaction-summary">🔒 الإعجاب والتقييم متاحان للمعلمات بعد تسجيل الدخول من المنظومة.</span>'}
+      </div>
       <div class="card-foot"><span class="author">✍️ ${esc(item.day_name||'عضوة هيئة التدريس')}</span><button class="del-btn" onclick="deletePost(${item.id})" title="حذف">🗑</button></div>
     </article>`;
   }).join('');
@@ -212,10 +234,36 @@ async function loadFeed(){
   try{
     const d=await publicApi('content',{content_type:'magazine'});
     allItems=(d.items||[]).slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+    await loadMagazineReactions();
     renderFeed();
   }catch(err){
     document.getElementById('feed').innerHTML=`<div class="empty"><span>⚠️</span>تعذر تحميل المجلة الآن، حاولي تحديث الصفحة.</div>`;
   }
+}
+async function loadMagazineReactions(){
+  const token=localStorage.getItem('multaqa_staff_session')||'',keys=allItems.map(x=>String(x.id));
+  reactionMap={};if(!token||!keys.length)return;
+  try{const d=await secureApi('content_reaction_summaries',{target_type:'article',target_keys:keys});reactionMap=d.items||{}}catch(_){}
+}
+window.toggleMagazineLike=async key=>{
+  if(!localStorage.getItem('multaqa_staff_session'))return toast('سجّلي الدخول من المنظومة أولًا');
+  const cur=reactionMap[key]||{};
+  try{const d=await secureApi('save_content_reaction',{target_type:'article',target_key:key,liked:!cur.my_like,rating:cur.my_rating||null});reactionMap[key]=d.summary;renderFeed()}catch(err){toast(ERR[err&&err.code]||'تعذر حفظ الإعجاب')}
+};
+window.rateMagazinePost=async(key,rating)=>{
+  if(!localStorage.getItem('multaqa_staff_session'))return toast('سجّلي الدخول من المنظومة أولًا');
+  const cur=reactionMap[key]||{};
+  try{const d=await secureApi('save_content_reaction',{target_type:'article',target_key:key,liked:!!cur.my_like,rating});reactionMap[key]=d.summary;renderFeed();toast('⭐ تم حفظ تقييمك')}catch(err){toast(ERR[err&&err.code]||'تعذر حفظ التقييم')}
+};
+async function loadTomorrowNotice(){
+  const box=document.getElementById('tomorrowBox');if(!box)return;
+  try{
+    const d=await publicApi('calendar_events'),now=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Muscat'}));now.setDate(now.getDate()+1);
+    const y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0'),dd=String(now.getDate()).padStart(2,'0'),date=`${y}-${m}-${dd}`;
+    const items=(d.items||[]).filter(x=>x.event_date===date&&x.source_kind!=='system_test');
+    if(!items.length){box.innerHTML='📅 <b>فعاليات الغد:</b> لا توجد فعالية أو مناسبة مسجلة للغد في التقويم المدرسي.';return}
+    box.innerHTML='🎉 <b>غدًا:</b> '+items.map(x=>'<span>'+esc(x.title)+(x.event_time?' • '+esc(String(x.event_time).slice(0,5)):'')+(x.details?' — '+esc(x.details):'')+'</span>').join('<br>');
+  }catch(_){box.textContent='📅 تعذر التحقق من فعاليات الغد حاليًا.'}
 }
 window.deletePost=async(id)=>{
   const token=localStorage.getItem('multaqa_staff_session')||'';
@@ -265,6 +313,7 @@ document.getElementById('btnSubmitPost').addEventListener('click',async()=>{
 });
 
 renderFilters();
+loadTomorrowNotice();
 loadFeed();
 </script>
 </body>

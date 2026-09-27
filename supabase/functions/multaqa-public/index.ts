@@ -39,6 +39,8 @@ async function resolveEmployee(db:any,input:string){
   const q=norm(input); if(!q) return null;
   const {data}=await db.from("multaqa_employees").select("employee_id,full_name,short_name,role,kind,access_group,teacher_page");
   const rows=data||[];
+  const aliases:Record<string,string>={[norm("تىهانى اسماعيل")]:"T015",[norm("تهاني حجازي")]:"T015",[norm("رزان السوطية")]:"T021",[norm("زينب الحبسية")]:"T024",[norm("سلامه الحارثية")]:"T032",[norm("لمياء حسانين")]:"T047"};
+  const aliasId=aliases[q];if(aliasId){const a=rows.find((e:any)=>e.employee_id===aliasId);if(a)return a}
   let m=rows.filter((e:any)=>norm(e.short_name)===q||norm(e.full_name)===q);
   if(m.length===1)return m[0];
   const p=clean(input,220).replace(/^أ\.\s*/,"").split(/\s+/).filter(Boolean); if(p.length<2)return null;

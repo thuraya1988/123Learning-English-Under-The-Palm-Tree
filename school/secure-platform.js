@@ -896,6 +896,8 @@ window.saveImportantAnnouncementAdmin=p=>staffApi('save_important_announcement',
 window.prepareNewsUploadAdmin=p=>staffApi('prepare_news_upload',p);
 window.saveNewsAdmin=p=>staffApi('save_news',p);
 window.saveSchoolRulesAdmin=p=>staffApi('save_school_rules',p);
+window.getContentReactionSummaries=(target_type,target_keys)=>staffApi('content_reaction_summaries',{target_type,target_keys});
+window.saveContentReaction=p=>staffApi('save_content_reaction',p);
 window.deleteNewsAdmin=id=>staffApi('delete_news',{id});
 window.deleteGalleryAdmin=id=>staffApi('delete_gallery_item',{id});
 window.startEmergencyAlertAdmin=p=>staffApi('start_emergency_alert',p);

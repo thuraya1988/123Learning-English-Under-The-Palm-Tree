@@ -26,7 +26,8 @@ async function loadContent(){
     }
     if(contentTab==='rules'){
       const x=a[0];
-      $('schoolContentBody').innerHTML=x?`<article class="content-card"><div class="body"><h4>${esc(x.title||'قوانين المدرسة')}</h4><p style="white-space:pre-line;line-height:2">${esc(x.body||'')}</p></div></article>`:'<div class="content-empty">لم تُنشر قوانين المدرسة بعد.</div>';
+      $('schoolContentBody').innerHTML=x?`<article class="content-card"><div class="body"><h4>${esc(x.title||'قوانين المدرسة')}</h4><p style="white-space:pre-line;line-height:2">${esc(x.body||'')}</p><div id="rulesReactionBox" style="margin-top:14px;padding-top:12px;border-top:1px solid #ead8c3">جاري تحميل تقييم المعلمات…</div></div></article>`:'<div class="content-empty">لم تُنشر قوانين المدرسة بعد.</div>';
+      if(x)await renderRulesReactions();
       await renderRulesAdminControls(x);
       return;
     }
@@ -74,6 +75,22 @@ window.saveNewsUI=async()=>{
   newsAdminFile=null;await loadContent()
  }catch(e){toast(typeof staffError==='function'?staffError(e):'تعذر نشر الخبر')}
  finally{if(btn){btn.disabled=false;btn.textContent='نشر الخبر'}}
+};
+let rulesReactionState={likes:0,rating_count:0,rating_average:0,my_like:false,my_rating:null};
+async function renderRulesReactions(){
+ const box=$('rulesReactionBox');if(!box)return;
+ if(typeof window.getContentReactionSummaries!=='function'){box.innerHTML='<small>سجلي الدخول لتقييم القوانين.</small>';return}
+ try{
+  const d=await window.getContentReactionSummaries('rules',['school-rules']);rulesReactionState=(d.items||{})['school-rules']||rulesReactionState;
+  const r=rulesReactionState,stars=[1,2,3,4,5].map(n=>'<button class="btn btn-ghost" style="padding:5px 8px;min-width:auto;'+(Number(r.my_rating)===n?'background:#f1dbe2;border-color:#7b1e3a':'')+'" onclick="rateSchoolRules('+n+')">'+(n<=Number(r.my_rating||0)?'★':'☆')+'</button>').join('');
+  box.innerHTML='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-ghost" onclick="toggleSchoolRulesLike()" style="'+(r.my_like?'background:#f1dbe2;border-color:#7b1e3a':'')+'">👍 '+(r.my_like?'أعجبني':'إعجاب')+' · '+Number(r.likes||0)+'</button><span style="font-size:12px;color:#6b7280;font-weight:700">تقييم المعلمات: '+(r.rating_count?Number(r.rating_average||0).toFixed(1)+' / 5 ('+r.rating_count+')':'لا يوجد تقييم بعد')+'</span>'+stars+'</div>';
+ }catch(e){box.innerHTML='<small style="color:#6b7280">🔒 الإعجاب والتقييم متاحان للمعلمات بعد تسجيل الدخول.</small>'}
+}
+window.toggleSchoolRulesLike=async()=>{
+ try{const r=rulesReactionState,d=await window.saveContentReaction({target_type:'rules',target_key:'school-rules',liked:!r.my_like,rating:r.my_rating||null});rulesReactionState=d.summary;await renderRulesReactions()}catch(e){toast(typeof staffError==='function'?staffError(e):'تعذر حفظ الإعجاب')}
+};
+window.rateSchoolRules=async rating=>{
+ try{const r=rulesReactionState,d=await window.saveContentReaction({target_type:'rules',target_key:'school-rules',liked:!!r.my_like,rating});rulesReactionState=d.summary;await renderRulesReactions();toast('⭐ تم حفظ تقييم القوانين')}catch(e){toast(typeof staffError==='function'?staffError(e):'تعذر حفظ التقييم')}
 };
 async function renderRulesAdminControls(current){
  const wrap=$('contentFormWrap');if(!wrap)return;

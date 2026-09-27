@@ -137,6 +137,15 @@ Deno.serve(async(req)=>{
         const {data:u}=await db.storage.from("gallery-art").createSignedUrl(x.media_url,3600);
         return {...x,media_url:u?.signedUrl||null};
       }
+      if(x.content_type==="news"&&x.media_url&&!/^https?:\/\//.test(x.media_url)){
+        const path=String(x.media_url),ext=(path.split(".").pop()||"").toLowerCase(),media_kind=ext==="pdf"?"pdf":["mp4","webm","mov"].includes(ext)?"video":"image";
+        const {data:u}=await db.storage.from("school-content-media").createSignedUrl(path,3600);
+        return {...x,media_url:u?.signedUrl||null,media_kind};
+      }
+      if(x.content_type==="news"&&x.media_url){
+        const path=String(x.media_url).split("?")[0],ext=(path.split(".").pop()||"").toLowerCase(),media_kind=ext==="pdf"?"pdf":["mp4","webm","mov"].includes(ext)?"video":"image";
+        return {...x,media_kind};
+      }
       return x;
     }));
     return json({ok:true,items});
@@ -346,7 +355,7 @@ Deno.serve(async(req)=>{
       for(const alert of staticAlerts.filter(x=>x.minute===minuteNow)){const names=Array.isArray(d.slots?.[alert.key])?d.slots[alert.key]:[];if(names.length)sent+=await pushTo(db,names,alert.title,alert.body,"/school/?open=duty","duty_"+alert.key)}
       const period=DUTY_PERIODS.find(x=>x.minute===minuteNow);if(period){const assignments=await dutyBetweenAssignments(db,day,d.slots||{},today),current=assignments.find((x:any)=>x.period===period.period);if(current?.teacher_name)sent+=await pushTo(db,[current.teacher_name],`🔄 مناوبة ما بين الفصول — الحصة ${period.period}`,`تبدأ الحصة ${period.period} الساعة ${period.start}. الرجاء متابعة الممرات والفصول ومنع تداخل الطلبة.`,"/school/?open=duty","duty_between")}
     }}
-    if(hh===8&&mm<=9){
+    if(hh>=8){
       const {data:events}=await db.from("multaqa_calendar_events").select("*").eq("published",true).is("reminder_sent_at",null);const {data:emps}=await db.from("multaqa_employees").select("full_name,short_name,kind,access_group");
       for(const ev of events||[]){const due=new Date(`${ev.event_date}T12:00:00+04:00`);due.setDate(due.getDate()-Number(ev.reminder_days||0));const dueDate=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(due);if(dueDate!==today)continue;const names=(emps||[]).filter((x:any)=>ev.audience==="all"||(ev.audience==="teachers"&&x.kind==="teacher")||(ev.audience==="management"&&["admin","management"].includes(x.access_group))).map((x:any)=>x.short_name||x.full_name);const days=Number(ev.reminder_days||0),title=days===0?"📅 موعد اليوم":days===1?"⏰ تذكير لموعد الغد":`⏰ تذكير قبل ${days} أيام`;const count=await pushTo(db,names,title,`${ev.title} — ${ev.event_date}${ev.event_time?" • "+String(ev.event_time).slice(0,5):""}`,"/school/","calendar_event");sent+=count;if(count>0)await db.from("multaqa_calendar_events").update({reminder_sent_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",ev.id)}
     }

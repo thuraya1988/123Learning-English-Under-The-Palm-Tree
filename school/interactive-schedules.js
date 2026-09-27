@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 
-const SCHEDULE_SOURCE='schedule-import-2026.json?v=20260927-official-25sep-fixed';
+const SCHEDULE_SOURCE='schedule-import-2026.json?v=20260927-audit-clean';
 const SCHOOL_DAYS=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
 const PERIOD_LABELS=[
  ['١','12:20 م – 12:55 م',740,775],['٢','12:55 م – 1:30 م',775,810],
@@ -188,7 +188,7 @@ if(typeof window.renderSecureSchedule==='function'){
   const chosen=secureAdmin()?S('adminScheduleTeacher')?.value||'':'';
   const d=await staffApi('teacher_schedule',chosen?{employee_name:chosen}:{}),row=d.schedule||{},schedule=row.schedule||{};
   const picker=secureAdmin()?'<label class="schedule-picker">عرض جدول معلمة<select id="adminScheduleTeacher" onchange="renderSecureSchedule()"><option value="">جدولي</option>'+secureDirectory.employees.filter(x=>x.kind==='teacher').map(x=>'<option '+(chosen===x.full_name?'selected':'')+'>'+esc(x.full_name)+'</option>').join('')+'</select></label>':'';
-  const importCard=secureAdmin()?'<section class="staff-card schedule-import-card"><h3>📥 استيراد جدول العام الدراسي الجديد</h3><p class="staff-help">يستورد جدول جميع الصفوف والمعلمات من الملف الرسمي (٣١ صفًا و٦٤ جدول معلمة)، ويستبدل الجدول الحالي لأي صف أو معلمة موجودة في الملف.</p><button class="staff-primary" onclick="importOfficialSchedule()">استيراد الجدول الآن</button><div id="scheduleImportResult"></div></section>':'';
+  const importCard=secureAdmin()?'<section class="staff-card schedule-import-card"><h3>📥 استيراد جدول العام الدراسي الجديد</h3><p class="staff-help">يستورد جدول جميع الصفوف والمعلمات من الملف الرسمي (٣١ صفًا و٦٦ جدول معلمة)، ويستبدل الجدول الحالي لأي صف أو معلمة موجودة في الملف.</p><button class="staff-primary" onclick="importOfficialSchedule()">استيراد الجدول الآن</button><div id="scheduleImportResult"></div></section>':'';
   const pane=S('staffPane');pane.innerHTML='<div class="today-title"><div><small>الجدول الأسبوعي الرسمي'+(row.page?' • صفحة '+row.page:'')+'</small><h2>📚 جدول '+esc(d.employee.short_name||d.employee.full_name)+'</h2></div>'+picker+'</div><div id="secureInteractiveSchedule" class="secure-interactive-schedule"></div>'+importCard;
   const root=S('secureInteractiveSchedule');root.innerHTML=weeklyMarkup(schedule,d.employee.short_name||d.employee.full_name);bindLessonClicks(root,schedule);
  };

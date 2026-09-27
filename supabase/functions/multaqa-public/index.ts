@@ -151,7 +151,7 @@ Deno.serve(async(req)=>{
     return json({ok:true,items});
   }
   if(action==="calendar_events"){
-    const {data,error}=await db.from("multaqa_calendar_events").select("id,title,event_date,event_time,details,reminder_days,audience").eq("published",true).order("event_date",{ascending:true}).limit(300);if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,items:data||[]});
+    const {data,error}=await db.from("multaqa_calendar_events").select("id,title,event_date,event_time,details,reminder_days,audience,source_kind").eq("published",true).order("event_date",{ascending:true}).limit(300);if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,items:data||[]});
   }
   if(action==="active_emergency"){
     const {data,error}=await db.from("multaqa_emergency_alerts").select("id,title,body,severity,repeat_minutes,started_at").eq("active",true).order("started_at",{ascending:false}).limit(1).maybeSingle();if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,alert:data||null});

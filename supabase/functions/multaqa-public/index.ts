@@ -303,18 +303,18 @@ Deno.serve(async(req)=>{
   }
   if(action==="duty_history"){
     const emp=await resolveEmployee(db,clean(body.employee_name,220)); if(!emp)return json({ok:false,error:"not_found"},404);
-    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),from=`${today}T00:00:00+04:00`,next=new Date(`${today}T12:00:00+04:00`);next.setDate(next.getDate()+1);const to=next.toISOString();
+    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),from=`${today}T00:00:00+04:00`,next=new Date(`${today}T00:00:00+04:00`);next.setDate(next.getDate()+1);const to=next.toISOString();
     const [{data,error},{data:evaluation}]=await Promise.all([
       db.from("multaqa_duty_tracking").select("id,duty_day,event_type,class_label,round_status,note,occurred_at").eq("employee_name",emp.short_name).order("occurred_at",{ascending:false}).limit(60),
       db.from("multaqa_duty_evaluations").select("attendance_status,effectiveness,reason,updated_at").eq("employee_name",emp.short_name).eq("duty_date",today).maybeSingle()
     ]);
-    if(error)return json({ok:false,error:"server_error"},500);const events=data||[],ended_today=events.some((x:any)=>x.event_type==="end"&&x.occurred_at>=from&&x.occurred_at<to);
+    if(error)return json({ok:false,error:"server_error"},500);const events=data||[],fromMs=new Date(from).getTime(),toMs=new Date(to).getTime(),ended_today=events.some((x:any)=>{const t=new Date(x.occurred_at).getTime();return x.event_type==="end"&&t>=fromMs&&t<toMs});
     return json({ok:true,events,ended_today,evaluation:evaluation||null});
   }
   if(action==="save_duty_evaluation"){
     const emp=await resolveEmployee(db,clean(body.employee_name,220));if(!emp)return json({ok:false,error:"not_found"},404);
     const day=dayName(),d=await dutyRow(db,day);if(!onDuty(emp,d))return json({ok:false,error:"not_on_duty_today"},403);
-    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),from=`${today}T00:00:00+04:00`,next=new Date(`${today}T12:00:00+04:00`);next.setDate(next.getDate()+1);
+    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),from=`${today}T00:00:00+04:00`,next=new Date(`${today}T00:00:00+04:00`);next.setDate(next.getDate()+1);
     const {data:ended}=await db.from("multaqa_duty_tracking").select("id").eq("employee_name",emp.short_name).eq("event_type","end").gte("occurred_at",from).lt("occurred_at",next.toISOString()).limit(1);
     if(!(ended||[]).length)return json({ok:false,error:"duty_not_ended"},409);
     const attendance=clean(body.attendance_status,20),effectiveness=attendance==="absent"?"inactive":clean(body.effectiveness,20),reason=clean(body.reason,1200);

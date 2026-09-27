@@ -16,8 +16,7 @@ const idOk=(v:string)=>/^\d{8,20}$/.test(v);
 const norm=(v:unknown)=>clean(v,220).replace(/^أ\.\s*/,"").replace(/[إأآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/ؤ/g,"و").replace(/ئ/g,"ي").replace(/ـ/g,"").replace(/[ًٌٍَُِّْ]/g,"").replace(/\s+/g," ").toLowerCase();
 const shortName=(v:string)=>{const t=clean(v,220).replace(/^أ\.\s*/,"").split(/\s+/).filter(Boolean);return t.length>1?`${t[0]} ${t[t.length-1]}`:(t[0]||v)};
 const omDays=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
-const TEACHER_SCHEDULE_NAMES:Record<string,string>={T015:"تىهانى اسماعيل",T021:"رزان السوطية",T024:"زينب الحبسية",T032:"سلامه الحارثية",T047:"لمياء حسانين",T059:"هبه الرمحية",T066:"تميمه الحضرمية",T067:"ميساء الجابرية"};
-const teacherScheduleName=(e:any)=>TEACHER_SCHEDULE_NAMES[e?.employee_id]||e?.short_name||e?.full_name||"";
+const teacherScheduleName=(e:any)=>e?.short_name||e?.full_name||"";
 const DUTY_SLOT_INFO:Record<string,{label:string,time:string,count:number,note:string}>={
  morning:{label:"المناوبة الصباحية — استقبال الطلبة",time:"10:45",count:3,note:"استقبال الطلبة"},
  entry1:{label:"نقطة الدخول ح١",time:"11:50",count:1,note:"منع التداخل مع طلاب المدرسة الصباحية والالتزام بالطابور"},
@@ -107,7 +106,10 @@ Deno.serve(async(req)=>{
   }
   if(action==="teacher_schedule"){
     const emp=await resolveEmployee(db,clean(body.name,220)); if(!emp||emp.kind!=="teacher")return json({ok:false,error:"not_found"},404);
-    const {data,error}=await db.from("multaqa_teacher_schedules").select("full_name,page,schedule").eq("full_name",emp.full_name).maybeSingle();
+    const q=Number.isInteger(emp.teacher_page)
+      ? db.from("multaqa_teacher_schedules").select("full_name,page,schedule").eq("page",emp.teacher_page).maybeSingle()
+      : db.from("multaqa_teacher_schedules").select("full_name,page,schedule").in("full_name",[...new Set([teacherScheduleName(emp),emp.short_name,emp.full_name].map((x:any)=>clean(x,220)).filter(Boolean))]).limit(1).maybeSingle();
+    const {data,error}=await q;
     if(error)return json({ok:false,error:"server_error"},500); if(!data)return json({ok:false,error:"not_found"},404); return json({ok:true,...data});
   }
   if(action==="class_schedule"){

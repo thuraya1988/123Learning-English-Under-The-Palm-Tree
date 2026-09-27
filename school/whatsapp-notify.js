@@ -44,6 +44,8 @@ const msgCoverage=(name,rows,date)=>'📢 '+SCHOOL+'\n\nالأستاذة '+name+
 const msgDuty=(name,day,date,slot)=>'🦺 '+SCHOOL+'\n\nالأستاذة '+name+'، تذكير بالمناوبة:\n📅 يوم '+day+(date?' بتاريخ '+fmtDate(date):'')+'\n📍 الموقع: '+slot+'\n\nشكرًا لالتزامكِ.'+sign;
 const msgEvent=x=>'📅 '+SCHOOL+' — موعد مهم\n\n📌 '+x.title+'\n🗓️ يوم '+dayOf(x.event_date)+' بتاريخ '+fmtDate(x.event_date)+(x.event_time?'\n⏰ الساعة '+String(x.event_time).slice(0,5):'')+(x.details?'\n📝 '+x.details:'')+sign;
 const msgSchedule=(name,day,date,periods)=>'📚 '+SCHOOL+'\n\nالأستاذة '+name+'، حصصكِ يوم '+day+(date?' بتاريخ '+fmtDate(date):'')+':\n'+periods.map((p,i)=>p?'• الحصة '+(i+1)+': '+p:'').filter(Boolean).join('\n')+sign;
+const msgClassAlert=(name,classLabel,period,note)=>'🚨 '+SCHOOL+' — حصة احتياط عاجلة\n\nالأستاذة '+name+'،\nالرجاء التوجه إلى الصف '+classLabel+' الآن لتغطية الحصة '+period+' (حصة احتياط).'+(note?'\n📝 '+note:'')+'\n\nتم رصد الصف بدون معلمة بواسطة معلمة المناوبة بين الفصول.'+sign;
+window.waClassAlert=async o=>{if(!o?.teacher||!o?.classLabel||!o?.period)return;const e=o.employeeId?empById(o.employeeId):empByName(o.teacher);let phone=normPhone(o.phone);if(!phone&&e)phone=await phoneOf(e);if(!phone&&e){const p=askPhone(e,'');if(p===null)return;phone=p}openWa(phone,msgClassAlert(o.teacher,o.classLabel,o.period,o.note));note('📲 تم فتح تنبيه واتساب للمعلمة '+o.teacher+'؛ اضغطي إرسال داخل واتساب')};
 
 /* ——— تخزين استجابات الخادم لاستخدامها في الرسائل ——— */
 const orig=window.staffApi;

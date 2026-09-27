@@ -34,13 +34,13 @@ buildEvents();
 async function loadSchoolCalendarEvents(){
  try{
   const r=await fetch('https://dhhwcqczvcbwdwllfcun.supabase.co/functions/v1/multaqa-public',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'calendar_events'})}),d=await r.json();if(!r.ok||!d.ok)return;
-  SCHOOL_EVENTS_RAW=(d.items||[]).map(x=>({id:'school-'+x.id,n:x.title,date:x.event_date,c:'تعليمي',icon:'📌',dt:(x.event_time?String(x.event_time).slice(0,5)+' • ':'')+'تنبيه قبل '+Number(x.reminder_days||0)+' يوم',def:x.details||'موعد مدرسي مهم مرتبط بتنبيه الخلفية.',ideas:['الاستعداد للموعد ومراجعة المتطلبات قبل انتهائه.'],school:true}));
+  SCHOOL_EVENTS_RAW=(d.items||[]).filter(x=>x.source_kind!=='catalog').map(x=>({id:'school-'+x.id,n:x.title,date:x.event_date,c:'تعليمي',icon:'📌',dt:(x.event_time?String(x.event_time).slice(0,5)+' • ':'')+'تنبيه قبل '+Number(x.reminder_days||0)+' يوم',def:x.details||'موعد مدرسي مهم مرتبط بتنبيه الخلفية.',ideas:['الاستعداد للموعد ومراجعة المتطلبات قبل انتهائه.'],school:true}));
   buildEvents();if(typeof window.renderEventsPane==='function')window.renderEventsPane();
  }catch(_){}
 }
 setTimeout(loadSchoolCalendarEvents,800);
 
-let evState={enabled:false,dayBefore:true,sameDay:true,time:'08:00',muted:{},fired:[]};
+let evState={enabled:true,dayBefore:true,sameDay:true,time:'08:00',muted:{},fired:[]};
 function loadEvState(){try{const s=JSON.parse(localStorage.getItem(EV_KEY));if(s)evState={...evState,...s,muted:s.muted||{}}}catch(_){}}
 function saveEvState(){try{localStorage.setItem(EV_KEY,JSON.stringify(evState))}catch(_){}}
 loadEvState();

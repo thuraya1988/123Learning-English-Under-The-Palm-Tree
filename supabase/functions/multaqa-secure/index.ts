@@ -357,7 +357,7 @@ Deno.serve(async(req)=>{
     };
     const {data:item,error}=await db.from("multaqa_end_of_day_reviews").upsert(row,{onConflict:"review_date,admin_employee_id"}).select().single();
     if(error)return json({ok:false,error:"save_failed"},500);
-    return json({ok:true,item,push_sent:sent,whatsapp_recipients:recipients,message});
+    return json({ok:true,item,push_sent:sent,whatsapp_targets:recipients.length,message});
   }
   if(action==="teacher_profiles"){
     let q=db.from("multaqa_employees").select("employee_id,full_name,short_name,role,kind,access_group").eq("kind","teacher").order("full_name");

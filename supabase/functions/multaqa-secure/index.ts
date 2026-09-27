@@ -711,16 +711,16 @@ Deno.serve(async(req)=>{
   }
   if(action==="report_class"){
     const date=muscatDate(),day=dayFor(date),{data:d}=await db.from("multaqa_duty").select("teachers,admins").eq("day_name",day).maybeSingle();const onDuty=[...(d?.teachers||[]),...(d?.admins||[])].some((n:string)=>norm(n)===norm(e.short_name)||norm(n)===norm(e.full_name));if(!onDuty&&!elevated(e))return json({ok:false,error:"not_on_duty"},403);const status=clean(body.status,20),classLabel=clean(body.class_label,100),period=Number(body.period)||null;if(!classLabel||!["organized","no_teacher","problem"].includes(status))return json({ok:false,error:"invalid_input"},400);
-    let notifiedTeacher="",notifiedEmployeeId:string|null=null,sent=0;
+    let notifiedTeacher="",notifiedEmployeeId:string|null=null,whatsappPhone="",sent=0;
     if(status==="no_teacher"&&period&&period>=1&&period<=7){
       const dbLabel=scheduleLabel(classLabel),{data:sched}=await db.from("multaqa_class_schedules").select("schedule").eq("class_label",dbLabel).maybeSingle();const lesson=clean(sched?.schedule?.[day]?.[period-1],500);let targetName=lesson.includes("—")?clean(lesson.split("—").pop(),220):"";
       const labels=[classLabel,dbLabel,classCode(classLabel)];const {data:coverage}=await db.from("multaqa_substitute_assignments").select("replacement_employee_id,class_label").eq("coverage_date",date).eq("period",period).eq("status","assigned").in("class_label",labels).limit(1).maybeSingle();
       if(coverage?.replacement_employee_id){const {data:replacement}=await db.from("multaqa_employees").select("employee_id,short_name,full_name").eq("employee_id",coverage.replacement_employee_id).maybeSingle();if(replacement){notifiedEmployeeId=replacement.employee_id;targetName=replacement.short_name||replacement.full_name||targetName}}
       else if(targetName){const resolved=await resolveEmployee(db,targetName);if(resolved){notifiedEmployeeId=resolved.employee_id;targetName=resolved.short_name||resolved.full_name||targetName}}
-      if(targetName&&notifiedEmployeeId){notifiedTeacher=targetName;sent=await pushToNames(db,[targetName],"🚨 صف بدون معلمة",`الصف ${classLabel} • الحصة ${period}. يرجى التوجه إلى الصف الآن.`,"/school/","class_alert")}
+      if(targetName&&notifiedEmployeeId){const {data:p}=await db.from("multaqa_employee_profiles").select("contact_phone,phone").eq("employee_id",notifiedEmployeeId).maybeSingle();whatsappPhone=clean(p?.contact_phone||p?.phone,30);notifiedTeacher=targetName;sent=await pushToNames(db,[targetName],"🚨 حصة احتياط عاجلة",`الرجاء التوجه إلى الصف ${classLabel} الآن لتغطية الحصة ${period} (حصة احتياط).`,"/school/","class_alert")}
     }
     const {data}=await db.from("multaqa_class_observations").insert({class_label:classLabel,period,status,note:clean(body.note,800)||null,reported_by_employee_id:e.employee_id,notified_employee_id:notifiedEmployeeId}).select().single();
-    return json({ok:true,item:data,notified_teacher:notifiedTeacher,push_sent:sent});
+    return json({ok:true,item:data,notified_teacher:notifiedTeacher,notified_employee_id:notifiedEmployeeId,whatsapp_phone:whatsappPhone,push_sent:sent});
   }
   if(action==="import_teacher_phones"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);

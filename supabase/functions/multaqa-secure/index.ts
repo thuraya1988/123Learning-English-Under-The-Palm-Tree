@@ -13,8 +13,7 @@ const RESOURCES=[{key:"resources_room",label:"غرفة المصادر"},{key:"la
 const RESOURCE_OWNERS:Record<string,string>={resources_room:"أصيلة الوهيبية",lab:"عبير السليمية"};
 const BADGES:Record<string,string>={star_week:"🌟 نجمة الأسبوع",reading:"📚 قارئة متميزة",teamwork:"🤝 روح التعاون",creativity:"🎨 إبداع",academic:"🧮 تفوق دراسي",behavior:"🕌 سلوك مثالي",helper:"🤲 يد العون",attendance:"✅ التزام الحضور"};
 const gradeWords=["","الأول","الثاني","الثالث","الرابع","الخامس","السادس"];
-const TEACHER_SCHEDULE_NAMES:Record<string,string>={T015:"تىهانى اسماعيل",T021:"رزان السوطية",T024:"زينب الحبسية",T032:"سلامه الحارثية",T047:"لمياء حسانين",T059:"هبه الرمحية",T066:"تميمه الحضرمية",T067:"ميساء الجابرية"};
-const teacherScheduleName=(e:any)=>TEACHER_SCHEDULE_NAMES[e?.employee_id]||e?.short_name||e?.full_name||"";
+const teacherScheduleName=(e:any)=>e?.short_name||e?.full_name||"";
 const DUTY_SLOT_INFO:Record<string,{label:string,time:string,count:number,note:string}>={
  morning:{label:"المناوبة الصباحية — استقبال الطلبة",time:"10:45",count:3,note:"استقبال الطلبة"},entry1:{label:"نقطة الدخول ح١",time:"11:50",count:1,note:"منع التداخل مع طلاب المدرسة الصباحية والالتزام بالطابور"},entry2:{label:"نقطة الدخول ح٢",time:"11:50",count:1,note:"منع التداخل مع طلاب المدرسة الصباحية والالتزام بالطابور"},coop:{label:"فسحة الجمعية",time:"14:40",count:2,note:"تنظيم الطلبة عند الشراء"},shade:{label:"فسحة المظلة",time:"14:40",count:2,note:"تنظيم الطلبة والحث على النظافة"},corridors:{label:"فسحة الممرات",time:"14:40",count:1,note:"التأكد من خلو الفصول ومتابعة الممرات العلوية خصوصًا"},buses:{label:"المسائية — الحافلات",time:"16:40",count:2,note:"الوصول قبل الموعد بخمس دقائق"},cars:{label:"المسائية — السيارات الخاصة",time:"16:40",count:1,note:"لا يخرج الطالب إلا مع تصريح"}};
 const DUTY_SLOT_KEYS=["morning","entry1","entry2","coop","shade","corridors","buses","cars"];
@@ -211,7 +210,9 @@ Deno.serve(async(req)=>{
     }
     const today=muscatDate(),untilDate=new Date(`${today}T12:00:00+04:00`);untilDate.setUTCDate(untilDate.getUTCDate()+14);const until=untilDate.toISOString().slice(0,10);
     const [{data:schedule},{data:coverage}]=await Promise.all([
-      db.from("multaqa_teacher_schedules").select("full_name,page,schedule").in("full_name",[...new Set([teacherScheduleName(target),target.short_name,target.full_name].map((x:any)=>clean(x,220)).filter(Boolean))]).limit(1).maybeSingle(),
+      (Number.isInteger(target.teacher_page)
+        ? db.from("multaqa_teacher_schedules").select("full_name,page,schedule").eq("page",target.teacher_page).maybeSingle()
+        : db.from("multaqa_teacher_schedules").select("full_name,page,schedule").in("full_name",[...new Set([teacherScheduleName(target),target.short_name,target.full_name].map((x:any)=>clean(x,220)).filter(Boolean))]).limit(1).maybeSingle()),
       db.from("multaqa_substitute_assignments").select("id,coverage_date,day_name,period,class_label,subject,status,notified_at,reminder_sent_at").eq("replacement_employee_id",target.employee_id).gte("coverage_date",today).lte("coverage_date",until).in("status",["assigned","accepted"]).order("coverage_date").order("period")
     ]);
     if(!schedule)return json({ok:false,error:"not_found"},404);

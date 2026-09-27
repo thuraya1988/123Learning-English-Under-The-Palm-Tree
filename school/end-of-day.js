@@ -33,7 +33,7 @@ function injectEndDay(){
    <section class="staff-card" id="eodPreview" hidden>
     <h3>👀 الرسالة المدمجة</h3>
     <pre id="eodText" style="white-space:pre-wrap;font-family:inherit;line-height:1.9"></pre>
-    <button class="staff-secondary" onclick="copyEndOfDayReview()">نسخ الرسالة</button>
+    <div class="staff-actions"><button class="staff-primary" onclick="shareEndOfDayReview()">📲 مشاركة الرسالة</button><button class="staff-secondary" onclick="copyEndOfDayReview()">نسخ الرسالة</button></div>
    </section>
   </div>
  </div>`);
@@ -104,11 +104,13 @@ window.saveEndOfDayReview=async()=>{
   const r=await staffApi('save_end_of_day_review',p);
   q('eodText').textContent=r.message||buildPreview(p);
   q('eodPreview').hidden=false;
-  q('eodResult').innerHTML='<div class="issued-pin"><small>تم حفظ ختام اليوم</small><b style="font-size:15px">🔔 وصل التنبيه إلى '+Number(r.push_sent||0)+' جهاز</b></div>';
+  q('eodResult').innerHTML='<div class="issued-pin"><small>تم حفظ ختام اليوم</small><b style="font-size:15px">🔔 وصل التنبيه إلى '+Number(r.push_sent||0)+' جهاز • 📱 '+Number(r.whatsapp_targets||0)+' رقم واتساب محفوظ</b></div>';
   toast('✅ تم حفظ ختام اليوم وإرسال التنبيه');
  }catch(e){toast(staffError(e))}
  finally{btn.disabled=false;btn.textContent='حفظ وإرسال التنبيه'}
 };
+
+window.shareEndOfDayReview=async()=>{const msg=q('eodText')?.textContent||buildPreview(values());if(navigator.share){try{await navigator.share({title:'ختام اليوم المدرسي',text:msg});return}catch(e){if(e?.name==='AbortError')return}}try{await navigator.clipboard.writeText(msg);toast('تم نسخ الرسالة؛ اختاري واتساب من المشاركة أو الصقيها في قائمة البث')}catch{toast('تعذر فتح المشاركة الآن')}};
 
 window.copyEndOfDayReview=async()=>{
  try{await navigator.clipboard.writeText(q('eodText')?.textContent||buildPreview(values()));toast('✅ تم نسخ الرسالة')}

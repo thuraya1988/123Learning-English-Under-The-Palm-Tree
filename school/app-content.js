@@ -40,7 +40,7 @@ window.deleteGalleryUI=async id=>{
 };
 async function renderNewsAdminControls(){
  const wrap=$('contentFormWrap');if(!wrap)return;
- if(typeof window.canManageEmergencyAlert!=='function'||!window.canManageEmergencyAlert()){wrap.style.display='none';return}
+ if(typeof window.canPublishNews!=='function'||!window.canPublishNews()){wrap.style.display='none';return}
  wrap.style.display='block';
  wrap.innerHTML='<section style="border:1px solid #ead8c3;border-radius:18px;padding:16px;margin-bottom:14px;background:#fffaf3"><h4 style="margin:0 0 12px">📰 نشر خبر جديد</h4><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px"><label>عنوان الخبر<input id="newsAdminTitle" placeholder="عنوان الخبر"></label><label>التاريخ<input id="newsAdminDate" type="date"></label><label>رابط صورة (اختياري)<input id="newsAdminMedia" placeholder="اختياري"></label></div><label>نص الخبر<textarea id="newsAdminBody" rows="3" placeholder="اكتبي تفاصيل الخبر"></textarea></label><label style="display:flex;gap:8px;align-items:center;margin:10px 0"><input id="newsAdminPush" type="checkbox" checked> إرسال إشعار فوري لجميع المعلمات</label><button class="btn btn-solid" onclick="saveNewsUI()">نشر الخبر</button></section>';
 }

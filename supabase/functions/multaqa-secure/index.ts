@@ -25,6 +25,26 @@ const dayFor=(d:string)=>omDays[new Date(`${d}T12:00:00+04:00`).getDay()];
 const sha=async(v:string)=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)))).map(x=>x.toString(16).padStart(2,"0")).join("");
 const randomToken=()=>{const a=new Uint8Array(32);crypto.getRandomValues(a);return btoa(String.fromCharCode(...a)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")};
 const randomPin=()=>String(100000+Math.floor(Math.random()*900000));
+const normPhone=(v:unknown)=>{let d=clean(v,40).replace(/[٠-٩]/g,(c:string)=>String("٠١٢٣٤٥٦٧٨٩".indexOf(c))).replace(/\D/g,"");if(d.startsWith("00"))d=d.slice(2);if(d.length===8)d="968"+d;return d.length>=11?d:""};
+function endOfDayMessage(e:any,date:string,body:any){
+  const rating=clean(body.day_rating,30),ratingLabel=rating==="excellent"?"ممتاز":rating==="needs_attention"?"يحتاج متابعة":"جيد";
+  const parts=[
+    `🌙 ختام اليوم المدرسي — ${dayFor(date)} ${date}`,
+    `من الإدارة: ${clean(e?.short_name||e?.full_name,220)}`,
+    `📊 سير العمل اليوم: ${ratingLabel}`
+  ];
+  const fields=[
+    ["📝 كيف سار العمل اليوم؟",clean(body.work_summary,1600)],
+    ["📌 ملاحظات اليوم",clean(body.notes,2000)],
+    ["⚖️ قوانين أو تعليمات جديدة",clean(body.new_rules,2000)],
+    ["🔄 ما الذي نرغب في تغييره؟",clean(body.change_request,1600)],
+    ["💡 لماذا نرغب في تغييره؟",clean(body.change_reason,1600)],
+    ["💚 أكثر ما أعجبني في مسار اليوم",clean(body.liked_most,1600)]
+  ];
+  for(const [label,value] of fields)if(value)parts.push(`${label}\n${value}`);
+  parts.push("شكرًا لتعاونكن، ونتمنى للجميع يومًا أفضل وأكثر تنظيمًا.");
+  return parts.join("\n\n");
+}
 
 async function resolveEmployee(db:any,input:string){
   const q=norm(input);if(!q)return null;
@@ -301,6 +321,43 @@ Deno.serve(async(req)=>{
       db.from("multaqa_class_advisors").select("class_code,class_label,advisor_name,employee_id").eq("active",true).order("class_code")
     ]);
     return json({ok:true,employees:employees||[],classes:(classRows||[]).map((x:any)=>classCode(x.class_label)),buses:buses||[],class_advisors:advisors||[]});
+  }
+  if(action==="end_of_day_status"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const date=clean(body.date,10)||muscatDate();
+    const {data:item}=await db.from("multaqa_end_of_day_reviews").select("*").eq("review_date",date).eq("admin_employee_id",e.employee_id).maybeSingle();
+    const {count}=await db.from("multaqa_end_of_day_reviews").select("id",{count:"exact",head:true}).eq("review_date",date);
+    return json({ok:true,date,item:item||null,submitted:!!item,management_submissions:count||0});
+  }
+  if(action==="end_of_day_history"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const {data:items,error}=await db.from("multaqa_end_of_day_reviews").select("*").order("review_date",{ascending:false}).order("created_at",{ascending:false}).limit(60);
+    if(error)return json({ok:false,error:"server_error"},500);
+    return json({ok:true,items:items||[]});
+  }
+  if(action==="save_end_of_day_review"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const date=clean(body.review_date,10)||muscatDate(),rating=clean(body.day_rating,30);
+    if(!["excellent","good","needs_attention"].includes(rating))return json({ok:false,error:"invalid_input"},400);
+    const message=endOfDayMessage(e,date,body);
+    if(message.length<20)return json({ok:false,error:"invalid_input"},400);
+    const [{data:teachers},{data:profiles}]=await Promise.all([
+      db.from("multaqa_employees").select("employee_id,full_name,short_name").eq("kind","teacher"),
+      db.from("multaqa_employee_profiles").select("employee_id,contact_phone,phone")
+    ]);
+    const phoneById=new Map((profiles||[]).map((p:any)=>[p.employee_id,normPhone(p.contact_phone||p.phone)]));
+    const recipients=(teachers||[]).map((t:any)=>({employee_id:t.employee_id,name:t.short_name||t.full_name,phone:phoneById.get(t.employee_id)||""})).filter((x:any)=>x.phone);
+    const teacherNames=(teachers||[]).map((t:any)=>t.short_name||t.full_name).filter(Boolean);
+    let sent=0;if(body.send_push!==false)sent=await pushToNames(db,teacherNames,"🌙 رسالة ختام اليوم من الإدارة",message,"/school/","end_of_day");
+    const row={
+      review_date:date,admin_employee_id:e.employee_id,admin_name:e.short_name||e.full_name,day_rating:rating,
+      work_summary:clean(body.work_summary,1600)||null,notes:clean(body.notes,2000)||null,new_rules:clean(body.new_rules,2000)||null,
+      change_request:clean(body.change_request,1600)||null,change_reason:clean(body.change_reason,1600)||null,liked_most:clean(body.liked_most,1600)||null,
+      compiled_message:message,push_sent:sent,whatsapp_targets:recipients.length,updated_at:new Date().toISOString()
+    };
+    const {data:item,error}=await db.from("multaqa_end_of_day_reviews").upsert(row,{onConflict:"review_date,admin_employee_id"}).select().single();
+    if(error)return json({ok:false,error:"save_failed"},500);
+    return json({ok:true,item,push_sent:sent,whatsapp_recipients:recipients,message});
   }
   if(action==="teacher_profiles"){
     let q=db.from("multaqa_employees").select("employee_id,full_name,short_name,role,kind,access_group").eq("kind","teacher").order("full_name");

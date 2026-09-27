@@ -253,19 +253,44 @@ window.saveCoverageAssignment=async id=>{
 window.autoReassignCoverage=async id=>{
  try{const d=await staffApi('auto_reassign_coverage',{id});toast(d.replacement_name?'✅ تم التوزيع الإلكتروني على '+d.replacement_name+'. اضغطي إرسال الصفحة لتنبيهها.':'⚠️ لا توجد معلمة متاحة دون تعارض');await renderCoverage()}catch(e){toast(staffError(e))}
 };
+let dutyWeekCache=[];
 async function renderSecureDuty(){
  const [d,w]=await Promise.all([staffApi('duty_today'),staffApi('duty_week')]);
+ dutyWeekCache=w.days||[];
  const slotNames={morning:'الاستقبال الصباحي • 10:45',entry1:'نقطة الدخول ح١ • 11:50',entry2:'نقطة الدخول ح٢ • 11:50',coop:'فسحة الجمعية • 2:40',shade:'فسحة المظلة • 2:40',corridors:'فسحة الممرات • 2:40',buses:'الحافلات • 4:40',cars:'السيارات الخاصة • 4:40'},slotKeys=Object.keys(slotNames);
- const adminOptions=current=>'<option value="">— بلا مشرفة —</option>'+secureDirectory.employees.map(x=>'<option value="'+esc(x.short_name)+'" '+(x.short_name===current?'selected':'')+'>'+esc(x.short_name)+'</option>').join('');
- const supervisorField=day=>secureAdmin()?'<select data-day="'+esc(day.day_name)+'" onchange="saveDutyAdmin(this)">'+adminOptions((day.admins||[])[0]||'')+'</select>':esc((day.admins||[]).join('، ')||'—');
- const week='<div class="today-title"><div><small>خطة المناوبات الكاملة</small><h2>🦺 المناوبات من الأحد إلى الخميس</h2></div></div><div class="duty-week-grid">'+(w.days||[]).map(day=>'<section class="staff-card duty-week-card"><h3>'+esc(day.day_name)+'</h3><p><b>المشرفة (تعديل ومراقبة):</b> '+supervisorField(day)+'</p><div class="duty-slot-list">'+slotKeys.map(key=>'<div><b>'+esc(slotNames[key])+'</b><span>'+esc(((day.slots||{})[key]||[]).join('، ')||'—')+'</span></div>').join('')+'</div></section>').join('')+'</div>';
+ const supervisorField=day=>'<span>'+esc((day.admins||[]).join('، ')||'—')+'</span>'+(secureAdmin()?'<button class="staff-ghost sm" style="margin-inline-start:8px" onclick="editDutyAdmins(\''+esc(day.day_name)+'\')">✏️ تعديل الإشراف</button>':'');
+ const week='<div class="today-title"><div><small>خطة المناوبات الكاملة</small><h2>🦺 المناوبات من الأحد إلى الخميس</h2></div></div><div class="duty-week-grid">'+(w.days||[]).map(day=>'<section class="staff-card duty-week-card"><h3>'+esc(day.day_name)+'</h3><p><b>الإشراف الإداري:</b> '+supervisorField(day)+'</p><div class="duty-slot-list">'+slotKeys.map(key=>'<div><b>'+esc(slotNames[key])+'</b><span>'+esc(((day.slots||{})[key]||[]).join('، ')||'—')+'</span></div>').join('')+'</div>'+(secureAdmin()?'<button class="staff-primary" style="margin-top:10px" onclick="editDutyWeekDay(\''+esc(day.day_name)+'\')">✏️ تعديل مناوبة '+esc(day.day_name)+'</button>':'')+'</section>').join('')+'</div><section id="dutyWeekEditCard" class="staff-card duty-role-card" hidden></section>';
  const roleByName=new Map();Object.entries(d.slots||{}).forEach(([slot,names])=>(names||[]).forEach(name=>roleByName.set(norm(name),slot)));
  const roleEditor=d.can_edit_roles?'<section class="staff-card duty-role-card" id="dutyRoleCard" data-date="'+esc(d.date)+'"><div class="duty-role-head"><div><h3>✏️ تعديل أدوار المناوبة</h3><p class="staff-help">متاح لمشرفات المناوبات ومنسقات المواد والإداريات والأستاذة ثرياء الناعبية. عند تغيير دور معلمة يتم تبديلها تلقائيًا مع معلمة من الموقع الجديد للمحافظة على العدد.</p></div><button class="staff-primary" onclick="toggleDutyRoleEditor()">تعديل الأدوار</button></div><div id="dutyRoleEditor" class="duty-role-editor" hidden>'+(d.teachers||[]).map(name=>{const current=roleByName.get(norm(name))||'corridors';return '<label><span>'+esc(name)+'</span><select class="duty-role-select" data-name="'+esc(name)+'" data-current="'+current+'" onchange="swapDutyRole(this)">'+slotKeys.map(key=>'<option value="'+key+'" '+(key===current?'selected':'')+'>'+esc(slotNames[key])+'</option>').join('')+'</select></label>'}).join('')+'<div class="duty-role-actions"><button class="staff-primary" onclick="saveDutyRoles()">حفظ الأدوار</button><button class="staff-secondary" onclick="renderSecureDuty()">إلغاء</button></div></div></section>':'';
  const between='<section class="staff-card"><h3>🔄 مناوبة ما بين الفصول — اختيار تلقائي</h3><p class="staff-help">يختار النظام معلمة فارغة لا توجد لها مناوبة صباحية أو مسائية في اليوم نفسه.</p><div class="duty-slot-list">'+((d.between_periods||[]).map(x=>'<div><b>الحصة '+x.period+' • '+esc(x.start)+'</b><span>'+esc(x.teacher_name||'لا توجد معلمة متاحة')+'</span></div>').join('')||'<div><span>لا توجد توزيعات اليوم.</span></div>')+'</div></section>';S('staffPane').innerHTML=week+roleEditor+between+'<div class="today-title duty-today-title"><div><small>مناوبة '+esc(d.day)+'</small><h2>متابعة حضور اليوم والجولات</h2></div></div><div class="duty-secure-grid">'+d.members.map(m=>{const c=d.checks.find(x=>x.employee_id===m.employee_id);return '<article><b>'+esc(m.short_name)+'</b><small>'+(c?({present:'✅ حاضرة',absent:'❌ غائبة',late:'⏰ متأخرة',excused:'📝 بعذر'}[c.status]):'⏳ لم تؤكد')+'</small>'+(d.is_supervisor?'<div><select id="ds-'+m.employee_id+'"><option value="present">حاضرة</option><option value="absent">غائبة</option><option value="late">متأخرة</option><option value="excused">بعذر</option></select><select id="star-'+m.employee_id+'"><option value="0">بدون نجوم</option><option value="1">⭐</option><option value="2">⭐⭐</option><option value="3">⭐⭐⭐</option><option value="4">⭐⭐⭐⭐</option><option value="5">⭐⭐⭐⭐⭐</option></select><button onclick="confirmDuty(\''+esc(m.short_name)+'\',\''+m.employee_id+'\')">تأكيد</button></div>':'')+'</article>'}).join('')+'</div><section class="staff-card report-class"><h3>بلاغ معلمة المناوبة بين الفصول</h3><div class="form-row"><select id="reportClass">'+secureDirectory.classes.map(c=>'<option>'+esc(c)+'</option>').join('')+'</select><select id="reportStatus"><option value="organized">🟢 صف منظم</option><option value="no_teacher">🚨 صف بدون معلمة</option><option value="problem">⚠️ صف به مشكلة</option></select><select id="reportPeriod">'+[1,2,3,4,5,6,7].map(x=>'<option value="'+x+'">الحصة '+x+'</option>').join('')+'</select></div><textarea id="reportNote" placeholder="تفاصيل البلاغ"></textarea><button class="staff-primary" onclick="reportClassStatus()">إرسال البلاغ</button></section>'
 }
-window.saveDutyAdmin=async sel=>{
- const day_name=sel.dataset.day,name=sel.value;
- try{await staffApi('save_duty_admins',{day_name,admins:name?[name]:[]});toast(name?'✅ '+name+' مشرفة مناوبة '+day_name+' — لها حق التعديل والمراقبة':'تم إلغاء إشراف '+day_name);await renderSecureDuty()}catch(e){toast(staffError(e))}
+window.editDutyAdmins=async dayName=>{
+ const day=dutyWeekCache.find(x=>x.day_name===dayName);if(!day)return;
+ const current=(day.admins||[]).join('، ');
+ const value=prompt('الإشراف الإداري ليوم '+dayName+' — افصلي الأسماء بفاصلة:',current);if(value===null)return;
+ const admins=value.split(/[،,\n]/).map(x=>x.trim()).filter(Boolean);
+ try{await staffApi('save_duty_admins',{day_name:dayName,admins});toast('✅ تم حفظ الإشراف الإداري ليوم '+dayName);await renderSecureDuty()}catch(e){toast(staffError(e))}
+};
+window.editDutyWeekDay=dayName=>{
+ const day=dutyWeekCache.find(x=>x.day_name===dayName),box=S('dutyWeekEditCard');if(!day||!box)return;
+ const slotNames={morning:'الاستقبال الصباحي • 10:45',entry1:'نقطة الدخول ح١ • 11:50',entry2:'نقطة الدخول ح٢ • 11:50',coop:'فسحة الجمعية • 2:40',shade:'فسحة المظلة • 2:40',corridors:'فسحة الممرات • 2:40',buses:'الحافلات • 4:40',cars:'السيارات الخاصة • 4:40'},slotKeys=Object.keys(slotNames),roleByName=new Map();
+ Object.entries(day.slots||{}).forEach(([slot,names])=>(names||[]).forEach(name=>roleByName.set(norm(name),slot)));
+ box.hidden=false;box.dataset.day=dayName;
+ box.innerHTML='<div class="duty-role-head"><div><h3>✏️ تعديل مناوبة '+esc(dayName)+'</h3><p class="staff-help">التقسيم يحافظ على العدد الرسمي لكل دور. عند تغيير موقع معلمة بدّلي معها معلمة من الموقع الآخر، ثم اضغطي حفظ.</p></div><button class="staff-secondary" onclick="closeDutyWeekEditor()">إغلاق</button></div><div class="duty-role-editor">'+(day.teachers||[]).map(name=>{const current=roleByName.get(norm(name))||'corridors';return '<label><span>'+esc(name)+'</span><select class="duty-week-role-select" data-name="'+esc(name)+'" data-current="'+current+'" onchange="swapDutyWeekRole(this)">'+slotKeys.map(key=>'<option value="'+key+'" '+(key===current?'selected':'')+'>'+esc(slotNames[key])+'</option>').join('')+'</select></label>'}).join('')+'<div class="duty-role-actions"><button class="staff-primary" onclick="saveDutyWeekRoles()">💾 حفظ تقسيم '+esc(dayName)+'</button><button class="staff-secondary" onclick="closeDutyWeekEditor()">إلغاء</button></div></div>';
+ box.scrollIntoView({behavior:'smooth',block:'start'});
+};
+window.swapDutyWeekRole=el=>{
+ const previous=el.dataset.current,next=el.value;if(previous===next)return;
+ const peers=[...document.querySelectorAll('.duty-week-role-select')],peer=peers.find(x=>x!==el&&x.value===next);
+ if(!peer){el.value=previous;return toast('لا توجد معلمة في هذا الموقع للتبديل معها')}
+ peer.value=previous;peer.dataset.current=previous;el.dataset.current=next;
+ toast('تم تبديل الدورين — اضغطي حفظ لاعتماد التغيير')
+};
+window.closeDutyWeekEditor=()=>{const box=S('dutyWeekEditCard');if(box){box.hidden=true;box.innerHTML=''}};
+window.saveDutyWeekRoles=async()=>{
+ const box=S('dutyWeekEditCard'),day_name=box?.dataset.day,assignments=[...document.querySelectorAll('.duty-week-role-select')].map(x=>({name:x.dataset.name,slot:x.value}));
+ if(!day_name)return;
+ try{await staffApi('save_duty_roles',{day_name,assignments});toast('✅ تم حفظ تقسيم أدوار مناوبة '+day_name);await renderSecureDuty()}catch(e){toast(staffError(e))}
 };
 window.toggleDutyRoleEditor=()=>{const box=S('dutyRoleEditor');if(!box)return;box.hidden=!box.hidden};
 window.swapDutyRole=el=>{
@@ -280,7 +305,7 @@ window.saveDutyRoles=async()=>{
  try{await staffApi('save_duty_roles',{date:card?.dataset.date,assignments});toast('✅ تم حفظ أدوار المناوبة');await renderSecureDuty()}catch(e){toast(staffError(e))}
 };
 window.confirmDuty=async(name,id)=>{try{await staffApi('confirm_duty',{employee_name:name,status:S('ds-'+id).value,stars:+S('star-'+id).value});toast('✅ تم تأكيد المناوبة');renderSecureDuty()}catch(e){toast(staffError(e))}};
-window.reportClassStatus=async()=>{try{const classLabel=S('reportClass').value,status=S('reportStatus').value,period=+S('reportPeriod').value,note=S('reportNote').value,d=await staffApi('report_class',{class_label:classLabel,status,period,note});if(d.notified_teacher){toast('🚨 تم تنبيه '+d.notified_teacher+(d.push_sent?' في الخلفية':'، وتحتاج تفعيل إشعارات جهازها'));if(status==='no_teacher'&&typeof window.waClassAlert==='function')await window.waClassAlert({teacher:d.notified_teacher,employeeId:d.notified_employee_id,phone:d.whatsapp_phone,classLabel,period,note})}else toast('✅ تم إرسال البلاغ للإدارة')}catch(e){toast(staffError(e))}};
+window.reportClassStatus=async()=>{try{const classLabel=S('reportClass').value,status=S('reportStatus').value,period=+S('reportPeriod').value,note=S('reportNote').value,d=await staffApi('report_class',{class_label:classLabel,status,period,note});if(d.notified_teacher){toast('🚨 تم تنبيه '+d.notified_teacher+(d.push_sent?' في الخلفية':'، وتحتاج تفعيل إشعارات جهازها'));if(['no_teacher','problem'].includes(status)&&typeof window.waClassAlert==='function')await window.waClassAlert({teacher:d.notified_teacher,employeeId:d.notified_employee_id,phone:d.whatsapp_phone,classLabel,period,note})}else toast('✅ تم إرسال البلاغ للإدارة')}catch(e){toast(staffError(e))}};
 function broadcastTeacherOptions(){
  const teachers=(secureDirectory.employees||[]).filter(x=>x.kind==='teacher');
  if(!secureAdmin())return '<option value="'+esc(secureEmployee.short_name)+'">'+esc(secureEmployee.short_name)+'</option>';
@@ -379,7 +404,7 @@ window.markBusArrivalUI=async route_name=>{
  try{await staffApi('mark_bus_arrival',{route_name});toast('✅ تم تسجيل وصول '+route_name);await renderBuses()}catch(e){toast(staffError(e))}
 };
 const BOOKING_RESOURCES=[{key:'resources_room',label:'📚 غرفة المصادر'},{key:'lab',label:'🧪 المختبر'},{key:'activities_hall',label:'🎭 قاعة الأنشطة'},{key:'projector',label:'📽️ جهاز العرض'}];
-const RESOURCE_OWNERS_UI={resources_room:'أصيلة الوهيبية',lab:'عبير السليمية'};
+const RESOURCE_OWNERS_UI={resources_room:'أصيلة الوهيبية',lab:'عبير المسلمية'};
 let bookingItemsCache=[],bookingTableRes='',diaryPhotoPath='';
 function isResourceOwner(key){const myName=secureEmployee?(secureEmployee.short_name||secureEmployee.full_name):'';const owner=RESOURCE_OWNERS_UI[key];return !!owner&&!!myName&&(owner===myName||owner===secureEmployee.full_name)}
 async function renderResourceBooking(openKey){
@@ -850,7 +875,9 @@ window.canManageEmergencyAlert=()=>secureAdmin();
 window.canPublishNews=()=>!!staffToken&&!!secureEmployee&&(secureEmployee.kind==="teacher"||secureAdmin());
 window.getEmergencyStatus=()=>staffApi('emergency_status');
 window.saveImportantAnnouncementAdmin=p=>staffApi('save_important_announcement',p);
+window.prepareNewsUploadAdmin=p=>staffApi('prepare_news_upload',p);
 window.saveNewsAdmin=p=>staffApi('save_news',p);
+window.saveSchoolRulesAdmin=p=>staffApi('save_school_rules',p);
 window.deleteNewsAdmin=id=>staffApi('delete_news',{id});
 window.deleteGalleryAdmin=id=>staffApi('delete_gallery_item',{id});
 window.startEmergencyAlertAdmin=p=>staffApi('start_emergency_alert',p);

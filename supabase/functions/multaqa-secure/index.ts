@@ -382,8 +382,13 @@ Deno.serve(async(req)=>{
   }
   if(action==="save_teacher_project"){
     const targetId=elevated(e)?clean(body.employee_id,30)||e.employee_id:e.employee_id,title=clean(body.title,220);
-    if(!title)return json({ok:false,error:"invalid_input"},400);const type=["school","students","initiative"].includes(clean(body.project_type,30))?clean(body.project_type,30):"school";
+    if(!title)return json({ok:false,error:"invalid_input"},400);const type=["school","students","initiative","competition"].includes(clean(body.project_type,30))?clean(body.project_type,30):"school";
     const {error}=await db.from("multaqa_teacher_projects").insert({employee_id:targetId,title,project_type:type,description:clean(body.description,1800)||null,status:["planned","active","completed","paused"].includes(clean(body.status,20))?clean(body.status,20):"active",start_date:clean(body.start_date,10)||null,end_date:clean(body.end_date,10)||null,achievements:clean(body.achievements,1800)||null,created_by_employee_id:e.employee_id});if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="delete_teacher_project"){
+    const {data:row}=await db.from("multaqa_teacher_projects").select("employee_id").eq("id",clean(body.id,60)).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
+    if(!elevated(e)&&row.employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+    const {error}=await db.from("multaqa_teacher_projects").delete().eq("id",clean(body.id,60));if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
   if(action==="prepare_teacher_photo_upload"){
     const targetId=elevated(e)?clean(body.employee_id,30)||e.employee_id:e.employee_id,mime=clean(body.mime_type,120),allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
@@ -391,6 +396,81 @@ Deno.serve(async(req)=>{
   }
   if(action==="complete_teacher_photo"){
     const targetId=elevated(e)?clean(body.employee_id,30)||e.employee_id:e.employee_id,path=clean(body.path,700);if(!path.startsWith(`profiles/${targetId}/`))return json({ok:false,error:"invalid_input"},400);const {error}=await db.from("multaqa_employee_profiles").upsert({employee_id:targetId,photo_url:path});if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="teacher_profile_page"){
+    const targetId=elevated(e)?clean(body.employee_id,30)||e.employee_id:e.employee_id;
+    const {data:target}=await db.from("multaqa_employees").select("employee_id,full_name,short_name,role,kind,access_group").eq("employee_id",targetId).maybeSingle();
+    if(!target||target.kind!=="teacher")return json({ok:false,error:"not_found"},404);
+    const [{data:p},{data:projects},{data:media},{data:notes},{data:goals},{count:absences},{count:labCount},{count:resourceRoomCount}]=await Promise.all([
+      db.from("multaqa_employee_profiles").select("display_title,subject,photo_url,work_email,phone,contact_phone,class_labels,achievements,is_coordinator").eq("employee_id",targetId).maybeSingle(),
+      db.from("multaqa_teacher_projects").select("*").eq("employee_id",targetId).order("created_at",{ascending:false}),
+      db.from("multaqa_teacher_profile_media").select("*").eq("employee_id",targetId).order("sort_order").order("created_at",{ascending:false}),
+      db.from("multaqa_teacher_profile_notes").select("*").eq("employee_id",targetId).order("sort_order").order("created_at",{ascending:false}),
+      db.from("multaqa_teacher_ijada_goals").select("*").eq("employee_id",targetId).order("domain").order("created_at",{ascending:false}),
+      db.from("multaqa_teacher_attendance").select("employee_id",{count:"exact",head:true}).eq("employee_id",targetId).eq("status","absent"),
+      db.from("multaqa_resource_bookings").select("id",{count:"exact",head:true}).eq("booked_by_employee_id",targetId).eq("resource_key","lab"),
+      db.from("multaqa_resource_bookings").select("id",{count:"exact",head:true}).eq("booked_by_employee_id",targetId).eq("resource_key","resources_room")
+    ]);
+    let photo_url=p?.photo_url||null;
+    if(photo_url&&photo_url.startsWith("profiles/")){const {data:u}=await db.storage.from("teacher-profile-photos").createSignedUrl(photo_url,3600);photo_url=u?.signedUrl||null}
+    const mediaSigned=await Promise.all((media||[]).map(async(x:any)=>{const {data:u}=await db.storage.from("teacher-profile-files").createSignedUrl(x.storage_path,3600);return {...x,url:u?.signedUrl||null}}));
+    const goalsSigned=await Promise.all((goals||[]).map(async(x:any)=>{if(!x.attachment_path)return {...x,attachment_url:null};const {data:u}=await db.storage.from("teacher-profile-files").createSignedUrl(x.attachment_path,3600);return {...x,attachment_url:u?.signedUrl||null}}));
+    return json({ok:true,employee:{...target,profile:{...(p||{}),photo_url}},projects:projects||[],media:mediaSigned,notes:notes||[],ijada_goals:goalsSigned,stats:{absences:absences||0,lab_bookings:labCount||0,resource_room_bookings:resourceRoomCount||0},can_edit:elevated(e)||e.employee_id===targetId});
+  }
+  if(action==="prepare_teacher_profile_file_upload"){
+    const targetId=elevated(e)?clean(body.employee_id,30)||e.employee_id:e.employee_id,mime=clean(body.mime_type,120),category=clean(body.category,20);
+    const allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","application/pdf":"pdf"};
+    if(!targetId||!allowed[mime]||!["certificate","workshop","gallery","ijada"].includes(category))return json({ok:false,error:"invalid_input"},400);
+    const path=`${category}/${targetId}/${crypto.randomUUID()}.${allowed[mime]}`;
+    const {data:signed,error}=await db.storage.from("teacher-profile-files").createSignedUploadUrl(path);if(error||!signed)return json({ok:false,error:"upload_failed"},500);
+    return json({ok:true,path,signed_url:signed.signedUrl});
+  }
+  if(action==="save_teacher_profile_media"){
+    const targetId=elevated(e)?clean(body.employee_id,30)||e.employee_id:e.employee_id,mediaType=clean(body.media_type,20),path=clean(body.path,700);
+    if(!targetId||!["certificate","workshop","gallery"].includes(mediaType)||!path.startsWith(`${mediaType}/${targetId}/`))return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_teacher_profile_media").insert({employee_id:targetId,media_type:mediaType,title:clean(body.title,220)||null,year:Number(body.year)||null,storage_path:path,created_by_employee_id:e.employee_id});
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="delete_teacher_profile_media"){
+    const {data:row}=await db.from("multaqa_teacher_profile_media").select("employee_id").eq("id",clean(body.id,60)).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
+    if(!elevated(e)&&row.employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+    const {error}=await db.from("multaqa_teacher_profile_media").delete().eq("id",clean(body.id,60));if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="save_teacher_profile_note"){
+    const targetId=elevated(e)?clean(body.employee_id,30)||e.employee_id:e.employee_id,noteType=clean(body.note_type,20),title=clean(body.title,220),text=clean(body.body,2000);
+    if(!targetId||!["top_student","needs_plan","note"].includes(noteType)||(!title&&!text))return json({ok:false,error:"invalid_input"},400);
+    const id=clean(body.id,60);
+    if(id){
+      const {data:row}=await db.from("multaqa_teacher_profile_notes").select("employee_id").eq("id",id).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
+      if(!elevated(e)&&row.employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+      const {error}=await db.from("multaqa_teacher_profile_notes").update({title:title||null,body:text||null,updated_at:new Date().toISOString()}).eq("id",id);if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+    }
+    const {error}=await db.from("multaqa_teacher_profile_notes").insert({employee_id:targetId,note_type:noteType,title:title||null,body:text||null,created_by_employee_id:e.employee_id});
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="delete_teacher_profile_note"){
+    const {data:row}=await db.from("multaqa_teacher_profile_notes").select("employee_id").eq("id",clean(body.id,60)).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
+    if(!elevated(e)&&row.employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+    const {error}=await db.from("multaqa_teacher_profile_notes").delete().eq("id",clean(body.id,60));if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="save_ijada_goal"){
+    const targetId=elevated(e)?clean(body.employee_id,30)||e.employee_id:e.employee_id,domain=clean(body.domain,220),goalText=clean(body.goal_text,1200);
+    if(!targetId||!domain||!goalText)return json({ok:false,error:"invalid_input"},400);
+    const status=["planned","in_progress","done"].includes(clean(body.status,20))?clean(body.status,20):"planned",unit=clean(body.unit,120)||null,note=clean(body.note,1200)||null,attachment=clean(body.attachment_path,700);
+    if(attachment&&!attachment.startsWith(`ijada/${targetId}/`))return json({ok:false,error:"invalid_input"},400);
+    const id=clean(body.id,60);
+    if(id){
+      const {data:row}=await db.from("multaqa_teacher_ijada_goals").select("employee_id,attachment_path").eq("id",id).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
+      if(!elevated(e)&&row.employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+      const {error}=await db.from("multaqa_teacher_ijada_goals").update({domain,unit,goal_text:goalText,status,note,attachment_path:attachment||row.attachment_path,updated_at:new Date().toISOString()}).eq("id",id);if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+    }
+    const {error}=await db.from("multaqa_teacher_ijada_goals").insert({employee_id:targetId,domain,unit,goal_text:goalText,status,note,attachment_path:attachment||null,created_by_employee_id:e.employee_id});
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="delete_ijada_goal"){
+    const {data:row}=await db.from("multaqa_teacher_ijada_goals").select("employee_id").eq("id",clean(body.id,60)).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);
+    if(!elevated(e)&&row.employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+    const {error}=await db.from("multaqa_teacher_ijada_goals").delete().eq("id",clean(body.id,60));if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
   if(action==="student_support_lists"){
     if(!caseTeam(e))return json({ok:false,error:"forbidden"},403);

@@ -40,6 +40,12 @@ async function getSession(db:any,req:Request){
 }
 const elevated=(e:any)=>["admin","management"].includes(e?.access_group);
 const caseTeam=(e:any)=>["admin","management","social"].includes(e?.access_group);
+async function canEditDutyRoles(db:any,e:any,admins:string[]=[]){
+  if(e?.kind==="admin"||elevated(e)||e?.employee_id==="T016"||norm(e?.short_name)==="ثرياء محمد الناعبيه"||norm(e?.short_name)===norm("ثرياء الناعبية")||norm(e?.full_name)===norm("ثرياء محمد علي الناعبية"))return true;
+  if(admins.some((n:string)=>norm(n)===norm(e?.short_name)||norm(n)===norm(e?.full_name)))return true;
+  const {data:p}=await db.from("multaqa_employee_profiles").select("is_coordinator").eq("employee_id",e?.employee_id).maybeSingle();
+  return p?.is_coordinator===true;
+}
 async function profile(db:any,e:any){
   const [{data:p},{data:w}]=await Promise.all([
     db.from("multaqa_employee_profiles").select("display_title,subject,photo_url,welcome_name,bio_line,work_email,phone,contact_phone,class_labels,achievements,is_coordinator").eq("employee_id",e.employee_id).maybeSingle(),
@@ -722,7 +728,7 @@ Deno.serve(async(req)=>{
     await db.from("multaqa_teacher_attendance").upsert({employee_id:target.employee_id,attendance_date:date,status,late_at:clean(body.late_at,8)||null,reason_category:clean(body.reason_category,40)||null,reason:clean(body.reason,500)||null,note:clean(body.note,800)||null,recorded_by_employee_id:e.employee_id,updated_at:new Date().toISOString()},{onConflict:"employee_id,attendance_date"});let coverage:any[]=[];if(status==="absent")coverage=await allocateAbsence(db,target,date,"absence",`${target.employee_id}:${date}`,e.employee_id);return json({ok:true,coverage});
   }
   if(action==="duty_today"){
-    const date=clean(body.date,10)||muscatDate(),day=dayFor(date),{data:d}=await db.from("multaqa_duty").select("teachers,admins,slots").eq("day_name",day).maybeSingle();const teachers=d?.teachers||[],admins=d?.admins||[],names=[...teachers,...admins];const {data:emps}=await db.from("multaqa_employees").select("employee_id,full_name,short_name");const resolved=names.map((n:string)=>(emps||[]).find((x:any)=>norm(x.short_name)===norm(n)||norm(x.full_name)===norm(n))).filter(Boolean);const isSupervisor=admins.some((n:string)=>norm(n)===norm(e.short_name)||norm(n)===norm(e.full_name))||elevated(e),onDutyTeacher=teachers.some((n:string)=>norm(n)===norm(e.short_name)||norm(n)===norm(e.full_name));const {data:checks}=await db.from("multaqa_duty_attendance").select("*").eq("duty_date",date);return json({ok:true,date,day,slots:d?.slots||{},teachers,admins,members:resolved,checks:checks||[],is_supervisor:isSupervisor,can_edit_roles:onDutyTeacher||isSupervisor});
+    const date=clean(body.date,10)||muscatDate(),day=dayFor(date),{data:d}=await db.from("multaqa_duty").select("teachers,admins,slots").eq("day_name",day).maybeSingle();const teachers=d?.teachers||[],admins=d?.admins||[],names=[...teachers,...admins];const {data:emps}=await db.from("multaqa_employees").select("employee_id,full_name,short_name");const resolved=names.map((n:string)=>(emps||[]).find((x:any)=>norm(x.short_name)===norm(n)||norm(x.full_name)===norm(n))).filter(Boolean);const isSupervisor=admins.some((n:string)=>norm(n)===norm(e.short_name)||norm(n)===norm(e.full_name))||elevated(e),canEdit=await canEditDutyRoles(db,e,admins);const {data:checks}=await db.from("multaqa_duty_attendance").select("*").eq("duty_date",date);return json({ok:true,date,day,slots:d?.slots||{},teachers,admins,members:resolved,checks:checks||[],is_supervisor:isSupervisor,can_edit_roles:canEdit});
   }
   if(action==="save_duty_admins"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);
@@ -733,7 +739,7 @@ Deno.serve(async(req)=>{
   }
   if(action==="save_duty_roles"){
     const date=clean(body.date,10)||muscatDate(),day=dayFor(date),{data:d}=await db.from("multaqa_duty").select("teachers,admins,slots").eq("day_name",day).maybeSingle();if(!d)return json({ok:false,error:"not_found"},404);
-    const teachers:string[]=d.teachers||[],admins:string[]=d.admins||[],allowed=elevated(e)||teachers.some((n:string)=>norm(n)===norm(e.short_name)||norm(n)===norm(e.full_name))||admins.some((n:string)=>norm(n)===norm(e.short_name)||norm(n)===norm(e.full_name));if(!allowed)return json({ok:false,error:"not_on_duty"},403);
+    const teachers:string[]=d.teachers||[],admins:string[]=d.admins||[],allowed=await canEditDutyRoles(db,e,admins);if(!allowed)return json({ok:false,error:"forbidden"},403);
     const keys=["morning","shade","coop","between","cars","buses","reserve"],assignments=Array.isArray(body.assignments)?body.assignments:[];if(assignments.length!==teachers.length)return json({ok:false,error:"invalid_input"},400);
     const canonical=new Map(teachers.map((n:string)=>[norm(n),n])),seen=new Set<string>(),slots:any={morning:[],shade:[],coop:[],between:[],cars:[],buses:[],reserve:[]};
     for(const a of assignments){const name=canonical.get(norm(a?.name)),slot=clean(a?.slot,20);if(!name||!keys.includes(slot)||seen.has(norm(name)))return json({ok:false,error:"invalid_input"},400);seen.add(norm(name));slots[slot].push(name)}

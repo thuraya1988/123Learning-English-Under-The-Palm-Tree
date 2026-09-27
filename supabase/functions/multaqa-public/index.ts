@@ -31,6 +31,18 @@ const DUTY_SLOT_KEYS=["morning","entry1","entry2","coop","shade","corridors","bu
 const DUTY_PERIODS=[{period:1,start:"12:20",alert:"12:15",minute:735},{period:2,start:"12:55",alert:"12:50",minute:770},{period:3,start:"13:30",alert:"13:25",minute:805},{period:4,start:"14:05",alert:"14:00",minute:840},{period:5,start:"15:00",alert:"14:55",minute:895},{period:6,start:"15:35",alert:"15:30",minute:930},{period:7,start:"16:10",alert:"16:05",minute:965}];
 const muscatNow=()=>new Date(new Date().toLocaleString("en-US",{timeZone:"Asia/Muscat"}));
 const dayName=()=>omDays[muscatNow().getDay()];
+const NOOR_WEEKLY_TIPS=[
+  {title:"ابدئي الحصة برصد الحضور",body:"رصد الحضور بأول خمس دقائق من الحصة يضمن دقة السجل ويمنع تراكم الرصد لاحقًا. أنشئي منها عادة يومية ثابتة."},
+  {title:"رصد الدرجات أولًا بأول",body:"وزّعي رصد درجات التقويم المستمر على مدار الأسبوع بدل تجميعها آخر الفصل — يقلل الأخطاء ويعطيك صورة أوضح عن أداء الطالبات."},
+  {title:"وثّقي التواصل مع الأهالي داخل نور",body:"الرسائل والإشعارات عبر نور تبقى موثقة رسميًا في سجل الطالبة، على عكس واتساب. استخدميها للأمور المهمة."},
+  {title:"انشري الواجبات بتاريخ استحقاق واضح",body:"عند نشر الواجب حددي تاريخ التسليم والوصف كاملًا — هذا يقلل استفسارات الأهالي المتكررة ويصل تلقائيًا كإشعار."},
+  {title:"استخدمي التقارير الجاهزة بدل الإحصاء اليدوي",body:"نور يوفر تقارير حضور ودرجات جاهزة للتصدير — استخدميها في اجتماعات أولياء الأمور بدل بناء إحصائيات يدويًا."},
+  {title:"اربطي أنشطة إجادة برصدك في نور",body:"كل نشاط ترصدينه في نور ممكن يكون نفس الوقت دليلًا لخطة إجادة الإلكترونية — سجّليه مرة واحدة واستخدميه في الاثنين."},
+  {title:"سجّلي ملاحظات السلوك والتميز أولًا بأول",body:"ملاحظة إيجابية أو سلوكية تُرصد في وقتها تعطي صورة عادلة ودقيقة عند مراجعة سجل الطالبة لاحقًا."},
+  {title:"راجعي سجل الغياب أسبوعيًا",body:"خصصي وقتًا أسبوعيًا لمراجعة الطالبات المتكررات بالغياب في نور والتنسيق المبكر مع الأخصائية الاجتماعية."},
+  {title:"استخدمي الإشعار الجماعي بذكاء",body:"للإعلانات العامة للفصل استخدمي الإشعار الجماعي بدل رسائل فردية متكررة — يوفر وقتك ويصل للجميع بنفس اللحظة."},
+  {title:"احتفظي بنسخة من أهم مرفقاتك",body:"عند رفع مرفقات للواجبات أو التقييمات، احتفظي بنسخة منظمة لديك أيضًا لتسهيل إعادة الاستخدام في فصول أو فترات لاحقة."}
+];
 let vapidReady=false;
 async function pushConfig(db:any){const {data}=await db.from("multaqa_push_config").select("public_key,private_key,subject,scheduler_secret").eq("singleton",true).maybeSingle();return data||null}
 async function prepareWebPush(db:any){if(vapidReady)return true;const c=await pushConfig(db);if(!c?.public_key||!c?.private_key)return false;webpush.setVapidDetails(c.subject||"mailto:notifications@under-palm-tree.com",c.public_key,c.private_key);vapidReady=true;return true}
@@ -149,6 +161,15 @@ Deno.serve(async(req)=>{
       return x;
     }));
     return json({ok:true,items});
+  }
+  if(action==="ensure_weekly_noor_challenge"){
+    const weekIndex=Math.floor(muscatNow().getTime()/(7*24*3600*1000)),weekKey="W"+weekIndex;
+    const {data:existing}=await db.from("multaqa_content").select("id,title,body,subject,day_name,created_at").eq("content_type","magazine").eq("test_name",weekKey).maybeSingle();
+    if(existing)return json({ok:true,item:existing,created:false});
+    const tip=NOOR_WEEKLY_TIPS[((weekIndex%NOOR_WEEKLY_TIPS.length)+NOOR_WEEKLY_TIPS.length)%NOOR_WEEKLY_TIPS.length];
+    const {data:item,error}=await db.from("multaqa_content").insert({content_type:"magazine",title:tip.title,body:tip.body,subject:"تحدي نور الأسبوعي",day_name:"إدارة المنظومة",test_name:weekKey,published:true}).select("id,title,body,subject,day_name,created_at").single();
+    if(error)return json({ok:false,error:"server_error"},500);
+    return json({ok:true,item,created:true});
   }
   if(action==="calendar_events"){
     const {data,error}=await db.from("multaqa_calendar_events").select("id,title,event_date,event_time,details,reminder_days,audience,source_kind").eq("published",true).order("event_date",{ascending:true}).limit(300);if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,items:data||[]});

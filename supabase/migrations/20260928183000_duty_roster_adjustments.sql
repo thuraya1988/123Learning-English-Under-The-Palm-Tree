@@ -1,5 +1,5 @@
--- Keep the repository fallback roster aligned with the official production duty roster.
--- Idempotent: only replaces the superseded names when they are still present.
+-- Keep the official weekly duty roster aligned with the approved replacements.
+-- Idempotent: names are replaced only while a superseded assignment is present.
 
 update public.multaqa_duty
 set
@@ -9,10 +9,10 @@ set
     'كوثر المفرجية'
   ),
   slots = jsonb_set(
-    jsonb_set(slots, '{entry1}', '["بدريه الجابريه"]'::jsonb, true),
-    '{entry2}',
-    '["كوثر المفرجية"]'::jsonb,
-    true
+    jsonb_set(slots, '{morning,1}', '"بدريه الجابريه"'::jsonb, false),
+    '{buses,1}',
+    '"كوثر المفرجية"'::jsonb,
+    false
   )
 where day_name = 'الأحد'
   and (

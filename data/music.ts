@@ -187,7 +187,7 @@ export const MUSIC_CATEGORIES: {
  * /public/Website-music-soundeffect/.
  */
 export const WEBSITE_AUDIO = {
-  bgMain: "/Website-music-soundeffect/main-background-website-music.mpeg",
+  bgMain: "/readers-club/multaqa-world.mp3",
   bgSecond: "/Website-music-soundeffect/second-background-website-music.mpeg",
   music: "/Website-music-soundeffect/music-background.mp3",
   thinking: "/Website-music-soundeffect/thinking-music.mp3",

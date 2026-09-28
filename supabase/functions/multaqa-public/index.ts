@@ -154,6 +154,10 @@ Deno.serve(async(req)=>{
         const {data:u}=await db.storage.from("school-content-media").createSignedUrl(path,3600);
         return {...x,media_url:u?.signedUrl||null,media_kind};
       }
+      if(x.content_type==="magazine"&&x.media_url&&!/^https?:\/\//.test(x.media_url)&&!String(x.media_url).startsWith("/public/")){
+        const {data:u}=await db.storage.from("school-content-media").createSignedUrl(String(x.media_url),3600);
+        return {...x,media_url:u?.signedUrl||null};
+      }
       if(x.content_type==="news"&&x.media_url){
         const path=String(x.media_url).split("?")[0],ext=(path.split(".").pop()||"").toLowerCase(),media_kind=ext==="pdf"?"pdf":["mp4","webm","mov"].includes(ext)?"video":"image";
         return {...x,media_kind};

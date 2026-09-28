@@ -33,6 +33,15 @@ body{
 .intro{max-width:1100px;margin:16px auto 0;padding:0 16px}
 .intro-panel{background:linear-gradient(135deg,rgba(123,30,58,.08),rgba(22,33,62,.06));border:1px solid var(--line2);border-radius:16px;padding:14px 18px;font-size:13px;color:var(--txt);line-height:1.8}
 .intro-panel b{color:var(--acc)}
+.quick-create{max-width:1100px;margin:10px auto 0;padding:0 16px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.quick-create::-webkit-scrollbar{display:none}
+.quick-create .btn{flex:none}
+.special-box{background:#fff7e7;border:1px solid #dbc08a;border-radius:14px;padding:12px;margin-bottom:12px}
+.special-box h4{margin:0 0 10px;color:var(--acc2)}
+.special-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.special-grid .field{margin:0}
+.field-help{display:block;margin-top:5px;font-size:10.5px;color:var(--muted)}
+.media-preview{margin-top:8px;font-size:11px;color:var(--muted);font-weight:700}
 
 .filters{display:flex;gap:8px;overflow-x:auto;padding:14px 16px 2px;max-width:1100px;margin:0 auto;scrollbar-width:none}
 .filters::-webkit-scrollbar{display:none}
@@ -114,6 +123,15 @@ body{
 </div>
 
 <div class="tomorrow"><div class="tomorrow-card" id="tomorrowBox">📅 جاري التحقق من فعاليات الغد…</div></div>
+<div class="quick-create">
+  <button class="btn primary" onclick="quickCreate('نجمة نور الشهر')">⭐ إضافة نجمة نور</button>
+  <button class="btn" onclick="quickCreate('تحدي نور الأسبوعي')">🏆 تحدي نور</button>
+  <button class="btn" onclick="quickCreate('نصيحة')">💡 نصيحة</button>
+  <button class="btn" onclick="quickCreate('قصة نجاح')">🌟 قصة نجاح</button>
+  <button class="btn" onclick="quickCreate('نشرة توعوية')">📢 نشرة</button>
+  <button class="btn" onclick="quickCreate('قانون اليوم')">⚖️ قانون اليوم</button>
+  <button class="btn" onclick="quickCreate('تذكير')">🔔 تذكير</button>
+</div>
 <div class="filters" id="filters"></div>
 <main class="feed" id="feed"><div class="empty"><span>⏳</span>جاري تحميل المجلة…</div></main>
 
@@ -122,9 +140,10 @@ body{
     <div class="modal-head"><h3>✍️ إضافة منشور جديد</h3><button class="icon-btn" id="btnCloseCompose">✕</button></div>
     <div class="field">
       <label>التصنيف</label>
-      <select id="fCategory">
+      <select id="fCategory" onchange="renderComposeFields()">
         <option value="نصيحة">💡 نصيحة لاستخدام نور</option>
         <option value="نجمة نور الشهر">⭐ نجمة نور الشهر</option>
+        <option value="تحدي نور الأسبوعي">🏆 تحدي نور الأسبوعي</option>
         <option value="قصة نجاح">🌟 قصة نجاح</option>
         <option value="نشرة توعوية">📢 نشرة توعوية</option>
         <option value="قانون اليوم">⚖️ قانون اليوم</option>
@@ -133,13 +152,22 @@ body{
         <option value="عام">📌 عام</option>
       </select>
     </div>
-    <div class="field">
-      <label>العنوان</label>
-      <input id="fTitle" maxlength="120" placeholder="عنوان المنشور">
+    <div id="categoryFields"></div>
+    <div id="genericFields">
+      <div class="field">
+        <label>العنوان</label>
+        <input id="fTitle" maxlength="120" placeholder="عنوان المنشور">
+      </div>
+      <div class="field">
+        <label>المحتوى</label>
+        <textarea id="fBody" maxlength="3000" rows="6" placeholder="اكتبي هنا…"></textarea>
+      </div>
     </div>
     <div class="field">
-      <label>المحتوى</label>
-      <textarea id="fBody" maxlength="2000" rows="6" placeholder="اكتبي هنا…"></textarea>
+      <label>صورة للمنشور <span style="font-weight:400">(اختياري)</span></label>
+      <input id="fMedia" type="file" accept="image/jpeg,image/png,image/webp">
+      <small class="field-help">يمكنك إضافة صورة نجمة نور، ملصق فعالية، أو صورة توضيحية. الحد الأقصى 15 MB.</small>
+      <div class="media-preview" id="fMediaState"></div>
     </div>
     <label class="switch-row"><input type="checkbox" id="fPush"> 🔔 إرسال إشعار لجميع المعلمات</label>
     <div class="modal-actions">
@@ -243,6 +271,7 @@ const ERR={
   forbidden:'ليست لديك صلاحية لهذا الإجراء',
   invalid_input:'تحققي من العنوان والمحتوى',
   save_failed:'تعذر حفظ المنشور، حاولي مرة أخرى',
+  upload_failed:'تعذر رفع الصورة، حاولي مرة أخرى',
   session_required:'انتهت جلستك، سجّلي الدخول من جديد من الصفحة الرئيسية',
   not_found:'المنشور غير موجود'
 };
@@ -326,11 +355,38 @@ window.deletePost=async(id)=>{
 };
 
 const overlay=document.getElementById('composeOverlay');
-function openCompose(){
+function renderComposeFields(){
+  const cat=document.getElementById('fCategory').value,box=document.getElementById('categoryFields'),generic=document.getElementById('genericFields');
+  generic.style.display='none';
+  if(cat==='نجمة نور الشهر'){
+    box.innerHTML='<div class="special-box"><h4>⭐ بيانات نجمة نور الشهر</h4><div class="special-grid"><div class="field"><label>اسم نجمة نور *</label><input id="starName" maxlength="120" placeholder="اسم المعلمة"></div><div class="field"><label>التخصص / الدور</label><input id="starRole" maxlength="140" placeholder="مثال: معلمة علوم"></div></div><div class="field"><label>لماذا تم اختيارها؟ *</label><textarea id="starReasons" rows="4" maxlength="1200" placeholder="اكتبي أسباب الاختيار بوضوح"></textarea></div><div class="field"><label>أبرز إنجاز أو استخدام مميز لمنصة نور</label><textarea id="starAchievement" rows="3" maxlength="900" placeholder="مثال: تفعيل الأنشطة، متابعة الطالبات، رفع المحتوى..."></textarea></div><div class="field"><label>الأثر أو ما يميزها</label><textarea id="starImpact" rows="3" maxlength="900" placeholder="ما الأثر الذي ظهر على الطالبات أو العمل؟"></textarea></div></div>';
+  }else if(cat==='تحدي نور الأسبوعي'){
+    box.innerHTML='<div class="special-box"><h4>🏆 تحدي نور الأسبوعي</h4><div class="field"><label>عنوان التحدي *</label><input id="challengeTitle" maxlength="120" placeholder="عنوان قصير وجذاب"></div><div class="field"><label>المطلوب من المعلمات *</label><textarea id="challengeTask" rows="4" maxlength="1400" placeholder="ما المطلوب تنفيذه في منصة نور؟"></textarea></div><div class="special-grid"><div class="field"><label>آخر موعد</label><input id="challengeDeadline" type="date"></div><div class="field"><label>معيار الاختيار / الفوز</label><input id="challengeCriteria" maxlength="180" placeholder="مثال: جودة التفعيل والاستمرارية"></div></div><div class="field"><label>التكريم أو الحافز</label><input id="challengeReward" maxlength="180" placeholder="اختياري"></div></div>';
+  }else if(cat==='قصة نجاح'){
+    box.innerHTML='<div class="special-box"><h4>🌟 قصة نجاح</h4><div class="field"><label>صاحبة القصة / العنوان *</label><input id="successWho" maxlength="140" placeholder="اسم المعلمة أو عنوان القصة"></div><div class="field"><label>الموقف أو التحدي *</label><textarea id="successStory" rows="4" maxlength="1200"></textarea></div><div class="field"><label>النتيجة والأثر</label><textarea id="successResult" rows="3" maxlength="900"></textarea></div></div>';
+  }else if(cat==='قانون اليوم'){
+    box.innerHTML='<div class="special-box"><h4>⚖️ قانون اليوم</h4><div class="field"><label>القانون / التعليمات *</label><textarea id="lawText" rows="4" maxlength="1400"></textarea></div><div class="field"><label>السبب أو الهدف</label><textarea id="lawWhy" rows="3" maxlength="900" placeholder="لماذا هذا القانون مهم؟"></textarea></div></div>';
+  }else if(cat==='تذكير'){
+    box.innerHTML='<div class="special-box"><h4>🔔 تذكير</h4><div class="field"><label>موضوع التذكير *</label><input id="reminderTitle" maxlength="140"></div><div class="special-grid"><div class="field"><label>التاريخ</label><input id="reminderDate" type="date"></div><div class="field"><label>الوقت</label><input id="reminderTime" type="time"></div></div><div class="field"><label>التفاصيل</label><textarea id="reminderDetails" rows="4" maxlength="1200"></textarea></div></div>';
+  }else{
+    box.innerHTML='';generic.style.display='block';
+    const hints={
+      'نصيحة':['💡 نصيحة سريعة لمنصة نور','اشرحي النصيحة بخطوات قصيرة وعملية.'],
+      'نشرة توعوية':['📢 نشرة توعوية','اكتبي الرسالة التوعوية أو الإرشادات.'],
+      'سؤال وجواب':['❓ سؤال وجواب','اكتبي السؤال ثم الإجابة بشكل واضح.'],
+      'عام':['📌 منشور عام','اكتبي تفاصيل المنشور.']
+    }[cat];
+    if(hints){document.getElementById('fTitle').placeholder=hints[0];document.getElementById('fBody').placeholder=hints[1]}
+  }
+}
+function openCompose(category){
   const token=localStorage.getItem('multaqa_staff_session')||'';
   if(!token){toast('سجّلي دخولك من الصفحة الرئيسية أولًا للمشاركة في المجلة');return;}
+  if(category)document.getElementById('fCategory').value=category;
+  renderComposeFields();
   overlay.classList.add('show');
 }
+window.quickCreate=category=>openCompose(category);
 function closeCompose(){overlay.classList.remove('show');}
 document.getElementById('btnCompose').addEventListener('click',openCompose);
 document.getElementById('btnCloseCompose').addEventListener('click',closeCompose);
@@ -344,29 +400,69 @@ document.getElementById('btnCloseGuide').addEventListener('click',()=>guideOverl
 document.getElementById('btnCloseGuide2').addEventListener('click',()=>guideOverlay.classList.remove('show'));
 guideOverlay.addEventListener('click',e=>{if(e.target===guideOverlay)guideOverlay.classList.remove('show');});
 
-document.getElementById('btnSubmitPost').addEventListener('click',async()=>{
+function composePayload(){
   const category=document.getElementById('fCategory').value;
-  const title=document.getElementById('fTitle').value.trim();
-  const body=document.getElementById('fBody').value.trim();
-  const send_push=document.getElementById('fPush').checked;
-  if(title.length<2||body.length<2){toast('اكتبي عنوانًا ومحتوى أولًا');return;}
-  const btn=document.getElementById('btnSubmitPost');
+  let title='',body='';
+  if(category==='نجمة نور الشهر'){
+    const name=(document.getElementById('starName')?.value||'').trim(),role=(document.getElementById('starRole')?.value||'').trim(),reasons=(document.getElementById('starReasons')?.value||'').trim(),achievement=(document.getElementById('starAchievement')?.value||'').trim(),impact=(document.getElementById('starImpact')?.value||'').trim();
+    if(!name||!reasons)throw Object.assign(new Error('star_required'),{code:'star_required'});
+    title='⭐ نجمة نور الشهر — '+name;
+    body=['🌟 من هي؟\n'+name+(role?' — '+role:''),'🏅 أسباب الاختيار\n'+reasons,achievement?'💻 أبرز إنجازها في منصة نور\n'+achievement:'',impact?'✨ الأثر وما يميزها\n'+impact:''].filter(Boolean).join('\n\n');
+  }else if(category==='تحدي نور الأسبوعي'){
+    const t=(document.getElementById('challengeTitle')?.value||'').trim(),task=(document.getElementById('challengeTask')?.value||'').trim(),deadline=document.getElementById('challengeDeadline')?.value||'',criteria=(document.getElementById('challengeCriteria')?.value||'').trim(),reward=(document.getElementById('challengeReward')?.value||'').trim();
+    if(!t||!task)throw Object.assign(new Error('challenge_required'),{code:'challenge_required'});
+    title='🏆 تحدي نور الأسبوعي — '+t;
+    body=['🎯 المطلوب\n'+task,deadline?'📅 آخر موعد\n'+deadline:'',criteria?'✅ معيار الاختيار\n'+criteria:'',reward?'🎁 التكريم / الحافز\n'+reward:''].filter(Boolean).join('\n\n');
+  }else if(category==='قصة نجاح'){
+    const who=(document.getElementById('successWho')?.value||'').trim(),story=(document.getElementById('successStory')?.value||'').trim(),result=(document.getElementById('successResult')?.value||'').trim();
+    if(!who||!story)throw Object.assign(new Error('success_required'),{code:'success_required'});
+    title='🌟 قصة نجاح — '+who;body=['📖 القصة\n'+story,result?'✨ النتيجة والأثر\n'+result:''].filter(Boolean).join('\n\n');
+  }else if(category==='قانون اليوم'){
+    const law=(document.getElementById('lawText')?.value||'').trim(),why=(document.getElementById('lawWhy')?.value||'').trim();
+    if(!law)throw Object.assign(new Error('law_required'),{code:'law_required'});
+    title='⚖️ قانون اليوم';body=law+(why?'\n\n💡 لماذا؟\n'+why:'');
+  }else if(category==='تذكير'){
+    const t=(document.getElementById('reminderTitle')?.value||'').trim(),date=document.getElementById('reminderDate')?.value||'',time=document.getElementById('reminderTime')?.value||'',details=(document.getElementById('reminderDetails')?.value||'').trim();
+    if(!t)throw Object.assign(new Error('reminder_required'),{code:'reminder_required'});
+    title='🔔 '+t;body=[date?'📅 التاريخ: '+date:'',time?'⏰ الوقت: '+time:'',details].filter(Boolean).join('\n');
+  }else{
+    title=document.getElementById('fTitle').value.trim();body=document.getElementById('fBody').value.trim();
+    if(title.length<2||body.length<2)throw Object.assign(new Error('invalid_input'),{code:'invalid_input'});
+  }
+  return{category,title,body};
+}
+document.getElementById('fMedia').addEventListener('change',e=>{
+ const f=e.target.files?.[0],state=document.getElementById('fMediaState');if(!f){state.textContent='';return}
+ if(f.size>15*1024*1024){e.target.value='';state.textContent='❌ الصورة أكبر من 15 MB';toast('اختاري صورة أصغر من 15 MB');return}
+ state.textContent='✅ '+f.name+' • '+Math.max(1,Math.round(f.size/1024))+' KB';
+});
+document.getElementById('btnSubmitPost').addEventListener('click',async()=>{
+  let p;try{p=composePayload()}catch(err){
+    const msg={star_required:'اكتبي اسم نجمة نور وأسباب اختيارها',challenge_required:'اكتبي عنوان التحدي والمطلوب',success_required:'اكتبي صاحبة قصة النجاح والقصة',law_required:'اكتبي القانون أو التعليمات',reminder_required:'اكتبي موضوع التذكير'}[err.code]||'أكملي الحقول المطلوبة';
+    return toast(msg);
+  }
+  const send_push=document.getElementById('fPush').checked,btn=document.getElementById('btnSubmitPost'),file=document.getElementById('fMedia').files?.[0];
   btn.disabled=true;btn.textContent='جاري النشر…';
   try{
-    await secureApi('save_magazine_post',{category,title,body,send_push});
-    toast('✅ تم نشر المنشور في المجلة');
-    document.getElementById('fTitle').value='';
-    document.getElementById('fBody').value='';
-    document.getElementById('fPush').checked=false;
-    closeCompose();
-    loadFeed();
-  }catch(err){
-    toast(ERR[err&&err.code]||'تعذر النشر الآن');
-  }finally{
-    btn.disabled=false;btn.textContent='نشر';
-  }
+    let media_url=null;
+    if(file){
+      btn.textContent='جاري رفع الصورة…';
+      const u=await secureApi('prepare_magazine_upload',{mime_type:file.type,file_name:file.name});
+      const up=await fetch(u.signed_url,{method:'PUT',headers:{'Content-Type':file.type,'x-upsert':'false'},body:file});
+      if(!up.ok)throw Object.assign(new Error('upload_failed'),{code:'upload_failed'});
+      media_url=u.path;
+    }
+    btn.textContent='جاري النشر…';
+    await secureApi('save_magazine_post',{...p,media_url,send_push});
+    toast(p.category==='نجمة نور الشهر'?'⭐ تم نشر نجمة نور بنجاح':'✅ تم نشر المنشور في المجلة');
+    document.getElementById('fTitle').value='';document.getElementById('fBody').value='';
+    document.getElementById('fMedia').value='';document.getElementById('fMediaState').textContent='';
+    document.getElementById('fPush').checked=false;closeCompose();loadFeed();
+  }catch(err){toast(ERR[err&&err.code]||'تعذر النشر الآن')}
+  finally{btn.disabled=false;btn.textContent='نشر'}
 });
 
+renderComposeFields();
 renderFilters();
 loadTomorrowNotice();
 publicApi('ensure_weekly_noor_challenge').catch(()=>{}).finally(loadFeed);

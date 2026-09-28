@@ -794,11 +794,20 @@ Deno.serve(async(req)=>{
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id);if(!id)return json({ok:false,error:"invalid_input"},400);
     const {error}=await db.from("multaqa_content").delete().eq("id",id).eq("content_type","gallery");if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
+  if(action==="prepare_magazine_upload"){
+    if(e?.kind!=="teacher"&&!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const mime=clean(body.mime_type,120),allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
+    const ext=allowed[mime];if(!ext)return json({ok:false,error:"invalid_input"},400);
+    const path=`magazine/${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}.${ext}`;
+    const {data:signed,error}=await db.storage.from("school-content-media").createSignedUploadUrl(path);
+    if(error||!signed)return json({ok:false,error:"upload_failed"},500);
+    return json({ok:true,path,signed_url:signed.signedUrl});
+  }
   if(action==="save_magazine_post"){
     if(e?.kind!=="teacher"&&!elevated(e))return json({ok:false,error:"forbidden"},403);
     const title=clean(body.title,220),message=clean(body.body,3000),category=clean(body.category,60)||"عام",media=clean(body.media_url,1000)||null;
     if(title.length<2||message.length<2)return json({ok:false,error:"invalid_input"},400);
-    if(media&&!/^https?:\/\//.test(media)&&!media.startsWith("/public/"))return json({ok:false,error:"invalid_input"},400);
+    if(media&&!/^https?:\/\//.test(media)&&!media.startsWith("/public/")&&!media.startsWith("magazine/"))return json({ok:false,error:"invalid_input"},400);
     const row={id:Date.now(),content_type:"magazine",title,body:message,media_url:media,event_date:clean(body.event_date,10)||null,test_name:null,subject:category,day_name:e.short_name||e.full_name||"",published:true,sort_order:Date.now(),updated_at:new Date().toISOString()};
     const {data,error}=await db.from("multaqa_content").insert(row).select().single();if(error)return json({ok:false,error:"save_failed"},500);
     let sent=0;if(body.send_push===true){const {data:emps}=await db.from("multaqa_employees").select("short_name,full_name");sent=await pushToNames(db,(emps||[]).map((x:any)=>x.short_name||x.full_name),"📰 مجلة ملتقى المعارف",title,"/school/magazine/","magazine")}

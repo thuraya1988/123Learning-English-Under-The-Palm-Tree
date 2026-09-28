@@ -359,6 +359,25 @@ Deno.serve(async(req)=>{
     if(error)return json({ok:false,error:"save_failed"},500);
     return json({ok:true,item,push_sent:sent,whatsapp_targets:recipients.length,message});
   }
+  if(action==="staff_requests"){
+    const {data,error}=await db.from("multaqa_web_requests").select("tracking_code,service_title,status,student_name,student_school_id,class_name,target_names,guardian_phone,reason,details,category,teacher_name,request_date,created_at,sensitive").order("created_at",{ascending:false}).limit(250);
+    if(error)return json({ok:false,error:"server_error"},500);
+    const owner=norm(e.short_name)===norm("ثرياء الناعبية");
+    const arr=owner?(data||[]):(data||[]).filter((r:any)=>(r.target_names||[]).some((x:any)=>norm(x)===norm(e.short_name)||norm(x)===norm(e.full_name)||norm(x).includes(norm(e.short_name))));
+    return json({ok:true,requests:arr});
+  }
+  if(action==="update_request_status"){
+    const code=clean(body.tracking_code,24).toUpperCase(),status=clean(body.status,20);
+    if(!["pending","processing","done"].includes(status))return json({ok:false,error:"invalid_input"},400);
+    const {data:r}=await db.from("multaqa_web_requests").select("target_names").eq("tracking_code",code).maybeSingle();
+    if(!r)return json({ok:false,error:"not_found"},404);
+    const owner=norm(e.short_name)===norm("ثرياء الناعبية");
+    const allowed=owner||(r.target_names||[]).some((x:any)=>norm(x)===norm(e.short_name)||norm(x).includes(norm(e.short_name)));
+    if(!allowed)return json({ok:false,error:"forbidden"},403);
+    const {error}=await db.from("multaqa_web_requests").update({status,updated_at:new Date().toISOString()}).eq("tracking_code",code);
+    if(error)return json({ok:false,error:"server_error"},500);
+    return json({ok:true});
+  }
   if(action==="teacher_profiles"){
     let q=db.from("multaqa_employees").select("employee_id,full_name,short_name,role,kind,access_group").eq("kind","teacher").order("full_name");
     if(!elevated(e))q=q.eq("employee_id",e.employee_id);

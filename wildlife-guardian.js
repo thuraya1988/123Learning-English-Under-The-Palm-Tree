@@ -47,10 +47,10 @@ function distToWadi(x, z){ return Math.abs(z - wadiZ(x)); }
 
 /* ═══════════════════ ZONES ═══════════════════ */
 const zones = [
-  { name:'PALM OASIS',      cx:-180, cz:wadiZ(-180), r:115, health:34, water:70 },
-  { name:'WADI CORRIDOR',   cx:  20, cz:wadiZ(20),   r:135, health:26, water:22 },
-  { name:'DRY PLAIN',       cx: 150, cz:175,         r:145, health:20, water:10 },
-  { name:'MOUNTAIN RESERVE',cx: -40, cz:-255,        r:165, health:46, water:35 },
+  { name:'SAMAIL PALM OASIS · واحة سمائل', cx:-180, cz:wadiZ(-180), r:115, health:34, water:70 },
+  { name:'FALAJ WADI · فلج ووادي عُمان',   cx:  20, cz:wadiZ(20),   r:135, health:26, water:22 },
+  { name:'AL HAJAR PLAINS · سهول الحجر',   cx: 150, cz:175,         r:145, health:20, water:10 },
+  { name:'HAJAR MOUNTAIN RESERVE · محمية جبال الحجر',cx: -40, cz:-255, r:165, health:46, water:35 },
 ];
 function zoneAt(x, z){
   let best = null, bd = 1e9;
@@ -772,19 +772,19 @@ camera.position.set(0,0,0);
 
 /* ═══════════════════ WILDLIFE ═══════════════════ */
 const SPECIES = {
-  oryx:    { name:'Arabian Oryx', sci:'Oryx leucoryx', habitat:'Desert plains and gravel flats',
+  oryx:    { name:'Arabian Oryx', sci:'Oryx leucoryx', habitat:'Al Wusta desert plains and gravel flats · سهول عُمان الوسطى',
     diet:'Grasses, herbs and bulbs', behavior:'Nomadic herds; can sense rainfall from far away',
     threats:'Past habitat loss and hunting — now fully protected', status:'VULNERABLE · REINTRODUCED',
     fact:'The Arabian Oryx was the first animal ever returned to the wild after disappearing from it.' },
-  gazelle: { name:'Arabian Gazelle', sci:'Gazella arabica', habitat:'Open plains and wadi edges',
+  gazelle: { name:'Arabian Gazelle', sci:'Gazella arabica', habitat:'Oman\\'s open plains and wadi edges · سهول وأودية عُمان',
     diet:'Leaves, shoots and desert plants', behavior:'Alert herds; stots when alarmed',
     threats:'Habitat pressure and disturbance', status:'VULNERABLE',
     fact:'Gazelles can leap straight up into the air — a display called stotting.' },
-  ibex:    { name:'Nubian Ibex', sci:'Capra nubiana', habitat:'Rocky mountain slopes and cliffs',
+  ibex:    { name:'Nubian Ibex', sci:'Capra nubiana', habitat:'Al Hajar Mountains of Oman · المنحدرات الصخرية في جبال الحجر',
     diet:'Mountain grasses and shrubs', behavior:'Sure-footed climber; lives in small groups',
     threats:'Disturbance and fragmented habitat', status:'VULNERABLE',
     fact:'Males carry huge curved horns that can grow over a metre long.' },
-  fox:     { name:'Red Fox', sci:'Vulpes vulpes arabica', habitat:'Deserts and rocky valleys',
+  fox:     { name:'Red Fox', sci:'Vulpes vulpes arabica', habitat:'Oman\\'s deserts and rocky valleys · صحارى وأودية عُمان',
     diet:'Insects, fruit and small prey', behavior:'Nocturnal; rests in dens during the day',
     threats:'Roads and reduced prey', status:'LEAST CONCERN',
     fact:'Its oversized ears help radiate heat and hear prey moving underground.' },
@@ -1473,35 +1473,35 @@ function updateArm(dt){
 /* ═══════════════════ MISSIONS ═══════════════════ */
 let level = 1;
 const storyMissions = [
-  { world:'WORLD 1 · PALM HABITAT', title:'SYSTEMS CHECK',
-    hint:'The cabin is alive with screens and switches. Use SCAN (E) on anything — a palm, the water, the ground.',
+  { world:'عُمان · WORLD 1 · واحة النخيل', title:'SYSTEMS CHECK · فحص الواحة',
+    hint:'ابدئي من واحة نخيل سمائل. استخدمي SCAN (E) على النخلة والفلج والتربة لتفهمي الموطن العُماني.',
     check:()=>flags.scanned },
-  { world:'WORLD 1 · PALM HABITAT', title:'THE TIRED PALMS',
-    hint:'Some fronds look pale. SCAN (E) a palm tree and read what the plant monitor says.',
+  { world:'عُمان · WORLD 1 · واحة النخيل', title:'THE TIRED PALMS · نخيل متعب',
+    hint:'بعض سعف النخيل شاحب. امسحي نخلةً بـ E واقرئي ما يقوله جهاز مراقبة النبات.',
     check:()=>flags.palmScanned },
-  { world:'WORLD 1 · PALM HABITAT', title:'FIND THE CAUSE',
-    hint:'The scan showed a problem — pests or thirst. Watch the readings, choose a response, and stay close while it works.',
+  { world:'عُمان · WORLD 1 · واحة النخيل', title:'FIND THE CAUSE · اكتشفي السبب',
+    hint:'كشف المسح مشكلةً في النخلة — آفة أو عطش. راقبي القراءات واختاري العلاج المناسب.',
     check:()=>flags.palmTreated },
-  { world:'WORLD 2 · WADI', title:'THE SILENT CHANNEL',
-    hint:'WATER FLOW: 0% downstream. Scan the dry wadi water, then follow the channel upstream with your eyes.',
+  { world:'عُمان · WORLD 2 · الفلج والوادي', title:'THE SILENT CHANNEL · الفلج الصامت',
+    hint:'تدفّق الماء في أسفل الفلج يساوي 0%. امسحي الماء الجاف، ثم اتّبعي مجرى الفلج إلى المنبع.',
     check:()=>flags.pond2Scanned },
-  { world:'WORLD 2 · WADI', title:'WHAT BLOCKS THE WATER',
-    hint:'Something piles up in the channel. Drive to it. The loader arm (G) works when you are close.',
+  { world:'عُمان · WORLD 2 · الفلج والوادي', title:'WHAT BLOCKS THE WATER · ما الذي يحجب الماء؟',
+    hint:'تراكمت مخلفات في مجرى الفلج. قودي المركبة إليها واستخدمي الذراع G عندما تقتربين.',
     check:()=>flags.debrisCleared },
-  { world:'WORLD 3 · PLAINS', title:'WHAT THE SAND REMEMBERS',
-    hint:'The plain feels empty — but tracks remain. Enable TRACKING (C) and follow what the sand remembers.',
+  { world:'عُمان · WORLD 3 · سهول الحجر', title:'WHAT THE SAND REMEMBERS · آثار على الرمل',
+    hint:'تبدو السهول خالية، لكن الآثار باقية. فعّلي التتبّع C واتّبعي آثار المها العُماني.',
     check:()=>flags.trackingUsed && flags.oryxScanned },
-  { world:'WORLD 3 · PLAINS', title:'SEEDS OF TOMORROW',
-    hint:'Scan the soil first. Where it says SUITABLE, plant (P) three native seeds.',
+  { world:'عُمان · WORLD 3 · سهول الحجر', title:'SEEDS OF TOMORROW · بذور الغد',
+    hint:'امسحي التربة أولًا. عندما تظهر كلمة SUITABLE ازرعي ثلاث بذور محلية.',
     check:()=>seedsPlanted >= 3 },
-  { world:'WORLD 1 · PALM HABITAT', title:'LET THE OASIS BREATHE',
-    hint:'Clean, water, treat, plant — and watch the number. Raise PALM OASIS health to 60%.',
+  { world:'عُمان · WORLD 1 · واحة النخيل', title:'LET THE OASIS BREATHE · دعِي الواحة تتنفس',
+    hint:'نظّفي واسقي وعالجي وازرعي، ثم ارفعي صحة واحة سمائل إلى 60%.',
     check:()=>zones[0].health >= 60 },
-  { world:'WORLD 4 · MOUNTAINS', title:'KEEPERS OF THE CLIFFS',
-    hint:'The reserve speaks in echoes. Find the climbers on the high ground and SCAN (E) them.',
+  { world:'عُمان · WORLD 4 · جبال الحجر', title:'KEEPERS OF THE CLIFFS · حماة الجبال',
+    hint:'تحدث المحمية بصدى الجبال. ابحثي عن الوعل النوبي في المرتفعات وامسحيه بـ E.',
     check:()=>flags.ibexScanned },
-  { world:'WORLD 5 · NIGHT RESERVE', title:'EYES IN THE DARK',
-    hint:'Wait for night (or press T to hurry time). Switch to NIGHT CAMERA (N) and find the small hunter.',
+  { world:'عُمان · WORLD 5 · محمية الليل', title:'EYES IN THE DARK · عيون في الظلام',
+    hint:'انتظري الليل أو اضغطي T لتسريع الوقت. شغّلي الكاميرا الليلية N وابحثي عن الثعلب العُماني.',
     check:()=>flags.foxScanned },
 ];
 function generatedMission(n){
@@ -1999,11 +1999,26 @@ addEventListener('resize', ()=>{
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+const instructionsEl = document.getElementById('instructions');
+const openGuide = ()=>{
+  instructionsEl.classList.add('open');
+  instructionsEl.setAttribute('aria-hidden','false');
+};
+const closeGuide = ()=>{
+  instructionsEl.classList.remove('open');
+  instructionsEl.setAttribute('aria-hidden','true');
+};
+document.getElementById('guideBtn').addEventListener('click', openGuide);
+document.getElementById('headerGuide').addEventListener('click', openGuide);
+document.getElementById('closeGuide').addEventListener('click', closeGuide);
+instructionsEl.addEventListener('click', e=>{ if (e.target === instructionsEl) closeGuide(); });
+addEventListener('keydown', e=>{ if (e.code === 'Escape') closeGuide(); });
+
 document.getElementById('startBtn').addEventListener('click', ()=>{
   initAudio();
   started = true;
   document.getElementById('intro').style.display = 'none';
-  bigToast('PATROL BEGINS');
+  bigToast('عُمان · PATROL BEGINS');
   setMission(storyMissions[0]);
 });
 setMission(storyMissions[0]);

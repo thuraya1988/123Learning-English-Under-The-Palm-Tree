@@ -198,7 +198,7 @@
   <div class="inner card">
     <h2>🌴 رحلتي في عالم نخيل عُمان</h2>
     <p>أنا امرأة عُمانية أعود بذاكرتي إلى قريتي، وأتنقّل بين واحات النخيل والفلج والبيوت الطينية.
-       أجمع <b>الكلمات الإنجليزية المضيئة</b> من حياتي اليومية، وكل كلمة تفتح لي خطوةً جديدةً في تعلّم اللغة.</p>
+       أجمع <b>الكلمات الإنجليزية المضيئة</b> من حياتي اليومية، وكل كلمة تفتح لي خطوةً جديدةً في تعلّم اللغة عبر ١٠٠ مرحلة.</p>
     <p style="margin:14px 0 0;color:#e0d8cf;font-size:.9rem;line-height:1.8">
       في كل مرحلة أتعلم كلمة من عالم عُمان: النخلة، الماء، السوق، الأسرة، والعمل الذي تصنعه المرأة العُمانية.
     </p>
@@ -1075,6 +1075,67 @@ houseN.rotation.y=-1.4; islands.N.add(houseN);
 var houseO=buildHouse({w:5,d:4.4,h:2.8,roofH:2,scale:0.55,lantern:false,roundWin:true});
 houseO.rotation.y=1.4; islands.O.add(houseO);
 
+/* ممرات ربط البيوت بالجسور
+   ينتهي الجسر عند حافة الجزيرة، لذلك نكمل آخر مسافة بممرّ خشبي
+   يصل إلى عتبة البيت بدل أن يترك فراغًا بصريًا بينهما. */
+function houseDoorWorld(house,depth){
+  scene.updateMatrixWorld(true);
+  var p=new THREE.Vector3(0,0.06,depth/2+0.07);
+  return house.localToWorld(p);
+}
+function buildDoorPath(from,to,width){
+  var dx=to.x-from.x,dz=to.z-from.z,dy=to.y-from.y;
+  var len=Math.hypot(dx,dz);
+  if(len<0.35) return;
+  var n=Math.max(2,Math.ceil(len/0.42)),step=len/n;
+  var yaw=Math.atan2(dx,dz),pitch=-Math.atan2(dy,len),parts=[];
+  for(var i=0;i<n;i++){
+    var t=(i+0.5)/n;
+    var p=from.clone().lerp(to,t);
+    p.y=from.y+dy*t+Math.sin(Math.PI*t)*0.035;
+    parts.push(put(new THREE.BoxGeometry(width,0.075,step+0.10),p.x,p.y,p.z,pitch,yaw,0));
+  }
+  var padGeo=new THREE.BoxGeometry(width+0.20,0.10,0.78);
+  parts.push(put(padGeo,from.x,from.y-0.035,from.z,0,yaw,0));
+  parts.push(put(padGeo,to.x,to.y-0.035,to.z,0,yaw,0));
+  scene.add(mesh(mergeGeos(parts),matWood,true));
+}
+
+/* الأبواب التي تتصل بها الجسور */
+scene.updateMatrixWorld(true);
+var doorCentral=new THREE.Vector3(0,0.08,2.72); central.localToWorld(doorCentral);
+var doorB=houseDoorWorld(leftHouse,4.4);
+var doorC=houseDoorWorld(rightHouse,5.0);
+var doorD=houseDoorWorld(houseD,4.4);
+var doorE=houseDoorWorld(houseE,4.6);
+var doorF=houseDoorWorld(houseF,4.4);
+var doorI=houseDoorWorld(houseI,4.4);
+var doorJ=houseDoorWorld(houseJ,4.6);
+var doorK=houseDoorWorld(houseK,4.4);
+var doorL=houseDoorWorld(houseL,4.6);
+var doorM=houseDoorWorld(houseM,4.4);
+var doorN=houseDoorWorld(houseN,4.4);
+var doorO=houseDoorWorld(houseO,4.4);
+
+/* ممرّات الجسر ← الباب — كل ممر يتداخل قليلًا مع أول لوح في الجسر */
+buildDoorPath(new THREE.Vector3(-7.0,0.10,-0.6),doorCentral,1.30);
+buildDoorPath(new THREE.Vector3(-10.4,1.25,-1.2),doorB,1.22);
+buildDoorPath(new THREE.Vector3(10.4,0.60,2.2),doorC,1.22);
+buildDoorPath(new THREE.Vector3(-7.6,3.10,-14.6),doorD,1.15);
+buildDoorPath(new THREE.Vector3(8.6,3.90,-16.5),doorE,1.15);
+buildDoorPath(new THREE.Vector3(-2.3,6.10,-25.4),doorF,1.08);
+buildDoorPath(new THREE.Vector3(-21.0,2.20,-7.0),doorI,1.18);
+buildDoorPath(new THREE.Vector3(21.0,3.20,-9.0),doorJ,1.18);
+buildDoorPath(new THREE.Vector3(-2.5,7.90,-36.0),doorK,1.08);
+buildDoorPath(new THREE.Vector3(2.5,7.90,-37.0),doorK,1.08);
+buildDoorPath(new THREE.Vector3(0.0,7.90,-35.2),doorK,1.08);
+buildDoorPath(new THREE.Vector3(-16.5,5.10,-26.0),doorL,1.10);
+buildDoorPath(new THREE.Vector3(-16.0,4.80,-26.0),doorL,1.10);
+buildDoorPath(new THREE.Vector3(17.5,6.10,-28.0),doorM,1.10);
+buildDoorPath(new THREE.Vector3(17.5,5.80,-28.0),doorM,1.10);
+buildDoorPath(new THREE.Vector3(27.6,-1.80,5.5),doorN,1.00);
+buildDoorPath(new THREE.Vector3(-27.4,-0.80,3.2),doorO,1.00);
+
 /* النخيل */
 createPalm(new THREE.Vector3(-11,-4.3,10.5),9.5,0.3,0.4,18);
 createPalm(new THREE.Vector3(12.5,-4.0,9.5),10,-0.3,-0.5,19);
@@ -1406,8 +1467,9 @@ function spawnOrbs(level){
 
 /* ---------- حالة اللعبة ---------- */
 function $(id){ return document.getElementById(id); }
+var LEVEL_COUNT=100;
 var G={playing:false,lvl:1,got:0,learned:[]};
-function LV(){ return PALM.LEVELS[Math.min(G.lvl,PALM.LEVELS.length)-1]; }
+function LV(){ return PALM.LEVELS[Math.min(G.lvl,LEVEL_COUNT,PALM.LEVELS.length)-1]; }
 function toast(html){
   var t=document.createElement('div'); t.className='toast card'; t.innerHTML=html;
   $('toasts').appendChild(t);
@@ -1416,13 +1478,13 @@ function toast(html){
 }
 function refreshHUD(){
   var lv=LV();
-  $('lvlName').textContent='المستوى '+lv.n+' / 100 · وحدة '+lv.unit;
+  $('lvlName').textContent='المستوى '+lv.n+' / '+LEVEL_COUNT+' · وحدة '+lv.unit;
   $('lvlAr').textContent=lv.ar+' · '+lv.en;
   $('count').textContent=G.got+' / '+lv.need+' كلمة';
   $('bar').style.width=Math.min(100,G.got/lv.need*100)+'%';
 }
 function startLevel(n){
-  G.lvl=n; G.got=0;
+  G.lvl=Math.max(1,Math.min(n,LEVEL_COUNT,PALM.LEVELS.length)); G.got=0;
   var lv=LV();
   spawnOrbs(lv); refreshHUD(); SFX('reveal');
   $('wEn').textContent='…'; $('wAr').textContent='أتّبع الكلمات المضيئة';
@@ -1447,9 +1509,14 @@ function collect(o){
   var lv=LV();
   if(G.got>=lv.need){
     SFX('win');
+    if(G.lvl>=LEVEL_COUNT){
+      toast('🏆 أكملتِ المراحل المئة! تعلّمتِ <b>'+G.learned.length+'</b> كلمةً');
+      say('أكملتِ المراحل المئة! 🇴🇲','رحلتك في عالم عُمان اكتملت — أحسنتِ!',5200);
+      return;
+    }
     toast('🎉 أكملتِ المرحلة '+lv.n+'! تعلّمتِ <b>'+G.learned.length+'</b> كلمةً');
     say('أكملتِ المرحلة '+lv.n+'! 🎉','ننتقل إلى المرحلة التالية…',3200);
-    setTimeout(function(){ startLevel(Math.min(G.lvl+1,PALM.LEVELS.length)); },1800);
+    setTimeout(function(){ startLevel(G.lvl+1); },1800);
   }
 }
 

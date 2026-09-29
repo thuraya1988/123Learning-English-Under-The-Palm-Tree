@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>تحت شجرة النخيل · لعبة مصنع التمور</title>
+<title>مصنع التمور العُماني · تحت شجرة النخيل</title>
 <!-- كان الخطُّ يُجلَب من jsdelivr بثلاث ورقاتٍ حاجبةٍ للعرض. والمتصفّحُ
      لا يرسم الصفحةَ حتى تصل ورقةُ الأنماط أو تنقطع، فإن كانت الشبكةُ
      تحجب النطاقَ حجبًا بطيئًا (لا رفضًا سريعًا) بقيت الصفحةُ جامدةً
@@ -28,7 +28,6 @@
   .card h1{ margin:0 0 2px; font-size:26px; font-weight:700; color:#f4e8d0; }
   .card h1 em{ font-style:normal; color:#bba081; }
   .latin{ font-size:10px; letter-spacing:.3em; color:#a98d5f; font-weight:600; }
-  .sub{ color:#cbb astronomy }
   .sub{ color:#cbb694; font-size:13px; margin:8px 0 12px; line-height:1.9; }
   .instr{ background:rgba(194,170,142,.07); border:1px solid rgba(194,170,142,.22);
     border-radius:10px; padding:10px 14px; font-size:12.5px; line-height:2; color:#e2d3b4; }
@@ -94,6 +93,10 @@
   #stars{ font-size:44px; letter-spacing:8px; text-align:center; margin:10px 0; }
   .st-on{ color:#c4ad92; text-shadow:0 0 18px rgba(196,173,146,.7); }
   .st-off{ color:#4a4234; }
+  #webglError .card{ text-align:center; }
+  #webglError h1{ color:#d6c6b3; }
+  #webglError p{ color:#cbb694; line-height:2; font-size:13px; }
+  #webglRetry{ margin-top:14px; }
   #fsbtn{ position:fixed; top:12px; left:12px; z-index:30; background:rgba(20,14,7,.7);
     border:1px solid rgba(194,170,142,.35); color:#e2d3b4; border-radius:8px; font-family:inherit;
     font-size:11px; padding:5px 10px; cursor:pointer; }
@@ -110,9 +113,9 @@
 <!-- شاشة البداية والتعليمات -->
 <div id="menu" class="ov">
   <div class="card">
-    <h1>مصنع التمور <em>الفاخر</em></h1>
-    <div class="latin">UNDER THE PALM TREE · DATE FACTORY GAME</div>
-    <div class="sub">ادخل المصنع الآلي، اجمع المكوّنات، شغّل المحطات، واصنع أكثر من ٣٠ وصفة تمور فاخرة حتى تصل إلى الشحن! 🌴</div>
+    <h1>مصنع التمور <em>العُماني</em></h1>
+    <div class="latin">OMAN · UNDER THE PALM TREE · DATE FACTORY GAME</div>
+    <div class="sub">ادخل مصنع التمور العُماني، واجمع مكوّنات من نخيل سمائل، ثم شغّل المحطات واصنع وصفات تمور فاخرة حتى تصل إلى الشحن! 🌴</div>
     <div class="instr">
       <b>🖥️ الكمبيوتر:</b> WASD أو الأسهم للمشي · Shift للركض · الفأرة للنظر · <b>E</b> للتفاعل<br>
       <b>📱 الجوال:</b> عصا التحكم اليسرى للمشي · اسحب يمين الشاشة للنظر · زر <b>تفاعل</b> للتنفيذ<br>
@@ -121,6 +124,15 @@
       <b>🏆 المستويات:</b> ٤ مستويات × ٨ وصفات. اجمع النجوم لتفتح المستوى التالي، ويُحفظ تقدّمك تلقائيًّا.
     </div>
     <button id="btnStart" class="bigbtn">🌴 ابدأ اللعب</button>
+  </div>
+</div>
+
+<div id="webglError" class="ov" dir="rtl" style="display:none">
+  <div class="card">
+    <h1>مصنع التمور العُماني</h1>
+    <p>تعذّر تشغيل المشهد ثلاثي الأبعاد في هذا المتصفح، لذلك لم يستجب زر «ابدأ اللعب».</p>
+    <p>جرّبي Safari أو Chrome مع تفعيل الرسومات ثلاثية الأبعاد، ثم اضغطي إعادة المحاولة.</p>
+    <button id="webglRetry" class="bigbtn">إعادة المحاولة</button>
   </div>
 </div>
 
@@ -173,8 +185,28 @@ import * as THREE from 'three';
 
 /* ============================ أساسيات ============================ */
 const app = document.getElementById('app');
-const renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+let renderer;
+try{
+  renderer = new THREE.WebGLRenderer({
+    antialias: !isTouch,
+    powerPreference: 'high-performance',
+    failIfMajorPerformanceCaveat: false
+  });
+}catch(firstError){
+  try{
+    renderer = new THREE.WebGLRenderer({
+      antialias: false,
+      powerPreference: 'low-power',
+      failIfMajorPerformanceCaveat: false
+    });
+  }catch(webglError){
+    document.getElementById('webglError').style.display = 'flex';
+    document.getElementById('webglRetry').onclick = () => location.reload();
+    console.error('مصنع التمور العُماني: WebGL غير متاح', webglError);
+    throw webglError;
+  }
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;

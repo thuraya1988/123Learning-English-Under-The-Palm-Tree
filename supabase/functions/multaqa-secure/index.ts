@@ -137,12 +137,14 @@ async function candidatesFor(db:any,absent:any,date:string,period:number,used:Se
     db.from("multaqa_employees").select("employee_id,full_name,short_name,role").eq("kind","teacher"),
     db.from("multaqa_teacher_schedules").select("full_name,schedule"),
     db.from("multaqa_substitute_assignments").select("id,replacement_employee_id").gte("coverage_date",new Date(Date.now()-30*86400000).toISOString().slice(0,10)).neq("status","cancelled"),
-    db.from("multaqa_substitute_assignments").select("id,replacement_employee_id,period").eq("coverage_date",date).neq("status","cancelled")
+    db.from("multaqa_substitute_assignments").select("id,replacement_employee_id,period,status").eq("coverage_date",date).in("status",["assigned","accepted"])
   ]);
+  const {data:attendance}=await db.from("multaqa_teacher_attendance").select("employee_id,status").eq("attendance_date",date).in("status",["absent","full_exit","official_task","leave"]);
+  const unavailableIds=new Set((attendance||[]).map((x:any)=>x.employee_id));
   const activeRecent=(recent||[]).filter((x:any)=>Number(x.id)!==excludeAssignmentId),activeToday=(today||[]).filter((x:any)=>Number(x.id)!==excludeAssignmentId);
   const byName=new Map((schedules||[]).map((x:any)=>[norm(x.full_name),x.schedule||{}]));const counts=new Map<string,number>();
   for(const x of activeRecent)if(x.replacement_employee_id)counts.set(x.replacement_employee_id,(counts.get(x.replacement_employee_id)||0)+1);
-  return (emps||[]).filter((e:any)=>e.employee_id!==absent.employee_id).map((e:any)=>{
+  const all=(emps||[]).filter((e:any)=>e.employee_id!==absent.employee_id&&!unavailableIds.has(e.employee_id)).map((e:any)=>{
     const s:any=byName.get(norm(teacherScheduleName(e)))||byName.get(norm(e.short_name))||byName.get(norm(e.full_name))||{},slots:any[]=s[day]||[],i=period-1;
     if(clean(slots[i]))return null;
     if(activeToday.some((x:any)=>x.replacement_employee_id===e.employee_id&&x.period===period))return null;
@@ -152,7 +154,10 @@ async function candidatesFor(db:any,absent:any,date:string,period:number,used:Se
     if(daily>=5||(before&&after)||(before&&before2)||(after&&after2))return null;
     const score=(counts.get(e.employee_id)||0)*100+daily*8+(before||after?30:0)+(used.has(e.employee_id)?500:0);
     return {...e,score,reason:`احتياط آخر 30 يومًا: ${counts.get(e.employee_id)||0} • حصص اليوم: ${daily}`};
-  }).filter(Boolean).sort((a:any,b:any)=>a.score-b.score);
+  }).filter(Boolean) as any[];
+  // لا نكرر المعلمة في نفس توزيع الغياب ما دام توجد معلمة أخرى صالحة.
+  const fresh=all.filter((x:any)=>!used.has(x.employee_id));
+  return (fresh.length?fresh:all).sort((a:any,b:any)=>a.score-b.score);
 }
 async function allocateAbsence(db:any,absent:any,date:string,sourceType:string,sourceId:string,by:string){
   const day=dayFor(date),scheduleNames=[teacherScheduleName(absent),absent.short_name,absent.full_name].map((x:any)=>clean(x,220)).filter(Boolean);
@@ -895,12 +900,25 @@ Deno.serve(async(req)=>{
     if(validDate)q=q.eq("coverage_date",date);
     if(!elevated(e))q=q.eq("replacement_employee_id",e.employee_id);
     const {data,error}=await q;if(error)return json({ok:false,error:"load_failed"},500);
+    const ids=[...new Set((data||[]).flatMap((x:any)=>[x.absent_employee_id,x.replacement_employee_id]).filter(Boolean))];
+    const [{data:directory},{data:profiles}]=await Promise.all([
+      ids.length?db.from("multaqa_employees").select("employee_id,full_name,short_name").in("employee_id",ids):Promise.resolve({data:[]}),
+      ids.length?db.from("multaqa_employee_profiles").select("employee_id,contact_phone,phone").in("employee_id",ids):Promise.resolve({data:[]})
+    ]);
+    const phoneById=new Map((profiles||[]).map((x:any)=>[x.employee_id,normPhone(x.contact_phone||x.phone)]));
+    const nameById=new Map((directory||[]).map((x:any)=>[x.employee_id,x.short_name||x.full_name]));
+    const itemsWithPhones=(data||[]).map((x:any)=>({...x,
+      absent_name:nameById.get(x.absent_employee_id)||null,
+      absent_phone:phoneById.get(x.absent_employee_id)||"",
+      replacement_name:x.replacement_employee_id?(nameById.get(x.replacement_employee_id)||null):null,
+      replacement_phone:x.replacement_employee_id?(phoneById.get(x.replacement_employee_id)||""):""
+    }));
     let absences:any[]=[];
     if(elevated(e)&&validDate){
       const {data:a}=await db.from("multaqa_teacher_attendance").select("employee_id,status").eq("attendance_date",date).eq("status","absent");
       absences=a||[];
     }
-    return json({ok:true,date:validDate?date:null,items:data||[],absences});
+    return json({ok:true,date:validDate?date:null,items:itemsWithPhones,phone_directory:(directory||[]).map((x:any)=>({employee_id:x.employee_id,name:x.short_name||x.full_name,phone:phoneById.get(x.employee_id)||""})),absences});
   }
   if(action==="publish_coverage"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);
@@ -916,8 +934,10 @@ Deno.serve(async(req)=>{
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id);if(!Number.isInteger(id)||id<1)return json({ok:false,error:"invalid_input"},400);
     const {data:item}=await db.from("multaqa_substitute_assignments").select("*").eq("id",id).maybeSingle();if(!item)return json({ok:false,error:"not_found"},404);
     const {data:absent}=await db.from("multaqa_employees").select("employee_id,full_name").eq("employee_id",item.absent_employee_id).maybeSingle();if(!absent)return json({ok:false,error:"not_found"},404);
-    const candidates:any[]=await candidatesFor(db,absent,item.coverage_date,item.period,new Set(),id);
-    return json({ok:true,item,candidates:candidates.map((x:any)=>({employee_id:x.employee_id,full_name:x.full_name,short_name:x.short_name,score:x.score,reason:x.reason}))});
+    const candidates:any[]=await candidatesFor(db,absent,item.coverage_date,item.period,new Set(),id),ids=candidates.map((x:any)=>x.employee_id);
+    const {data:profiles}=ids.length?await db.from("multaqa_employee_profiles").select("employee_id,contact_phone,phone").in("employee_id",ids):{data:[]};
+    const phoneById=new Map((profiles||[]).map((x:any)=>[x.employee_id,normPhone(x.contact_phone||x.phone)]));
+    return json({ok:true,item,candidates:candidates.map((x:any)=>({employee_id:x.employee_id,full_name:x.full_name,short_name:x.short_name,phone:phoneById.get(x.employee_id)||"",score:x.score,reason:x.reason}))});
   }
   if(action==="save_coverage_assignment"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id),replacementId=clean(body.replacement_employee_id,30);if(!Number.isInteger(id)||id<1||!replacementId)return json({ok:false,error:"invalid_input"},400);
@@ -926,7 +946,7 @@ Deno.serve(async(req)=>{
     if(!absent||!target||target.kind!=="teacher")return json({ok:false,error:"not_found"},404);
     const candidates:any[]=await candidatesFor(db,absent,item.coverage_date,item.period,new Set(),id),pick=candidates.find((x:any)=>x.employee_id===replacementId);if(!pick)return json({ok:false,error:"coverage_conflict"},409);
     const {data,error}=await db.from("multaqa_substitute_assignments").update({replacement_employee_id:replacementId,status:"assigned",fairness_score:pick.score,reason_summary:`توزيع يدوي بواسطة ${e.short_name||e.full_name} • ${pick.reason}`,assigned_by_employee_id:e.employee_id,notified_at:null,reminder_sent_at:null,completed_at:null,achievement_recorded_at:null,updated_at:new Date().toISOString()}).eq("id",id).select().single();
-    if(error)return json({ok:false,error:"save_failed"},500);const sent=await notifyCoverageAssignment(db,data,target.short_name||target.full_name);return json({ok:true,item:data,replacement_name:target.short_name||target.full_name,push_sent:sent});
+    if(error)return json({ok:false,error:"save_failed"},500);const sent=await notifyCoverageAssignment(db,data,target.short_name||target.full_name),{data:profile}=await db.from("multaqa_employee_profiles").select("contact_phone,phone").eq("employee_id",target.employee_id).maybeSingle();return json({ok:true,item:data,replacement_name:target.short_name||target.full_name,replacement_phone:normPhone(profile?.contact_phone||profile?.phone),push_sent:sent});
   }
   if(action==="auto_reassign_coverage"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id);if(!Number.isInteger(id)||id<1)return json({ok:false,error:"invalid_input"},400);

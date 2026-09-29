@@ -899,7 +899,17 @@ Deno.serve(async(req)=>{
     let q=db.from("multaqa_substitute_assignments").select("*").order("coverage_date",{ascending:false}).order("period").limit(250);
     if(validDate)q=q.eq("coverage_date",date);
     if(!elevated(e))q=q.eq("replacement_employee_id",e.employee_id);
-    const {data,error}=await q;if(error)return json({ok:false,error:"load_failed"},500);
+    let {data,error}=await q;if(error)return json({ok:false,error:"load_failed"},500);
+    // نظّف التوزيع الظاهر للتاريخ: الغائبة الحالية لا تصلح بديلة، والتوزيع القديم لمعلمة لم تعد غائبة يُلغى.
+    if(validDate&&elevated(e)){
+      const {data:attendance}=await db.from("multaqa_teacher_attendance").select("employee_id,status").eq("attendance_date",date).in("status",["absent","full_exit","official_task","leave"]);
+      const unavailable=new Set((attendance||[]).map((x:any)=>x.employee_id));
+      const stale=(data||[]).filter((x:any)=>x.source_type==="absence"&&!unavailable.has(x.absent_employee_id));
+      const invalid=(data||[]).filter((x:any)=>x.replacement_employee_id&&unavailable.has(x.replacement_employee_id));
+      if(stale.length)await db.from("multaqa_substitute_assignments").update({status:"cancelled",replacement_employee_id:null,reason_summary:"أُلغي تلقائيًا لأن المعلمة المسجلة كغائبة لم تعد غائبة في هذا التاريخ.",updated_at:new Date().toISOString()}).in("id",stale.map((x:any)=>x.id));
+      if(invalid.length)await db.from("multaqa_substitute_assignments").update({status:"proposed",replacement_employee_id:null,fairness_score:null,notified_at:null,reason_summary:"أعيد للمراجعة لأن البديلة المسجلة غائبة في هذا التاريخ.",updated_at:new Date().toISOString()}).in("id",invalid.map((x:any)=>x.id));
+      data=(data||[]).filter((x:any)=>!stale.some((s:any)=>s.id===x.id)).map((x:any)=>invalid.some((s:any)=>s.id===x.id)?{...x,status:"proposed",replacement_employee_id:null,reason_summary:"أعيد للمراجعة لأن البديلة المسجلة غائبة في هذا التاريخ."}:x);
+    }
     const ids=[...new Set((data||[]).flatMap((x:any)=>[x.absent_employee_id,x.replacement_employee_id]).filter(Boolean))];
     const [{data:directory},{data:profiles}]=await Promise.all([
       ids.length?db.from("multaqa_employees").select("employee_id,full_name,short_name").in("employee_id",ids):Promise.resolve({data:[]}),

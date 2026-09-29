@@ -346,7 +346,30 @@ const el={ stage:$('stage'),hud:$('hud'),menu:$('menu'),fade:$('fade'),fadeWhite
   x.putImageData(d,0,0); el.grain.style.backgroundImage='url('+c.toDataURL()+')'; })();
 
 /* ================= [2] الرندر ================= */
-const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+let renderer;
+try{
+  renderer=new THREE.WebGLRenderer({
+    antialias:!IS_TOUCH,
+    powerPreference:'high-performance',
+    failIfMajorPerformanceCaveat:false
+  });
+}catch(firstError){
+  try{
+    renderer=new THREE.WebGLRenderer({
+      antialias:false,
+      powerPreference:'low-power',
+      failIfMajorPerformanceCaveat:false
+    });
+  }catch(webglError){
+    el.loading.style.display='flex';
+    el.loadBarW.style.display='none';
+    el.loadStep.style.display='none';
+    $('compatMessage').style.display='block';
+    $('compatRetry').onclick=()=>location.reload();
+    console.error('بيت الرعب العُماني: WebGL غير متاح',webglError);
+    throw webglError;
+  }
+}
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_TOUCH?1.5:2));
 renderer.setSize(SW(),SH());
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;

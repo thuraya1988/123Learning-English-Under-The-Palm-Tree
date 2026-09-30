@@ -5,7 +5,7 @@
   const tmp=document.createElement('div');
   tmp.innerHTML=parts.join('');
   while(tmp.firstChild)document.body.appendChild(tmp.firstChild);
-  for(const src of ['app-core.js?v=20260926-meetings','app-services.js?v=20260928-secure-inbox','app-content.js?v=20260927-rules-reactions-1','bell-notifications.js?v=20260926-custom-sound','events-data.js?v=20260912-events','events-calendar.js?v=20260927-background-reminders-2','app-extensions.js?v=20260928-readers-club','secure-platform.js?v=20260930-staff-requests-1','end-of-day.js?v=20260928-wire-eod','interactive-schedules.js?v=20260927-audit-clean','whatsapp-notify.js?v=20260928-combined']){
+  for(const src of ['app-core.js?v=20260926-meetings','app-services.js?v=20260928-secure-inbox','app-content.js?v=20260927-rules-reactions-1','bell-notifications.js?v=20260926-custom-sound','events-data.js?v=20260912-events','events-calendar.js?v=20260927-background-reminders-2','app-extensions.js?v=20260928-readers-club','secure-platform.js?v=20260930-staff-requests-2','end-of-day.js?v=20260928-wire-eod','interactive-schedules.js?v=20260927-audit-clean','whatsapp-notify.js?v=20260928-combined']){
    await new Promise((ok,fail)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=fail;document.body.appendChild(s)})
   }
   const wait=Math.max(0,MIN_SPLASH-(Date.now()-started));

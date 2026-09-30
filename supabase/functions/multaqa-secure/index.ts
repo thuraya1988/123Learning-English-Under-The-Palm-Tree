@@ -18,6 +18,13 @@ const DUTY_SLOT_INFO:Record<string,{label:string,time:string,count:number,note:s
  morning:{label:"المناوبة الصباحية — استقبال الطلبة",time:"10:45",count:3,note:"استقبال الطلبة"},entry1:{label:"نقطة الدخول ح١",time:"11:50",count:1,note:"منع التداخل مع طلاب المدرسة الصباحية والالتزام بالطابور"},entry2:{label:"نقطة الدخول ح٢",time:"11:50",count:1,note:"منع التداخل مع طلاب المدرسة الصباحية والالتزام بالطابور"},coop:{label:"فسحة الجمعية",time:"14:40",count:2,note:"تنظيم الطلبة عند الشراء"},shade:{label:"فسحة المظلة",time:"14:40",count:2,note:"تنظيم الطلبة والحث على النظافة"},corridors:{label:"فسحة الممرات",time:"14:40",count:1,note:"التأكد من خلو الفصول ومتابعة الممرات العلوية خصوصًا"},buses:{label:"المسائية — الحافلات",time:"16:40",count:2,note:"الوصول قبل الموعد بخمس دقائق"},cars:{label:"المسائية — السيارات الخاصة",time:"16:40",count:1,note:"لا يخرج الطالب إلا مع تصريح"}};
 const DUTY_SLOT_KEYS=["morning","entry1","entry2","coop","shade","corridors","buses","cars"];
 const DUTY_PERIODS=[{period:1,start:"12:20",alert:"12:15"},{period:2,start:"12:55",alert:"12:50"},{period:3,start:"13:30",alert:"13:25"},{period:4,start:"14:05",alert:"14:00"},{period:5,start:"15:00",alert:"14:55"},{period:6,start:"15:35",alert:"15:30"},{period:7,start:"16:10",alert:"16:05"}];
+const RESERVE_ACTIVITY_FALLBACK=[
+ {title:"لعبة كلمات سريعة",url:"https://wordwall.net/",idea:"اختاري 5 كلمات من درس اليوم واجعلي الطالبات يستخدمنها في جمل قصيرة.",encouragement:"شكرًا لكِ؛ لمستكِ الجميلة تجعل حصة الاحتياط فرصة تعلم ممتعة."},
+ {title:"بطاقات نعم أو لا",url:"https://learningapps.org/",idea:"استخدمي بطاقات نعم/لا لمراجعة مفردات أو معلومات بسيطة.",encouragement:"جهدكِ اليوم يصنع فرقًا حقيقيًا في دافعية الطالبات."},
+ {title:"تحدي الرسم والوصف",url:"/school/?open=reserve-ideas",idea:"ترسم كل طالبة شيئًا ثم تصفه بجملة إنجليزية قصيرة.",encouragement:"أحسنتِ إدارة الوقت وتحويل الحصة إلى تجربة إيجابية."},
+ {title:"قصة قصيرة ومناقشة",url:"https://storyweaver.org.in/",idea:"اقرئي قصة قصيرة واطلبي من الطالبات ذكر شخصية وحدث أعجبهن.",encouragement:"شكرًا لتعاونكِ وحرصكِ على استثمار كل دقيقة."},
+ {title:"مراجعة جماعية",url:"https://quizizz.com/",idea:"راجعي 5 أسئلة قصيرة في مادة الصف مع مشاركة الجميع.",encouragement:"وجودكِ ودعمكِ يمنح الطالبات شعورًا بالأمان والنجاح."}
+];
 const classCode=(label:string)=>{const t=clean(label,100),g=gradeWords.findIndex((x,i)=>i>0&&t.includes(x)),s=t.match(/[\/\\]\s*(\d+)/)?.[1];return g&&s?g+"/"+s:t};
 const scheduleLabel=(code:string)=>{const m=clean(code,30).match(/^([1-6])\s*\/\s*(\d+)$/);return m?gradeWords[+m[1]]+" / "+m[2]:code};
 const muscatDate=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
@@ -137,14 +144,25 @@ async function candidatesFor(db:any,absent:any,date:string,period:number,used:Se
     db.from("multaqa_employees").select("employee_id,full_name,short_name,role").eq("kind","teacher"),
     db.from("multaqa_teacher_schedules").select("full_name,schedule"),
     db.from("multaqa_substitute_assignments").select("id,replacement_employee_id").gte("coverage_date",new Date(Date.now()-30*86400000).toISOString().slice(0,10)).neq("status","cancelled"),
-    db.from("multaqa_substitute_assignments").select("id,replacement_employee_id,period,status").eq("coverage_date",date).in("status",["assigned","accepted"])
+    db.from("multaqa_substitute_assignments").select("id,replacement_employee_id,period,status").eq("coverage_date",date).in("status",["assigned","accepted"]),
+    db.from("multaqa_reserve_exclusions").select("employee_id,day_name,blocked_from_period,blocked_to_period").eq("active",true),
+    db.from("multaqa_teacher_equivalences").select("canonical_employee_id,equivalent_employee_id").eq("active",true)
   ]);
   const {data:attendance}=await db.from("multaqa_teacher_attendance").select("employee_id,status").eq("attendance_date",date).in("status",["absent","full_exit","official_task","leave"]);
   const unavailableIds=new Set((attendance||[]).map((x:any)=>x.employee_id));
+  const equivalentIds=new Set<string>();
+  for(const link of (equivalences||[])){equivalentIds.add(link.canonical_employee_id);equivalentIds.add(link.equivalent_employee_id);}
   const activeRecent=(recent||[]).filter((x:any)=>Number(x.id)!==excludeAssignmentId),activeToday=(today||[]).filter((x:any)=>Number(x.id)!==excludeAssignmentId);
   const byName=new Map((schedules||[]).map((x:any)=>[norm(x.full_name),x.schedule||{}]));const counts=new Map<string,number>();
   for(const x of activeRecent)if(x.replacement_employee_id)counts.set(x.replacement_employee_id,(counts.get(x.replacement_employee_id)||0)+1);
-  const all=(emps||[]).filter((e:any)=>e.employee_id!==absent.employee_id&&!unavailableIds.has(e.employee_id)).map((e:any)=>{
+  const all=(emps||[]).filter((e:any)=>{
+    if(e.employee_id===absent.employee_id||unavailableIds.has(e.employee_id))return false;
+    // رانيا وزينب سجل واحد في الاحتياط: لا تُختار أي واحدة منهما.
+    if(equivalentIds.has(e.employee_id))return false;
+    const rule=(exclusions||[]).find((x:any)=>x.employee_id===e.employee_id&&x.day_name===day&&period>=Number(x.blocked_from_period)&&period<=Number(x.blocked_to_period));
+    if(rule)return false;
+    return true;
+  }).map((e:any)=>{
     const s:any=byName.get(norm(teacherScheduleName(e)))||byName.get(norm(e.short_name))||byName.get(norm(e.full_name))||{},slots:any[]=s[day]||[],i=period-1;
     if(clean(slots[i]))return null;
     if(activeToday.some((x:any)=>x.replacement_employee_id===e.employee_id&&x.period===period))return null;
@@ -168,11 +186,14 @@ async function allocateAbsence(db:any,absent:any,date:string,sourceType:string,s
   if(!row)return {items:[],schedule_found:false,lesson_count:0,save_errors:[]};
   if(!lessonCount)return {items:[],schedule_found:true,lesson_count:0,save_errors:[]};
   const used=new Set<string>(),out:any[]=[],saveErrors:any[]=[];
+  const {data:activityRows}=await db.from("multaqa_reserve_activity_bank").select("title,url,idea,encouragement").eq("active",true).order("id");
+  const activityBank=(activityRows&&activityRows.length?activityRows:RESERVE_ACTIVITY_FALLBACK) as any[];
   for(let i=0;i<7;i++){
     const lesson=clean(slots[i],500);if(!lesson)continue;
     const parts=lesson.split(/\s*[•—]\s*/).map(x=>x.trim()).filter(Boolean),subject=parts[0]||"",classLabel=parts.slice(1).join(" — ")||lesson;
     const list:any[]=await candidatesFor(db,absent,date,i+1,used),pick=list[0]||null;if(pick)used.add(pick.employee_id);
-    const payload={coverage_date:date,day_name:day,period:i+1,class_label:classLabel,subject,absent_employee_id:absent.employee_id,replacement_employee_id:pick?.employee_id||null,source_type:sourceType,source_id:sourceId,status:pick?"assigned":"proposed",fairness_score:pick?.score??null,reason_summary:pick?.reason||"لا توجد معلمة متاحة دون تعارض",assigned_by_employee_id:by,notified_at:null,reminder_sent_at:null,completed_at:null,achievement_recorded_at:null};
+    const activity=activityBank[(i+classLabel.length)%activityBank.length]||RESERVE_ACTIVITY_FALLBACK[i%RESERVE_ACTIVITY_FALLBACK.length];
+    const payload={coverage_date:date,day_name:day,period:i+1,class_label:classLabel,subject,absent_employee_id:absent.employee_id,replacement_employee_id:pick?.employee_id||null,source_type:sourceType,source_id:sourceId,status:pick?"assigned":"proposed",fairness_score:pick?.score??null,reason_summary:pick?.reason||"لا توجد معلمة متاحة دون تعارض",reserve_activity_title:activity.title,reserve_activity_url:activity.url,reserve_activity_idea:activity.idea,reserve_encouragement:activity.encouragement,assigned_by_employee_id:by,notified_at:null,reminder_sent_at:null,completed_at:null,achievement_recorded_at:null};
     const {data,error}=await db.from("multaqa_substitute_assignments").upsert(payload,{onConflict:"coverage_date,period,class_label"}).select().single();
     if(error||!data){saveErrors.push({period:i+1,class_label:classLabel,message:error?.message||"save_failed"});continue}
     if(pick)await notifyCoverageAssignment(db,data,pick.short_name||pick.full_name);
@@ -1049,7 +1070,12 @@ Deno.serve(async(req)=>{
     for(const a of assignments){const name=canonical.get(norm(a?.name)),slot=clean(a?.slot,20);if(!name||!keys.includes(slot)||seen.has(norm(name)))return json({ok:false,error:"invalid_input"},400);seen.add(norm(name));slots[slot].push(name)}
     for(const key of keys)if(slots[key].length!==DUTY_SLOT_INFO[key].count)return json({ok:false,error:"duty_capacity"},409);
     const oldSlots:any=d.slots||{},oldRole=new Map<string,string>(),newRole=new Map<string,string>();for(const key of keys){for(const n of oldSlots[key]||[])oldRole.set(norm(n),key);for(const n of slots[key]||[])newRole.set(norm(n),key)}
-    const {error}=await db.from("multaqa_duty").update({slots}).eq("day_name",day);if(error)return json({ok:false,error:"save_failed"},500);for(const name of teachers){const before=oldRole.get(norm(name)),after=newRole.get(norm(name));if(before!==after){const info=DUTY_SLOT_INFO[after||""];await pushToNames(db,[name],"تم تغيير دور مناوبتك",`مناوبة ${day}: ${info?.label||after} • ${info?.time||""}`,"/school/","duty")}}return json({ok:true,day,slots});
+    const {error}=await db.from("multaqa_duty").update({slots}).eq("day_name",day);if(error)return json({ok:false,error:"save_failed"},500);
+    for(const name of teachers){const before=oldRole.get(norm(name)),after=newRole.get(norm(name));if(before!==after){const info=DUTY_SLOT_INFO[after||""];await pushToNames(db,[name],"تم تغيير دور مناوبتك",`مناوبة ${day}: ${info?.label||after} • ${info?.time||""}`,"/school/","duty")}}
+    const {data:allTeachers}=await db.from("multaqa_employees").select("short_name,full_name").eq("kind","teacher");
+    const allTeacherNames=(allTeachers||[]).map((x:any)=>x.short_name||x.full_name).filter(Boolean);
+    await pushToNames(db,allTeacherNames,"📢 تحديث جدول المناوبات",`تم تحديث أدوار المناوبة ليوم ${day}. يمكنكِ فتح المنظومة للاطلاع على دوركِ الجديد.`,"/school/?open=duty","duty_all");
+    return json({ok:true,day,slots,notified_teachers:allTeacherNames.length});
   }
   if(action==="save_duty_evaluation"){
     const date=clean(body.date,10)||muscatDate(),day=dayFor(date),{data:d}=await db.from("multaqa_duty").select("teachers,admins,slots").eq("day_name",day).maybeSingle();

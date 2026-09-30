@@ -988,11 +988,14 @@ window.loadStaffRequests=async()=>{
   const d=await staffApi('staff_requests');let items=d.items||[];
   if(staffRequestMode==='mine')items=items.filter(x=>String(x.employee_id)===String(secureEmployee.employee_id));
   if(!items.length){box.innerHTML='<div class="source-note">لا توجد طلبات مسجلة.</div>';return}
-  box.innerHTML='<div class="staff-table-wrap"><table class="staff-table"><thead><tr>'+(staffRequestMode==='admin'?'<th>المعلمة</th>':'')+'<th>النوع</th><th>التاريخ</th><th>التفاصيل</th><th>الحالة</th><th>ملاحظة الإدارة</th>'+(staffRequestMode==='admin'?'<th>الإجراء</th>':'')+'</tr></thead><tbody>'+items.map(x=>{
-    const emp=x.multaqa_employees||{},name=emp.short_name||emp.full_name||x.employee_id||'—',status=STAFF_REQUEST_STATUS[x.status]||x.status||'—';
-    const actions=staffRequestMode==='admin'?'<div class="staff-actions"><button onclick="decideStaffRequest(\''+x.id+'\',\'processing\')">قيد المعالجة</button><button class="staff-primary" onclick="decideStaffRequest(\''+x.id+'\',\'done\')">تم الإنجاز</button><button onclick="decideStaffRequest(\''+x.id+'\',\'rejected\')">رفض</button></div>':'';
-    return '<tr>'+(staffRequestMode==='admin'?'<td><b>'+esc(name)+'</b></td>':'')+'<td>'+esc(STAFF_REQUEST_LABELS[x.request_type]||x.request_type)+'</td><td>'+esc(x.request_date||'')+'</td><td style="white-space:pre-wrap;min-width:220px">'+esc(x.details||'')+'</td><td>'+esc(status)+'</td><td>'+esc(x.admin_note||'—')+'</td>'+(staffRequestMode==='admin'?'<td>'+actions+'</td>':'')+'</tr>';
-  }).join('')+'</tbody></table></div>';
+  const rows=items.map(x=>{
+    const emp=x.multaqa_employees||{},name=emp.short_name||emp.full_name||x.employee_id||'—',status=STAFF_REQUEST_STATUS[x.status]||x.status||'—',id=String(x.id);
+    const actions=staffRequestMode==='admin'
+      ? `<div class="staff-actions"><button onclick="decideStaffRequest('${id}','processing')">قيد المعالجة</button><button class="staff-primary" onclick="decideStaffRequest('${id}','done')">تم الإنجاز</button><button onclick="decideStaffRequest('${id}','rejected')">رفض</button></div>`
+      : '';
+    return `<tr>${staffRequestMode==='admin'?`<td><b>${esc(name)}</b></td>`:''}<td>${esc(STAFF_REQUEST_LABELS[x.request_type]||x.request_type)}</td><td>${esc(x.request_date||'')}</td><td style="white-space:pre-wrap;min-width:220px">${esc(x.details||'')}</td><td>${esc(status)}</td><td>${esc(x.admin_note||'—')}</td>${staffRequestMode==='admin'?`<td>${actions}</td>`:''}</tr>`;
+  }).join('');
+  box.innerHTML=`<div class="staff-table-wrap"><table class="staff-table"><thead><tr>${staffRequestMode==='admin'?'<th>المعلمة</th>':''}<th>النوع</th><th>التاريخ</th><th>التفاصيل</th><th>الحالة</th><th>ملاحظة الإدارة</th>${staffRequestMode==='admin'?'<th>الإجراء</th>':''}</tr></thead><tbody>${rows}</tbody></table></div>`;
  }catch(e){box.innerHTML='<div class="source-note">تعذر تحميل الطلبات.</div>';toast(staffError(e))}
 };
 window.decideStaffRequest=async(id,status)=>{

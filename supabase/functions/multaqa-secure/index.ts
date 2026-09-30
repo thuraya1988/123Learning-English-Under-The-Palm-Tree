@@ -1031,6 +1031,36 @@ Deno.serve(async(req)=>{
     const type=clean(body.permission_type,30),category=clean(body.reason_category,40),reason=clean(body.reason,1000);if(!["returning","end_of_day","periods"].includes(type)||!reason)return json({ok:false,error:"invalid_input"},400);
     const {data:manager}=await db.from("multaqa_employees").select("employee_id").eq("access_group","management").order("employee_id").limit(1).maybeSingle();const payload={employee_id:e.employee_id,permission_date:clean(body.permission_date,10)||muscatDate(),permission_type:type,from_period:Number(body.from_period)||null,to_period:Number(body.to_period)||null,leave_time:clean(body.leave_time,8)||null,expected_return_time:clean(body.expected_return_time,8)||null,reason_category:category||"other",reason,note:clean(body.note,1000)||null,directed_to_employee_id:manager?.employee_id||null};const {data,error}=await db.from("multaqa_teacher_permissions").insert(payload).select().single();if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,permission:data});
   }
+  if(action==="staff_request_submit"){
+    const requestType=clean(body.request_type,20),details=clean(body.details,1800),requestDate=clean(body.request_date,10)||muscatDate();
+    if(!["absence","late","permission","news","other"].includes(requestType)||!details)return json({ok:false,error:"invalid_input"},400);
+    const {data:item,error}=await db.from("multaqa_staff_requests").insert({employee_id:e.employee_id,request_type:requestType,request_date:requestDate,details}).select().single();
+    if(error)return json({ok:false,error:"save_failed"},500);
+    const {data:managers}=await db.from("multaqa_employees").select("short_name,full_name").eq("access_group","management");
+    const names=(managers||[]).map((x:any)=>x.short_name||x.full_name).filter(Boolean);
+    const typeLabel:any={absence:"غياب",late:"حضور متأخر",permission:"استئذان",news:"نشر خبر",other:"طلب آخر"};
+    const sent=names.length?await pushToNames(db,names,"📨 طلب جديد للإدارة",`${e.short_name||e.full_name} — ${typeLabel[requestType]} بتاريخ ${requestDate}\n${details}`,"/school/?open=staff-requests","staff_request"):0;
+    return json({ok:true,item,notified:sent});
+  }
+  if(action==="staff_requests"){
+    let q=db.from("multaqa_staff_requests").select("*,multaqa_employees(short_name,full_name)").order("created_at",{ascending:false}).limit(200);
+    if(!elevated(e))q=q.eq("employee_id",e.employee_id);
+    const {data,error}=await q;if(error)return json({ok:false,error:"read_failed"},500);
+    return json({ok:true,items:data||[]});
+  }
+  if(action==="decide_staff_request"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const id=clean(body.id,80),status=clean(body.status,20),note=clean(body.note,800)||null;
+    if(!id||!["processing","done","rejected"].includes(status))return json({ok:false,error:"invalid_input"},400);
+    const {data:item}=await db.from("multaqa_staff_requests").select("id,employee_id,request_type,request_date").eq("id",id).maybeSingle();
+    if(!item)return json({ok:false,error:"not_found"},404);
+    const {error}=await db.from("multaqa_staff_requests").update({status,admin_note:note,decided_by_employee_id:e.employee_id,decided_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id);
+    if(error)return json({ok:false,error:"save_failed"},500);
+    const {data:target}=await db.from("multaqa_employees").select("short_name,full_name").eq("employee_id",item.employee_id).maybeSingle();
+    const label:any={processing:"قيد المعالجة",done:"تم الإنجاز",rejected:"مرفوض"};
+    const sent=target?await pushToNames(db,[target.short_name||target.full_name],"📌 تحديث طلبك للإدارة",`${label[status]}${note?" — "+note:""}`,"/school/?open=staff-requests","staff_request_update"):0;
+    return json({ok:true,notified:sent});
+  }
   if(action==="permissions"){
     let q=db.from("multaqa_teacher_permissions").select("*").order("created_at",{ascending:false}).limit(200);if(!elevated(e))q=q.eq("employee_id",e.employee_id);const {data}=await q;return json({ok:true,items:data||[]});
   }

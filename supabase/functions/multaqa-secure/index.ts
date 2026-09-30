@@ -140,7 +140,7 @@ async function notifyCoverageAssignment(db:any,item:any,targetName:string){
 }
 
 async function candidatesFor(db:any,absent:any,date:string,period:number,used:Set<string>=new Set(),excludeAssignmentId=0){
-  const day=dayFor(date),[{data:emps},{data:schedules},{data:recent},{data:today}]=await Promise.all([
+  const day=dayFor(date),[{data:emps},{data:schedules},{data:recent},{data:today},{data:exclusions},{data:equivalences}]=await Promise.all([
     db.from("multaqa_employees").select("employee_id,full_name,short_name,role").eq("kind","teacher"),
     db.from("multaqa_teacher_schedules").select("full_name,schedule"),
     db.from("multaqa_substitute_assignments").select("id,replacement_employee_id").gte("coverage_date",new Date(Date.now()-30*86400000).toISOString().slice(0,10)).neq("status","cancelled"),

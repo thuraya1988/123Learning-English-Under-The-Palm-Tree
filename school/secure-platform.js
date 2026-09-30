@@ -175,14 +175,39 @@ window.saveRoster=async()=>{if(!currentRoster)return;const items=[...document.qu
 async function renderStaffRequests(){
  const d=await staffApi('staff_requests');
  const labels={absence:'غياب',late:'حضور متأخر',permission:'استئذان',news:'نشر خبر',other:'طلب آخر'};
- const status={pending:'🟡 بانتظار الإدارة',processing:'🔵 قيد المعالجة',done:'🟢 تم الإنجاز',rejected:'🔴 مرفوض'};
- const admin=secureAdmin();
- const form='<section class="staff-card"><h3>📨 طلب للإدارة</h3><label>نوع الطلب</label><select id="staffReqType"><option value="absence">غياب</option><option value="late">حضور متأخر</option><option value="permission">استئذان</option><option value="news">نشر خبر</option><option value="other">طلب آخر</option></select><label>التاريخ</label><input id="staffReqDate" type="date" value="'+new Date().toISOString().slice(0,10)+'"><label>التفاصيل</label><textarea id="staffReqDetails" placeholder="اكتبي التفاصيل والوقت أو الصف عند الحاجة"></textarea><button class="staff-primary" onclick="submitStaffRequest()">إرسال للإدارة</button></section>';
- const list=(d.items||[]).map(x=>{const emp=x.multaqa_employees?.short_name||x.multaqa_employees?.full_name||'';return '<article class="request-card"><b>'+((status[x.status])||x.status)+'</b> · '+(labels[x.request_type]||x.request_type)+'<small> '+(x.request_date||'')+(admin&&emp?' · '+esc(emp):'')+'</small><p>'+esc(x.details||'')+'</p>'+(x.admin_note?'<small>ملاحظة الإدارة: '+esc(x.admin_note)+'</small>':'')+(admin&&x.status!=='done'&&x.status!=='rejected'?'<div><button onclick="decideStaffRequest(\\''+x.id+'\\',\\'processing\\')">قيد المعالجة</button><button onclick="decideStaffRequest(\\''+x.id+'\\',\\'done\\')">إنجاز</button><button onclick="decideStaffRequest(\\''+x.id+'\\',\\'rejected\\')">رفض</button></div>':'')+'</article>'}).join('')||'<div class="staff-empty">لا توجد طلبات</div>';
- S('staffPane').innerHTML='<div class="two-col">'+form+'<section class="staff-card"><h3>سجل الطلبات</h3><div class="request-list">'+list+'</div></section></div>';
+ const statuses={pending:'🟡 بانتظار الإدارة',processing:'🔵 قيد المعالجة',done:'🟢 تم الإنجاز',rejected:'🔴 مرفوض'};
+ const admin=secureAdmin(),today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat'}).format(new Date());
+ const form=`<section class="staff-card"><h3>📨 طلب للإدارة</h3><p class="staff-help">غياب • حضور متأخر • استئذان • نشر خبر • أو أي طلب آخر.</p><label>نوع الطلب</label><select id="staffReqType"><option value="absence">📕 غياب</option><option value="late">⏰ حضور متأخر</option><option value="permission">🚪 استئذان</option><option value="news">📰 نشر خبر</option><option value="other">📌 طلب آخر</option></select><label>التاريخ</label><input id="staffReqDate" type="date" value="${today}"><label>التفاصيل</label><textarea id="staffReqDetails" rows="5" placeholder="اكتبي التفاصيل والوقت أو الصف عند الحاجة"></textarea><button class="staff-primary" id="staffReqSend" onclick="submitStaffRequest()">📨 إرسال للإدارة</button></section>`;
+ const items=d.items||[];
+ const list=items.length?items.map(x=>{
+   const emp=x.multaqa_employees||{},name=emp.short_name||emp.full_name||x.employee_id||'—',id=String(x.id);
+   const actions=admin&&x.status!=='done'&&x.status!=='rejected'
+     ? `<div class="staff-actions"><button onclick="decideStaffRequest('${id}','processing')">قيد المعالجة</button><button class="staff-primary" onclick="decideStaffRequest('${id}','done')">تم الإنجاز</button><button onclick="decideStaffRequest('${id}','rejected')">رفض</button></div>`
+     : '';
+   return `<article class="request-card"><b>${esc(statuses[x.status]||x.status||'—')}</b> · ${esc(labels[x.request_type]||x.request_type||'—')}<small>${esc(x.request_date||'')}${admin?' · '+esc(name):''}</small><p style="white-space:pre-wrap">${esc(x.details||'')}</p>${x.admin_note?`<small>ملاحظة الإدارة: ${esc(x.admin_note)}</small>`:''}${actions}</article>`;
+ }).join(''):'<div class="staff-empty">لا توجد طلبات</div>';
+ S('staffPane').innerHTML=`<div class="two-col">${form}<section class="staff-card"><h3>${admin?'طلبات المعلمات':'طلباتي السابقة'}</h3><div class="request-list">${list}</div></section></div>`;
 }
-window.submitStaffRequest=async()=>{try{await staffApi('staff_request_submit',{request_type:S('staffReqType').value,request_date:S('staffReqDate').value,details:S('staffReqDetails').value});toast('✅ تم إرسال الطلب للإدارة');renderStaffRequests()}catch(e){toast(staffError(e))}};
-window.decideStaffRequest=async(id,status)=>{try{await staffApi('decide_staff_request',{id,status});toast('✅ تم تحديث حالة الطلب');renderStaffRequests()}catch(e){toast(staffError(e))}};
+window.submitStaffRequest=async()=>{
+ const details=S('staffReqDetails').value.trim();if(!details)return toast('اكتبي تفاصيل الطلب أولًا');
+ const btn=S('staffReqSend');
+ try{
+  btn.disabled=true;btn.textContent='جاري الإرسال…';
+  const d=await staffApi('staff_request_submit',{request_type:S('staffReqType').value,request_date:S('staffReqDate').value,details});
+  toast(Number(d.notified||0)>0?'✅ تم إرسال الطلب ووصل تنبيه للإدارة':'✅ تم تسجيل الطلب في النظام');
+  await renderStaffRequests();
+ }catch(e){toast(staffError(e))}
+ finally{btn.disabled=false;btn.textContent='📨 إرسال للإدارة'}
+};
+window.decideStaffRequest=async(id,status)=>{
+ if(!secureAdmin())return toast('هذا الإجراء للإدارة فقط');
+ const note=prompt(status==='rejected'?'سبب الرفض أو ملاحظة الإدارة:':'ملاحظة للمعلمة (اختياري):','');if(note===null)return;
+ try{
+  const d=await staffApi('decide_staff_request',{id,status,note});
+  toast(Number(d.notified||0)>0?'✅ تم تحديث الطلب وإشعار المعلمة':'✅ تم تحديث الطلب');
+  await renderStaffRequests();
+ }catch(e){toast(staffError(e))}
+};
 async function renderPermissions(){
  const d=await staffApi('permissions');S('staffPane').innerHTML=`<div class="two-col"><section class="staff-card"><h3>🚪 طلب استئذان</h3><label>النوع</label><select id="permType"><option value="returning">استئذان والعودة</option><option value="end_of_day">حتى نهاية الدوام</option><option value="periods">خروج لحصة أو أكثر</option></select><div class="form-row"><div><label>من الحصة</label><select id="permFrom">${[1,2,3,4,5,6,7].map(x=>'<option>'+x+'</option>').join('')}</select></div><div><label>إلى الحصة</label><select id="permTo">${[1,2,3,4,5,6,7].map(x=>'<option>'+x+'</option>').join('')}</select></div></div><div class="form-row"><div><label>وقت الخروج</label><input id="permLeave" type="time"></div><div><label>العودة المتوقعة</label><input id="permReturn" type="time"></div></div><label>تصنيف السبب</label><select id="permReasonCat">${reasonOptions()}</select><label>السبب</label><textarea id="permReason"></textarea><label>ملاحظة</label><textarea id="permNote"></textarea><button class="staff-primary" onclick="submitPermission()">إرسال للإدارة</button></section><section class="staff-card"><h3>الطلبات</h3><div class="request-list">${(d.items||[]).map(permissionCard).join('')||'<div class="staff-empty">لا توجد طلبات</div>'}</div></section></div>`
 }
@@ -928,81 +953,9 @@ window.openDutyEditFromOps=async()=>{
 };
 
 
-function injectStaffRequestModal(){
- if(S('staffRequestModal'))return;
- document.body.insertAdjacentHTML('beforeend',`<div class="modal staff-center" id="staffRequestModal"><div class="modal-box">
-  <button class="close" onclick="closeById('staffRequestModal')">✕</button>
-  <div class="today-title"><div><small>طلبات الموظفات</small><h2 id="staffRequestTitle">📨 طلب للإدارة</h2><p id="staffRequestSub">أرسلي الطلب مباشرة إلى الإدارة مع توثيق حالته.</p></div></div>
-  <section class="staff-card" id="staffRequestFormCard">
-   <div class="form-row">
-    <label>نوع الطلب<select id="staffRequestType" onchange="updateStaffRequestHint()"><option value="absence">📕 غياب</option><option value="late">⏰ حضور متأخر</option><option value="permission">🚪 استئذان</option><option value="news">📰 طلب نشر خبر</option><option value="other">📌 طلب آخر</option></select></label>
-    <label>التاريخ<input id="staffRequestDate" type="date"></label>
-   </div>
-   <label id="staffRequestDetailsLabel">التفاصيل<textarea id="staffRequestDetails" rows="5" placeholder="اكتبي تفاصيل الطلب بوضوح"></textarea></label>
-   <div class="staff-actions"><button class="staff-primary" id="staffRequestSendBtn" onclick="submitStaffRequest()">📨 إرسال للإدارة</button></div>
-  </section>
-  <section class="staff-card"><div class="duty-role-head"><div><h3 id="staffRequestListTitle">طلباتي السابقة</h3><p class="staff-help">تظهر حالة الطلب وملاحظة الإدارة هنا.</p></div><button class="staff-secondary" onclick="loadStaffRequests()">🔄 تحديث</button></div><div id="staffRequestList"><div class="source-note">جاري التحميل…</div></div></section>
- </div></div>`);
-}
-let staffRequestMode='mine';
-const STAFF_REQUEST_LABELS={absence:'غياب',late:'حضور متأخر',permission:'استئذان',news:'نشر خبر',other:'طلب آخر'};
-const STAFF_REQUEST_STATUS={pending:'🟡 مستلم',processing:'🔵 قيد المعالجة',done:'🟢 تم الإنجاز',rejected:'🔴 مرفوض'};
-window.updateStaffRequestHint=()=>{
- const type=S('staffRequestType')?.value,hints={
-  absence:['سبب الغياب والتاريخ وأي ملاحظة مهمة','مثال: غياب يوم الثلاثاء بسبب ظرف صحي…'],
-  late:['وقت الوصول المتوقع وسبب التأخر','مثال: سأصل الساعة 8:10 بسبب موعد…'],
-  permission:['وقت الاستئذان ومدة الخروج والسبب','مثال: استئذان من الحصة الثالثة والعودة قبل الخامسة…'],
-  news:['عنوان الخبر ومحتواه أو الرابط والمرفقات المطلوبة','مثال: أرجو نشر خبر فعالية…'],
-  other:['اكتبي الطلب والتفاصيل بوضوح','تفاصيل الطلب…']
- }[type]||['التفاصيل','اكتبي التفاصيل'];
- if(S('staffRequestDetailsLabel'))S('staffRequestDetailsLabel').firstChild.textContent=hints[0];
- if(S('staffRequestDetails'))S('staffRequestDetails').placeholder=hints[1];
-};
-window.openStaffRequestCenter=async(mode='mine')=>{
+window.openStaffRequestCenter=async()=>{
  if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا');return openIdentity()}
- if(mode==='admin'&&!secureAdmin())return toast('طلبات المعلمات متاحة للإدارة فقط');
- injectStaffRequestModal();staffRequestMode=mode==='admin'?'admin':'mine';
- const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat'}).format(new Date());
- if(S('staffRequestDate'))S('staffRequestDate').value=today;
- S('staffRequestFormCard').style.display=staffRequestMode==='mine'?'block':'none';
- S('staffRequestTitle').textContent=staffRequestMode==='admin'?'📨 طلبات المعلمات':'📨 طلب للإدارة';
- S('staffRequestSub').textContent=staffRequestMode==='admin'?'متابعة طلبات المعلمات والرد عليها وتحديث حالتها.':'غياب • حضور متأخر • استئذان • نشر خبر • أو أي طلب آخر.';
- S('staffRequestListTitle').textContent=staffRequestMode==='admin'?'طلبات المعلمات':'طلباتي السابقة';
- updateStaffRequestHint();openById('staffRequestModal');await loadStaffRequests();
-};
-window.submitStaffRequest=async()=>{
- const type=S('staffRequestType').value,request_date=S('staffRequestDate').value,details=S('staffRequestDetails').value.trim(),btn=S('staffRequestSendBtn');
- if(!details)return toast('اكتبي تفاصيل الطلب أولًا');
- try{
-  btn.disabled=true;btn.textContent='جاري الإرسال…';
-  const d=await staffApi('staff_request_submit',{request_type:type,request_date,details});
-  S('staffRequestDetails').value='';
-  toast(Number(d.notified||0)>0?'✅ تم إرسال الطلب ووصل تنبيه للإدارة':'✅ تم تسجيل الطلب في النظام');
-  await loadStaffRequests();
- }catch(e){toast(staffError(e))}
- finally{btn.disabled=false;btn.textContent='📨 إرسال للإدارة'}
-};
-window.loadStaffRequests=async()=>{
- const box=S('staffRequestList');if(!box)return;box.innerHTML='<div class="source-note">جاري التحميل…</div>';
- try{
-  const d=await staffApi('staff_requests');let items=d.items||[];
-  if(staffRequestMode==='mine')items=items.filter(x=>String(x.employee_id)===String(secureEmployee.employee_id));
-  if(!items.length){box.innerHTML='<div class="source-note">لا توجد طلبات مسجلة.</div>';return}
-  const rows=items.map(x=>{
-    const emp=x.multaqa_employees||{},name=emp.short_name||emp.full_name||x.employee_id||'—',status=STAFF_REQUEST_STATUS[x.status]||x.status||'—',id=String(x.id);
-    const actions=staffRequestMode==='admin'
-      ? `<div class="staff-actions"><button onclick="decideStaffRequest('${id}','processing')">قيد المعالجة</button><button class="staff-primary" onclick="decideStaffRequest('${id}','done')">تم الإنجاز</button><button onclick="decideStaffRequest('${id}','rejected')">رفض</button></div>`
-      : '';
-    return `<tr>${staffRequestMode==='admin'?`<td><b>${esc(name)}</b></td>`:''}<td>${esc(STAFF_REQUEST_LABELS[x.request_type]||x.request_type)}</td><td>${esc(x.request_date||'')}</td><td style="white-space:pre-wrap;min-width:220px">${esc(x.details||'')}</td><td>${esc(status)}</td><td>${esc(x.admin_note||'—')}</td>${staffRequestMode==='admin'?`<td>${actions}</td>`:''}</tr>`;
-  }).join('');
-  box.innerHTML=`<div class="staff-table-wrap"><table class="staff-table"><thead><tr>${staffRequestMode==='admin'?'<th>المعلمة</th>':''}<th>النوع</th><th>التاريخ</th><th>التفاصيل</th><th>الحالة</th><th>ملاحظة الإدارة</th>${staffRequestMode==='admin'?'<th>الإجراء</th>':''}</tr></thead><tbody>${rows}</tbody></table></div>`;
- }catch(e){box.innerHTML='<div class="source-note">تعذر تحميل الطلبات.</div>';toast(staffError(e))}
-};
-window.decideStaffRequest=async(id,status)=>{
- if(!secureAdmin())return toast('هذا الإجراء للإدارة فقط');
- const note=prompt(status==='rejected'?'اكتبي سبب الرفض أو الملاحظة:':'ملاحظة للإدارية/المعلمة (اختياري):','');
- if(note===null)return;
- try{const d=await staffApi('decide_staff_request',{id,status,note});toast(Number(d.notified||0)>0?'✅ تم تحديث الطلب وإشعار المعلمة':'✅ تم تحديث الطلب');await loadStaffRequests()}catch(e){toast(staffError(e))}
+ await openStaffCenter();await staffTab('requests');
 };
 
 const localTestOpsAlert=window.testOpsAlert;
@@ -1018,4 +971,4 @@ window.testOpsAlert=async()=>{
   else toast('فعّلي إشعارات الجهاز أولًا من زر تفعيل الإشعارات');
  }catch(e){toast(staffError(e))}
 };
-setTimeout(async()=>{prepareSecureLogin();injectStaffCenter();injectResourceBookingModal();injectStaffRequestModal();updateSecureLabels();await restoreStaff();const open=new URLSearchParams(location.search).get('open');if(staffToken&&secureEmployee&&open==='schedule'){await openStaffCenter();await staffTab('schedule')}if(staffToken&&secureEmployee&&open==='staff-requests'){await openStaffRequestCenter(secureAdmin()?'admin':'mine')}},0);
+setTimeout(async()=>{prepareSecureLogin();injectStaffCenter();injectResourceBookingModal();updateSecureLabels();await restoreStaff();const open=new URLSearchParams(location.search).get('open');if(staffToken&&secureEmployee&&open==='schedule'){await openStaffCenter();await staffTab('schedule')}if(staffToken&&secureEmployee&&open==='staff-requests'){await openStaffRequestCenter()}},0);

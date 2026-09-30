@@ -1036,7 +1036,7 @@ Deno.serve(async(req)=>{
     if(!["absence","late","permission","news","other"].includes(requestType)||!details)return json({ok:false,error:"invalid_input"},400);
     const {data:item,error}=await db.from("multaqa_staff_requests").insert({employee_id:e.employee_id,request_type:requestType,request_date:requestDate,details}).select().single();
     if(error)return json({ok:false,error:"save_failed"},500);
-    const {data:managers}=await db.from("multaqa_employees").select("short_name,full_name").eq("access_group","management");
+    const {data:managers}=await db.from("multaqa_employees").select("short_name,full_name").in("access_group",["management","admin"]);
     const names=(managers||[]).map((x:any)=>x.short_name||x.full_name).filter(Boolean);
     const typeLabel:any={absence:"غياب",late:"حضور متأخر",permission:"استئذان",news:"نشر خبر",other:"طلب آخر"};
     const sent=names.length?await pushToNames(db,names,"📨 طلب جديد للإدارة",`${e.short_name||e.full_name} — ${typeLabel[requestType]} بتاريخ ${requestDate}\n${details}`,"/school/?open=staff-requests","staff_request"):0;

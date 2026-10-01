@@ -60,19 +60,21 @@ async function resolveEmployee(db:any,input:string){
   m=rows.filter((e:any)=>{const t=clean(e.full_name,220).split(/\s+/).filter(Boolean).map(norm);return t[0]===f&&t[t.length-1]===l});
   return m.length===1?m[0]:null;
 }
-async function dutyRow(db:any,day:string){const {data}=await db.from("multaqa_duty").select("day_name,teachers,admins,slots").eq("day_name",day).maybeSingle();return data||null}
+async function dutyRow(db:any,day:string){const {data}=await db.from("multaqa_duty").select("day_name,teachers,admins,supervisor_name,slots").eq("day_name",day).maybeSingle();return data||null}
 function onDuty(emp:any,d:any){if(!emp||!d)return false;const names=[emp.full_name,emp.short_name].map(norm);return [...(d.teachers||[]),...(d.admins||[])].some((x:any)=>names.includes(norm(x))||names.some(n=>norm(x).includes(n)||n.includes(norm(x))))}
 function employeeForDutyName(name:string,emps:any[]){const q=norm(name);let found=emps.filter((e:any)=>norm(e.short_name)===q||norm(e.full_name)===q);if(found.length===1)return found[0];const parts=clean(name,220).split(/\s+/).filter(Boolean);if(parts.length<2)return null;const first=norm(parts[0]),last=norm(parts[parts.length-1]);found=emps.filter((e:any)=>{const words=clean(e.full_name||e.short_name,220).split(/\s+/).filter(Boolean);return norm(words[0])===first&&norm(words[words.length-1])===last});return found.length===1?found[0]:null}
 async function dutyBetweenAssignments(db:any,day:string,slots:any,date:string){
- const [{data:emps},{data:schedules},{data:attendance},{data:permissions},{data:coverage}]=await Promise.all([
+ const [{data:emps},{data:schedules},{data:attendance},{data:permissions},{data:coverage},{data:dutyInfo}]=await Promise.all([
   db.from("multaqa_employees").select("employee_id,full_name,short_name,kind").eq("kind","teacher"),
   db.from("multaqa_teacher_schedules").select("full_name,schedule"),
   db.from("multaqa_teacher_attendance").select("employee_id,status").eq("attendance_date",date).in("status",["absent","full_exit","official_task","leave"]),
   db.from("multaqa_teacher_permissions").select("employee_id,from_period,to_period").eq("permission_date",date).eq("status","approved"),
-  db.from("multaqa_substitute_assignments").select("replacement_employee_id,period").eq("coverage_date",date).in("status",["assigned","accepted"])
+  db.from("multaqa_substitute_assignments").select("replacement_employee_id,period").eq("coverage_date",date).in("status",["assigned","accepted"]),
+  db.from("multaqa_duty").select("supervisor_name").eq("day_name",day).maybeSingle()
  ]);
  const teachers=emps||[],scheduleByName=new Map((schedules||[]).map((x:any)=>[norm(x.full_name),x.schedule||{}])),namesFor=(keys:string[])=>keys.flatMap(k=>Array.isArray(slots?.[k])?slots[k]:[]);
- const excludedIds=new Set(namesFor(["morning","buses","cars"]).map((n:string)=>employeeForDutyName(n,teachers)?.employee_id).filter(Boolean)),preferredIds=new Set(namesFor(["entry1","entry2","coop","shade","corridors"]).map((n:string)=>employeeForDutyName(n,teachers)?.employee_id).filter(Boolean)),unavailableIds=new Set((attendance||[]).map((x:any)=>x.employee_id)),used=new Map<string,number>();
+ const excludedIds=new Set(namesFor(["morning","buses","cars"]).map((n:string)=>employeeForDutyName(n,teachers)?.employee_id).filter(Boolean)),preferredIds=new Set(namesFor(["entry1","entry2","coop","shade","corridors"]).map((n:string)=>employeeForDutyName(n,teachers)?.employee_id).filter(Boolean)),unavailableIds=new Set((attendance||[]).map((x:any)=>x.employee_id)),used=new Map<string,number>(),supervisorId=dutyInfo?.supervisor_name?employeeForDutyName(dutyInfo.supervisor_name,teachers)?.employee_id:null;
+ if(supervisorId)excludedIds.add(supervisorId);
  const rows=teachers.map((e:any)=>{const schedule:any=scheduleByName.get(norm(teacherScheduleName(e)))||scheduleByName.get(norm(e.short_name))||scheduleByName.get(norm(e.full_name));if(!schedule||excludedIds.has(e.employee_id)||unavailableIds.has(e.employee_id))return null;const todaySlots:any[]=schedule[day]||[],daily=todaySlots.filter((x:any)=>clean(x,500)).length;return{employee_id:e.employee_id,name:e.short_name||e.full_name,schedule:todaySlots,daily,preferred:preferredIds.has(e.employee_id)}}).filter(Boolean);
  return DUTY_PERIODS.map((period:any)=>{const free=(rows as any[]).filter((x:any)=>!clean(x.schedule[period.period-1],500)&&!(permissions||[]).some((q:any)=>q.employee_id===x.employee_id&&period.period>=Number(q.from_period||1)&&period.period<=Number(q.to_period||7))&&!(coverage||[]).some((q:any)=>q.replacement_employee_id===x.employee_id&&Number(q.period)===period.period));free.sort((x:any,y:any)=>{const xs=(used.get(x.employee_id)||0)*10000+(x.preferred?0:1000)+x.daily*10,ys=(used.get(y.employee_id)||0)*10000+(y.preferred?0:1000)+y.daily*10;return xs-ys||norm(x.name).localeCompare(norm(y.name),"ar")});const pick=free[0]||null;if(pick)used.set(pick.employee_id,(used.get(pick.employee_id)||0)+1);return{...period,employee_id:pick?.employee_id||null,teacher_name:pick?.name||null}});
 }
@@ -132,8 +134,8 @@ Deno.serve(async(req)=>{
   }
   if(action==="duty_for_name"){
     const emp=await resolveEmployee(db,clean(body.name,220)); if(!emp)return json({ok:false,error:"not_found"},404);
-    const {data,error}=await db.from("multaqa_duty").select("day_name,teachers,admins,slots"); if(error)return json({ok:false,error:"server_error"},500);
-    const matches=(data||[]).filter((d:any)=>onDuty(emp,d)).map((d:any)=>({day_name:d.day_name,is_admin:(d.admins||[]).some((x:any)=>norm(x)===norm(emp.short_name)||norm(x)===norm(emp.full_name)),roles:DUTY_SLOT_KEYS.filter(k=>(d.slots?.[k]||[]).some((n:string)=>norm(n)===norm(emp.short_name)||norm(n)===norm(emp.full_name)))}));
+    const {data,error}=await db.from("multaqa_duty").select("day_name,teachers,admins,supervisor_name,slots"); if(error)return json({ok:false,error:"server_error"},500);
+    const matches=(data||[]).filter((d:any)=>onDuty(emp,d)).map((d:any)=>({day_name:d.day_name,is_admin:(d.admins||[]).some((x:any)=>norm(x)===norm(emp.short_name)||norm(x)===norm(emp.full_name)),is_supervisor:!!d.supervisor_name&&(norm(d.supervisor_name)===norm(emp.short_name)||norm(d.supervisor_name)===norm(emp.full_name)),roles:DUTY_SLOT_KEYS.filter(k=>(d.slots?.[k]||[]).some((n:string)=>norm(n)===norm(emp.short_name)||norm(n)===norm(emp.full_name)))}));
     return json({ok:true,employee:emp.short_name,today:dayName(),matches});
   }
   if(action==="duty_schedule"){

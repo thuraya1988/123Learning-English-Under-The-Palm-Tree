@@ -944,41 +944,21 @@ window.openAdminAnnouncement=()=>{
  if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا لإضافة الإعلان');return openIdentity()}
  openSchoolContent('announcement');
 };
-window.refreshCurriculumCatchup=async()=>{
- const btn=S('catchupPriorityBtn');if(!btn)return;
- if(!staffToken||!secureEmployee||secureEmployee.kind!=='teacher'){btn.classList.remove('active');return}
- try{
-  const d=await staffApi('curriculum_catchup_status');
-  btn.dataset.active=d.active?'1':'0';
-  const b=btn.querySelector('b'),sm=btn.querySelector('small');
-  if(b)b.textContent=d.active?'✅ متأخرة عن المنهج — الأولوية مفعلة':'أنا متأخرة عن المنهج';
-  if(sm)sm.textContent=d.active?'ستكونين أولوية لاحتياط صفوفكِ عند توفر حصة مناسبة':'أولوية للاحتياط في صفوفكِ عند توفرها';
- }catch(_){}
-};
-window.toggleCurriculumCatchup=async()=>{
- if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا لتفعيل أولوية الاحتياط');return openIdentity()}
- if(secureEmployee.kind!=='teacher')return toast('هذه الميزة للمعلمات فقط');
- const btn=S('catchupPriorityBtn'),currently=btn?.dataset.active==='1',active=!currently;
- try{
-  const d=await staffApi('toggle_curriculum_catchup',{active});
-  toast(d.active?(Number(d.assigned_now||0)>0?'📚 تم تفعيل الأولوية وإسناد '+Number(d.assigned_now)+' حصة احتياط مناسبة من صفوفكِ الآن.':'📚 تم تفعيل الأولوية: إذا احتاج أحد صفوفكِ احتياطًا ستظهرين في مقدمة المرشحات مع بقاء جميع شروط التعارض سارية.'):'تم إلغاء أولوية التأخر عن المنهج');
-  await refreshCurriculumCatchup();
- }catch(e){toast(staffError(e))}
-};
-
 let curriculumCatchupActive=false;
 window.refreshCurriculumCatchupButton=async()=>{
- const btn=S('catchupPriorityBtn');if(!btn||!staffToken||!secureEmployee||secureEmployee.kind!=='teacher')return;
+ const btn=S('catchupPriorityBtn');if(!btn)return;
+ if(!staffToken||!secureEmployee||secureEmployee.kind!=='teacher'){
+  curriculumCatchupActive=false;btn.dataset.active='0';btn.classList.remove('active');btn.style.background='';btn.style.borderColor='';return;
+ }
  try{
-  const d=await staffApi('curriculum_catchup_status');curriculumCatchupActive=!!d.active;
-  btn.classList.toggle('active',curriculumCatchupActive);
-  btn.style.background=curriculumCatchupActive?'#e8f5e9':'';
-  btn.style.borderColor=curriculumCatchupActive?'#5d9c68':'';
+  const d=await staffApi('curriculum_catchup_status');curriculumCatchupActive=!!d.active;btn.dataset.active=curriculumCatchupActive?'1':'0';
+  btn.classList.toggle('active',curriculumCatchupActive);btn.style.background=curriculumCatchupActive?'#e8f5e9':'';btn.style.borderColor=curriculumCatchupActive?'#5d9c68':'';
   const b=btn.querySelector('b'),sm=btn.querySelector('small');
   if(b)b.textContent=curriculumCatchupActive?'✓ أولوية تعويض المنهج مفعلة':'أنا متأخرة عن المنهج';
   if(sm)sm.textContent=curriculumCatchupActive?'سيعطيك النظام أولوية في صفوفكِ عند وجود احتياط مناسب':'أولوية للاحتياط في صفوفكِ عند توفرها';
  }catch(_){}
 };
+window.refreshCurriculumCatchup=window.refreshCurriculumCatchupButton;
 window.toggleCurriculumCatchup=async()=>{
  if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا لتفعيل أولوية تعويض المنهج');return openIdentity()}
  if(secureEmployee.kind!=='teacher')return toast('هذه الخاصية للمعلمات');
@@ -986,7 +966,7 @@ window.toggleCurriculumCatchup=async()=>{
   const current=await staffApi('curriculum_catchup_status'),next=!current.active;
   if(!next&&!confirm('إيقاف أولوية تعويض المنهج؟'))return;
   const d=await staffApi('toggle_curriculum_catchup',{active:next});curriculumCatchupActive=!!d.active;await refreshCurriculumCatchupButton();
-  if(d.active)toast(Number(d.assigned_now||0)>0?'✅ تم تفعيل الأولوية وأسند لكِ '+d.assigned_now+' حصة احتياط في صفوفكِ':'✅ تم تفعيل الأولوية. عند وجود احتياط في صفوفكِ سيضعك النظام في الأولوية إذا كنتِ متاحة.');
+  if(d.active)toast(Number(d.assigned_now||0)>0?'✅ تم تفعيل الأولوية وأسند لكِ '+d.assigned_now+' حصة احتياط مناسبة في صفوفكِ الآن.':'✅ تم تفعيل الأولوية. عند غياب معلمة في أحد صفوفكِ ستظهرين أولًا إذا كنتِ متاحة، مع استمرار قواعد منع التعارض والحصص المحشورة.');
   else toast('تم إيقاف أولوية تعويض المنهج');
  }catch(e){toast(staffError(e))}
 };

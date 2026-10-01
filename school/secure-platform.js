@@ -38,6 +38,7 @@ function secureWelcomeName(e){
 }
 function setSecureEmployee(e){
  secureEmployee=e;employee=e;localStorage.removeItem('multaqa_employee');
+ setTimeout(()=>{if(typeof window.refreshCurriculumCatchupButton==='function')window.refreshCurriculumCatchupButton()},150);
  const welcomeName=secureWelcomeName(e),welcomeMessage=e.welcome_message||('مرحبًا '+welcomeName+'، يومك مليء بالإنجاز');
  const g=S('identityGreeting');if(g){g.textContent='مرحبًا '+welcomeName;g.setAttribute('aria-label',welcomeMessage);g.title=welcomeMessage;g.style.display='inline-flex'}
  document.querySelectorAll('[data-admin-only]').forEach(x=>x.style.display=secureAdmin()?'':'none');
@@ -279,7 +280,7 @@ window.openCoverageEditor=async id=>{
  try{
   const d=await staffApi('coverage_candidates',{id}),list=d.candidates||[];
   if(!list.length){box.innerHTML='<div class="staff-empty">لا توجد معلمة متاحة لهذه الحصة دون تعارض.</div>';return}
-  box.innerHTML='<label>اختاري معلمة الاحتياط<select id="coverageSelect'+id+'">'+list.map(x=>'<option value="'+esc(x.employee_id)+'">'+esc(x.short_name||x.full_name)+(x.phone?' — 📱 '+esc(x.phone):' — 📱 لا يوجد رقم محفوظ')+' — '+esc(x.reason||'متاحة')+'</option>').join('')+'</select></label><div class="coverage-editor-actions"><button class="staff-primary" onclick="saveCoverageAssignment('+id+')">حفظ التعديل</button><button class="staff-secondary" onclick="closeCoverageEditor('+id+')">إلغاء</button></div>';
+  box.innerHTML='<label>اختاري معلمة الاحتياط<select id="coverageSelect'+id+'">'+list.map(x=>'<option value="'+esc(x.employee_id)+'">'+(x.catchup_priority?'⭐ أولوية تعويض المنهج — ':'')+esc(x.short_name||x.full_name)+(x.phone?' — 📱 '+esc(x.phone):' — 📱 لا يوجد رقم محفوظ')+' — '+esc(x.reason||'متاحة')+'</option>').join('')+'</select></label><div class="coverage-editor-actions"><button class="staff-primary" onclick="saveCoverageAssignment('+id+')">حفظ التعديل</button><button class="staff-secondary" onclick="closeCoverageEditor('+id+')">إلغاء</button></div>';
  }catch(e){box.innerHTML='';box.hidden=true;toast(staffError(e))}
 };
 window.closeCoverageEditor=id=>{const box=S('coverageEdit'+id);if(box){box.hidden=true;box.innerHTML=''}};
@@ -962,6 +963,31 @@ window.toggleCurriculumCatchup=async()=>{
   const d=await staffApi('toggle_curriculum_catchup',{active});
   toast(d.active?(Number(d.assigned_now||0)>0?'📚 تم تفعيل الأولوية وإسناد '+Number(d.assigned_now)+' حصة احتياط مناسبة من صفوفكِ الآن.':'📚 تم تفعيل الأولوية: إذا احتاج أحد صفوفكِ احتياطًا ستظهرين في مقدمة المرشحات مع بقاء جميع شروط التعارض سارية.'):'تم إلغاء أولوية التأخر عن المنهج');
   await refreshCurriculumCatchup();
+ }catch(e){toast(staffError(e))}
+};
+
+let curriculumCatchupActive=false;
+window.refreshCurriculumCatchupButton=async()=>{
+ const btn=S('catchupPriorityBtn');if(!btn||!staffToken||!secureEmployee||secureEmployee.kind!=='teacher')return;
+ try{
+  const d=await staffApi('curriculum_catchup_status');curriculumCatchupActive=!!d.active;
+  btn.classList.toggle('active',curriculumCatchupActive);
+  btn.style.background=curriculumCatchupActive?'#e8f5e9':'';
+  btn.style.borderColor=curriculumCatchupActive?'#5d9c68':'';
+  const b=btn.querySelector('b'),sm=btn.querySelector('small');
+  if(b)b.textContent=curriculumCatchupActive?'✓ أولوية تعويض المنهج مفعلة':'أنا متأخرة عن المنهج';
+  if(sm)sm.textContent=curriculumCatchupActive?'سيعطيك النظام أولوية في صفوفكِ عند وجود احتياط مناسب':'أولوية للاحتياط في صفوفكِ عند توفرها';
+ }catch(_){}
+};
+window.toggleCurriculumCatchup=async()=>{
+ if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا لتفعيل أولوية تعويض المنهج');return openIdentity()}
+ if(secureEmployee.kind!=='teacher')return toast('هذه الخاصية للمعلمات');
+ try{
+  const current=await staffApi('curriculum_catchup_status'),next=!current.active;
+  if(!next&&!confirm('إيقاف أولوية تعويض المنهج؟'))return;
+  const d=await staffApi('toggle_curriculum_catchup',{active:next});curriculumCatchupActive=!!d.active;await refreshCurriculumCatchupButton();
+  if(d.active)toast(Number(d.assigned_now||0)>0?'✅ تم تفعيل الأولوية وأسند لكِ '+d.assigned_now+' حصة احتياط في صفوفكِ':'✅ تم تفعيل الأولوية. عند وجود احتياط في صفوفكِ سيضعك النظام في الأولوية إذا كنتِ متاحة.');
+  else toast('تم إيقاف أولوية تعويض المنهج');
  }catch(e){toast(staffError(e))}
 };
 

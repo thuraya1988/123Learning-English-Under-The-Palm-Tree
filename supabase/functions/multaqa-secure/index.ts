@@ -285,7 +285,8 @@ Deno.serve(async(req)=>{
   }
   if(action==="duty_week"){
     const {data}=await db.from("multaqa_duty").select("day_name,teachers,admins,supervisor_name,slots");const order:any={"الأحد":1,"الاثنين":2,"الثلاثاء":3,"الأربعاء":4,"الخميس":5};
-    return json({ok:true,days:(data||[]).sort((a:any,b:any)=>(order[a.day_name]||99)-(order[b.day_name]||99)),is_admin:elevated(e),slot_info:DUTY_SLOT_INFO,slot_keys:DUTY_SLOT_KEYS});
+    const days=await Promise.all((data||[]).map(async(d:any)=>({...d,can_edit_roles:await canEditDutyRoles(db,e,d.admins||[],clean(d.supervisor_name,220))})));
+    return json({ok:true,days:days.sort((a:any,b:any)=>(order[a.day_name]||99)-(order[b.day_name]||99)),is_admin:elevated(e),slot_info:DUTY_SLOT_INFO,slot_keys:DUTY_SLOT_KEYS});
   }
   if(action==="broadcasts"){
     const {data:rows}=await db.from("multaqa_broadcasts").select("*").order("broadcast_date",{ascending:false}).order("created_at",{ascending:false}).limit(100);

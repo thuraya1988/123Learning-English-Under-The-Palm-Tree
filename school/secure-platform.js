@@ -943,6 +943,28 @@ window.openAdminAnnouncement=()=>{
  if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا لإضافة الإعلان');return openIdentity()}
  openSchoolContent('announcement');
 };
+window.refreshCurriculumCatchup=async()=>{
+ const btn=S('catchupPriorityBtn');if(!btn)return;
+ if(!staffToken||!secureEmployee||secureEmployee.kind!=='teacher'){btn.classList.remove('active');return}
+ try{
+  const d=await staffApi('curriculum_catchup_status');
+  btn.dataset.active=d.active?'1':'0';
+  const b=btn.querySelector('b'),sm=btn.querySelector('small');
+  if(b)b.textContent=d.active?'✅ متأخرة عن المنهج — الأولوية مفعلة':'أنا متأخرة عن المنهج';
+  if(sm)sm.textContent=d.active?'ستكونين أولوية لاحتياط صفوفكِ عند توفر حصة مناسبة':'أولوية للاحتياط في صفوفكِ عند توفرها';
+ }catch(_){}
+};
+window.toggleCurriculumCatchup=async()=>{
+ if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا لتفعيل أولوية الاحتياط');return openIdentity()}
+ if(secureEmployee.kind!=='teacher')return toast('هذه الميزة للمعلمات فقط');
+ const btn=S('catchupPriorityBtn'),currently=btn?.dataset.active==='1',active=!currently;
+ try{
+  const d=await staffApi('toggle_curriculum_catchup',{active});
+  toast(d.active?'📚 تم تفعيل الأولوية: إذا احتاج أحد صفوفكِ احتياطًا ستظهرين في مقدمة المرشحات مع بقاء جميع شروط التعارض سارية.':'تم إلغاء أولوية التأخر عن المنهج');
+  await refreshCurriculumCatchup();
+ }catch(e){toast(staffError(e))}
+};
+
 window.openCoverageCenter=async()=>{
  if(!staffToken||!secureEmployee){toast('سجلي الدخول أولًا لفتح توزيع الاحتياط');return openIdentity()}
  await openStaffCenter();await staffTab('coverage');
@@ -971,4 +993,4 @@ window.testOpsAlert=async()=>{
   else toast('فعّلي إشعارات الجهاز أولًا من زر تفعيل الإشعارات');
  }catch(e){toast(staffError(e))}
 };
-setTimeout(async()=>{prepareSecureLogin();injectStaffCenter();injectResourceBookingModal();updateSecureLabels();await restoreStaff();const open=new URLSearchParams(location.search).get('open');if(staffToken&&secureEmployee&&open==='schedule'){await openStaffCenter();await staffTab('schedule')}if(staffToken&&secureEmployee&&open==='staff-requests'){await openStaffRequestCenter()}},0);
+setTimeout(async()=>{prepareSecureLogin();injectStaffCenter();injectResourceBookingModal();updateSecureLabels();await restoreStaff();await refreshCurriculumCatchup();const open=new URLSearchParams(location.search).get('open');if(staffToken&&secureEmployee&&open==='schedule'){await openStaffCenter();await staffTab('schedule')}if(staffToken&&secureEmployee&&open==='staff-requests'){await openStaffRequestCenter()}},0);

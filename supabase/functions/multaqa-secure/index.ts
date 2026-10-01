@@ -71,11 +71,10 @@ async function getSession(db:any,req:Request){
 const elevated=(e:any)=>["admin","management"].includes(e?.access_group);
 const caseTeam=(e:any)=>["admin","management","social"].includes(e?.access_group);
 async function canEditDutyRoles(db:any,e:any,admins:string[]=[],supervisorName=""){
-  if(e?.kind==="admin"||elevated(e)||e?.employee_id==="T016"||norm(e?.short_name)==="ثرياء محمد الناعبيه"||norm(e?.short_name)===norm("ثرياء الناعبية")||norm(e?.full_name)===norm("ثرياء محمد علي الناعبية"))return true;
+  if(e?.employee_id==="T016"||norm(e?.short_name)===norm("ثرياء الناعبية")||norm(e?.full_name)===norm("ثرياء محمد علي الناعبية"))return true;
   if(supervisorName&&(norm(supervisorName)===norm(e?.short_name)||norm(supervisorName)===norm(e?.full_name)))return true;
   if(admins.some((n:string)=>norm(n)===norm(e?.short_name)||norm(n)===norm(e?.full_name)))return true;
-  const {data:p}=await db.from("multaqa_employee_profiles").select("is_coordinator").eq("employee_id",e?.employee_id).maybeSingle();
-  return p?.is_coordinator===true;
+  return false;
 }
 async function profile(db:any,e:any){
   const [{data:p},{data:w}]=await Promise.all([

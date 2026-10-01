@@ -960,7 +960,7 @@ window.toggleCurriculumCatchup=async()=>{
  const btn=S('catchupPriorityBtn'),currently=btn?.dataset.active==='1',active=!currently;
  try{
   const d=await staffApi('toggle_curriculum_catchup',{active});
-  toast(d.active?'📚 تم تفعيل الأولوية: إذا احتاج أحد صفوفكِ احتياطًا ستظهرين في مقدمة المرشحات مع بقاء جميع شروط التعارض سارية.':'تم إلغاء أولوية التأخر عن المنهج');
+  toast(d.active?(Number(d.assigned_now||0)>0?'📚 تم تفعيل الأولوية وإسناد '+Number(d.assigned_now)+' حصة احتياط مناسبة من صفوفكِ الآن.':'📚 تم تفعيل الأولوية: إذا احتاج أحد صفوفكِ احتياطًا ستظهرين في مقدمة المرشحات مع بقاء جميع شروط التعارض سارية.'):'تم إلغاء أولوية التأخر عن المنهج');
   await refreshCurriculumCatchup();
  }catch(e){toast(staffError(e))}
 };

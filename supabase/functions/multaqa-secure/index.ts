@@ -281,7 +281,19 @@ Deno.serve(async(req)=>{
     const row={employee_id:e.employee_id,active,activated_at:active?now:undefined,updated_at:now};
     const {data,error}=await db.from("multaqa_curriculum_catchup").upsert(row,{onConflict:"employee_id"}).select().single();
     if(error)return json({ok:false,error:"save_failed"},500);
-    return json({ok:true,active:data.active,item:data});
+    let assignedNow=0;
+    if(active){
+      const today=muscatDate(),endDate=new Date(`${today}T12:00:00+04:00`);endDate.setDate(endDate.getDate()+7);const until=endDate.toISOString().slice(0,10);
+      const {data:pending}=await db.from("multaqa_substitute_assignments").select("*").gte("coverage_date",today).lte("coverage_date",until).eq("status","proposed").is("replacement_employee_id",null).order("coverage_date").order("period");
+      for(const item of pending||[]){
+        const {data:absent}=await db.from("multaqa_employees").select("employee_id,full_name,short_name").eq("employee_id",item.absent_employee_id).maybeSingle();if(!absent)continue;
+        const list:any[]=await candidatesFor(db,absent,item.coverage_date,item.period,new Set(),Number(item.id)||0,item.class_label);
+        if(list[0]?.employee_id!==e.employee_id)continue;
+        const {data:updated,error:updateError}=await db.from("multaqa_substitute_assignments").update({replacement_employee_id:e.employee_id,status:"assigned",fairness_score:list[0].score,reason_summary:`أولوية تأخر عن المنهج • ${list[0].reason}`,assigned_by_employee_id:e.employee_id,notified_at:null,reminder_sent_at:null,completed_at:null,achievement_recorded_at:null,updated_at:new Date().toISOString()}).eq("id",item.id).eq("status","proposed").is("replacement_employee_id",null).select().maybeSingle();
+        if(!updateError&&updated){assignedNow++;await notifyCoverageAssignment(db,updated,e.short_name||e.full_name)}
+      }
+    }
+    return json({ok:true,active:data.active,item:data,assigned_now:assignedNow});
   }
   if(action==="duty_week"){
     const {data}=await db.from("multaqa_duty").select("day_name,teachers,admins,supervisor_name,slots");const order:any={"الأحد":1,"الاثنين":2,"الثلاثاء":3,"الأربعاء":4,"الخميس":5};

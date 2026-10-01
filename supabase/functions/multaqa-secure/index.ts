@@ -178,7 +178,7 @@ async function candidatesFor(db:any,absent:any,date:string,period:number,used:Se
   }).filter(Boolean) as any[];
   // لا نكرر المعلمة في نفس توزيع الغياب ما دام توجد معلمة أخرى صالحة.
   const fresh=all.filter((x:any)=>!used.has(x.employee_id));
-  return (fresh.length?fresh:all).sort((a:any,b:any)=>a.score-b.score);
+  return (fresh.length?fresh:all).sort((a:any,b:any)=>(Number(b.catchup_priority)-Number(a.catchup_priority))||(a.score-b.score));
 }
 async function allocateAbsence(db:any,absent:any,date:string,sourceType:string,sourceId:string,by:string){
   const day=dayFor(date),scheduleNames=[teacherScheduleName(absent),absent.short_name,absent.full_name].map((x:any)=>clean(x,220)).filter(Boolean);
@@ -1131,8 +1131,9 @@ Deno.serve(async(req)=>{
     const keys=DUTY_SLOT_KEYS,assignments=Array.isArray(body.assignments)?body.assignments:[];if(assignments.length!==eligible.length)return json({ok:false,error:"invalid_input"},400);
     const canonical=new Map(eligible.map((n:string)=>[norm(n),n])),seen=new Set<string>(),slots:any=Object.fromEntries(keys.map(k=>[k,[]]));
     for(const a of assignments){const name=canonical.get(norm(a?.name)),slot=clean(a?.slot,20);if(!name||!keys.includes(slot)||seen.has(norm(name)))return json({ok:false,error:"invalid_input"},400);seen.add(norm(name));slots[slot].push(name)}
-    for(const key of keys)if(slots[key].length>DUTY_SLOT_INFO[key].count)return json({ok:false,error:"duty_capacity"},409);
-    const oldSlots:any=d.slots||{},oldRole=new Map<string,string>(),newRole=new Map<string,string>();for(const key of keys){for(const n of oldSlots[key]||[])oldRole.set(norm(n),key);for(const n of slots[key]||[])newRole.set(norm(n),key)}
+    const oldSlots:any=d.slots||{};
+    for(const key of keys)if(slots[key].length!==((oldSlots[key]||[]).length))return json({ok:false,error:"duty_capacity"},409);
+    const oldRole=new Map<string,string>(),newRole=new Map<string,string>();for(const key of keys){for(const n of oldSlots[key]||[])oldRole.set(norm(n),key);for(const n of slots[key]||[])newRole.set(norm(n),key)}
     const {error}=await db.from("multaqa_duty").update({slots}).eq("day_name",day);if(error)return json({ok:false,error:"save_failed"},500);
     for(const name of eligible){const before=oldRole.get(norm(name)),after=newRole.get(norm(name));if(before!==after){const info=DUTY_SLOT_INFO[after||""];await pushToNames(db,[name],"تم تغيير دور مناوبتك",`مناوبة ${day}: ${info?.label||after} • ${info?.time||""}`,"/school/","duty")}}
     const {data:allTeachers}=await db.from("multaqa_employees").select("short_name,full_name").eq("kind","teacher");

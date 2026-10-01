@@ -18,6 +18,12 @@
     try{ const a=getAlertAudio(); const p=a.play(); if(p&&p.then) p.then(()=>{a.pause();a.currentTime=0;}).catch(()=>{}); }catch(_){}
   },{once:true,passive:true}));
 
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.addEventListener('message',ev=>{
+      if(ev?.data?.type==='multaqa-push-sound') window.playMultaqaAlertSound();
+    });
+  }
+
   const originalNotify=window.notifyLocal;
   window.notifyLocal=async function(message){
     try{ if(typeof originalNotify==='function') originalNotify(message); }catch(_){ }

@@ -70,6 +70,7 @@ async function getSession(db:any,req:Request){
 }
 const elevated=(e:any)=>["admin","management"].includes(e?.access_group);
 const caseTeam=(e:any)=>["admin","management","social"].includes(e?.access_group);
+const canManageLab=(e:any)=>elevated(e)||e?.access_group==="lab"||e?.employee_id==="A008"||norm(e?.short_name)===norm("عبير المسلمية")||norm(e?.full_name)===norm("عبير المسلمية");
 async function canEditDutyRoles(db:any,e:any,admins:string[]=[],supervisorName=""){
   if(e?.employee_id==="T016"||norm(e?.short_name)===norm("ثرياء الناعبية")||norm(e?.full_name)===norm("ثرياء محمد علي الناعبية"))return true;
   if(supervisorName&&(norm(supervisorName)===norm(e?.short_name)||norm(supervisorName)===norm(e?.full_name)))return true;
@@ -643,9 +644,124 @@ Deno.serve(async(req)=>{
     const className=clean(body.class_name,60);let q=db.from("multaqa_book_loans").select("id,student_school_id,student_name,class_name,book_title,borrowed_at,due_at,returned_at").order("borrowed_at",{ascending:false}).limit(200);
     if(className)q=q.eq("class_name",className);const {data}=await q;return json({ok:true,items:data||[]});
   }
+  if(action==="lab_portal"){
+    const manager=canManageLab(e);
+    const [{data:activities},{data:items},{data:loanRows},{data:emps}]=await Promise.all([
+      db.from("multaqa_lab_activities").select("*").order("activity_date",{ascending:false}).order("created_at",{ascending:false}).limit(120),
+      db.from("multaqa_equipment_inventory").select("id,item_name,category,resource_key,total_qty,working_qty,damaged_qty,notes,updated_at").eq("resource_key","lab").order("category").order("item_name"),
+      (manager
+        ? db.from("multaqa_lab_loans").select("*").order("created_at",{ascending:false}).limit(250)
+        : db.from("multaqa_lab_loans").select("*").eq("borrower_employee_id",e.employee_id).order("created_at",{ascending:false}).limit(100)),
+      db.from("multaqa_employees").select("employee_id,short_name,full_name")
+    ]);
+    const names=new Map((emps||[]).map((x:any)=>[x.employee_id,x.short_name||x.full_name]));
+    const allApproved=await db.from("multaqa_lab_loans").select("item_id,quantity").eq("status","approved");
+    const reserved=new Map<string,number>();
+    for(const x of allApproved.data||[])reserved.set(x.item_id,(reserved.get(x.item_id)||0)+Number(x.quantity||0));
+    const inventory=(items||[]).map((x:any)=>({...x,available_qty:Math.max(0,Number(x.working_qty||0)-(reserved.get(x.id)||0))}));
+    const signedActivities=await Promise.all((activities||[]).map(async(x:any)=>{
+      let photo_url=null;if(x.photo_path){const {data:u}=await db.storage.from("lab-media").createSignedUrl(x.photo_path,3600);photo_url=u?.signedUrl||null}
+      return {...x,photo_url};
+    }));
+    const loans=(loanRows||[]).map((x:any)=>({...x,borrower_name:names.get(x.borrower_employee_id)||x.borrower_employee_id,item_name:(items||[]).find((i:any)=>i.id===x.item_id)?.item_name||"أداة مختبر"}));
+    return json({ok:true,can_manage_lab:manager,employee:{employee_id:e.employee_id,short_name:e.short_name,full_name:e.full_name},activities:signedActivities,inventory,loans});
+  }
+  if(action==="prepare_lab_activity_upload"){
+    if(!canManageLab(e))return json({ok:false,error:"forbidden"},403);
+    const mime=clean(body.mime_type,120),allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"},ext=allowed[mime];
+    if(!ext)return json({ok:false,error:"invalid_input"},400);
+    const path=`activities/${muscatDate()}/${crypto.randomUUID()}.${ext}`;
+    const {data:signed,error}=await db.storage.from("lab-media").createSignedUploadUrl(path);
+    if(error||!signed)return json({ok:false,error:"upload_failed"},500);
+    return json({ok:true,path,signed_url:signed.signedUrl});
+  }
+  if(action==="save_lab_activity"){
+    if(!canManageLab(e))return json({ok:false,error:"forbidden"},403);
+    const id=clean(body.id,80)||null,type=clean(body.activity_type,20),title=clean(body.title,220),date=clean(body.activity_date,10)||muscatDate();
+    if(!["activity","initiative"].includes(type)||title.length<2)return json({ok:false,error:"invalid_input"},400);
+    const row={activity_type:type,title,activity_date:date,description:clean(body.description,2500)||null,participants:clean(body.participants,1000)||null,outcomes:clean(body.outcomes,1800)||null,photo_path:clean(body.photo_path,700)||null,updated_at:new Date().toISOString()};
+    if(row.photo_path&&!row.photo_path.startsWith("activities/"))return json({ok:false,error:"invalid_input"},400);
+    const {data,error}=id
+      ? await db.from("multaqa_lab_activities").update(row).eq("id",id).select().single()
+      : await db.from("multaqa_lab_activities").insert({...row,created_by_employee_id:e.employee_id}).select().single();
+    if(error)return json({ok:false,error:"save_failed"},500);
+    return json({ok:true,item:data});
+  }
+  if(action==="delete_lab_activity"){
+    if(!canManageLab(e))return json({ok:false,error:"forbidden"},403);
+    const id=clean(body.id,80);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {data:old}=await db.from("multaqa_lab_activities").select("photo_path").eq("id",id).maybeSingle();
+    await db.from("multaqa_lab_activities").delete().eq("id",id);
+    if(old?.photo_path)await db.storage.from("lab-media").remove([old.photo_path]);
+    return json({ok:true});
+  }
+  if(action==="save_lab_equipment"){
+    if(!canManageLab(e))return json({ok:false,error:"forbidden"},403);
+    const id=clean(body.id,80)||null,itemName=clean(body.item_name,200),category=clean(body.category,100)||"مختبر",notes=clean(body.notes,800)||null;
+    const totalQty=Math.max(0,Number(body.total_qty)||0),workingQty=Math.max(0,Number(body.working_qty)||0),damagedQty=Math.max(0,Number(body.damaged_qty)||0);
+    if(!itemName||workingQty+damagedQty>totalQty)return json({ok:false,error:"invalid_input"},400);
+    const row={item_name:itemName,category,resource_key:"lab",total_qty:totalQty,working_qty:workingQty,damaged_qty:damagedQty,notes,updated_by_employee_id:e.employee_id,updated_at:new Date().toISOString()};
+    const {data,error}=id?await db.from("multaqa_equipment_inventory").update(row).eq("id",id).eq("resource_key","lab").select().single():await db.from("multaqa_equipment_inventory").insert(row).select().single();
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,item:data});
+  }
+  if(action==="delete_lab_equipment"){
+    if(!canManageLab(e))return json({ok:false,error:"forbidden"},403);
+    const id=clean(body.id,80);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {count}=await db.from("multaqa_lab_loans").select("id",{count:"exact",head:true}).eq("item_id",id).in("status",["pending","approved"]);
+    if((count||0)>0)return json({ok:false,error:"item_has_active_loans"},409);
+    await db.from("multaqa_equipment_inventory").delete().eq("id",id).eq("resource_key","lab");return json({ok:true});
+  }
+  if(action==="create_lab_loan"){
+    const itemId=clean(body.item_id,80),qty=Math.max(1,Math.min(50,Number(body.quantity)||1)),due=clean(body.due_at,10),purpose=clean(body.purpose,1000);
+    if(!itemId||!due||due<muscatDate())return json({ok:false,error:"invalid_input"},400);
+    const {data:item}=await db.from("multaqa_equipment_inventory").select("id,item_name,working_qty,resource_key").eq("id",itemId).eq("resource_key","lab").maybeSingle();
+    if(!item)return json({ok:false,error:"not_found"},404);
+    const {data:active}=await db.from("multaqa_lab_loans").select("quantity").eq("item_id",itemId).eq("status","approved");
+    const available=Math.max(0,Number(item.working_qty||0)-(active||[]).reduce((a:number,x:any)=>a+Number(x.quantity||0),0));
+    if(qty>available)return json({ok:false,error:"insufficient_stock",available},409);
+    const {data:loan,error}=await db.from("multaqa_lab_loans").insert({item_id:itemId,borrower_employee_id:e.employee_id,quantity:qty,purpose:purpose||null,due_at:due,status:"pending"}).select().single();
+    if(error)return json({ok:false,error:"save_failed"},500);
+    await pushToNames(db,[RESOURCE_OWNERS.lab],"🧪 طلب استعارة من المختبر",`${e.short_name||e.full_name} تطلب استعارة ${item.item_name} × ${qty} حتى ${due}.`,"/school/materials-lab/?open=loans","lab_loan");
+    return json({ok:true,item:loan});
+  }
+  if(action==="cancel_lab_loan"){
+    const id=clean(body.id,80);if(!id)return json({ok:false,error:"invalid_input"},400);
+    const {data:loan}=await db.from("multaqa_lab_loans").select("borrower_employee_id,status").eq("id",id).maybeSingle();
+    if(!loan)return json({ok:false,error:"not_found"},404);
+    if(loan.borrower_employee_id!==e.employee_id&&!canManageLab(e))return json({ok:false,error:"forbidden"},403);
+    if(loan.status!=="pending")return json({ok:false,error:"invalid_status"},409);
+    await db.from("multaqa_lab_loans").update({status:"cancelled",updated_at:new Date().toISOString()}).eq("id",id);return json({ok:true});
+  }
+  if(action==="decide_lab_loan"){
+    if(!canManageLab(e))return json({ok:false,error:"forbidden"},403);
+    const id=clean(body.id,80),decision=clean(body.decision,20),note=clean(body.note,1000)||null;
+    if(!id||!["approve","reject","return"].includes(decision))return json({ok:false,error:"invalid_input"},400);
+    const {data:loan}=await db.from("multaqa_lab_loans").select("*").eq("id",id).maybeSingle();if(!loan)return json({ok:false,error:"not_found"},404);
+    const {data:item}=await db.from("multaqa_equipment_inventory").select("item_name,working_qty").eq("id",loan.item_id).maybeSingle();if(!item)return json({ok:false,error:"not_found"},404);
+    let status=loan.status,patch:any={admin_note:note,updated_at:new Date().toISOString()};
+    if(decision==="approve"){
+      if(loan.status!=="pending")return json({ok:false,error:"invalid_status"},409);
+      const {data:active}=await db.from("multaqa_lab_loans").select("quantity").eq("item_id",loan.item_id).eq("status","approved");
+      const available=Math.max(0,Number(item.working_qty||0)-(active||[]).reduce((a:number,x:any)=>a+Number(x.quantity||0),0));
+      if(Number(loan.quantity)>available)return json({ok:false,error:"insufficient_stock",available},409);
+      status="approved";patch={...patch,status,approved_by_employee_id:e.employee_id,approved_at:new Date().toISOString()};
+    }else if(decision==="reject"){
+      if(loan.status!=="pending")return json({ok:false,error:"invalid_status"},409);
+      status="rejected";patch={...patch,status,approved_by_employee_id:e.employee_id,approved_at:new Date().toISOString()};
+    }else{
+      if(loan.status!=="approved")return json({ok:false,error:"invalid_status"},409);
+      status="returned";patch={...patch,status,returned_at:new Date().toISOString()};
+    }
+    const {error}=await db.from("multaqa_lab_loans").update(patch).eq("id",id);if(error)return json({ok:false,error:"save_failed"},500);
+    const {data:borrower}=await db.from("multaqa_employees").select("short_name,full_name").eq("employee_id",loan.borrower_employee_id).maybeSingle();
+    const label=status==="approved"?"✅ تمت الموافقة على استعارة المختبر":status==="rejected"?"❌ تم رفض طلب استعارة المختبر":"↩️ تم تسجيل إرجاع أداة المختبر";
+    if(borrower)await pushToNames(db,[borrower.short_name||borrower.full_name],label,`${item.item_name} × ${loan.quantity}${note?" — "+note:""}`,"/school/materials-lab/?open=loans","lab_loan_status");
+    return json({ok:true,status});
+  }
   if(action==="save_equipment_item"){
-    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
-    const id=clean(body.id,60)||null,itemName=clean(body.item_name,200),category=clean(body.category,60)||null,resourceKey=clean(body.resource_key,40)||null,notes=clean(body.notes,500)||null;
+    const requestedResource=clean(body.resource_key,40)||null;
+    if(!elevated(e)&&!(requestedResource==="lab"&&canManageLab(e)))return json({ok:false,error:"forbidden"},403);
+    const id=clean(body.id,60)||null,itemName=clean(body.item_name,200),category=clean(body.category,60)||null,resourceKey=requestedResource,notes=clean(body.notes,500)||null;
     const totalQty=Math.max(0,Number(body.total_qty)||0),workingQty=Math.max(0,Number(body.working_qty)||0),damagedQty=Math.max(0,Number(body.damaged_qty)||0);
     if(!itemName)return json({ok:false,error:"invalid_input"},400);
     const payload={item_name:itemName,category,resource_key:resourceKey,total_qty:totalQty,working_qty:workingQty,damaged_qty:damagedQty,notes,updated_by_employee_id:e.employee_id,updated_at:new Date().toISOString()};

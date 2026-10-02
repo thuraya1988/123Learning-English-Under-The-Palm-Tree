@@ -71,6 +71,9 @@ async function getSession(db:any,req:Request){
 const elevated=(e:any)=>["admin","management"].includes(e?.access_group);
 const caseTeam=(e:any)=>["admin","management","social"].includes(e?.access_group);
 const canManageLab=(e:any)=>elevated(e)||e?.access_group==="lab"||e?.employee_id==="A008"||norm(e?.short_name)===norm("عبير المسلمية")||norm(e?.full_name)===norm("عبير المسلمية");
+const ACTIVITY_MANAGER_IDS:Record<string,string[]>={safety:["T045","T018"],broadcast:["T009","T005"]};
+const activityPermissions=(e:any)=>Object.keys(ACTIVITY_MANAGER_IDS).filter(k=>ACTIVITY_MANAGER_IDS[k].includes(e?.employee_id));
+const canManageActivity=(e:any,type:string)=>elevated(e)||activityPermissions(e).includes(type);
 async function canEditDutyRoles(db:any,e:any,admins:string[]=[],supervisorName=""){
   if(e?.employee_id==="T016"||norm(e?.short_name)===norm("ثرياء الناعبية")||norm(e?.full_name)===norm("ثرياء محمد علي الناعبية"))return true;
   if(supervisorName&&(norm(supervisorName)===norm(e?.short_name)||norm(supervisorName)===norm(e?.full_name)))return true;
@@ -85,7 +88,7 @@ async function profile(db:any,e:any){
   const list=w||[],msg=(list[Math.floor(Math.random()*Math.max(list.length,1))]?.message||"مرحبًا {name}، يومك مليء بالإنجاز").replace("{name}",p?.welcome_name||e.short_name);
   let photo_url=p?.photo_url||null;
   if(photo_url&&photo_url.startsWith("profiles/")){const {data:u}=await db.storage.from("teacher-profile-photos").createSignedUrl(photo_url,3600);photo_url=u?.signedUrl||null}
-  return {...e,profile:{...(p||{}),photo_url},welcome_message:msg};
+  return {...e,activity_permissions:activityPermissions(e),profile:{...(p||{}),photo_url},welcome_message:msg};
 }
 async function login(db:any,body:any,req:Request){
   const name=clean(body.name,220),pin=clean(body.pin,20);if(!name||!pinOk(pin))return json({ok:false,error:"invalid_login"},400);
@@ -348,13 +351,13 @@ Deno.serve(async(req)=>{
     return json({ok:true,items:(items||[]).map((x:any)=>({...x,responsibles:(links||[]).filter((r:any)=>r.activity_id===x.id).map((r:any)=>({employee_id:r.employee_id,name:names.get(r.employee_id)||r.employee_id})),tasks:(tasks||[]).filter((r:any)=>r.activity_id===x.id).map((r:any)=>({...r,assignee_names:(r.assigned_to_employee_ids||[]).map((id:string)=>names.get(id)||id)})),achievements:(achievements||[]).filter((r:any)=>r.activity_id===x.id)}))});
   }
   if(action==="save_activity"){
-    if(!elevated(e))return json({ok:false,error:"forbidden"},403);const type=clean(body.activity_type,30),title=clean(body.title,220),id=clean(body.id,80);if(!title||!["broadcast","scouts_guides","safety","mothers_council","school_health","quran_group","music"].includes(type))return json({ok:false,error:"invalid_input"},400);
+    const type=clean(body.activity_type,30),title=clean(body.title,220),id=clean(body.id,80);if(!title||!["broadcast","scouts_guides","safety","mothers_council","school_health","quran_group","music"].includes(type))return json({ok:false,error:"invalid_input"},400);if(!canManageActivity(e,type))return json({ok:false,error:"forbidden"},403);
     const row:any={activity_type:type,title,activity_date:clean(body.activity_date,10)||muscatDate(),status:["planned","active","completed","cancelled"].includes(clean(body.status,20))?clean(body.status,20):"planned",description:clean(body.description,1800)||null,members:(Array.isArray(body.members)?body.members:[]).map((x:any)=>clean(x,160)).filter(Boolean).slice(0,100),updated_at:new Date().toISOString()};
     const {data:item,error}=id?await db.from("multaqa_school_activities").update(row).eq("id",id).select().single():await db.from("multaqa_school_activities").insert({...row,created_by_employee_id:e.employee_id}).select().single();if(error||!item)return json({ok:false,error:"save_failed"},500);
     const responsibleIds=(Array.isArray(body.responsible_employee_ids)?body.responsible_employee_ids:[]).map((x:any)=>clean(x,30)).filter(Boolean).slice(0,20);await db.from("multaqa_activity_responsibles").delete().eq("activity_id",item.id);if(responsibleIds.length)await db.from("multaqa_activity_responsibles").insert(responsibleIds.map((employee_id:string)=>({activity_id:item.id,employee_id})));return json({ok:true,item});
   }
   if(action==="save_activity_task"){
-    if(!elevated(e))return json({ok:false,error:"forbidden"},403);const activityId=clean(body.activity_id,80),title=clean(body.title,220);if(!activityId||!title)return json({ok:false,error:"invalid_input"},400);const {error}=await db.from("multaqa_activity_tasks").insert({activity_id:activityId,title,details:clean(body.details,1500)||null,assigned_to_employee_ids:(Array.isArray(body.assigned_to_employee_ids)?body.assigned_to_employee_ids:[]).map((x:any)=>clean(x,30)).filter(Boolean).slice(0,20),due_date:clean(body.due_date,10)||null,priority:["normal","important","urgent"].includes(clean(body.priority,20))?clean(body.priority,20):"normal",created_by_employee_id:e.employee_id});if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+    const activityId=clean(body.activity_id,80),title=clean(body.title,220);if(!activityId||!title)return json({ok:false,error:"invalid_input"},400);const {data:managedActivity}=await db.from("multaqa_school_activities").select("activity_type").eq("id",activityId).maybeSingle();if(!managedActivity||!canManageActivity(e,managedActivity.activity_type))return json({ok:false,error:"forbidden"},403);const {error}=await db.from("multaqa_activity_tasks").insert({activity_id:activityId,title,details:clean(body.details,1500)||null,assigned_to_employee_ids:(Array.isArray(body.assigned_to_employee_ids)?body.assigned_to_employee_ids:[]).map((x:any)=>clean(x,30)).filter(Boolean).slice(0,20),due_date:clean(body.due_date,10)||null,priority:["normal","important","urgent"].includes(clean(body.priority,20))?clean(body.priority,20):"normal",created_by_employee_id:e.employee_id});if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
   if(action==="complete_activity_task"){
     const id=Number(body.id),status=clean(body.status,20);if(!id||!["pending","in_progress","completed"].includes(status))return json({ok:false,error:"invalid_input"},400);const {data:t}=await db.from("multaqa_activity_tasks").select("assigned_to_employee_ids").eq("id",id).maybeSingle();if(!t||(!elevated(e)&&!(t.assigned_to_employee_ids||[]).includes(e.employee_id)))return json({ok:false,error:"forbidden"},403);await db.from("multaqa_activity_tasks").update({status,updated_at:new Date().toISOString()}).eq("id",id);return json({ok:true});
@@ -564,7 +567,7 @@ Deno.serve(async(req)=>{
     const {data:items}=await db.from("multaqa_broadcast_schedule").select("*").order("schedule_date").limit(180);return json({ok:true,items:items||[]});
   }
   if(action==="save_broadcast_schedule"){
-    if(!elevated(e))return json({ok:false,error:"forbidden"},403);const date=clean(body.schedule_date,10),cls=clean(body.class_label,100);if(!date||!cls)return json({ok:false,error:"invalid_input"},400);const {error}=await db.from("multaqa_broadcast_schedule").upsert({schedule_date:date,day_name:clean(body.day_name,30)||null,class_label:cls,title:clean(body.title,220)||null,responsible_employee_ids:(Array.isArray(body.responsible_employee_ids)?body.responsible_employee_ids:[]).map((x:any)=>clean(x,30)).filter(Boolean).slice(0,20),notes:clean(body.notes,1000)||null,created_by_employee_id:e.employee_id,updated_at:new Date().toISOString()},{onConflict:"schedule_date,class_label"});if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+    if(!canManageActivity(e,"broadcast"))return json({ok:false,error:"forbidden"},403);const date=clean(body.schedule_date,10),cls=clean(body.class_label,100);if(!date||!cls)return json({ok:false,error:"invalid_input"},400);const {error}=await db.from("multaqa_broadcast_schedule").upsert({schedule_date:date,day_name:clean(body.day_name,30)||null,class_label:cls,title:clean(body.title,220)||null,responsible_employee_ids:(Array.isArray(body.responsible_employee_ids)?body.responsible_employee_ids:[]).map((x:any)=>clean(x,30)).filter(Boolean).slice(0,20),notes:clean(body.notes,1000)||null,created_by_employee_id:e.employee_id,updated_at:new Date().toISOString()},{onConflict:"schedule_date,class_label"});if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
   if(action==="mothers_council"){
     const {data:item}=await db.from("multaqa_mothers_council").select("*").eq("id","current").maybeSingle();return json({ok:true,item:item||null});

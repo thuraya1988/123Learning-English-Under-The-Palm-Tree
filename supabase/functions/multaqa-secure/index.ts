@@ -69,7 +69,7 @@ async function getSession(db:any,req:Request){
   return {session:s,employee:e,token};
 }
 const elevated=(e:any)=>e?.kind==="admin"||e?.employee_id==="T016"||["admin","management"].includes(e?.access_group);
-const caseTeam=(e:any)=>["admin","management","social"].includes(e?.access_group);
+const caseTeam=(e:any)=>elevated(e)||e?.access_group==="social";
 const canManageLab=(e:any)=>elevated(e)||e?.access_group==="lab"||e?.employee_id==="A008"||norm(e?.short_name)===norm("عبير المسلمية")||norm(e?.full_name)===norm("عبير المسلمية");
 const ACTIVITY_MANAGER_IDS:Record<string,string[]>={safety:["T045","T018"],broadcast:["T009","T005"],readers_club:["T012","T038"]};
 const activityPermissions=(e:any)=>Object.keys(ACTIVITY_MANAGER_IDS).filter(k=>ACTIVITY_MANAGER_IDS[k].includes(e?.employee_id));

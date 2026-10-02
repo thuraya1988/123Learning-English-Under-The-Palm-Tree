@@ -365,7 +365,7 @@ window.saveDutyMemberEvaluation=async(name,id)=>{
 window.reportClassStatus=async()=>{try{const classLabel=S('reportClass').value,status=S('reportStatus').value,period=+S('reportPeriod').value,note=S('reportNote').value,d=await staffApi('report_class',{class_label:classLabel,status,period,note});if(d.notified_teacher){toast('🚨 تم تنبيه '+d.notified_teacher+(d.push_sent?' في الخلفية':'، وتحتاج تفعيل إشعارات جهازها'));if(['no_teacher','problem'].includes(status)&&typeof window.waClassAlert==='function')await window.waClassAlert({teacher:d.notified_teacher,employeeId:d.notified_employee_id,phone:d.whatsapp_phone,classLabel,period,note})}else toast('✅ تم إرسال البلاغ للإدارة')}catch(e){toast(staffError(e))}};
 function broadcastTeacherOptions(){
  const teachers=(secureDirectory.employees||[]).filter(x=>x.kind==='teacher');
- if(!secureAdmin())return '<option value="'+esc(secureEmployee.short_name)+'">'+esc(secureEmployee.short_name)+'</option>';
+ if(!canManageActivity('broadcast'))return '<option value="'+esc(secureEmployee.short_name)+'">'+esc(secureEmployee.short_name)+'</option>';
  return teachers.map(x=>'<option value="'+esc(x.short_name)+'" '+(x.employee_id===secureEmployee.employee_id?'selected':'')+'>'+esc(x.short_name)+'</option>').join('');
 }
 function broadcastStatusLabel(s){return({planned:'🟡 مخطط لها',live:'🔴 حدث مباشر',completed:'🟢 مكتملة',cancelled:'⚫ ملغاة'}[s]||s)}

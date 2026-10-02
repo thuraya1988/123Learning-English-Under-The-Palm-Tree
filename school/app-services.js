@@ -69,7 +69,7 @@ function clock(){
  const d=new Date();
  $('schoolClock').textContent=new Intl.DateTimeFormat('ar-OM',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true}).format(d);
  const n=d.getHours()*60+d.getMinutes(),nx=BELL.find(x=>x[0]>n);
- $('nextBellText').textContent=nx?\`التنبيه التالي: \${nx[1]}\`:'انتهت الحصص المجدولة';
+ $('nextBellText').textContent=nx?`التنبيه التالي: ${nx[1]}`:'انتهت الحصص المجدولة';
  if(alerts){
   const e=BELL.find(x=>x[0]===n),k=d.toDateString()+n;
   if(e&&k!==lastBell){lastBell=k;window.raiseMultaqaImportantAlert('🔔 '+e[1],'يستمر التنبيه حتى تضغطي «إيقاف التنبيه».',{key:'bell-'+k})}

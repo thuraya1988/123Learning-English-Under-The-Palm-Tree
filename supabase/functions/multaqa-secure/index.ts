@@ -68,7 +68,7 @@ async function getSession(db:any,req:Request){
   await db.from("multaqa_staff_sessions").update({last_seen_at:new Date().toISOString()}).eq("id",s.id);
   return {session:s,employee:e,token};
 }
-const elevated=(e:any)=>["admin","management"].includes(e?.access_group);
+const elevated=(e:any)=>e?.kind==="admin"||e?.employee_id==="T016"||["admin","management"].includes(e?.access_group);
 const caseTeam=(e:any)=>["admin","management","social"].includes(e?.access_group);
 const canManageLab=(e:any)=>elevated(e)||e?.access_group==="lab"||e?.employee_id==="A008"||norm(e?.short_name)===norm("عبير المسلمية")||norm(e?.full_name)===norm("عبير المسلمية");
 const ACTIVITY_MANAGER_IDS:Record<string,string[]>={safety:["T045","T018"],broadcast:["T009","T005"]};

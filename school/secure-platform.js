@@ -30,7 +30,7 @@ async function staffApi(action,p={}){
 }
 function staffError(e){return({invalid_login:'الاسم أو الرمز السري غير صحيح.',pin_not_issued:'لم تصدر الإدارة رمزًا لهذا الاسم بعد.',temporarily_locked:'تم إيقاف المحاولات 15 دقيقة للحماية.',session_required:'انتهت جلسة الدخول. سجلي الدخول من جديد.',weak_pin:'الرمز يجب أن يكون من 6 إلى 12 رقمًا.',forbidden:'ليست لديك صلاحية لهذه العملية.',not_on_duty:'هذه العملية متاحة لمعلمات مناوبة اليوم والإدارة فقط.',duty_capacity:'يجب أن يبقى عدد المعلمات في كل موقع كما هو. غيّري الدور ليتم التبديل بين معلمتين.',not_found:'لم يتم العثور على السجل.',coverage_conflict:'لا يمكن إسناد الحصة لهذه المعلمة لوجود تعارض في جدولها أو احتياط آخر.',no_coverage:'لا توجد حصص احتياط موزعة لإرسالها في هذا التاريخ.',save_failed:'تعذر حفظ البيانات.',upload_failed:'تعذر رفع الفيديو. حاولي مرة أخرى.',invalid_input:'أكملي الحقول المطلوبة.',service_timeout:'خدمة الدخول لا تستجيب الآن بسبب عطل مؤقت في قاعدة البيانات. حاولي بعد دقيقة.',already_booked:'هذا المورد محجوز بالفعل في نفس التاريخ والحصة.'}[e?.code]||'تعذر إتمام العملية الآن.')}
 function secureAdmin(){return !!secureEmployee&&(secureEmployee.kind==='admin'||secureEmployee.employee_id==='T016'||['admin','management'].includes(secureEmployee.access_group))}
-function caseAccess(){return secureEmployee&&['admin','management','social'].includes(secureEmployee.access_group)}
+function caseAccess(){return !!secureEmployee&&(secureAdmin()||secureEmployee.access_group==='social')}
 function canManageActivity(type){return !!secureEmployee&&(secureAdmin()||(secureEmployee.activity_permissions||[]).includes(type))}
 function financialSupportAccess(){return !!secureEmployee&&(secureAdmin()||secureEmployee.financial_support_manager===true)}
 function secureWelcomeName(e){

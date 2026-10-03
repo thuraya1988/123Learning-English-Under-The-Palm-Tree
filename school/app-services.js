@@ -52,7 +52,7 @@ function stopMultaqaImportantAlert(){
 window.stopMultaqaImportantAlert=stopMultaqaImportantAlert;
 function sendImportantSystemNotification(title,body,key){
  if(!('Notification'in window)||Notification.permission!=='granted'||!('serviceWorker'in navigator))return;
- navigator.serviceWorker.ready.then(reg=>reg.showNotification(title,{body,dir:'rtl',lang:'ar',icon:'school-logo.png',badge:'school-logo.png',tag:'multaqa-important-'+String(key).replace(/\\s+/g,'-'),renotify:true,data:{url:'./'}})).catch(()=>{});
+ navigator.serviceWorker.ready.then(reg=>reg.showNotification(title,{body,dir:'rtl',lang:'ar',icon:'multaqa-smart-icon.svg',badge:'multaqa-smart-icon.svg',tag:'multaqa-important-'+String(key).replace(/\\s+/g,'-'),renotify:true,data:{url:'./'}})).catch(()=>{});
 }
 window.raiseMultaqaImportantAlert=function(title,body,opts){
  opts=opts||{};

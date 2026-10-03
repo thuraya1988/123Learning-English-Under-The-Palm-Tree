@@ -164,9 +164,9 @@ body{
       </div>
     </div>
     <div class="field">
-      <label>صورة للمنشور <span style="font-weight:400">(اختياري)</span></label>
-      <input id="fMedia" type="file" accept="image/jpeg,image/png,image/webp">
-      <small class="field-help">يمكنك إضافة صورة نجمة نور، ملصق فعالية، أو صورة توضيحية. الحد الأقصى 15 MB.</small>
+      <label>مرفق للمنشور <span style="font-weight:400">(اختياري)</span></label>
+      <input id="fMedia" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm,video/quicktime">
+      <small class="field-help">يمكنك إضافة صورة أو فيديو أو ملف PDF. الحد الأقصى 250 MB.</small>
       <div class="media-preview" id="fMediaState"></div>
     </div>
     <label class="switch-row"><input type="checkbox" id="fPush"> 🔔 إرسال إشعار لجميع المعلمات</label>
@@ -281,6 +281,12 @@ function renderFilters(){
   box.innerHTML=Object.keys(CATS).map(c=>`<button class="chip ${c===activeCat?'act':''}" data-cat="${esc(c)}">${CATS[c].emoji?CATS[c].emoji+' ':''}${esc(c)}</button>`).join('');
   box.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{activeCat=b.dataset.cat;renderFilters();renderFeed();}));
 }
+function mediaMarkup(url,title){
+  const safe=esc(url),label=esc(title||'المرفق');
+  if(/\\.pdf($|\\?)/i.test(url))return '<a class="source-link" href="'+safe+'" target="_blank" rel="noopener">📄 فتح ملف PDF</a>';
+  if(/\\.(mp4|webm|mov)($|\\?)/i.test(url))return '<video class="card-media" controls preload="metadata" src="'+safe+'" aria-label="'+label+'"></video>';
+  return '<img class="card-media" src="'+safe+'" alt="'+label+'" onclick="window.open(\\''+safe+'\\',\\'_blank\\')">';
+}
 function renderFeed(){
   const feed=document.getElementById('feed');
   const list=activeCat==='الكل'?allItems:allItems.filter(x=>(x.subject||'عام')===activeCat);
@@ -297,7 +303,7 @@ function renderFeed(){
     const stars=token?[1,2,3,4,5].map(n=>`<button class="star-btn ${Number(rx.my_rating)===n?'on':''}" onclick="rateMagazinePost('${key}',${n})" title="تقييم ${n}">${n<=Number(rx.my_rating)?'★':'☆'}</button>`).join(''):'';
     return `<article class="card">
       <div class="card-head"><span class="badge" style="--c:${meta.color}">${meta.emoji?meta.emoji+' ':''}${esc(cat)}</span><span class="date">${date}</span></div>
-      ${item.media_url?`<img class="card-media" src="${esc(item.media_url)}" alt="${esc(item.title)}" onclick="window.open('${esc(item.media_url)}','_blank')">`:''}
+      ${item.media_url?mediaMarkup(item.media_url,item.title):''}
       <h3>${esc(item.title)}</h3>
       <p>${esc(item.body)}</p>
       ${item.test_name&&/^https?:\/\//.test(item.test_name)?`<a class="source-link" href="${esc(item.test_name)}" target="_blank" rel="noopener">🔗 المصدر الرسمي</a>`:''}
@@ -433,7 +439,7 @@ function composePayload(){
 }
 document.getElementById('fMedia').addEventListener('change',e=>{
  const f=e.target.files?.[0],state=document.getElementById('fMediaState');if(!f){state.textContent='';return}
- if(f.size>15*1024*1024){e.target.value='';state.textContent='❌ الصورة أكبر من 15 MB';toast('اختاري صورة أصغر من 15 MB');return}
+ if(f.size>250*1024*1024){e.target.value='';state.textContent='❌ المرفق أكبر من 250 MB';toast('اختاري مرفقًا أصغر من 250 MB');return}
  state.textContent='✅ '+f.name+' • '+Math.max(1,Math.round(f.size/1024))+' KB';
 });
 document.getElementById('btnSubmitPost').addEventListener('click',async()=>{
@@ -446,7 +452,7 @@ document.getElementById('btnSubmitPost').addEventListener('click',async()=>{
   try{
     let media_url=null;
     if(file){
-      btn.textContent='جاري رفع الصورة…';
+      btn.textContent='جاري رفع المرفق…';
       const u=await secureApi('prepare_magazine_upload',{mime_type:file.type,file_name:file.name});
       const up=await fetch(u.signed_url,{method:'PUT',headers:{'Content-Type':file.type,'x-upsert':'false'},body:file});
       if(!up.ok)throw Object.assign(new Error('upload_failed'),{code:'upload_failed'});

@@ -31,16 +31,22 @@ window.syncDutyEvaluationState=()=>{const absent=$('dutyAttendanceStatus').value
 window.saveDutyEvaluation=async()=>{if(!employee)return openIdentity();const attendance_status=$('dutyAttendanceStatus').value,effectiveness=$('dutyEffectiveness').value,reason=$('dutyEvaluationReason').value.trim();if((attendance_status!=='committed'||effectiveness==='inactive')&&!reason)return toast('اكتبي الأسباب أولًا');try{await api('save_duty_evaluation',{employee_name:employee.short_name,attendance_status,effectiveness,reason});toast('✅ تم حفظ تقييم المناوبة');closeDutyEvaluation();loadDutyHistory()}catch(x){toast(err(x))}};
 async function loadDutyHistory(){if(!employee)return;try{const d=await api('duty_history',{employee_name:employee.short_name}),n={start:'بدء المناوبة',round:'جولة صف',issue:'ملاحظة/مشكلة',end:'إنهاء المناوبة'},btn=$('dutyEvaluationBtn');if(btn)btn.disabled=!d.ended_today;if(d.evaluation){$('dutyAttendanceStatus').value=d.evaluation.attendance_status;$('dutyEffectiveness').value=d.evaluation.effectiveness;$('dutyEvaluationReason').value=d.evaluation.reason||'';syncDutyEvaluationState()}$('dutyHistory').innerHTML=(d.evaluation?'<div class="duty-history-item"><b>⭐ تقييم اليوم</b> — '+({committed:'ملتزمة',late:'متأخرة',absent:'غائبة'}[d.evaluation.attendance_status])+' • '+(d.evaluation.effectiveness==='active'?'فاعلة':'غير فاعلة')+(d.evaluation.reason?'<br>'+esc(d.evaluation.reason):'')+'</div>':'')+((d.events||[]).slice(0,12).map(x=>'<div class="duty-history-item"><b>'+n[x.event_type]+'</b> — '+new Intl.DateTimeFormat('ar-OM',{dateStyle:'short',timeStyle:'short',hour12:true}).format(new Date(x.occurred_at))+(x.class_label?'<br>الصف: '+esc(x.class_label):'')+(x.note?'<br>'+esc(x.note):'')+'</div>').join('')||'<div class="duty-history-item">لا توجد تسجيلات بعد.</div>')}catch{}}
 const BELL=[[740,'بدء الحصة الأولى'],[775,'بدء الحصة الثانية'],[810,'بدء الحصة الثالثة'],[845,'بدء الحصة الرابعة'],[880,'انتهاء الحصة الرابعة'],[900,'بدء الحصة الخامسة'],[935,'بدء الحصة السادسة'],[970,'بدء الحصة السابعة'],[1005,'انتهاء الحصة السابعة']];
-let alerts=localStorage.getItem('multaqa_period_notifications')==='1',lastBell='',importantAlarmAudio=null,importantAlarmLoop=null,activeImportantAlarmKey='';
+let alerts=localStorage.getItem('multaqa_period_notifications')==='1',lastBell='',importantAlarmAudio=null,importantAlarmLoop=null,activeImportantAlarmKey='',attendanceReminderFired='';
 function importantAlarmAudioEl(){
  if(!importantAlarmAudio){importantAlarmAudio=new Audio('assets/notify-chime.mp3');importantAlarmAudio.preload='auto';importantAlarmAudio.loop=true}
  return importantAlarmAudio;
+}
+function ensureMultaqaNeonAlertStyle(){
+ if(document.getElementById('multaqaNeonAlertStyle'))return;
+ const s=document.createElement('style');s.id='multaqaNeonAlertStyle';
+ s.textContent='@keyframes multaqaNeonPulse{0%,100%{box-shadow:0 0 8px #ffcf66,0 0 22px #9b1c31,0 0 44px rgba(155,28,49,.65);filter:brightness(1)}50%{box-shadow:0 0 16px #fff1b0,0 0 38px #c12c50,0 0 74px rgba(193,44,80,.95);filter:brightness(1.16)}}#bellAlert.multaqa-neon-alert{animation:multaqaNeonPulse 1.25s ease-in-out infinite;border-color:#ffd36d!important}';
+ document.head.appendChild(s);
 }
 function stopMultaqaImportantAlert(){
  if(importantAlarmLoop){clearInterval(importantAlarmLoop);importantAlarmLoop=null}
  if(importantAlarmAudio){try{importantAlarmAudio.pause();importantAlarmAudio.currentTime=0}catch{}importantAlarmAudio=null}
  const el=$('bellAlert');
- if(el){el.classList.remove('show','persistent');el.innerHTML='';el.removeAttribute('role')}
+ if(el){el.classList.remove('show','persistent','multaqa-neon-alert');el.innerHTML='';el.removeAttribute('role')}
  activeImportantAlarmKey='';
 }
 window.stopMultaqaImportantAlert=stopMultaqaImportantAlert;
@@ -73,6 +79,11 @@ function clock(){
  if(alerts){
   const e=BELL.find(x=>x[0]===n),k=d.toDateString()+n;
   if(e&&k!==lastBell){lastBell=k;window.raiseMultaqaImportantAlert('🔔 '+e[1],'يستمر التنبيه حتى تضغطي «إيقاف التنبيه».',{key:'bell-'+k})}
+  const firstPeriodStart=BELL[0][0],firstWindowEnd=firstPeriodStart+15,dayKey=d.toDateString();
+  if(n>=firstPeriodStart&&n<=firstWindowEnd&&attendanceReminderFired!==dayKey){
+    attendanceReminderFired=dayKey;
+    window.raiseMultaqaImportantAlert('📋 تذكير تسجيل غياب الحصة الأولى','على معلمات الحصة الأولى تسجيل حضور وغياب الطالبات الآن. سيستمر الصوت حتى تضغطي «إسكات التنبيه».',{key:'attendance-first-'+dayKey,neon:true,muteLabel:'🔇 إسكات لي'});
+  }
  }
 }
 setInterval(clock,1000);clock();

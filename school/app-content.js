@@ -130,7 +130,7 @@ window.stopEmergencyAlertUI=async id=>{
 window.openAttendanceReport=async()=>{
  const date=new Date().toISOString().slice(0,10),out=$('attendanceReportResult'),btn=$('attendanceReportBtn');
  if(!out)return;
- if(typeof employee==='undefined'||!employee){out.innerHTML='<div class="ps-error">عرّفي النظام باسمك أولًا حتى يتم التحقق من الصلاحية.</div>';return openIdentity&&openIdentity();}
+ if(typeof employee==='undefined'||!employee){out.innerHTML='<div class="ps-error">عرّفي النظام باسمك أولًا حتى يتم التحقق من الصلاحية.</div>';return typeof openIdentity==='function'&&openIdentity();}
  out.innerHTML='جاري سحب تقرير الغياب من قاعدة البيانات…';if(btn)btn.disabled=true;
  try{
   const d=await api('attendance_report',{date});

@@ -244,6 +244,30 @@ Deno.serve(async(req)=>{
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const target=await resolveEmployee(db,clean(body.employee_name,220));if(!target)return json({ok:false,error:"not_found"},404);const pin=pinOk(clean(body.pin,20))?clean(body.pin,20):randomPin();
     await db.from("multaqa_staff_credentials").upsert({employee_id:target.employee_id,pin_hash:bcrypt.hashSync(pin,12),must_change_pin:true,failed_attempts:0,locked_until:null,updated_at:new Date().toISOString()});return json({ok:true,employee_name:target.short_name,temporary_pin:pin});
   }
+  if(action==="attendance_report"){
+    if(!elevated(e))return json({ok:false,error:"forbidden"},403);
+    const date=clean(body.date,10)||muscatDate();
+    const [{data:roster},{data:attendance},{data:staffAttendance},{data:employees}]=await Promise.all([
+      db.from("multaqa_students").select("class_name").not("class_name","is",null),
+      db.from("multaqa_student_attendance").select("student_school_id,class_name,period,status,excuse_category").eq("attendance_date",date).eq("period",1),
+      db.from("multaqa_teacher_attendance").select("employee_id,status,late_at,reason_category").eq("attendance_date",date),
+      db.from("multaqa_employees").select("employee_id,full_name,short_name,kind,access_group")
+    ]);
+    const expected=[...new Set((roster||[]).map((x:any)=>clean(x.class_name,100)).filter(Boolean))].sort();
+    const completed=[...new Set((attendance||[]).map((x:any)=>clean(x.class_name,100)).filter(Boolean))].sort();
+    const completedSet=new Set(completed),missing=expected.filter(x=>!completedSet.has(x));
+    const tally=(rows:any[])=>rows.reduce((m:any,x:any)=>{const k=x.status||"unknown";m[k]=(m[k]||0)+1;return m},{} as Record<string,number>);
+    const studentSummary={records:(attendance||[]).length,classes_completed:completed.length,status:tally(attendance||[]),excused:(attendance||[]).filter((x:any)=>x.status==="excused").length,absent_classes:[...new Set((attendance||[]).filter((x:any)=>x.status==="absent").map((x:any)=>x.class_name))]};
+    const byId=new Map((employees||[]).map((x:any)=>[x.employee_id,x]));
+    const teacherRows=(staffAttendance||[]).filter((x:any)=>byId.get(x.employee_id)?.kind==="teacher");
+    const adminRows=(staffAttendance||[]).filter((x:any)=>byId.get(x.employee_id)?.kind==="admin");
+    const staffSummary=(rows:any[])=>({total_records:rows.length,status:tally(rows),late:rows.filter((x:any)=>x.status==="late").length,absent:rows.filter((x:any)=>x.status==="absent").length,employees:rows.map((x:any)=>{const p=byId.get(x.employee_id)||{};return {employee_id:x.employee_id,name:p.short_name||p.full_name||x.employee_id,status:x.status,late_at:x.late_at||null,reason_category:x.reason_category||null}})});
+    const teacherSummary=staffSummary(teacherRows),adminSummary=staffSummary(adminRows),isComplete=expected.length>0&&missing.length===0;
+    const payload={report_date:date,is_complete:isComplete,expected_classes:expected.length,completed_classes:completed.length,missing_classes:missing,student_summary:studentSummary,teacher_summary:teacherSummary,admin_summary:adminSummary,generated_by_employee_id:e.employee_id,generated_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+    const {data:snapshot,error}=await db.from("multaqa_attendance_reports").upsert(payload,{onConflict:"report_date"}).select().single();
+    if(error)return json({ok:false,error:"report_save_failed",detail:error.message},500);
+    return json({ok:true,date,is_complete:isComplete,expected_classes:expected.length,completed_classes:completed.length,missing_classes:missing,students:studentSummary,teachers:teacherSummary,admins:adminSummary,snapshot});
+  }
   if(action==="dashboard"){
     const date=clean(body.date,10)||muscatDate();const [{data:sa},{data:ta},{data:pr},{data:cv},{data:ob},{data:da},{count:students},{count:staff}]=await Promise.all([
       db.from("multaqa_student_attendance").select("status,class_name").eq("attendance_date",date),

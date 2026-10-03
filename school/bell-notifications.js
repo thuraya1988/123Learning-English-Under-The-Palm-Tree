@@ -34,7 +34,7 @@
       await reg.showNotification(message,{
         body:PERIOD_NOTICE_BODY,
         dir:'rtl',lang:'ar',
-        icon:'multaqa-smart-icon.svg',badge:'multaqa-smart-icon.svg',
+        icon:'multaqa-smart-icon.png',badge:'multaqa-smart-icon.png',
         tag:'multaqa-period-'+String(message).replace(/\s+/g,'-'),
         renotify:true,
         data:{url:'./'}

@@ -6,7 +6,7 @@ self.addEventListener('push',e=>{
   e.waitUntil((async()=>{
     await self.registration.showNotification(title,{
       body:d.body||'لديك إشعار جديد من نظام المدرسة.',
-      dir:'rtl',lang:'ar',icon:'multaqa-smart-icon.svg',badge:'multaqa-smart-icon.svg',
+      dir:'rtl',lang:'ar',icon:'multaqa-smart-icon.png',badge:'multaqa-smart-icon.png',
       tag:d.kind||'multaqa-school',renotify:true,data:{url:d.url||'/school/'}
     });
     const windows=await clients.matchAll({type:'window',includeUncontrolled:true});

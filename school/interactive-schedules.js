@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 
-const SCHEDULE_SOURCE='schedule-import-2026.json?v=20260927-audit-clean';
+const SCHEDULE_SOURCE='schedule-import-2026.json?v=20261003-october-final';
 const SCHOOL_DAYS=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
 const PERIOD_LABELS=[
  ['١','12:20 م – 12:55 م',740,775],['٢','12:55 م – 1:30 م',775,810],

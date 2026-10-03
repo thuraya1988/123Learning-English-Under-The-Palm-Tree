@@ -729,7 +729,7 @@ footer b{color:var(--mut)}
       <div class="field"><label>المشاركات / الفئة المستهدفة</label><input id="labActParticipants" type="text" placeholder="مثال: طالبات الصف الخامس"></div>
       <div class="field"><label>الأثر أو النتائج</label><input id="labActOutcomes" type="text" placeholder="أبرز النتائج أو الأثر"></div>
     </div>
-    <div class="field"><label>صورة توثيقية (اختياري)</label><input id="labActPhoto" type="file" accept="image/jpeg,image/png,image/webp"><span class="hint">حتى 15 MB</span></div>
+    <div class="field"><label>مرفق توثيقي (اختياري)</label><input id="labActPhoto" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm,video/quicktime"><span class="hint">صورة أو فيديو أو PDF — حتى 250 MB</span></div>
     <div class="btnrow"><button class="btn pri" id="labActSaveBtn" onclick="saveLabActivity()">حفظ ونشر</button><button class="btn" onclick="closeLabActivityForm()">إلغاء</button></div>
   </div>
   <div id="labActivityList" class="lab-feed"><div class="lab-empty">جاري تحميل فعاليات المختبر…</div></div>
@@ -2358,11 +2358,17 @@ async function loadLabPortal(){
 }
 window.loadLabPortal=loadLabPortal;
 
+function labMediaMarkup(url,title){
+  const safe=labEsc(url),label=labEsc(title||'المرفق');
+  if(/\\.pdf($|\\?)/i.test(url))return '<a class="lab-file-link" href="'+safe+'" target="_blank" rel="noopener">📄 فتح ملف PDF</a>';
+  if(/\\.(mp4|webm|mov)($|\\?)/i.test(url))return '<video class="lab-media" controls preload="metadata" src="'+safe+'" aria-label="'+label+'"></video>';
+  return '<img src="'+safe+'" alt="'+label+'" loading="lazy">';
+}
 function renderLabActivities(){
   const box=$('#labActivityList'),items=labPortal.activities||[];
   if(!items.length){box.innerHTML='<div class="lab-empty">لا توجد فعاليات أو مبادرات موثقة بعد.</div>';return}
   box.innerHTML=items.map(x=>`<article class="lab-post">
-    ${x.photo_url?`<img src="${labEsc(x.photo_url)}" alt="${labEsc(x.title)}">`:''}
+    ${x.photo_url?labMediaMarkup(x.photo_url,x.title):''}
     <span class="type">${x.activity_type==='initiative'?'💡 مبادرة':'🎉 فعالية'}</span>
     <h3>${labEsc(x.title)}</h3>
     <div class="meta">📅 ${labDate(x.activity_date)}</div>
@@ -2385,7 +2391,7 @@ window.saveLabActivity=async()=>{
   try{
     btn.disabled=true;btn.textContent='جاري الحفظ…';let photo_path=null,file=$('#labActPhoto').files?.[0];
     if(file){
-      if(file.size>15*1024*1024)throw Object.assign(new Error('invalid_input'),{code:'invalid_input'});
+      if(file.size>250*1024*1024)throw Object.assign(new Error('invalid_input'),{code:'invalid_input'});
       const u=await labApi('prepare_lab_activity_upload',{mime_type:file.type,file_name:file.name});
       const up=await fetch(u.signed_url,{method:'PUT',headers:{'Content-Type':file.type,'x-upsert':'false'},body:file});
       if(!up.ok)throw Object.assign(new Error('upload_failed'),{code:'upload_failed'});photo_path=u.path;

@@ -127,6 +127,29 @@ window.stopEmergencyAlertUI=async id=>{
  if(!confirm('إيقاف التنبيه الطارئ ومنع أي إشعارات لاحقة؟'))return;try{await window.stopEmergencyAlertAdmin(id);toast('⏹ تم إيقاف التنبيه الطارئ');window.pollEmergencyAlertNow&&window.pollEmergencyAlertNow();await loadContent()}catch(e){toast(typeof staffError==='function'?staffError(e):'تعذر إيقاف التنبيه')}
 };
 
+window.openAttendanceReport=async()=>{
+ const date=new Date().toISOString().slice(0,10),out=$('attendanceReportResult'),btn=$('attendanceReportBtn');
+ if(!out)return;
+ if(typeof employee==='undefined'||!employee){out.innerHTML='<div class="ps-error">عرّفي النظام باسمك أولًا حتى يتم التحقق من الصلاحية.</div>';return openIdentity&&openIdentity();}
+ out.innerHTML='جاري سحب تقرير الغياب من قاعدة البيانات…';if(btn)btn.disabled=true;
+ try{
+  const d=await api('attendance_report',{date});
+  const s=d.students||{},t=d.teachers||{},a=d.admins||{};
+  const status=(o,k)=>Number((o.status||{})[k]||0);
+  out.innerHTML='<div class="attendance-report-head"><b>تقرير '+esc(d.date||date)+'</b><span class="'+(d.is_complete?'ok':'warn')+'">'+(d.is_complete?'✓ اكتملت كل الفصول':'⚠ لم تكتمل كل الفصول')+'</span></div>'+
+   '<div class="attendance-report-grid"><div><b>الطالبات</b><br>سجلات: '+s.records+' • فصول مكتملة: '+d.completed_classes+'/'+d.expected_classes+'<br>حاضرات: '+status(s,'present')+' • غائبات: '+status(s,'absent')+' • متأخرات: '+status(s,'late')+' • أعذار: '+status(s,'excused')+'</div>'+
+   '<div><b>المعلمات</b><br>حاضرات: '+status(t,'present')+' • غائبات: '+status(t,'absent')+' • متأخرات: '+status(t,'late')+'</div>'+
+   '<div><b>الكادر الإداري</b><br>حاضرات: '+status(a,'present')+' • غائبات: '+status(a,'absent')+' • متأخرات: '+status(a,'late')+'</div></div>'+
+   (d.missing_classes&&d.missing_classes.length?'<div class="ps-error">الفصول التي لم تُسجل: '+d.missing_classes.map(esc).join('، ')+'</div>':'<div class="ps-ok">تم حفظ نسخة التقرير في النظام.</div>');
+ }catch(e){out.innerHTML='<div class="ps-error">'+(typeof staffError==='function'?staffError(e):'تعذر سحب التقرير')+'</div>'}
+ if(btn)btn.disabled=false;
+};
 const SIMPLE={assembly:['🛗 الطابور الصباحي','وحدة متابعة الطابور المدرسي.'],radio:['📢 الإذاعة المدرسية','مساحة تنظيم فقرات الإذاعة المدرسية.'],tests:['📝 إدارة الاختبارات','الإعلان الهام يعرض الاختبار والمادة والتاريخ واليوم.'],excellence:['🏆 لوحة التميّز','مساحة عرض إنجازات الطالبات والمعلمات عند نشرها.'],chat:['💬 محادثة مباشرة','الطلبات التشغيلية تصل عبر صندوق طلبات أولياء الأمور.'],search:['🔎 بحث شامل','استخدمي جداول الصفوف، جدول المعلمة، أو التحقق من سجل الطالب.'],reports:['🧾 تقارير وسجل عمليات','تسجيلات المناوبة وطلبات أولياء الأمور تحفظ في قاعدة المدرسة.'],attendance:['✅ الحضور والغياب','عذر الغياب والتأخر وتصحيح الحضور يوجّه إلى مدخلات البيانات.'],buses:['🚌 الحافلات والنقلات','بيانات الحافلات التفصيلية لم تُدخل بعد، لذلك لا تُعرض بيانات غير معتمدة.'],staff:['🏫 الكادر الإداري','المديرة: أ. بهيه الراشديه • المساعدتان: أ. سعاد الرواحيه، أ. فتحية الهدابيه • أ. فخرية العامرية • أ. أصيلة الوهيبيه • أ. أنيسه السيابيه • أ. فاطمة البطاشيه • أ. عبير المسلمية.']};
-window.openSimpleModule=k=>{const x=SIMPLE[k];$('simpleModuleTitle').textContent=x?.[0]||'وحدة النظام';$('simpleModuleBody').innerHTML=`<div class="info">${esc(x?.[1]||'')}</div>`;openById('simpleModuleModal')};
+window.openSimpleModule=k=>{
+ const x=SIMPLE[k];$('simpleModuleTitle').textContent=x?.[0]||'وحدة النظام';
+ if(k==='attendance'||k==='reports'){
+  $('simpleModuleBody').innerHTML='<div class="info">'+esc(x?.[1]||'')+'</div><div class="attendance-report-tools"><button class="btn btn-solid" id="attendanceReportBtn" onclick="openAttendanceReport()">📊 سحب تقرير الغياب الآن</button><div id="attendanceReportResult" style="margin-top:12px"></div></div>';
+ }else $('simpleModuleBody').innerHTML='<div class="info">'+esc(x?.[1]||'')+'</div>';
+ openById('simpleModuleModal');
+};
 loadContent();

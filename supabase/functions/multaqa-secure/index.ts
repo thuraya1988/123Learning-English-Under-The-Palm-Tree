@@ -500,7 +500,7 @@ Deno.serve(async(req)=>{
   }
   if(action==="prepare_teacher_profile_file_upload"){
     const targetId=elevated(e)?clean(body.employee_id,30)||e.employee_id:e.employee_id,mime=clean(body.mime_type,120),category=clean(body.category,20);
-    const allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","application/pdf":"pdf"};
+    const allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","application/pdf":"pdf","video/mp4":"mp4","video/webm":"webm","video/quicktime":"mov"};
     if(!targetId||!allowed[mime]||!["certificate","workshop","gallery","ijada"].includes(category))return json({ok:false,error:"invalid_input"},400);
     const path=`${category}/${targetId}/${crypto.randomUUID()}.${allowed[mime]}`;
     const {data:signed,error}=await db.storage.from("teacher-profile-files").createSignedUploadUrl(path);if(error||!signed)return json({ok:false,error:"upload_failed"},500);
@@ -692,7 +692,7 @@ Deno.serve(async(req)=>{
   }
   if(action==="prepare_lab_activity_upload"){
     if(!canManageLab(e))return json({ok:false,error:"forbidden"},403);
-    const mime=clean(body.mime_type,120),allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"},ext=allowed[mime];
+    const mime=clean(body.mime_type,120),allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","application/pdf":"pdf","video/mp4":"mp4","video/webm":"webm","video/quicktime":"mov"},ext=allowed[mime];
     if(!ext)return json({ok:false,error:"invalid_input"},400);
     const path=`activities/${muscatDate()}/${crypto.randomUUID()}.${ext}`;
     const {data:signed,error}=await db.storage.from("lab-media").createSignedUploadUrl(path);
@@ -1012,7 +1012,7 @@ Deno.serve(async(req)=>{
   }
   if(action==="prepare_magazine_upload"){
     if(e?.kind!=="teacher"&&!elevated(e))return json({ok:false,error:"forbidden"},403);
-    const mime=clean(body.mime_type,120),allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
+    const mime=clean(body.mime_type,120),allowed:any={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","application/pdf":"pdf","video/mp4":"mp4","video/webm":"webm","video/quicktime":"mov"};
     const ext=allowed[mime];if(!ext)return json({ok:false,error:"invalid_input"},400);
     const path=`magazine/${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}.${ext}`;
     const {data:signed,error}=await db.storage.from("school-content-media").createSignedUploadUrl(path);

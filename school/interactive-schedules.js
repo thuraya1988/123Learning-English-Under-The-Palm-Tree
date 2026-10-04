@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 
-const SCHEDULE_SOURCE='schedule-import-2026.json?v=20261003-october-data-3';
+const SCHEDULE_SOURCE='schedule-import-2026.json?v=20261004-verified-october';
 const SCHOOL_DAYS=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
 const PERIOD_LABELS=[
  ['١','12:20 م – 12:55 م',740,775],['٢','12:55 م – 1:30 م',775,810],
@@ -26,7 +26,7 @@ const normalize=value=>String(value||'').trim().replace(/[إأآ]/g,'ا').replac
 async function scheduleData(){
  if(state.data)return state.data;
  if(!schedulePromise){
-  schedulePromise=fetch(SCHEDULE_SOURCE,{cache:'no-cache'}).then(response=>{
+  schedulePromise=fetch(SCHEDULE_SOURCE,{cache:'no-store'}).then(response=>{
    if(!response.ok)throw new Error('schedule_load_failed');
    return response.json();
   }).then(data=>(state.data=data)).finally(()=>{schedulePromise=null});
@@ -114,7 +114,7 @@ function lessonCell(value,dayIndex,periodIndex,label){
 function scheduleSummary(schedule,label){
  const now=currentPeriod(),value=now.day>=0&&now.day<5&&now.period>=0?(schedule[SCHOOL_DAYS[now.day]]||[])[now.period]:null;
  const next=value?parseLesson(value):null;
- return `<div class="schedule-identity"><div><small>${state.type==='classes'?'جدول الصف':'جدول المعلمة'}</small><h3>${safe(label)}</h3></div><div class="schedule-now ${value?'busy':'free'}"><span>${value?'الحصة الحالية':'الآن'}</span><b>${value?safe(next.subject):'لا توجد حصة جارية'}</b>${value?`<small>${safe(next.person)}</small>`:''}</div></div>`;
+ return `<div class="schedule-identity"><div><small>${state.type==='classes'?'جدول الصف':'جدول المعلمة'} • ${safe(state.data?.period||'أكتوبر 2026')}</small><h3>${safe(label)}</h3></div><div class="schedule-now ${value?'busy':'free'}"><span>${value?'الحصة الحالية':'الآن'}</span><b>${value?safe(next.subject):'لا توجد حصة جارية'}</b>${value?`<small>${safe(next.person)}</small>`:''}</div></div>`;
 }
 function weeklyMarkup(schedule,label){
  return `<div class="schedule-table-wrap"><table class="interactive-schedule-table"><thead><tr><th>الحصة</th>${SCHOOL_DAYS.map(day=>`<th>${day}</th>`).join('')}</tr></thead><tbody>${PERIOD_LABELS.map((period,p)=>`<tr><th><b>${period[0]}</b><small>${period[1]}</small></th>${SCHOOL_DAYS.map((day,d)=>`<td>${lessonCell((schedule[day]||[])[p],d,p,label)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -186,11 +186,19 @@ window.renderSchedulePage=renderPublicSchedule;
 if(typeof window.renderSecureSchedule==='function'){
  window.renderSecureSchedule=async()=>{
   const chosen=secureAdmin()?S('adminScheduleTeacher')?.value||'':'';
-  const d=await staffApi('teacher_schedule',chosen?{employee_name:chosen}:{}),row=d.schedule||{},schedule=row.schedule||{};
+  const d=await staffApi('teacher_schedule',chosen?{employee_name:chosen}:{}),row=d.schedule||{},schedule=row.schedule||{},coverage=d.coverage||[];
   const picker=secureAdmin()?'<label class="schedule-picker">عرض جدول معلمة<select id="adminScheduleTeacher" onchange="renderSecureSchedule()"><option value="">جدولي</option>'+secureDirectory.employees.filter(x=>x.kind==='teacher').map(x=>'<option '+(chosen===x.full_name?'selected':'')+'>'+esc(x.full_name)+'</option>').join('')+'</select></label>':'';
   const importCard=secureAdmin()?'<section class="staff-card schedule-import-card"><h3>📥 استيراد جدول العام الدراسي الجديد</h3><p class="staff-help">يستورد جدول جميع الصفوف والمعلمات من الملف الرسمي (٣١ صفًا و٦٤ جدول معلمة)، ويستبدل الجدول الحالي لأي صف أو معلمة موجودة في الملف.</p><button class="staff-primary" onclick="importOfficialSchedule()">استيراد الجدول الآن</button><div id="scheduleImportResult"></div></section>':'';
-  const pane=S('staffPane');pane.innerHTML='<div class="today-title"><div><small>الجدول الأسبوعي الرسمي'+(row.page?' • صفحة '+row.page:'')+'</small><h2>📚 جدول '+esc(d.employee.short_name||d.employee.full_name)+'</h2></div>'+picker+'</div><div id="secureInteractiveSchedule" class="secure-interactive-schedule"></div>'+importCard;
+  const coverageCard=coverage.length?'<section class="staff-card coverage-schedule-summary"><h3>🔄 حصص الاحتياط القادمة</h3><p class="staff-help">حصص الاحتياط ظاهرة داخل الجدول مع تاريخها.</p><div class="coverage-upcoming-list">'+coverage.map(x=>'<span><b>'+esc(x.day_name)+' '+esc(x.coverage_date)+'</b> • الحصة '+x.period+' • '+esc(x.class_label)+(x.subject?' • '+esc(x.subject):'')+'</span>').join('')+'</div></section>':'';
+  const pane=S('staffPane');pane.innerHTML='<div class="today-title"><div><small>جدول أكتوبر ٢٠٢٦'+(row.page?' • صفحة '+row.page:'')+'</small><h2>📚 جدول '+esc(d.employee.short_name||d.employee.full_name)+'</h2></div>'+picker+'</div>'+coverageCard+'<div id="secureInteractiveSchedule" class="secure-interactive-schedule"></div>'+importCard;
   const root=S('secureInteractiveSchedule');root.innerHTML=weeklyMarkup(schedule,d.employee.short_name||d.employee.full_name);bindLessonClicks(root,schedule);
+  coverage.forEach(item=>{
+   const day=SCHOOL_DAYS.indexOf(item.day_name),period=Number(item.period)-1;
+   const cell=root.querySelector('.schedule-cell[data-day="'+day+'"][data-period="'+period+'"]');
+   if(!cell)return;
+   cell.classList.add('coverage-period');cell.classList.remove('free');
+   cell.insertAdjacentHTML('beforeend','<em>🔄 احتياط • '+esc(item.class_label)+(item.subject?' • '+esc(item.subject):'')+'<small>'+esc(item.coverage_date)+'</small></em>');
+  });
  };
 }
 

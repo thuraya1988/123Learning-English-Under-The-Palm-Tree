@@ -1,7 +1,7 @@
 (async()=>{
  const started=Date.now(),MIN_SPLASH=650;
  try{
-  const parts=await Promise.all(['ui-1.html?v=20261002-logo-glass-1','ui-2.html?v=20261002-logo-glass-lab-1','ui-3.html?v=20261003-schedules-ui-1','ui-4.html?v=20261002-lab-tools-1'].map(x=>fetch(x).then(r=>{if(!r.ok)throw new Error(x);return r.text()})));
+  const parts=await Promise.all(['ui-1.html?v=20261004-verified-october','ui-2.html?v=20261002-logo-glass-lab-1','ui-3.html?v=20261003-schedules-ui-1','ui-4.html?v=20261002-lab-tools-1'].map(x=>fetch(x).then(r=>{if(!r.ok)throw new Error(x);return r.text()})));
   const tmp=document.createElement('div');
   tmp.innerHTML=parts.join('');
   while(tmp.firstChild)document.body.appendChild(tmp.firstChild);

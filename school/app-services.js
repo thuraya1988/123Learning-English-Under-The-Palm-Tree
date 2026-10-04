@@ -61,8 +61,8 @@ window.raiseMultaqaImportantAlert=function(title,body,opts){
  if(activeImportantAlarmKey===key)return;
  activeImportantAlarmKey=key;
  el.setAttribute('role','alert');
- el.classList.add('show','persistent');
- el.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:min(720px,92vw)"><strong style="font-size:15px">'+esc(title)+'</strong><span style="flex:1;min-width:180px">'+esc(body)+'</span><button type="button" onclick="stopMultaqaImportantAlert()" style="border:1px solid #fff;background:#9b1c31;color:#fff;border-radius:9px;padding:7px 12px;font-weight:900;white-space:nowrap">⏹ إيقاف التنبيه</button></div>';
+ ensureMultaqaNeonAlertStyle();el.style.zIndex='100000';el.classList.toggle('multaqa-neon-alert',!!opts.neon);el.classList.add('show','persistent');
+ el.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:min(720px,92vw)"><strong style="font-size:15px">'+esc(title)+'</strong><span style="flex:1;min-width:180px">'+esc(body)+'</span><button type="button" onclick="stopMultaqaImportantAlert()" style="border:1px solid #fff;background:#9b1c31;color:#fff;border-radius:9px;padding:7px 12px;font-weight:900;white-space:nowrap">'+esc(opts.muteLabel||'⏹ إيقاف التنبيه')+'</button></div>';
  try{
   const a=importantAlarmAudioEl();a.currentTime=0;const p=a.play();if(p&&p.catch)p.catch(()=>{});
  }catch{}

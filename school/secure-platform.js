@@ -132,7 +132,7 @@ function updateSecureLabels(){
 window.openStaffCenter=async()=>{
  if(!staffToken||!secureEmployee){toast('سجلي الدخول بالاسم والرمز السري');return openIdentity()}
  openById('staffCenterModal');if(!secureDirectory.classes.length)try{secureDirectory=await staffApi('directory')}catch(e){toast(staffError(e))}
- setSecureEmployee(secureEmployee);staffTab('home')
+ setSecureEmployee(secureEmployee);await staffTab('home')
 };
 window.staffTab=async tab=>{
  if(tab!=='broadcast')stopBroadcastCamera(true);

@@ -80,7 +80,7 @@ async function dutyBetweenAssignments(db:any,day:string,slots:any,date:string){
 }
 async function pushTo(db:any,names:string[],title:string,body:string,url="/school/",kind="general"){
   if(!(await prepareWebPush(db)))return 0;
-  const wanted=new Set(names.map(norm).filter(Boolean)); wanted.add(norm("ثرياء الناعبية"));
+  const wanted=new Set(names.map(norm).filter(Boolean)); if(kind!=="attendance_reminder")wanted.add(norm("ثرياء الناعبية"));
   const {data:subs}=await db.from("multaqa_push_subscriptions").select("id,employee_name,endpoint,p256dh,auth").eq("enabled",true);
   let sent=0;
   for(const s of subs||[]){
@@ -96,6 +96,34 @@ async function pushTo(db:any,names:string[],title:string,body:string,url="/schoo
     }
   }
   return sent;
+}
+
+function attendanceClassKey(value:unknown){
+ const grades:any={"الأول":"1","الثاني":"2","الثالث":"3","الرابع":"4","الخامس":"5","السادس":"6"};
+ let v=String(value||"").replace(/[٠-٩]/g,c=>String("٠١٢٣٤٥٦٧٨٩".indexOf(c))).replace(/\s+/g,"");
+ for(const [label,digit] of Object.entries(grades))v=v.replace(label,String(digit));
+ return v;
+}
+async function firstPeriodAttendance(db:any,day:string,date:string){
+ if(["الجمعة","السبت"].includes(day))return [];
+ const [{data:schedules,error:scheduleError},{data:employees,error:employeeError},{data:students,error:studentError},{data:coverage,error:coverageError}]=await Promise.all([
+ db.from("multaqa_class_schedules").select("class_label,schedule"),
+ db.from("multaqa_employees").select("employee_id,short_name,full_name,kind"),
+ db.from("multaqa_students").select("school_id,class_name"),
+ db.from("multaqa_substitute_assignments").select("class_label,replacement_employee_id,period,status").eq("coverage_date",date).eq("period",1).in("status",["assigned","accepted"])
+ ]);
+ if(scheduleError||employeeError||studentError||coverageError)throw new Error("attendance_reminder_query_failed");
+ const attendance:any[]=[];
+ for(let start=0;start<4000;start+=1000){const {data:page,error}=await db.from("multaqa_student_attendance").select("student_school_id,class_name,period").eq("attendance_date",date).in("period",[0,1]).range(start,start+999);if(error)throw new Error("attendance_reminder_query_failed");attendance.push(...page||[]);if((page||[]).length<1000)break;}
+ return (schedules||[]).map((s:any)=>{
+ const lesson=String(s.schedule?.[day]?.[0]||""),teacherName=lesson.includes("—")?lesson.split("—").pop().trim():"",key=attendanceClassKey(s.class_label);
+ const replacement=(coverage||[]).find((c:any)=>attendanceClassKey(c.class_label)===key);
+ const teacher=replacement?(employees||[]).find((e:any)=>e.employee_id===replacement.replacement_employee_id):(employees||[]).find((e:any)=>e.kind==="teacher"&&[e.short_name,e.full_name,shortName(e.full_name||"")].some(n=>norm(n)===norm(teacherName)));
+ if(!teacher||!teacherName)return null;
+ const roster=(students||[]).filter((r:any)=>attendanceClassKey(r.class_name)===key),ids=new Set(roster.map((r:any)=>r.school_id));
+ const registered=new Set(attendance.filter((r:any)=>attendanceClassKey(r.class_name)===key&&ids.has(r.student_school_id)).map((r:any)=>r.student_school_id));
+ return {employee_id:teacher.employee_id,teacher_name:teacher.short_name||teacher.full_name,class_label:s.class_label,class_name:roster[0]?.class_name||key,students:roster.length,registered:registered.size,pending:roster.length===0||registered.size<roster.length};
+ }).filter(Boolean);
 }
 
 Deno.serve(async(req)=>{
@@ -361,6 +389,14 @@ Deno.serve(async(req)=>{
     const secret=clean(body.secret,100),cfg=await pushConfig(db); if(!cfg?.scheduler_secret||secret!==cfg.scheduler_secret)return json({ok:false,error:"forbidden"},403);
     const now=muscatNow(),day=dayName(),today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()); const hh=now.getHours(),mm=now.getMinutes(); let sent=0;
     const minuteNow=hh*60+mm;
+    if(!["الجمعة","السبت"].includes(day)&&[740,750].includes(minuteNow)){
+      const stage=minuteNow===740?"start":"followup";
+      const pending=(await firstPeriodAttendance(db,day,today)).filter((r:any)=>r.pending);
+      if(pending.length){const {error:claimError}=await db.from("multaqa_attendance_reminder_runs").insert({reminder_date:today,reminder_stage:stage});
+        if(claimError&&claimError.code!=="23505")throw claimError;
+        if(!claimError){const names=[...new Set(pending.map((r:any)=>r.teacher_name))];for(const name of names){const rows=pending.filter((r:any)=>r.teacher_name===name);sent+=await pushTo(db,[String(name)],"📋 تسجيل غياب الحصة الأولى",`الأستاذة ${name}، يرجى تسجيل الحضور والغياب للصف ${rows.map((r:any)=>r.class_label).join("، ")} وحفظ وإرسال الكشف.`,"/school/?open=attendance-reminders","attendance_reminder")}}
+      }
+    }
     if(!["الجمعة","السبت"].includes(day)){const d=await dutyRow(db,day);if(d){
       const staticAlerts=[
        {minute:645,key:"morning",title:"🦺 تبدأ المناوبة الصباحية",body:"الساعة 10:45 — الرجاء البدء باستقبال الطلبة."},

@@ -38,6 +38,7 @@ const wasSent=k=>!!(k&&load(SENT_KEY)[k]);
 function btn(o,text,cls=''){const k=reg(o),sent=wasSent(o.sentKey);return '<button type="button" class="wa-btn '+cls+(sent?' wa-sent':'')+'" onclick="waSend(\''+k+'\',this)">'+(sent?'✅ أُرسل — إعادة':text)+'</button>'}
 const editBtn=id=>'<button type="button" class="wa-edit" title="تعديل رقم واتساب" onclick="waEditPhone(\''+h(id)+'\')">✏️</button>';
 const sign='\n\n— '+SCHOOL+' 🏫';
+window.waAttendanceReminder=async row=>{const e=empById(row.employee_id);if(!e)return;let phone=await phoneOf(e);if(!phone){const p=askPhone(e,'');if(p===null)return;phone=p}openWa(phone,'📋 '+SCHOOL+'\n\nالأستاذة '+label(e)+'، يرجى تسجيل الحضور والغياب للحصة الأولى للصف '+row.class_label+' اليوم '+fmtDate(muscatToday())+'، ثم الضغط على حفظ وإرسال الكشف.'+sign);note('تم فتح رسالة التذكير. اضغطي إرسال داخل واتساب.')};
 
 /* ——— الرسائل ——— */
 const msgCoverage=(name,rows,date)=>'📢 '+SCHOOL+'\n\nالأستاذة '+name+'، تحية طيبة،\nتم إسناد '+(rows.length>1?rows.length+' حصص احتياط':'حصة احتياط')+' لديكِ يوم '+(rows[0].day_name||dayOf(date))+' بتاريخ '+fmtDate(date)+':\n'+rows.map(r=>'• الحصة '+r.period+' — الصف '+(r.class_label||'')+(r.subject?' ('+r.subject+')':'')).join('\n')+'\n\nنرجو التواجد في الموعد، وشكرًا لتعاونكِ.'+sign;

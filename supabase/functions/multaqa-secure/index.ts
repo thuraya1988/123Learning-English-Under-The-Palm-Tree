@@ -285,6 +285,35 @@ const safeFileExt=(name:string,mime:string)=>{
  return mime==="application/pdf"?"pdf":"bin";
 };
 
+const shortName=(v:string)=>{const t=clean(v,220).replace(/^أ\.\s*/,"").split(/\s+/).filter(Boolean);return t.length>1?`${t[0]} ${t[t.length-1]}`:(t[0]||v)};
+function attendanceClassKey(value:unknown){
+ const grades:any={"الأول":"1","الثاني":"2","الثالث":"3","الرابع":"4","الخامس":"5","السادس":"6"};
+ let v=String(value||"").replace(/[٠-٩]/g,c=>String("٠١٢٣٤٥٦٧٨٩".indexOf(c))).replace(/\s+/g,"");
+ for(const [label,digit] of Object.entries(grades))v=v.replace(label,String(digit));
+ return v;
+}
+async function firstPeriodAttendance(db:any,day:string,date:string){
+ if(["الجمعة","السبت"].includes(day))return [];
+ const [{data:schedules,error:scheduleError},{data:employees,error:employeeError},{data:students,error:studentError},{data:coverage,error:coverageError}]=await Promise.all([
+ db.from("multaqa_class_schedules").select("class_label,schedule"),
+ db.from("multaqa_employees").select("employee_id,short_name,full_name,kind"),
+ db.from("multaqa_students").select("school_id,class_name"),
+ db.from("multaqa_substitute_assignments").select("class_label,replacement_employee_id,period,status").eq("coverage_date",date).eq("period",1).in("status",["assigned","accepted"])
+ ]);
+ if(scheduleError||employeeError||studentError||coverageError)throw new Error("attendance_reminder_query_failed");
+ const attendance:any[]=[];
+ for(let start=0;start<4000;start+=1000){const {data:page,error}=await db.from("multaqa_student_attendance").select("student_school_id,class_name,period").eq("attendance_date",date).in("period",[0,1]).range(start,start+999);if(error)throw new Error("attendance_reminder_query_failed");attendance.push(...page||[]);if((page||[]).length<1000)break;}
+ return (schedules||[]).map((s:any)=>{
+ const lesson=String(s.schedule?.[day]?.[0]||""),teacherName=lesson.includes("—")?lesson.split("—").pop().trim():"",key=attendanceClassKey(s.class_label);
+ const replacement=(coverage||[]).find((c:any)=>attendanceClassKey(c.class_label)===key);
+ const teacher=replacement?(employees||[]).find((e:any)=>e.employee_id===replacement.replacement_employee_id):(employees||[]).find((e:any)=>e.kind==="teacher"&&[e.short_name,e.full_name,shortName(e.full_name||"")].some(n=>norm(n)===norm(teacherName)));
+ if(!teacher||!teacherName)return null;
+ const roster=(students||[]).filter((r:any)=>attendanceClassKey(r.class_name)===key),ids=new Set(roster.map((r:any)=>r.school_id));
+ const registered=new Set(attendance.filter((r:any)=>attendanceClassKey(r.class_name)===key&&ids.has(r.student_school_id)).map((r:any)=>r.student_school_id));
+ return {employee_id:teacher.employee_id,teacher_name:teacher.short_name||teacher.full_name,class_label:s.class_label,class_name:roster[0]?.class_name||key,students:roster.length,registered:registered.size,pending:roster.length===0||registered.size<roster.length};
+ }).filter(Boolean);
+}
+
 Deno.serve(async(req)=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:cors});if(req.method!=="POST")return json({ok:false,error:"method_not_allowed"},405);
   let body:any={};try{body=await req.json()}catch{return json({ok:false,error:"invalid_json"},400)}
@@ -387,13 +416,16 @@ Deno.serve(async(req)=>{
     return json({ok:true,days:days.sort((a:any,b:any)=>(order[a.day_name]||99)-(order[b.day_name]||99)),is_admin:elevated(e),slot_info:DUTY_SLOT_INFO,slot_keys:DUTY_SLOT_KEYS});
   }
   if(action==="broadcasts"){
-    const {data:rows}=await db.from("multaqa_broadcasts").select("*").order("broadcast_date",{ascending:false}).order("created_at",{ascending:false}).limit(100);
+    let query=db.from("multaqa_broadcasts").select("*");
+    query=body.deleted===true?query.not("deleted_at","is",null):query.is("deleted_at",null);
+    if(body.deleted===true&&!elevated(e))query=query.eq("created_by_employee_id",e.employee_id);
+    const {data:rows}=await query.order("broadcast_date",{ascending:false}).order("created_at",{ascending:false}).limit(100);
     const {data:emps}=await db.from("multaqa_employees").select("employee_id,short_name,full_name");
     const names=new Map((emps||[]).map((x:any)=>[x.employee_id,x.short_name||x.full_name]));
     const items=await Promise.all((rows||[]).map(async(x:any)=>{
       let video_url=null;
       if(x.video_path){const {data:signed}=await db.storage.from("school-broadcasts").createSignedUrl(x.video_path,3600);video_url=signed?.signedUrl||null}
-      return {...x,teacher_name:names.get(x.teacher_employee_id)||"—",video_url,media_type:/\.(jpg|jpeg|png|webp)$/i.test(x.video_path||"")?"image":"video"};
+      return {...x,can_delete:elevated(e)||x.created_by_employee_id===e.employee_id,teacher_name:names.get(x.teacher_employee_id)||"—",video_url,media_type:/\.(jpg|jpeg|png|webp)$/i.test(x.video_path||"")?"image":"video"};
     }));
     return json({ok:true,items});
   }
@@ -405,22 +437,31 @@ Deno.serve(async(req)=>{
     const participants=(Array.isArray(body.participants)?body.participants:[]).map((x:any)=>clean(x,160)).filter(Boolean).slice(0,80);
     const row:any={broadcast_date:date,title,teacher_employee_id:teacher.employee_id,participants,event_status:status,rating:Math.max(1,Math.min(5,Number(body.rating)||0))||null,evaluation_note:clean(body.evaluation_note,1600)||null,updated_at:new Date().toISOString()};
     if(id){
-      const {data:old}=await db.from("multaqa_broadcasts").select("created_by_employee_id").eq("id",id).maybeSingle();
+      const {data:old}=await db.from("multaqa_broadcasts").select("created_by_employee_id,deleted_at").eq("id",id).maybeSingle();
+      if(old?.deleted_at)return json({ok:false,error:"not_found"},404);
       if(!old)return json({ok:false,error:"not_found"},404);if(!elevated(e)&&old.created_by_employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
       const {data,error}=await db.from("multaqa_broadcasts").update(row).eq("id",id).select().single();if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,item:data});
     }
     const {data,error}=await db.from("multaqa_broadcasts").insert({...row,created_by_employee_id:e.employee_id}).select().single();if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,item:data});
   }
   if(action==="prepare_broadcast_upload"){
-    const id=clean(body.id,80),mime=clean(body.mime_type,80);const {data:item}=await db.from("multaqa_broadcasts").select("created_by_employee_id").eq("id",id).maybeSingle();
+    const id=clean(body.id,80),mime=clean(body.mime_type,80);const {data:item}=await db.from("multaqa_broadcasts").select("created_by_employee_id").eq("id",id).is("deleted_at",null).maybeSingle();
     if(!item)return json({ok:false,error:"not_found"},404);if(!elevated(e)&&item.created_by_employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
     if(!["video/mp4","video/webm","video/quicktime","image/jpeg","image/png","image/webp"].includes(mime))return json({ok:false,error:"invalid_input"},400);const ext=mime==="image/jpeg"?"jpg":mime==="image/png"?"png":mime==="image/webp"?"webp":mime.includes("mp4")?"mp4":mime.includes("quicktime")?"mov":"webm",path=`broadcasts/${id}/${crypto.randomUUID()}.${ext}`;
     const {data:signed,error}=await db.storage.from("school-broadcasts").createSignedUploadUrl(path);if(error||!signed)return json({ok:false,error:"upload_failed"},500);
-    return json({ok:true,path,token:signed.token,signed_url:signed.signedUrl});
+    const origin=new URL(signed.signedUrl).origin.replace('.supabase.co','.storage.supabase.co');
+    return json({ok:true,path,token:signed.token,signed_url:signed.signedUrl,resumable_url:origin+'/storage/v1/upload/resumable'});
+  }
+  if(action==="delete_broadcast"||action==="restore_broadcast"){
+    const id=clean(body.id,80),{data:item}=await db.from("multaqa_broadcasts").select("created_by_employee_id").eq("id",id).maybeSingle();
+    if(!item)return json({ok:false,error:"not_found"},404);
+    if(!elevated(e)&&item.created_by_employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+    const {error}=await db.from("multaqa_broadcasts").update({deleted_at:action==="delete_broadcast"?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq("id",id);
+    return error?json({ok:false,error:"save_failed"},500):json({ok:true});
   }
   if(action==="complete_broadcast_video"){
     const id=clean(body.id,80),path=clean(body.path,700);if(!path.startsWith(`broadcasts/${id}/`))return json({ok:false,error:"invalid_input"},400);
-    const {data:item}=await db.from("multaqa_broadcasts").select("created_by_employee_id").eq("id",id).maybeSingle();if(!item)return json({ok:false,error:"not_found"},404);if(!elevated(e)&&item.created_by_employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+    const {data:item}=await db.from("multaqa_broadcasts").select("created_by_employee_id").eq("id",id).is("deleted_at",null).maybeSingle();if(!item)return json({ok:false,error:"not_found"},404);if(!elevated(e)&&item.created_by_employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
     const {error}=await db.from("multaqa_broadcasts").update({video_path:path,updated_at:new Date().toISOString()}).eq("id",id);if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
   if(action==="activities"){
@@ -1361,6 +1402,11 @@ Deno.serve(async(req)=>{
     let rows:any[]=[];for(let offset=0;offset<32000;offset+=1000){let q=db.from("multaqa_student_attendance").select("student_school_id,class_name,attendance_date,period,status,reason,note,recorded_by_employee_id,updated_at").gte("attendance_date",from).lte("attendance_date",to).order("id").range(offset,offset+999);if(!privileged)q=q.eq("recorded_by_employee_id",e.employee_id);if(body.employee_id&&privileged)q=q.eq("recorded_by_employee_id",clean(body.employee_id,30));if(body.class_name)q=q.eq("class_name",clean(body.class_name,100));if(body.student_school_id)q=q.eq("student_school_id",clean(body.student_school_id,30));if(body.status)q=q.eq("status",clean(body.status,20));const {data,error}=await q;if(error)return json({ok:false,error:"read_failed"},500);rows.push(...(data||[]));if((data||[]).length<1000)break;if(offset===31000)return json({ok:false,error:"range_too_large"},400);}
     const [{data:students},{data:emps}]=await Promise.all([db.from("multaqa_students").select("school_id,name"),db.from("multaqa_employees").select("employee_id,short_name,full_name")]);const sm=new Map((students||[]).map((x:any)=>[x.school_id,x.name])),em=new Map((emps||[]).map((x:any)=>[x.employee_id,x.short_name||x.full_name]));return json({ok:true,from,to,can_view_all:privileged,items:rows.map(x=>({...x,student_name:sm.get(x.student_school_id)||x.student_school_id,teacher_name:em.get(x.recorded_by_employee_id)||x.recorded_by_employee_id}))});
   }
+  if(action==="first_period_attendance"){
+    const date=muscatDate(),day=dayFor(date),all=elevated(e)||e.access_group==="data"||["A006","A007"].includes(e.employee_id);
+    const items=await firstPeriodAttendance(db,day,date);
+    return json({ok:true,date,day,can_view_all:all,items:all?items:items.filter((r:any)=>r.employee_id===e.employee_id)});
+  }
   if(action==="class_roster"){
     const className=clean(body.class_name,100);const date=clean(body.date,10)||muscatDate(),period=Number(body.period||0);if(!className)return json({ok:false,error:"invalid_input"},400);
     const [{data:students},{data:attendance},{data:schedule}]=await Promise.all([db.from("multaqa_students").select("school_id,serial,name,class_name").eq("class_name",className).order("serial"),db.from("multaqa_student_attendance").select("student_school_id,status,excuse_category,reason,late_at,note").eq("class_name",className).eq("attendance_date",date).eq("period",period),db.from("multaqa_class_schedules").select("schedule").eq("class_label",scheduleLabel(className)).maybeSingle()]);
@@ -1642,4 +1688,3 @@ Deno.serve(async(req)=>{
   }
   return json({ok:false,error:"unknown_action"},400);
 });
-

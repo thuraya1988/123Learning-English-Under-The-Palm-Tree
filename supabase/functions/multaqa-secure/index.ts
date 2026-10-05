@@ -450,7 +450,8 @@ Deno.serve(async(req)=>{
     if(!["video/mp4","video/webm","video/quicktime","image/jpeg","image/png","image/webp"].includes(mime))return json({ok:false,error:"invalid_input"},400);const ext=mime==="image/jpeg"?"jpg":mime==="image/png"?"png":mime==="image/webp"?"webp":mime.includes("mp4")?"mp4":mime.includes("quicktime")?"mov":"webm",path=`broadcasts/${id}/${crypto.randomUUID()}.${ext}`;
     const {data:signed,error}=await db.storage.from("school-broadcasts").createSignedUploadUrl(path);if(error||!signed)return json({ok:false,error:"upload_failed"},500);
     const origin=new URL(signed.signedUrl).origin.replace('.supabase.co','.storage.supabase.co');
-    return json({ok:true,path,token:signed.token,signed_url:signed.signedUrl,resumable_url:origin+'/storage/v1/upload/resumable'});
+    // Signed TUS uploads use /sign; the ordinary endpoint requires an Auth JWT.
+    return json({ok:true,path,token:signed.token,signed_url:signed.signedUrl,resumable_url:origin+'/storage/v1/upload/resumable/sign'});
   }
   if(action==="delete_broadcast"||action==="restore_broadcast"){
     const id=clean(body.id,80),{data:item}=await db.from("multaqa_broadcasts").select("created_by_employee_id").eq("id",id).maybeSingle();
@@ -462,6 +463,11 @@ Deno.serve(async(req)=>{
   if(action==="complete_broadcast_video"){
     const id=clean(body.id,80),path=clean(body.path,700);if(!path.startsWith(`broadcasts/${id}/`))return json({ok:false,error:"invalid_input"},400);
     const {data:item}=await db.from("multaqa_broadcasts").select("created_by_employee_id").eq("id",id).is("deleted_at",null).maybeSingle();if(!item)return json({ok:false,error:"not_found"},404);if(!elevated(e)&&item.created_by_employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+    const folder=`broadcasts/${id}`,filename=path.slice(folder.length+1);
+    if(!/^[0-9a-f-]+\.(mp4|mov|webm|jpg|png|webp)$/i.test(filename))return json({ok:false,error:"invalid_input"},400);
+    const {data:files,error:storageError}=await db.storage.from("school-broadcasts").list(folder,{search:filename,limit:2});
+    const stored=files?.find((x:any)=>x.name===filename),size=Number(stored?.metadata?.size);
+    if(storageError||!stored||!Number.isFinite(size)||size<=0||size>250*1024*1024||(body.file_size!=null&&size!==Number(body.file_size)))return json({ok:false,error:"upload_incomplete"},409);
     const {error}=await db.from("multaqa_broadcasts").update({video_path:path,updated_at:new Date().toISOString()}).eq("id",id);if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
   if(action==="activities"){

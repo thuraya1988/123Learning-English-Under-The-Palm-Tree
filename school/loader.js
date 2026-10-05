@@ -5,7 +5,7 @@
   const tmp=document.createElement('div');
   tmp.innerHTML=parts.join('');
   while(tmp.firstChild)document.body.appendChild(tmp.firstChild);
-  for(const src of ['app-core.js?v=20260926-meetings','app-services.js?v=20261004-attendance-media','app-content.js?v=20261003-attendance-report-1','bell-notifications.js?v=20261003-smart-icon-png-2','events-data.js?v=20260912-events','events-calendar.js?v=20260927-background-reminders-2','app-extensions.js?v=20261002-sections-support-1','secure-platform.js?v=20261004-attendance-media','activity-supervision.js?v=20261004-supervisor-direction','end-of-day.js?v=20260928-wire-eod','interactive-schedules.js?v=20261004-verified-october','whatsapp-notify.js?v=20261005-first-attendance','attendance-reports.js?v=20261004-attendance-media','broadcast-improvements.js?v=20261005-resumable-delete','attendance-reminders.js?v=20261005-first-attendance']){
+  for(const src of ['app-core.js?v=20260926-meetings','app-services.js?v=20261004-attendance-media','app-content.js?v=20261003-attendance-report-1','bell-notifications.js?v=20261003-smart-icon-png-2','events-data.js?v=20260912-events','events-calendar.js?v=20260927-background-reminders-2','app-extensions.js?v=20261002-sections-support-1','secure-platform.js?v=20261005-broadcast-save-2','activity-supervision.js?v=20261004-supervisor-direction','end-of-day.js?v=20260928-wire-eod','interactive-schedules.js?v=20261004-verified-october','whatsapp-notify.js?v=20261005-first-attendance','attendance-reports.js?v=20261004-attendance-media','broadcast-improvements.js?v=20261005-broadcast-save-2','attendance-reminders.js?v=20261005-first-attendance']){
    await new Promise((ok,fail)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=fail;document.body.appendChild(s)})
   }
   const wait=Math.max(0,MIN_SPLASH-(Date.now()-started));
@@ -22,3 +22,4 @@
   console.error(e);
  }
 })();
+

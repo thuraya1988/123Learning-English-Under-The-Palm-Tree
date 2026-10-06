@@ -93,6 +93,12 @@ function edge(name,options={}){
  const notAllowed=edge('multaqa-secure',{respond:t=>t==='multaqa_duty'?{data:fixtureDuty}:null});assert.equal((await notAllowed.run('save_duty_roles',{day_name:'الأحد',assignments:[]})).status,403);
  const noRow=edge('multaqa-secure',{employee:{employee_id:'fixture-admin',kind:'admin'},respond:(t,c)=>t==='multaqa_duty'?{data:c.some(x=>x[0]==='update')?null:fixtureDuty}:null});assert.equal((await noRow.run('save_duty_roles',{day_name:'الأحد',assignments:[{name:'Fixture one',slot:'entry1'},{name:'Fixture two',slot:'morning'}]})).status,500);assert.equal(noRow.background.length,0);
  pass('Duty saves reject unauthorized edits, changed site capacities, and updates that did not persist');
+ for(const failed of [true,false]){
+  const attendance=edge('multaqa-secure',{employee:{employee_id:'fixture-admin',kind:'admin'},respond:t=>t==='multaqa_duty'?{data:fixtureDuty}:t==='multaqa_employees'?{data:[{employee_id:'fixture-target',short_name:'Fixture target',full_name:'Fixture target'}]}:t==='multaqa_duty_attendance'?failed?{error:{message:'fixture failed'},data:null}:{data:{employee_id:'fixture-target',status:'present'}}:null});
+  assert.equal((await attendance.run('confirm_duty',{employee_name:'Fixture target',status:'present'})).status,failed?500:200);
+ }
+ pass('Duty attendance confirmation reports success only after a persisted record');
+
  assert.match(read('school/aref/index.html'),/publicApi\('class_names'\)/);assert.match(read('school/aref/index.html'),/KEYS=\['multaqa_staff_session'/);assert.match(read('school/staff-chat/index.html'),/SESSION_KEYS=\['multaqa_staff_session'/);pass('Aref class queries and shared login keys are consistent');
  console.log(checks+' feature regression groups passed; no live records or messages were written.');
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -4,29 +4,15 @@ const S=id=>document.getElementById(id);
 const FEATURE_STORE_KEY='multaqa_feature_additions_v1';
 function featureStore(){try{return JSON.parse(localStorage.getItem(FEATURE_STORE_KEY)||'{}')}catch{return{}}}
 function saveFeatureStore(v){localStorage.setItem(FEATURE_STORE_KEY,JSON.stringify(v))}
-async function featureApi(action,p={},localOnly=false){try{if(!localOnly)return await staffApi(action,p)}catch(e){if(['session_required','forbidden','invalid_login','temporarily_locked','service_timeout'].includes(e?.code))throw e}const d=featureStore(),teachers=secureDirectory.employees.filter(x=>x.kind==='teacher');
- if(action==='teacher_profiles'){const ids=secureAdmin()?teachers:[secureEmployee];return{ok:true,local:true,items:ids.filter(Boolean).map(x=>({...x,profile:d.teacherProfiles?.[x.employee_id]||x.profile||{},projects:(d.teacherProjects||[]).filter(v=>v.employee_id===x.employee_id)}))}}
- if(action==='save_teacher_profile'){d.teacherProfiles=d.teacherProfiles||{};d.teacherProfiles[p.employee_id]={...(d.teacherProfiles[p.employee_id]||{}),...p};saveFeatureStore(d);return{ok:true,local:true}}
- if(action==='prepare_teacher_photo_upload')return{ok:true,local:true,path:'local-profile-photo'};
- if(action==='complete_teacher_photo'){d.teacherProfiles=d.teacherProfiles||{};d.teacherProfiles[p.employee_id]={...(d.teacherProfiles[p.employee_id]||{}),photo_url:p.data_url||d.teacherProfiles[p.employee_id]?.photo_url||''};saveFeatureStore(d);return{ok:true,local:true}}
- if(action==='save_teacher_project'){d.teacherProjects=d.teacherProjects||[];d.teacherProjects.unshift({...p,id:Date.now(),created_at:new Date().toISOString()});saveFeatureStore(d);return{ok:true,local:true}}
- if(action==='student_support_lists'){const a=d.studentSupport||[];return{ok:true,local:true,financial:a.filter(x=>x.financial_support),low:a.filter(x=>x.academic_category==='low'),distinguished:a.filter(x=>x.academic_category==='distinguished')}}
- if(action==='classify_student_support'){d.studentSupport=d.studentSupport||[];const row={...p,student:p.student||{school_id:p.student_school_id,name:'طالبة',class_name:'—'}};d.studentSupport=[row,...d.studentSupport.filter(x=>x.student_school_id!==p.student_school_id)];saveFeatureStore(d);return{ok:true,local:true}}
- if(action==='broadcast_schedule')return{ok:true,local:true,items:d.broadcastSchedule||[]};
- if(action==='save_broadcast_schedule'){d.broadcastSchedule=d.broadcastSchedule||[];d.broadcastSchedule=[p,...d.broadcastSchedule.filter(x=>x.schedule_date!==p.schedule_date||x.class_label!==p.class_label)];saveFeatureStore(d);return{ok:true,local:true}}
- if(action==='mothers_council')return{ok:true,local:true,item:d.mothersCouncil||null};
- if(action==='save_mothers_council'){d.mothersCouncil=p;saveFeatureStore(d);return{ok:true,local:true}}
- if(action==='class_mentors')return{ok:true,local:true,items:(d.classMentors||[]).map(x=>({...x,employee_name:teachers.find(t=>t.employee_id===x.employee_id)?.short_name||'—'}))};
- if(action==='save_class_mentor'){d.classMentors=d.classMentors||[];d.classMentors=[p,...d.classMentors.filter(x=>x.class_label!==p.class_label)];saveFeatureStore(d);return{ok:true,local:true}}
- throw Object.assign(new Error('request_failed'),{code:'request_failed'})}
+async function featureApi(action,p={}){return staffApi(action,p)}
 const POSTHOG_KEY='phc_t4Rq2JvPvHE6S2DY4PDcTSnNc9CFrpnrkD7qU72HQWxM';
 function phCapture(event,properties={}){try{const distinct=secureEmployee?.employee_id||localStorage.getItem('multaqa_anon_id')||crypto.randomUUID();localStorage.setItem('multaqa_anon_id',distinct);const payload={api_key:POSTHOG_KEY,event,properties:{distinct_id:distinct,app:'multaqa_school',role:secureEmployee?.access_group||'guest',...properties}};if(navigator.sendBeacon)navigator.sendBeacon('https://us.i.posthog.com/capture/',new Blob([JSON.stringify(payload)],{type:'application/json'}));else fetch('https://us.i.posthog.com/capture/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),keepalive:true})}catch{}}
 async function staffApi(action,p={}){
  const ctl=new AbortController(),timeoutMs=action==='login'?30000:20000,timer=setTimeout(()=>ctl.abort(),timeoutMs);
  try{
   const r=await fetch(SECURE_API,{method:'POST',headers:{'Content-Type':'application/json',...(staffToken?{'x-staff-session':staffToken}:{})},body:JSON.stringify({action,...p}),signal:ctl.signal});
-  let d={};try{d=await r.json()}catch{}if(!r.ok||d.ok===false){const x=new Error(d.error||'request_failed');x.code=d.error||'request_failed';throw x}return d
- }catch(e){if(e&&e.name==='AbortError'){const x=new Error('service_timeout');x.code='service_timeout';throw x}if(['teacher_profiles','save_teacher_profile','save_teacher_project','prepare_teacher_photo_upload','complete_teacher_photo','student_support_lists','classify_student_support','broadcast_schedule','save_broadcast_schedule','mothers_council','save_mothers_council','class_mentors','save_class_mentor'].includes(action)&&!['session_required','forbidden'].includes(e?.code))return featureApi(action,p,true);throw e}finally{clearTimeout(timer)}
+  let d;try{d=await r.json()}catch{throw Object.assign(new Error('request_failed'),{code:'request_failed'})}if(!r.ok||d.ok===false){const x=new Error(d.error||'request_failed');x.code=d.error||'request_failed';throw x}return d
+ }catch(e){if(e&&e.name==='AbortError'){const x=new Error('service_timeout');x.code='service_timeout';throw x}throw e}finally{clearTimeout(timer)}
 }
 function staffError(e){return({invalid_login:'الاسم أو الرمز السري غير صحيح.',pin_not_issued:'لم تصدر الإدارة رمزًا لهذا الاسم بعد.',temporarily_locked:'تم إيقاف المحاولات 15 دقيقة للحماية.',session_required:'انتهت جلسة الدخول. سجلي الدخول من جديد.',weak_pin:'الرمز يجب أن يكون من 6 إلى 12 رقمًا.',forbidden:'ليست لديك صلاحية لهذه العملية.',not_on_duty:'هذه العملية متاحة لمعلمات مناوبة اليوم والإدارة فقط.',duty_capacity:'يجب أن يبقى عدد المعلمات في كل موقع كما هو. غيّري الدور ليتم التبديل بين معلمتين.',not_found:'لم يتم العثور على السجل.',coverage_conflict:'لا يمكن إسناد الحصة لهذه المعلمة لوجود تعارض في جدولها أو احتياط آخر.',no_coverage:'لا توجد حصص احتياط موزعة لإرسالها في هذا التاريخ.',save_failed:'تعذر حفظ البيانات.',upload_failed:'تعذر رفع الفيديو. حاولي مرة أخرى.',invalid_input:'أكملي الحقول المطلوبة.',service_timeout:'تعذر الوصول إلى خدمة الدخول الآن. انتظري قليلًا ثم حاولي مرة أخرى.',already_booked:'هذا المورد محجوز بالفعل في نفس التاريخ والحصة.'}[e?.code]||'تعذر إتمام العملية الآن.')}
 function secureAdmin(){return !!secureEmployee&&(secureEmployee.kind==='admin'||secureEmployee.employee_id==='T016'||['admin','management'].includes(secureEmployee.access_group))}
@@ -129,10 +115,16 @@ function updateSecureLabels(){
   if(t==='اكتبي اسمك')x.textContent='سجلي دخولك';
  });
 }
+let pendingStaffModule='';
+window.openStaffModule=async tab=>{
+ if(!staffToken||!secureEmployee){pendingStaffModule=tab;toast('سجلي الدخول بالاسم والرمز السري');return openIdentity()}
+ if(tab==='staff'&&!secureAdmin())return toast('إدارة الكادر متاحة للإدارة فقط');
+ await openStaffCenter();await staffTab(tab);
+};
 window.openStaffCenter=async()=>{
  if(!staffToken||!secureEmployee){toast('سجلي الدخول بالاسم والرمز السري');return openIdentity()}
  openById('staffCenterModal');if(!secureDirectory.classes.length)try{secureDirectory=await staffApi('directory')}catch(e){toast(staffError(e))}
- setSecureEmployee(secureEmployee);await staffTab('home')
+ setSecureEmployee(secureEmployee);const requested=pendingStaffModule;pendingStaffModule='';if(requested==='staff'&&!secureAdmin()){toast('إدارة الكادر متاحة للإدارة فقط');await staffTab('home')}else await staffTab(requested||'home')
 };
 window.staffTab=async tab=>{
  if(tab!=='broadcast')stopBroadcastCamera(true);
@@ -303,7 +295,7 @@ async function renderSecureDuty(){
  const supervisorField=day=>'<span>'+esc((day.admins||[]).join('، ')||'—')+'</span>'+(secureAdmin()?'<button class="staff-ghost sm" style="margin-inline-start:8px" onclick="editDutyAdmins(\''+esc(day.day_name)+'\')">✏️ تعديل الإشراف العام</button>':'');
  const week='<div class="today-title"><div><small>خطة المناوبات الكاملة</small><h2>🦺 المناوبات من الأحد إلى الخميس</h2></div></div><div class="duty-week-grid">'+(w.days||[]).map(day=>'<section class="staff-card duty-week-card"><h3>'+esc(day.day_name)+'</h3><p><b>👩‍🏫 مشرفة المناوبة:</b> <span style="display:inline-block;background:#e5e7eb;border-radius:9px;padding:3px 8px">'+esc(day.supervisor_name||'—')+'</span> <small style="color:#6b7280">• مراقبة فقط بدون موقع</small></p><p><b>🏛️ الإشراف الإداري العام:</b> '+supervisorField(day)+'</p><div class="duty-slot-list">'+slotKeys.map(key=>'<div><b>'+esc(slotNames[key])+'</b><span>'+esc(((day.slots||{})[key]||[]).join('، ')||'—')+'</span></div>').join('')+'</div>'+(day.can_edit_roles?'<button class="staff-primary" style="margin-top:10px" onclick="editDutyWeekDay(\''+esc(day.day_name)+'\')">✏️ تعديل توزيع أدوار '+esc(day.day_name)+'</button>':'')+'</section>').join('')+'</div><section id="dutyWeekEditCard" class="staff-card duty-role-card" hidden></section>';
  const roleByName=new Map();Object.entries(d.slots||{}).forEach(([slot,names])=>(names||[]).forEach(name=>roleByName.set(norm(name),slot)));
- const roleEditor=d.can_edit_roles?'<section class="staff-card duty-role-card" id="dutyRoleCard" data-date="'+esc(d.date)+'"><div class="duty-role-head"><div><h3>✏️ تعديل أدوار المناوبة</h3><p class="staff-help">متاح لمشرفة المناوبة، والإشراف الإداري العام، والأستاذة ثرياء الناعبية. مشرفة اليوم لا يُسند لها موقع؛ دورها متابعة سير المناوبة والتأكد من وجود كل معلمة في مكانها المحدد.</p></div><button class="staff-primary" onclick="toggleDutyRoleEditor()">تعديل الأدوار</button></div><div id="dutyRoleEditor" class="duty-role-editor" hidden>'+(d.teachers||[]).filter(name=>norm(name)!==norm(d.supervisor_name||'')).map(name=>{const current=roleByName.get(norm(name))||'corridors';return '<label><span>'+esc(name)+'</span><select class="duty-role-select" data-name="'+esc(name)+'" data-current="'+current+'" onchange="swapDutyRole(this)">'+slotKeys.map(key=>'<option value="'+key+'" '+(key===current?'selected':'')+'>'+esc(slotNames[key])+'</option>').join('')+'</select></label>'}).join('')+'<div class="duty-role-actions"><button class="staff-primary" onclick="saveDutyRoles()">حفظ الأدوار</button><button class="staff-secondary" onclick="renderSecureDuty()">إلغاء</button></div></div></section>':'';
+ const roleEditor=d.can_edit_roles?'<section class="staff-card duty-role-card" id="dutyRoleCard" data-date="'+esc(d.date)+'"><div class="duty-role-head"><div><h3>✏️ تعديل أدوار المناوبة</h3><p class="staff-help">متاح لمشرفة المناوبة، والإشراف الإداري العام، والأستاذة ثرياء الناعبية. مشرفة اليوم لا يُسند لها موقع؛ دورها متابعة سير المناوبة والتأكد من وجود كل معلمة في مكانها المحدد.</p></div><button class="staff-primary" onclick="toggleDutyRoleEditor()">تعديل الأدوار</button></div><div id="dutyRoleEditor" class="duty-role-editor" hidden>'+(d.teachers||[]).filter(name=>norm(name)!==norm(d.supervisor_name||'')).map(name=>{const current=roleByName.get(norm(name))||'corridors';return '<label><span>'+esc(name)+'</span><select class="duty-role-select" data-name="'+esc(name)+'" data-current="'+current+'" onchange="swapDutyRole(this)">'+slotKeys.map(key=>'<option value="'+key+'" '+(key===current?'selected':'')+'>'+esc(slotNames[key])+'</option>').join('')+'</select></label>'}).join('')+'<div class="duty-role-actions"><button class="staff-primary" id="dutySaveBtn" onclick="saveDutyRoles()">حفظ الأدوار</button><button class="staff-secondary" onclick="renderSecureDuty()">إلغاء</button></div></div></section>':'';
  const between='<section class="staff-card"><h3>🔄 مناوبة ما بين الفصول — اختيار تلقائي</h3><p class="staff-help">يختار النظام معلمة فارغة لا توجد لها مناوبة صباحية أو مسائية في اليوم نفسه.</p><div class="duty-slot-list">'+((d.between_periods||[]).map(x=>'<div><b>الحصة '+x.period+' • '+esc(x.start)+'</b><span>'+esc(x.teacher_name||'لا توجد معلمة متاحة')+'</span></div>').join('')||'<div><span>لا توجد توزيعات اليوم.</span></div>')+'</div></section>';
  const evaluationByName=new Map((d.evaluations||[]).map(x=>[norm(x.employee_name),x]));
  const memberCards=d.members.map(m=>{
@@ -328,7 +320,7 @@ window.editDutyWeekDay=dayName=>{
  const slotNames={morning:'الاستقبال الصباحي • 10:45',entry1:'نقطة الدخول ح١ • 11:50',entry2:'نقطة الدخول ح٢ • 11:50',coop:'فسحة الجمعية • 2:40',shade:'فسحة المظلة • 2:40',corridors:'فسحة الممرات • 2:40',buses:'الحافلات • 4:40',cars:'السيارات الخاصة • 4:40'},slotKeys=Object.keys(slotNames),roleByName=new Map();
  Object.entries(day.slots||{}).forEach(([slot,names])=>(names||[]).forEach(name=>roleByName.set(norm(name),slot)));
  box.hidden=false;box.dataset.day=dayName;
- box.innerHTML='<div class="duty-role-head"><div><h3>✏️ تعديل مناوبة '+esc(dayName)+'</h3><p class="staff-help">المشرفة المظللة لا يُسند لها موقع؛ دورها متابعة سير المناوبة. غيّري مواقع بقية المعلمات ثم اضغطي حفظ.</p></div><button class="staff-secondary" onclick="closeDutyWeekEditor()">إغلاق</button></div><div class="duty-role-editor">'+(day.teachers||[]).filter(name=>norm(name)!==norm(day.supervisor_name||'')).map(name=>{const current=roleByName.get(norm(name))||'corridors';return '<label><span>'+esc(name)+'</span><select class="duty-week-role-select" data-name="'+esc(name)+'" data-current="'+current+'" onchange="swapDutyWeekRole(this)">'+slotKeys.map(key=>'<option value="'+key+'" '+(key===current?'selected':'')+'>'+esc(slotNames[key])+'</option>').join('')+'</select></label>'}).join('')+'<div class="duty-role-actions"><button class="staff-primary" onclick="saveDutyWeekRoles()">💾 حفظ تقسيم '+esc(dayName)+'</button><button class="staff-secondary" onclick="closeDutyWeekEditor()">إلغاء</button></div></div>';
+ box.innerHTML='<div class="duty-role-head"><div><h3>✏️ تعديل مناوبة '+esc(dayName)+'</h3><p class="staff-help">المشرفة المظللة لا يُسند لها موقع؛ دورها متابعة سير المناوبة. غيّري مواقع بقية المعلمات ثم اضغطي حفظ.</p></div><button class="staff-secondary" onclick="closeDutyWeekEditor()">إغلاق</button></div><div class="duty-role-editor">'+(day.teachers||[]).filter(name=>norm(name)!==norm(day.supervisor_name||'')).map(name=>{const current=roleByName.get(norm(name))||'corridors';return '<label><span>'+esc(name)+'</span><select class="duty-week-role-select" data-name="'+esc(name)+'" data-current="'+current+'" onchange="swapDutyWeekRole(this)">'+slotKeys.map(key=>'<option value="'+key+'" '+(key===current?'selected':'')+'>'+esc(slotNames[key])+'</option>').join('')+'</select></label>'}).join('')+'<div class="duty-role-actions"><button class="staff-primary" id="dutyWeekSaveBtn" onclick="saveDutyWeekRoles()">💾 حفظ تقسيم '+esc(dayName)+'</button><button class="staff-secondary" onclick="closeDutyWeekEditor()">إلغاء</button></div></div>';
  box.scrollIntoView({behavior:'smooth',block:'start'});
 };
 window.swapDutyWeekRole=el=>{
@@ -339,10 +331,22 @@ window.swapDutyWeekRole=el=>{
  toast('تم تبديل الدورين — اضغطي حفظ لاعتماد التغيير')
 };
 window.closeDutyWeekEditor=()=>{const box=S('dutyWeekEditCard');if(box){box.hidden=true;box.innerHTML=''}};
+let dutyRoleSaveBusy=false;
+async function persistDutyRoles(payload,selector,buttonId){
+ if(dutyRoleSaveBusy)return;
+ const controls=[...document.querySelectorAll(selector)],btn=S(buttonId),label=btn?.textContent;
+ payload.assignments=controls.map(x=>({name:x.dataset.name,slot:x.value}));
+ dutyRoleSaveBusy=true;controls.forEach(x=>x.disabled=true);if(btn){btn.disabled=true;btn.textContent='جاري حفظ التعديل…'}
+ let saved=false;
+ try{
+  const result=await staffApi('save_duty_roles',payload);saved=true;toast('✅ تم حفظ أدوار مناوبة '+result.day+' في قاعدة المدرسة');
+  try{await renderSecureDuty();if(typeof window.renderDuty==='function')window.renderDuty(result.day)}catch{toast('تم حفظ التعديل. تعذر تحديث العرض الآن؛ أعيدي فتح المناوبة.')}
+ }catch(e){toast(staffError(e))}
+ finally{dutyRoleSaveBusy=false;if(!saved){controls.forEach(x=>x.disabled=false);if(btn){btn.disabled=false;btn.textContent=label}}}
+}
 window.saveDutyWeekRoles=async()=>{
- const box=S('dutyWeekEditCard'),day_name=box?.dataset.day,assignments=[...document.querySelectorAll('.duty-week-role-select')].map(x=>({name:x.dataset.name,slot:x.value}));
- if(!day_name)return;
- try{await staffApi('save_duty_roles',{day_name,assignments});toast('✅ تم حفظ تقسيم أدوار مناوبة '+day_name);await renderSecureDuty()}catch(e){toast(staffError(e))}
+ const day_name=S('dutyWeekEditCard')?.dataset.day;if(!day_name)return;
+ await persistDutyRoles({day_name},'.duty-week-role-select','dutyWeekSaveBtn');
 };
 window.toggleDutyRoleEditor=()=>{const box=S('dutyRoleEditor');if(!box)return;box.hidden=!box.hidden};
 window.swapDutyRole=el=>{
@@ -353,8 +357,8 @@ window.swapDutyRole=el=>{
  toast('تم تبديل الدورين؛ اضغطي حفظ الأدوار لاعتماد التغيير')
 };
 window.saveDutyRoles=async()=>{
- const card=S('dutyRoleCard'),assignments=[...document.querySelectorAll('.duty-role-select')].map(x=>({name:x.dataset.name,slot:x.value}));
- try{await staffApi('save_duty_roles',{date:card?.dataset.date,assignments});toast('✅ تم حفظ أدوار المناوبة');await renderSecureDuty()}catch(e){toast(staffError(e))}
+ const date=S('dutyRoleCard')?.dataset.date;if(!date)return;
+ await persistDutyRoles({date},'.duty-role-select','dutySaveBtn');
 };
 window.confirmDuty=async(name,id)=>{try{await staffApi('confirm_duty',{employee_name:name,status:S('ds-'+id).value,stars:+S('star-'+id).value});toast('✅ تم تأكيد وجود المعلمة في موقع المناوبة');renderSecureDuty()}catch(e){toast(staffError(e))}};
 window.openDutyMemberEvaluation=id=>{const box=S('dutyEval-'+id);if(box){box.hidden=false;syncDutyMemberEvaluation(id)}};
@@ -1024,4 +1028,5 @@ window.testOpsAlert=async()=>{
  }catch(e){toast(staffError(e))}
 };
 setTimeout(async()=>{prepareSecureLogin();injectStaffCenter();injectResourceBookingModal();updateSecureLabels();await restoreStaff();await refreshCurriculumCatchup();const open=new URLSearchParams(location.search).get('open');if(staffToken&&secureEmployee&&open==='schedule'){await openStaffCenter();await staffTab('schedule')}if(staffToken&&secureEmployee&&open==='staff-requests'){await openStaffRequestCenter()}},0);
+
 

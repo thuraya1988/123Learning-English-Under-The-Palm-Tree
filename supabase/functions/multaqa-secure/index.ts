@@ -11,6 +11,8 @@ const pinOk=(v:string)=>/^\d{6,12}$/.test(v);
 const omDays=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
 const RESOURCES=[{key:"resources_room",label:"غرفة المصادر"},{key:"lab",label:"المختبر"},{key:"activities_hall",label:"قاعة الأنشطة"},{key:"projector",label:"جهاز العرض"}];
 const RESOURCE_OWNERS:Record<string,string>={resources_room:"أصيلة الوهيبية",lab:"عبير المسلمية"};
+const CHAT_LIMITS:Record<string,number>={"image/jpeg":10,"image/png":10,"image/webp":10,"image/gif":10,"video/mp4":100,"video/webm":100,"video/quicktime":100,"application/pdf":25};
+const CHAT_EXTENSIONS:Record<string,string>={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif","video/mp4":"mp4","video/webm":"webm","video/quicktime":"mov","application/pdf":"pdf"};
 const BADGES:Record<string,string>={star_week:"🌟 نجمة الأسبوع",reading:"📚 قارئة متميزة",teamwork:"🤝 روح التعاون",creativity:"🎨 إبداع",academic:"🧮 تفوق دراسي",behavior:"🕌 سلوك مثالي",helper:"🤲 يد العون",attendance:"✅ التزام الحضور"};
 const gradeWords=["","الأول","الثاني","الثالث","الرابع","الخامس","السادس"];
 const teacherScheduleName=(e:any)=>e?.short_name||e?.full_name||"";
@@ -76,6 +78,7 @@ const activityPermissions=(e:any)=>Object.keys(ACTIVITY_MANAGER_IDS).filter(k=>A
 const canManageActivity=(e:any,type:string)=>elevated(e)||activityPermissions(e).includes(type);
 const canManageFinancialSupport=(e:any)=>elevated(e)||e?.employee_id==="T061";
 async function canEditDutyRoles(db:any,e:any,admins:string[]=[],supervisorName=""){
+  if(elevated(e))return true;
   if(e?.employee_id==="T016"||norm(e?.short_name)===norm("ثرياء الناعبية")||norm(e?.full_name)===norm("ثرياء محمد علي الناعبية"))return true;
   if(supervisorName&&(norm(supervisorName)===norm(e?.short_name)||norm(supervisorName)===norm(e?.full_name)))return true;
   if(admins.some((n:string)=>norm(n)===norm(e?.short_name)||norm(n)===norm(e?.full_name)))return true;
@@ -327,6 +330,60 @@ Deno.serve(async(req)=>{
     await db.from("multaqa_staff_credentials").update({pin_hash:bcrypt.hashSync(pin,12),must_change_pin:false,pin_changed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("employee_id",e.employee_id);return json({ok:true});
   }
   if(e.kind==="supervisor"&&!['directory','supervision_portal','save_supervision_visit','save_department_post','prepare_department_upload','complete_department_upload'].includes(action))return json({ok:false,error:"forbidden"},403);
+  if(action==="chat_list"){
+    if(e.kind!=="teacher"&&e.kind!=="admin")return json({ok:false,error:"forbidden"},403);
+    const since=clean(body.since,40);
+    if(since&&Number.isNaN(Date.parse(since)))return json({ok:false,error:"invalid_input"},400);
+    let q=db.from("multaqa_staff_messages").select("*").is("deleted_at",null);
+    q=since?q.gte("created_at",since).order("created_at").order("id").limit(200):q.order("created_at",{ascending:false}).order("id",{ascending:false}).limit(200);
+    const {data,error}=await q;if(error)return json({ok:false,error:"server_error"},500);
+    const rows=since?(data||[]):(data||[]).reverse();
+    const messages=await Promise.all(rows.map(async(x:any)=>{let file_url=null;if(x.file_path){const {data:u}=await db.storage.from("multaqa-chat").createSignedUrl(x.file_path,3600);file_url=u?.signedUrl||null}return{...x,file_url,can_delete:elevated(e)||x.employee_id===e.employee_id}}));
+    const {data:deleted,error:deleteError}=await db.from("multaqa_staff_messages").select("id").not("deleted_at","is",null).gte("deleted_at",since||new Date(Date.now()-7*86400000).toISOString()).limit(200);
+    if(deleteError)return json({ok:false,error:"server_error"},500);
+    return json({ok:true,me:e.employee_id,my_name:e.short_name||e.full_name,my_role:e.role,messages,deleted_ids:(deleted||[]).map((x:any)=>x.id),limits:CHAT_LIMITS});
+  }
+  if(action==="chat_attach_init"){
+    if(e.kind!=="teacher"&&e.kind!=="admin")return json({ok:false,error:"forbidden"},403);
+    const mime=clean(body.mime,120),size=Number(body.size),limit=CHAT_LIMITS[mime];
+    if(!limit)return json({ok:false,error:"type_not_allowed"},400);
+    if(!Number.isSafeInteger(size)||size<=0||size>limit*1024*1024)return json({ok:false,error:"too_large"},400);
+    const ext=CHAT_EXTENSIONS[mime],path=`chat/${e.employee_id}/${crypto.randomUUID()}.${ext}`;
+    const {data:u,error}=await db.storage.from("multaqa-chat").createSignedUploadUrl(path);
+    if(error||!u)return json({ok:false,error:"upload_failed"},500);
+    return json({ok:true,path,upload_url:u.signedUrl});
+  }
+  if(action==="chat_send"){
+    if(e.kind!=="teacher"&&e.kind!=="admin")return json({ok:false,error:"forbidden"},403);
+    const text=clean(body.body,4000),path=clean(body.file_path,700),mime=clean(body.file_mime,120),size=Number(body.file_size);
+    if(!text&&!path)return json({ok:false,error:"invalid_input"},400);
+    if(path){
+      const limit=CHAT_LIMITS[mime];
+      if(!limit||!path.startsWith(`chat/${e.employee_id}/`)||!path.endsWith('.'+CHAT_EXTENSIONS[mime])||path.includes('..'))return json({ok:false,error:"invalid_input"},400);
+      if(!Number.isSafeInteger(size)||size<=0||size>limit*1024*1024)return json({ok:false,error:"too_large"},400);
+      const slash=path.lastIndexOf('/'),filename=path.slice(slash+1);
+      const {data:objects,error}=await db.storage.from("multaqa-chat").list(path.slice(0,slash),{search:filename,limit:2});
+      const object=(objects||[]).find((x:any)=>x.name===filename);
+      if(error||!object||Number(object.metadata?.size)!==size||object.metadata?.mimetype!==mime)return json({ok:false,error:"upload_failed"},400);
+    }
+    const id=Date.now()*1000+crypto.getRandomValues(new Uint32Array(1))[0]%1000;
+    const row={id,employee_id:e.employee_id,author_name:e.short_name||e.full_name,author_role:e.role||null,body:text,file_path:path||null,file_name:path?clean(body.file_name,220)||"مرفق":null,file_mime:path?mime:null,file_size:path?size:null};
+    const {data:message,error}=await db.from("multaqa_staff_messages").insert(row).select().single();
+    if(error||!message)return json({ok:false,error:"save_failed"},500);
+    let file_url=null;if(path){const {data:u}=await db.storage.from("multaqa-chat").createSignedUrl(path,3600);file_url=u?.signedUrl||null}
+    return json({ok:true,message:{...message,file_url,can_delete:true}});
+  }
+  if(action==="chat_delete"){
+    if(e.kind!=="teacher"&&e.kind!=="admin")return json({ok:false,error:"forbidden"},403);
+    const id=Number(body.id);if(!Number.isSafeInteger(id)||id<=0)return json({ok:false,error:"invalid_input"},400);
+    const {data:row,error:readError}=await db.from("multaqa_staff_messages").select("employee_id,deleted_at").eq("id",id).maybeSingle();
+    if(readError)return json({ok:false,error:"server_error"},500);if(!row)return json({ok:false,error:"not_found"},404);
+    if(!elevated(e)&&row.employee_id!==e.employee_id)return json({ok:false,error:"forbidden"},403);
+    if(row.deleted_at)return json({ok:true});
+    const {error}=await db.from("multaqa_staff_messages").update({deleted_at:new Date().toISOString()}).eq("id",id);
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+
   if(action==="issue_pin"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const target=await resolveEmployee(db,clean(body.employee_name,220));if(!target)return json({ok:false,error:"not_found"},404);const pin=pinOk(clean(body.pin,20))?clean(body.pin,20):randomPin();
     await db.from("multaqa_staff_credentials").upsert({employee_id:target.employee_id,pin_hash:bcrypt.hashSync(pin,12),must_change_pin:true,failed_attempts:0,locked_until:null,updated_at:new Date().toISOString()});return json({ok:true,employee_name:target.short_name,temporary_pin:pin});
@@ -798,13 +855,13 @@ Deno.serve(async(req)=>{
     const {error}=await db.from("multaqa_student_cases").upsert({student_school_id:sid,financial_support:body.financial_support===true,academic_category:category||null,support_priority:clean(body.support_priority,40)||null,support_program:clean(body.support_program,1200)||null,support_note:clean(body.support_note,1600)||null,updated_by_employee_id:e.employee_id,updated_at:new Date().toISOString()});if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
   if(action==="broadcast_schedule"){
-    const {data:items}=await db.from("multaqa_broadcast_schedule").select("*").order("schedule_date").limit(180);return json({ok:true,items:items||[]});
+    const {data:items,error}=await db.from("multaqa_broadcast_schedule").select("*").order("schedule_date").limit(180);if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,items:items||[]});
   }
   if(action==="save_broadcast_schedule"){
     if(!canManageActivity(e,"broadcast"))return json({ok:false,error:"forbidden"},403);const date=clean(body.schedule_date,10),cls=clean(body.class_label,100);if(!date||!cls)return json({ok:false,error:"invalid_input"},400);const {error}=await db.from("multaqa_broadcast_schedule").upsert({schedule_date:date,day_name:clean(body.day_name,30)||null,class_label:cls,title:clean(body.title,220)||null,responsible_employee_ids:(Array.isArray(body.responsible_employee_ids)?body.responsible_employee_ids:[]).map((x:any)=>clean(x,30)).filter(Boolean).slice(0,20),notes:clean(body.notes,1000)||null,created_by_employee_id:e.employee_id,updated_at:new Date().toISOString()},{onConflict:"schedule_date,class_label"});if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
   }
   if(action==="mothers_council"){
-    const {data:item}=await db.from("multaqa_mothers_council").select("*").eq("id","current").maybeSingle();return json({ok:true,item:item||null});
+    const {data:item,error}=await db.from("multaqa_mothers_council").select("*").eq("id","current").maybeSingle();if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,item:item||null});
   }
   if(action==="save_mothers_council"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const row={id:"current",council_name:clean(body.council_name,220)||"مجلس الأمهات",president_name:clean(body.president_name,220)||null,president_phone:clean(body.president_phone,30)||null,president_email:clean(body.president_email,220)||null,vice_name:clean(body.vice_name,220)||null,vice_phone:clean(body.vice_phone,30)||null,chair_name:clean(body.chair_name,220)||null,members:(Array.isArray(body.members)?body.members:[]).map((x:any)=>clean(x,220)).filter(Boolean).slice(0,120),laws:clean(body.laws,4000)||null,tasks:clean(body.tasks,4000)||null,events:(Array.isArray(body.events)?body.events:[]).map((x:any)=>clean(x,400)).filter(Boolean).slice(0,120),updated_by_employee_id:e.employee_id,updated_at:new Date().toISOString()};const {error}=await db.from("multaqa_mothers_council").upsert(row);if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
@@ -1504,12 +1561,20 @@ Deno.serve(async(req)=>{
     const oldSlots:any=d.slots||{};
     for(const key of keys)if(slots[key].length!==((oldSlots[key]||[]).length))return json({ok:false,error:"duty_capacity"},409);
     const oldRole=new Map<string,string>(),newRole=new Map<string,string>();for(const key of keys){for(const n of oldSlots[key]||[])oldRole.set(norm(n),key);for(const n of slots[key]||[])newRole.set(norm(n),key)}
-    const {error}=await db.from("multaqa_duty").update({slots}).eq("day_name",day);if(error)return json({ok:false,error:"save_failed"},500);
-    for(const name of eligible){const before=oldRole.get(norm(name)),after=newRole.get(norm(name));if(before!==after){const info=DUTY_SLOT_INFO[after||""];await pushToNames(db,[name],"تم تغيير دور مناوبتك",`مناوبة ${day}: ${info?.label||after} • ${info?.time||""}`,"/school/","duty")}}
-    const {data:allTeachers}=await db.from("multaqa_employees").select("short_name,full_name").eq("kind","teacher");
-    const allTeacherNames=(allTeachers||[]).map((x:any)=>x.short_name||x.full_name).filter(Boolean);
-    await pushToNames(db,allTeacherNames,"📢 تحديث جدول المناوبات",`تم تحديث أدوار المناوبة ليوم ${day}. يمكنكِ فتح المنظومة للاطلاع على دوركِ الجديد.`,"/school/?open=duty","duty_all");
-    return json({ok:true,day,slots,supervisor_name:supervisorName,notified_teachers:allTeacherNames.length});
+    const {data:saved,error}=await db.from("multaqa_duty").update({slots}).eq("day_name",day).select("day_name,slots").maybeSingle();
+    if(error||!saved)return json({ok:false,error:"save_failed"},500);
+    const changedNames=eligible.filter(name=>oldRole.get(norm(name))!==newRole.get(norm(name)));
+    if(changedNames.length){
+      const notify=async()=>{
+        for(const name of changedNames){const after=newRole.get(norm(name)),info=DUTY_SLOT_INFO[after||""];await pushToNames(db,[name],"تم تغيير دور مناوبتك",`مناوبة ${day}: ${info?.label||after} • ${info?.time||""}`,"/school/","duty")}
+        const {data:allTeachers,error:teacherError}=await db.from("multaqa_employees").select("short_name,full_name").eq("kind","teacher");
+        if(teacherError)throw teacherError;
+        const names=(allTeachers||[]).map((x:any)=>x.short_name||x.full_name).filter(Boolean);
+        await pushToNames(db,names,"📢 تحديث جدول المناوبات",`تم تحديث أدوار المناوبة ليوم ${day}. يمكنكِ فتح المنظومة للاطلاع على دوركِ الجديد.`,"/school/?open=duty","duty_all");
+      };
+      EdgeRuntime.waitUntil(notify().catch(error=>console.error("duty_notification_failed",error)));
+    }
+    return json({ok:true,day:saved.day_name,slots:saved.slots,supervisor_name:supervisorName,notifications_pending:changedNames.length>0});
   }
   if(action==="save_duty_evaluation"){
     const date=clean(body.date,10)||muscatDate(),day=dayFor(date),{data:d}=await db.from("multaqa_duty").select("teachers,admins,supervisor_name,slots").eq("day_name",day).maybeSingle();
@@ -1650,13 +1715,13 @@ Deno.serve(async(req)=>{
   }
   if(action==="recent_staff_messages"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);
-    const {data}=await db.from("multaqa_notification_log").select("employee_name,title,body,success,created_at").eq("kind","staff_message").order("created_at",{ascending:false}).limit(60);
-    return json({ok:true,items:data||[]});
+    const {data,error}=await db.from("multaqa_notification_log").select("employee_name,title,body,success,created_at:sent_at").eq("kind","staff_message").order("sent_at",{ascending:false}).limit(60);
+    if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,items:data||[]});
   }
   if(action==="my_class_alerts"){
     const since=`${muscatDate()}T00:00:00+04:00`;
-    const {data}=await db.from("multaqa_class_observations").select("id,class_label,period,note,created_at").eq("notified_employee_id",e.employee_id).eq("status","no_teacher").is("acknowledged_at",null).gte("created_at",since).order("created_at",{ascending:false});
-    return json({ok:true,items:data||[]});
+    const {data,error}=await db.from("multaqa_class_observations").select("id,class_label,period,note,created_at:observed_at").eq("notified_employee_id",e.employee_id).eq("status","no_teacher").is("acknowledged_at",null).gte("observed_at",since).order("observed_at",{ascending:false});
+    if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,items:data||[]});
   }
   if(action==="ack_class_alert"){
     const id=clean(body.id,60);if(!id)return json({ok:false,error:"invalid_input"},400);
@@ -1694,3 +1759,4 @@ Deno.serve(async(req)=>{
   }
   return json({ok:false,error:"unknown_action"},400);
 });
+

@@ -140,6 +140,19 @@ Deno.serve(async(req)=>{
     if(!emp)return json({ok:false,error:"not_found"},404);
     return json({ok:true,employee:{full_name:emp.full_name,short_name:emp.short_name,role:emp.role,kind:emp.kind,teacher_page:emp.teacher_page}});
   }
+  if(action==="school_stats"){
+    const results=await Promise.all([
+      db.from("multaqa_students").select("school_id",{count:"exact",head:true}),
+      db.from("multaqa_class_schedules").select("class_label",{count:"exact",head:true}),
+      db.from("multaqa_employees").select("employee_id",{count:"exact",head:true}).eq("kind","teacher"),
+      db.from("multaqa_employees").select("employee_id",{count:"exact",head:true}).eq("kind","admin"),
+      db.from("multaqa_bus_routes").select("id",{count:"exact",head:true}).eq("active",true),
+      db.from("multaqa_teacher_schedules").select("page",{count:"exact",head:true})
+    ]);
+    if(results.some(x=>x.error))return json({ok:false,error:"server_error"},500);
+    const [students,classes,teachers,admins,buses,teacher_schedules]=results.map(x=>x.count||0);
+    return json({ok:true,stats:{students,classes,teachers,admins,buses,teacher_schedules}});
+  }
   if(action==="teacher_names"){
     const {data,error}=await db.from("multaqa_employees").select("full_name,short_name").eq("kind","teacher").order("full_name");
     if(error)return json({ok:false,error:"server_error"},500); return json({ok:true,teachers:data||[]});
@@ -292,11 +305,11 @@ Deno.serve(async(req)=>{
   }
   if(action==="bus_status"){
     const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat"}).format(new Date());
-    const [{data:arrivals,error},{data:buses}]=await Promise.all([
+    const [{data:arrivals,error},{data:buses,error:busError}]=await Promise.all([
       db.from("multaqa_bus_arrivals").select("route_name,arrived_at").eq("arrival_date",today),
-      db.from("multaqa_buses").select("route_name,departure_label")
+      db.from("multaqa_bus_routes").select("route_name,departure_label").eq("active",true).order("trip_order")
     ]);
-    if(error)return json({ok:false,error:"server_error"},500);
+    if(error||busError)return json({ok:false,error:"server_error"},500);
     const arrivedMap=new Map((arrivals||[]).map((x:any)=>[x.route_name,x.arrived_at]));
     const items=(buses||[]).map((b:any)=>({route_name:b.route_name,departure_label:b.departure_label,arrived_at:arrivedMap.get(b.route_name)||null}));
     return json({ok:true,items});
@@ -450,3 +463,4 @@ Deno.serve(async(req)=>{
   }
   return json({ok:false,error:"unknown_action"},400);
 });
+

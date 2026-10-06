@@ -146,10 +146,19 @@ window.openAttendanceReport=async()=>{
 };
 const SIMPLE={assembly:['🛗 الطابور الصباحي','وحدة متابعة الطابور المدرسي.'],radio:['📢 الإذاعة المدرسية','مساحة تنظيم فقرات الإذاعة المدرسية.'],tests:['📝 إدارة الاختبارات','الإعلان الهام يعرض الاختبار والمادة والتاريخ واليوم.'],excellence:['🏆 لوحة التميّز','مساحة عرض إنجازات الطالبات والمعلمات عند نشرها.'],chat:['💬 محادثة مباشرة','الطلبات التشغيلية تصل عبر صندوق طلبات أولياء الأمور.'],search:['🔎 بحث شامل','استخدمي جداول الصفوف، جدول المعلمة، أو التحقق من سجل الطالب.'],reports:['🧾 تقارير وسجل عمليات','تسجيلات المناوبة وطلبات أولياء الأمور تحفظ في قاعدة المدرسة.'],attendance:['✅ الحضور والغياب','عذر الغياب والتأخر وتصحيح الحضور يوجّه إلى مدخلات البيانات.'],buses:['🚌 الحافلات والنقلات','بيانات الحافلات التفصيلية لم تُدخل بعد، لذلك لا تُعرض بيانات غير معتمدة.'],staff:['🏫 الكادر الإداري','المديرة: أ. بهيه الراشديه • المساعدتان: أ. سعاد الرواحيه، أ. فتحية الهدابيه • أ. فخرية العامرية • أ. أصيلة الوهيبيه • أ. أنيسه السيابيه • أ. فاطمة البطاشيه • أ. عبير المسلمية.']};
 window.openSimpleModule=k=>{
+ const staffModules={radio:'broadcast',reports:'attendance_reports',attendance:'attendance',buses:'buses',staff:'staff'};
+ if(staffModules[k]&&typeof window.openStaffModule==='function')return window.openStaffModule(staffModules[k]);
+ if(k==='assembly')return openOps('duty');
+ if(k==='tests')return openSchoolContent('announcement');
+ if(k==='excellence')return openGroupsPortal();
+ if(k==='chat'){location.href='staff-chat/';return}
  const x=SIMPLE[k];$('simpleModuleTitle').textContent=x?.[0]||'وحدة النظام';
- if(k==='attendance'||k==='reports'){
+ if(k==='search'){
+  $('simpleModuleBody').innerHTML='<div class="info">ابحثي في سجل الطالب أو جداول الصفوف والمعلمات.</div><div class="attendance-report-tools"><button class="btn btn-solid" onclick="closeSimpleModule();openStudents()">التحقق من سجل الطالب</button><button class="btn btn-ghost" onclick="closeSimpleModule();openClassSchedules()">جداول الصفوف</button><button class="btn btn-ghost" onclick="closeSimpleModule();openMyTeacherSchedule()">جدول المعلمة</button></div>';
+ }else if(k==='attendance'||k==='reports'){
   $('simpleModuleBody').innerHTML='<div class="info">'+esc(x?.[1]||'')+'</div><div class="attendance-report-tools"><button class="btn btn-solid" id="attendanceReportBtn" onclick="openAttendanceReport()">📊 سحب تقرير الغياب الآن</button><div id="attendanceReportResult" style="margin-top:12px"></div></div>';
  }else $('simpleModuleBody').innerHTML='<div class="info">'+esc(x?.[1]||'')+'</div>';
  openById('simpleModuleModal');
 };
 loadContent();
+

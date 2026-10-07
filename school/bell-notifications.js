@@ -6,6 +6,9 @@
     if(!alertAudioEl){ alertAudioEl=new Audio(ALERT_SOUND_SRC); alertAudioEl.preload='auto'; }
     return alertAudioEl;
   }
+  window.addEventListener('multaqa-important-alert-stopped',()=>{
+    if(alertAudioEl){try{alertAudioEl.pause();alertAudioEl.currentTime=0;}catch(_){}}
+  });
   window.playMultaqaAlertSound=function(){
     try{
       const a=getAlertAudio();

@@ -32,6 +32,17 @@ window.saveDutyEvaluation=async()=>{if(!employee)return openIdentity();const att
 async function loadDutyHistory(){if(!employee)return;try{const d=await api('duty_history',{employee_name:employee.short_name}),n={start:'بدء المناوبة',round:'جولة صف',issue:'ملاحظة/مشكلة',end:'إنهاء المناوبة'},btn=$('dutyEvaluationBtn');if(btn)btn.disabled=!d.ended_today;if(d.evaluation){$('dutyAttendanceStatus').value=d.evaluation.attendance_status;$('dutyEffectiveness').value=d.evaluation.effectiveness;$('dutyEvaluationReason').value=d.evaluation.reason||'';syncDutyEvaluationState()}$('dutyHistory').innerHTML=(d.evaluation?'<div class="duty-history-item"><b>⭐ تقييم اليوم</b> — '+({committed:'ملتزمة',late:'متأخرة',absent:'غائبة'}[d.evaluation.attendance_status])+' • '+(d.evaluation.effectiveness==='active'?'فاعلة':'غير فاعلة')+(d.evaluation.reason?'<br>'+esc(d.evaluation.reason):'')+'</div>':'')+((d.events||[]).slice(0,12).map(x=>'<div class="duty-history-item"><b>'+n[x.event_type]+'</b> — '+new Intl.DateTimeFormat('ar-OM',{dateStyle:'short',timeStyle:'short',hour12:true}).format(new Date(x.occurred_at))+(x.class_label?'<br>الصف: '+esc(x.class_label):'')+(x.note?'<br>'+esc(x.note):'')+'</div>').join('')||'<div class="duty-history-item">لا توجد تسجيلات بعد.</div>')}catch{}}
 const BELL=[[740,'بدء الحصة الأولى'],[775,'بدء الحصة الثانية'],[810,'بدء الحصة الثالثة'],[845,'بدء الحصة الرابعة'],[880,'انتهاء الحصة الرابعة'],[900,'بدء الحصة الخامسة'],[935,'بدء الحصة السادسة'],[970,'بدء الحصة السابعة'],[1005,'انتهاء الحصة السابعة']];
 let alerts=localStorage.getItem('multaqa_period_notifications')==='1',lastBell='',importantAlarmAudio=null,importantAlarmLoop=null,activeImportantAlarmKey='',attendanceReminderFired='';
+const stoppedImportantAlarms=new Set();
+let activeImportantAlarmScope='';
+function importantAlarmScope(key){
+ const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const owner=typeof secureEmployee!=='undefined'&&secureEmployee?secureEmployee.employee_id:(typeof employee!=='undefined'&&employee?employee.short_name:'guest');
+ return 'multaqaStoppedAlert:'+JSON.stringify([day,String(owner),String(key)]);
+}
+function importantAlarmStopped(scope){
+ if(stoppedImportantAlarms.has(scope))return true;
+ try{return localStorage.getItem(scope)==='1'}catch{return false}
+}
 function importantAlarmAudioEl(){
  if(!importantAlarmAudio){importantAlarmAudio=new Audio('assets/notify-chime.mp3');importantAlarmAudio.preload='auto';importantAlarmAudio.loop=true}
  return importantAlarmAudio;
@@ -43,23 +54,34 @@ function ensureMultaqaNeonAlertStyle(){
  document.head.appendChild(s);
 }
 function stopMultaqaImportantAlert(){
+ if(activeImportantAlarmScope){
+  stoppedImportantAlarms.add(activeImportantAlarmScope);
+  try{localStorage.setItem(activeImportantAlarmScope,'1')}catch{}
+ }
+ try{navigator.vibrate?.(0)}catch{}
+ window.dispatchEvent(new Event('multaqa-important-alert-stopped'));
  if(importantAlarmLoop){clearInterval(importantAlarmLoop);importantAlarmLoop=null}
  if(importantAlarmAudio){try{importantAlarmAudio.pause();importantAlarmAudio.currentTime=0}catch{}importantAlarmAudio=null}
  const el=$('bellAlert');
  if(el){el.classList.remove('show','persistent','multaqa-neon-alert');el.innerHTML='';el.removeAttribute('role')}
- activeImportantAlarmKey='';
+ activeImportantAlarmKey='';activeImportantAlarmScope='';
 }
 window.stopMultaqaImportantAlert=stopMultaqaImportantAlert;
-function sendImportantSystemNotification(title,body,key){
+window.addEventListener('storage',event=>{
+ if(event.key===activeImportantAlarmScope&&event.newValue==='1')stopMultaqaImportantAlert();
+});
+function sendImportantSystemNotification(title,body,key,scope){
  if(!('Notification'in window)||Notification.permission!=='granted'||!('serviceWorker'in navigator))return;
- navigator.serviceWorker.ready.then(reg=>reg.showNotification(title,{body,dir:'rtl',lang:'ar',icon:'multaqa-smart-icon.png',badge:'multaqa-smart-icon.png',tag:'multaqa-important-'+String(key).replace(/\\s+/g,'-'),renotify:true,data:{url:'./'}})).catch(()=>{});
+ navigator.serviceWorker.ready.then(reg=>{if(importantAlarmStopped(scope))return;return reg.showNotification(title,{body,dir:'rtl',lang:'ar',icon:'multaqa-smart-icon.png',badge:'multaqa-smart-icon.png',tag:'multaqa-important-'+String(key).replace(/\\s+/g,'-'),renotify:true,data:{url:'./'}})}).catch(()=>{});
 }
 window.raiseMultaqaImportantAlert=function(title,body,opts){
  opts=opts||{};
  const key=opts.key||String(title)+'|'+String(body);
+ const scope=importantAlarmScope(key);
+ if(importantAlarmStopped(scope))return;
  const el=$('bellAlert');if(!el)return;
- if(activeImportantAlarmKey===key)return;
- activeImportantAlarmKey=key;
+ if(activeImportantAlarmKey===key&&activeImportantAlarmScope===scope)return;
+ activeImportantAlarmKey=key;activeImportantAlarmScope=scope;
  el.setAttribute('role','alert');
  ensureMultaqaNeonAlertStyle();el.style.zIndex='100000';el.classList.toggle('multaqa-neon-alert',!!opts.neon);el.classList.add('show','persistent');
  el.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:min(720px,92vw)"><strong style="font-size:15px">'+esc(title)+'</strong><span style="flex:1;min-width:180px">'+esc(body)+'</span><button type="button" onclick="stopMultaqaImportantAlert()" style="border:1px solid #fff;background:#9b1c31;color:#fff;border-radius:9px;padding:7px 12px;font-weight:900;white-space:nowrap">'+esc(opts.muteLabel||'⏹ إيقاف التنبيه')+'</button></div>';
@@ -69,7 +91,7 @@ window.raiseMultaqaImportantAlert=function(title,body,opts){
  if(importantAlarmLoop)clearInterval(importantAlarmLoop);
  importantAlarmLoop=setInterval(()=>{try{const a=importantAlarmAudioEl();if(a.paused){const p=a.play();if(p&&p.catch)p.catch(()=>{})}}catch{}},4500);
  navigator.vibrate?.([350,150,350,150,650]);
- sendImportantSystemNotification(String(title),String(body),key);
+ sendImportantSystemNotification(String(title),String(body),key,scope);
 };
 function clock(){
  const d=new Date();
@@ -88,7 +110,7 @@ function clock(){
 }
 setInterval(clock,1000);clock();
 function notifyLocal(m){window.raiseMultaqaImportantAlert(String(m),'يستمر التنبيه حتى تضغطي «إيقاف التنبيه».',{key:'local-'+String(m)})}
-window.testOpsAlert=()=>notifyLocal('🔔 اختبار تنبيه النظام');
+window.testOpsAlert=()=>window.raiseMultaqaImportantAlert('🔔 اختبار تنبيه النظام','يستمر التنبيه حتى تضغطي «إيقاف التنبيه».',{key:'test-'+Date.now()});
 window.enableOpsAlerts=async()=>{alerts=true;localStorage.setItem('multaqa_period_notifications','1');$('opsAlertDot').classList.add('on');$('opsAlertStatus').textContent='التنبيهات مفعلة — تستمر حتى الإيقاف';await enablePushNotifications()};
 function b64arr(s){const p='='.repeat((4-s.length%4)%4),r=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from([...r].map(c=>c.charCodeAt(0)))}window.enablePushNotifications=async()=>{if(!employee){toast('عرّفي النظام باسمك أولًا');return openIdentity()}if(!('serviceWorker'in navigator)||!('PushManager'in window))return toast('على iPhone أضيفي الموقع للشاشة الرئيسية أولًا.');try{if(await Notification.requestPermission()!=='granted')return toast('لم يتم السماح بالإشعارات');const reg=await navigator.serviceWorker.register('sw.js',{scope:'./'});await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64arr(VAPID)});await api('register_push',{employee_name:employee.short_name,subscription:sub.toJSON(),user_agent:navigator.userAgent});$('opsAlertDot')?.classList.add('on');const st=$('opsAlertStatus');if(st)st.textContent='إشعارات الجهاز مفعلة';document.querySelectorAll('.push-cta').forEach(x=>x.textContent='🔔 الإشعارات مفعلة على هذا الجهاز');toast('🔔 تم تفعيل الإشعارات — ستصلك حتى لو كان التطبيق مغلقًا')}catch(e){toast('تعذر التفعيل. على iPhone افتحي الموقع من الشاشة الرئيسية ثم حاولي.')}};window.openStudents=()=>openById('studentModal');window.secureStudentLookup=async()=>{const b=$('secureStudentResult');b.textContent='جاري التحقق…';try{const d=await api('verify_student',{school_id:digits($('secureStudentId').value),guardian_phone:digits($('secureStudentPhone').value),student_name:$('secureStudentName').value.trim()});b.innerHTML=`<div class="ps-ok">✓ ${esc(d.student.name)} — الصف ${esc(d.student.class_name)}</div>`}catch(x){b.innerHTML=`<div class="ps-error">${err(x)}</div>`}};const SERVICES=[{id:'absence',icon:'📕',title:'عذر غياب',target:'data',route:'مدخلات البيانات',label:'سبب الغياب',date:1},{id:'late',icon:'⏰',title:'حضور متأخر',target:'data',route:'مدخلات البيانات',label:'سبب التأخر',date:1},{id:'leave',icon:'🚪',title:'استئذان / انصراف مبكر',target:'data',route:'مدخلات البيانات',label:'سبب الاستئذان',date:1},{id:'book',icon:'📖',title:'إعارة أو استفسار عن كتاب',target:'resources',route:'أخصائية المصادر',label:'اسم الكتاب / الطلب'},{id:'social',icon:'🤍',title:'حالة نفسية / اجتماعية / صحية / أسرية',target:'social',route:'الأخصائية الاجتماعية',label:'وصف الحالة'},{id:'complaint',icon:'📣',title:'شكوى أو ملاحظة للإدارة',target:'management',route:'الإدارة',label:'موضوع الشكوى'},{id:'teacherMeet',icon:'👩‍🏫',title:'طلب مقابلة معلمة',target:'teacher',route:'المعلمة المختارة',label:'سبب المقابلة',teacher:1},{id:'lab',icon:'🧪',title:'استفسار متعلق بالمختبر',target:'lab',route:'أخصائية المختبر',label:'تفاصيل الطلب'},{id:'dataUpdate',icon:'📝',title:'تحديث بيانات الطالب',target:'data',route:'مدخلات البيانات',label:'البيان المطلوب تحديثه'},{id:'general',icon:'❓',title:'طلب عام',target:'management',route:'الإدارة',label:'تفاصيل الطلب'}];window.openParentService=()=>{openById('parentServiceModal');currentService=null;verified=null;$('psHome').style.display='block';$('psRequestWrap').style.display='none';$('psServices').innerHTML=SERVICES.map(s=>`<button class="ps-card" onclick="startService('${s.id}')"><em>${s.icon}</em><b>${esc(s.title)}</b><small>يصل إلى ${esc(s.route)}</small></button>`).join('');psInitMeetingTeachers()};
 window.psInitMeetingTeachers=async()=>{const sel=$('psMeetingTeacher');if(!sel||sel.dataset.loaded)return;try{const d=await api('teacher_names');sel.innerHTML='<option value="">اختاري المعلمة</option>'+(d.teachers||[]).map(t=>`<option value="${esc(t.full_name)}">${esc(t.short_name||t.full_name)}</option>`).join('');sel.dataset.loaded='1'}catch{}};

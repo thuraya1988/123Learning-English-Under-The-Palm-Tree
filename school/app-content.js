@@ -124,6 +124,7 @@ window.startEmergencyAlertUI=async()=>{
  try{const d=await window.startEmergencyAlertAdmin({title,body,repeat_minutes:Number($('emergencyRepeat').value)});toast(d.push_sent?'🚨 بدأ التنبيه الطارئ ووصل الإشعار':'🚨 بدأ التنبيه، لكن لا توجد أجهزة مفعّلة حاليًا');window.pollEmergencyAlertNow&&window.pollEmergencyAlertNow();await loadContent()}catch(e){toast(typeof staffError==='function'?staffError(e):'تعذر تشغيل التنبيه')}
 };
 window.stopEmergencyAlertUI=async id=>{
+ window.muteEmergencyAlertLocally?.(id);
  if(!confirm('إيقاف التنبيه الطارئ ومنع أي إشعارات لاحقة؟'))return;try{await window.stopEmergencyAlertAdmin(id);toast('⏹ تم إيقاف التنبيه الطارئ');window.pollEmergencyAlertNow&&window.pollEmergencyAlertNow();await loadContent()}catch(e){toast(typeof staffError==='function'?staffError(e):'تعذر إيقاف التنبيه')}
 };
 

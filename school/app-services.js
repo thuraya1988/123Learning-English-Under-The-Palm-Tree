@@ -123,6 +123,8 @@ window.psLostFound=async()=>{const b=$('psLostFoundResult');b.innerHTML='جار�
 window.openParentInbox=async()=>{if(!employee){toast('اكتبي اسمك أولًا');return openIdentity()}openById('parentInboxModal');await loadInbox()};async function loadInbox(){try{inbox=(await staffApi('staff_requests',{})).requests||[];$('psInboxScope').textContent=norm(employee.short_name)===norm('ثرياء الناعبية')?'تظهر جميع الطلبات.':'الطلبات الموجهة إلى '+employee.short_name;renderInbox()}catch(x){$('psInboxRows').innerHTML=`<tr><td colspan="8">${err(x)}</td></tr>`}}function renderInbox(){let a=inbox;if(inboxFilter!=='all')a=a.filter(x=>x.status===inboxFilter);$('psInboxRows').innerHTML=a.map(r=>`<tr><td>${esc(r.tracking_code)}</td><td>${esc(r.service_title)}</td><td>${esc(r.student_name)}</td><td>${esc(r.class_name)}</td><td>${esc((r.target_names||[]).join('، '))}</td><td>${esc(r.status)}</td><td><button onclick="alert('${esc(r.reason)}')">عرض</button></td><td>—</td></tr>`).join('')||'<tr><td colspan="8">لا توجد طلبات.</td></tr>'}window.psSetInboxFilter=(b,s)=>{inboxFilter=s;document.querySelectorAll('[data-psf]').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderInbox()};async function refreshInboxBadge(){if(!employee)return;try{const a=(await staffApi('staff_requests',{})).requests||[];$('psInboxBadge').textContent=a.filter(x=>x.status!=='done').length}catch{}}
 let activeEmergencySeen=0,activeEmergencySoundAt=0;
 let emergencyAlertAudioEl=null;
+const emergencyMutedInMemory=new Set();
+let emergencyPollVersion=0;
 function getEmergencyAlertAudio(){
  if(!emergencyAlertAudioEl){emergencyAlertAudioEl=new Audio('assets/emergency-alert.mp3');emergencyAlertAudioEl.preload='auto'}
  return emergencyAlertAudioEl;
@@ -132,7 +134,24 @@ function playEmergencyAlertSound(){
  if(!emergencyAlertAudioEl)window.playMultaqaAlertSound&&window.playMultaqaAlertSound();
 }
 function emergencyMuteKey(id){return 'multaqaEmergencyMuted_'+id}
-function isEmergencyMuted(id){try{return localStorage.getItem(emergencyMuteKey(id))==='1'}catch(_){return false}}
+function isEmergencyMuted(id){if(emergencyMutedInMemory.has(String(id)))return true;try{return localStorage.getItem(emergencyMuteKey(id))==='1'}catch(_){return false}}
+function stopEmergencySound(){
+ if(emergencyAlertAudioEl){try{emergencyAlertAudioEl.pause();emergencyAlertAudioEl.currentTime=0}catch(_){}}
+ try{navigator.vibrate?.(0)}catch(_){}
+ window.dispatchEvent(new Event('multaqa-important-alert-stopped'));
+}
+window.muteEmergencyAlertLocally=function(id){
+ emergencyMutedInMemory.add(String(id));
+ try{localStorage.setItem(emergencyMuteKey(id),'1')}catch(_){}
+ stopEmergencySound();
+ const btn=document.getElementById('emergencyQuickMute');if(btn)btn.textContent='🔔 إلغاء الكتم';
+};
+window.addEventListener('storage',event=>{
+ const el=document.getElementById('multaqaEmergencyBanner');
+ if(el&&event.key===emergencyMuteKey(el.dataset.id)&&event.newValue==='1'){
+  emergencyMutedInMemory.add(String(el.dataset.id));stopEmergencySound();
+ }
+});
 function emergencyBanner(){
  let el=document.getElementById('multaqaEmergencyBanner');if(el)return el;
  el=document.createElement('aside');el.id='multaqaEmergencyBanner';el.setAttribute('role','alert');el.style.cssText='display:none;position:fixed;left:12px;right:12px;bottom:12px;z-index:10050;background:#981b2f;color:#fff;border:3px solid #ffd7dc;border-radius:18px;padding:14px 16px;box-shadow:0 12px 35px rgba(70,0,15,.38);font-family:Cairo,Tahoma,sans-serif';
@@ -140,22 +159,24 @@ function emergencyBanner(){
  document.body.appendChild(el);return el;
 }
 async function pollEmergencyAlert(){
+ const version=++emergencyPollVersion;
  try{
-  const d=await api('active_emergency'),a=d.alert,el=emergencyBanner();
-  if(!a){el.style.display='none';activeEmergencySeen=0;return}
+  const d=await api('active_emergency');if(version!==emergencyPollVersion)return;const a=d.alert,el=emergencyBanner();
+  if(!a){el.style.display='none';activeEmergencySeen=0;stopEmergencySound();return}
   el.style.display='block';el.dataset.id=String(a.id);document.getElementById('emergencyBannerTitle').textContent='🚨 '+a.title;document.getElementById('emergencyBannerBody').textContent=a.body+' — يتكرر حتى الإيقاف';
   const stop=document.getElementById('emergencyQuickStop');stop.style.display=(typeof window.canManageEmergencyAlert==='function'&&window.canManageEmergencyAlert())?'inline-block':'none';
   const muteBtn=document.getElementById('emergencyQuickMute'),muted=isEmergencyMuted(a.id);
+  if(muted)stopEmergencySound();
   if(muteBtn)muteBtn.textContent=muted?'🔔 إلغاء الكتم':'🔇 كتم لي';
   const repeat=Number(a.repeat_minutes||5)*60000,now=Date.now();if(!muted&&(activeEmergencySeen!==a.id||now-activeEmergencySoundAt>=repeat)){playEmergencyAlertSound();navigator.vibrate?.([300,120,300,120,500]);activeEmergencySoundAt=now}activeEmergencySeen=a.id;
  }catch(_){}
 }
 window.pollEmergencyAlertNow=pollEmergencyAlert;
-window.stopEmergencyAlertQuick=async()=>{const el=emergencyBanner(),id=Number(el.dataset.id)||0;if(!id||typeof window.stopEmergencyAlertAdmin!=='function')return;if(!confirm('إيقاف التنبيه الطارئ الآن؟'))return;try{await window.stopEmergencyAlertAdmin(id);toast('⏹ تم إيقاف التنبيه الطارئ');await pollEmergencyAlert()}catch(e){toast('تعذر إيقاف التنبيه')}};
+window.stopEmergencyAlertQuick=async()=>{const el=emergencyBanner(),id=Number(el.dataset.id)||0;if(!id||typeof window.stopEmergencyAlertAdmin!=='function')return;window.muteEmergencyAlertLocally(id);if(!confirm('إيقاف التنبيه الطارئ الآن؟'))return;try{await window.stopEmergencyAlertAdmin(id);toast('⏹ تم إيقاف التنبيه الطارئ');await pollEmergencyAlert()}catch(e){toast('تعذر إيقاف التنبيه')}};
 window.toggleEmergencyMuteQuick=()=>{
  const el=emergencyBanner(),id=Number(el.dataset.id)||0;if(!id)return;
  const key=emergencyMuteKey(id),muted=isEmergencyMuted(id);
- try{if(muted)localStorage.removeItem(key);else localStorage.setItem(key,'1')}catch(_){}
+ if(muted){emergencyMutedInMemory.delete(String(id));try{localStorage.removeItem(key)}catch(_){}}else window.muteEmergencyAlertLocally(id);
  toast(muted?'🔔 ألغي الكتم':'🔇 لن يرن الجهاز هذا التنبيه لكن سيستمر للأخريات');
  pollEmergencyAlert();
 };

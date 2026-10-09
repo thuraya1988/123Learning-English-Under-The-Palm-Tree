@@ -95,13 +95,20 @@ window.raiseMultaqaImportantAlert=function(title,body,opts){
 };
 function clock(){
  const d=new Date();
- $('schoolClock').textContent=new Intl.DateTimeFormat('ar-OM',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true}).format(d);
- const n=d.getHours()*60+d.getMinutes(),nx=BELL.find(x=>x[0]>n);
+ const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Muscat',weekday:'short',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d);
+ const part=type=>parts.find(x=>x.type===type)?.value||'';
+ const dayKey=part('year')+'-'+part('month')+'-'+part('day');
+ $('schoolClock').textContent=new Intl.DateTimeFormat('ar-OM',{timeZone:'Asia/Muscat',hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true}).format(d);
+ if(part('weekday')==='Fri'||part('weekday')==='Sat'){
+  $('nextBellText').textContent='لا توجد حصص مجدولة اليوم';
+  return;
+ }
+ const n=Number(part('hour'))*60+Number(part('minute')),nx=BELL.find(x=>x[0]>n);
  $('nextBellText').textContent=nx?`التنبيه التالي: ${nx[1]}`:'انتهت الحصص المجدولة';
  if(alerts){
-  const e=BELL.find(x=>x[0]===n),k=d.toDateString()+n;
+  const e=BELL.find(x=>x[0]===n),k=dayKey+'-'+n;
   if(e&&k!==lastBell){lastBell=k;window.raiseMultaqaImportantAlert('🔔 '+e[1],'يستمر التنبيه حتى تضغطي «إيقاف التنبيه».',{key:'bell-'+k})}
-  const firstPeriodStart=BELL[0][0],firstWindowEnd=firstPeriodStart+15,dayKey=d.toDateString();
+  const firstPeriodStart=BELL[0][0],firstWindowEnd=firstPeriodStart+15;
   if(n>=firstPeriodStart&&n<=firstWindowEnd&&attendanceReminderFired!==dayKey){
     attendanceReminderFired=dayKey;
     window.raiseMultaqaImportantAlert('📋 تذكير تسجيل غياب الحصة الأولى','على معلمات الحصة الأولى تسجيل حضور وغياب الطالبات الآن. سيستمر الصوت حتى تضغطي «إسكات التنبيه».',{key:'attendance-first-'+dayKey,neon:true,muteLabel:'🔇 إسكات لي'});
@@ -181,3 +188,4 @@ window.toggleEmergencyMuteQuick=()=>{
  pollEmergencyAlert();
 };
 setTimeout(pollEmergencyAlert,1800);setInterval(pollEmergencyAlert,20000);
+

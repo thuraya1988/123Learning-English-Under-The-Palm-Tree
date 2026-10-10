@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>نتائج سؤال البحث العلمي</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800&family=Andika:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#14244a;--muted:#5d6a86;--line:#e2e7f1;--bg:#f5f7fb;--card:#fff;--accent:#14244a}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Tajawal",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.in{max-width:1100px;margin:0 auto;padding:12px 16px}
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h1{margin:0;font-size:1.25rem;font-weight:800;flex:1;min-width:200px}
+button,select,input{font:inherit}
+.btn{border:0;border-radius:12px;padding:9px 14px;font-weight:700;cursor:pointer;background:var(--ink);color:#fff}
+.btn.light{background:#eef1f7;color:var(--ink)}
+.tabs{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.tab{border:2px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;font-weight:800;cursor:pointer;color:var(--ink)}
+.tab.on{color:#fff;border-color:transparent}
+.tools{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.tools input[type=search]{flex:1;min-width:180px;padding:9px 12px;border:2px solid var(--line);border-radius:12px;background:#fff}
+.tools label{display:flex;align-items:center;gap:6px;font-weight:700;color:var(--muted);font-size:.92rem}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.q{background:#fff;border-radius:18px;border-inline-start:8px solid var(--accent);padding:14px 16px;margin-bottom:14px}
+.q small{color:var(--muted);font-weight:700}
+.q div{font-family:"Andika",sans-serif;direction:ltr;text-align:left;font-size:1.1rem;font-weight:700;margin-top:4px}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.stat{background:#fff;border-radius:16px;padding:10px 16px;border:1px solid var(--line)}
+.stat b{font-size:1.4rem;display:block}
+.stat span{color:var(--muted);font-size:.85rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.card{background:#fff;border-radius:18px;border:1px solid var(--line);padding:14px;break-inside:avoid}
+.card .h{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px}
+.card .n{font-weight:800;font-size:1.05rem}
+.card .m{color:var(--muted);font-size:.82rem}
+.pill{background:#eef1f7;border-radius:999px;padding:2px 10px;font-size:.8rem;font-weight:700;white-space:nowrap}
+.ans{display:grid;direction:ltr;grid-template-columns:1fr 1fr;gap:8px}
+.a{border:2px dashed var(--c);border-radius:12px;padding:6px 8px;min-height:54px;direction:ltr;font-family:"Andika",sans-serif;font-size:.95rem;display:flex;gap:6px;align-items:flex-start}
+.a i{font-style:normal;font-size:1.15rem;line-height:1.2}
+.a.empty{opacity:.45}
+.hist{margin-top:8px;font-size:.8rem;color:var(--muted)}
+.empty-state{text-align:center;padding:50px 16px;color:var(--muted);background:#fff;border-radius:18px}
+.empty-state i{font-size:2.6rem;display:block;font-style:normal;margin-bottom:8px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-weight:700;opacity:0;transition:.25s;pointer-events:none}
+.toast.show{opacity:1}
+@media print{
+  header .tools,header .btn,.tabs{display:none!important}
+  header{position:static;border:0}
+  body{background:#fff}
+  .card{border:1px solid #bbb}
+  .grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="in">
+    <div class="top">
+      <h1>🔎 نتائج سؤال البحث العلمي</h1>
+      <button class="btn" id="load">🔄 تحديث النتائج</button>
+      <button class="btn light" id="csv">⬇️ Excel</button>
+      <button class="btn light" onclick="print()">🖨️ طباعة</button>
+      <button class="btn light" id="link" title="مفتاح ربط Jotform">🔑</button>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div class="tools">
+      <input id="search" type="search" placeholder="ابحثي باسم الطالبة…">
+      <label><input type="checkbox" id="all"> عرض كل المحاولات</label>
+    </div>
+  </div>
+</header>
+<main id="main"><div class="empty-state"><i>⏳</i>جاري التحميل…</div></main>
+<div class="toast" id="toast"></div>
+
+<script>
+const FORM_ID = "262434452585057";
+const KEY_STORE = "supportJotformKey";            // same key the مسار التميّز dashboard already saves on this device
+const SHEETS = {
+  "5/1": { accent:"#2e9d4a", main:"What are the most common talents among Grade 5/1 students?", icons:["🎂","🧪","🤹","🧸","🍕","⚽"] },
+  "5/2": { accent:"#e8475f", main:"How has communication technology changed in our families?", icons:["✉️","☎️","📱","💻","📧","📟"] },
+  "5/3": { accent:"#e0a419", main:"Which shops do families in our village visit most often?", icons:["🥕","🐟","⚽","🎁","💍","👟"] }
+};
+const BOX_COLORS = ["#f2559a","#a98be8","#e6ad21","#68b25c","#2aa3e3","#f98d3a"];
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm = v => String(v || "").trim().replace(/\s+/g, " ").toLowerCase();
+const ls = { get(k){ try { return localStorage.getItem(k) || ""; } catch(e){ return ""; } }, set(k,v){ try { v ? localStorage.setItem(k,v) : localStorage.removeItem(k); } catch(e){} } };
+
+let rows = [];
+let current = new URLSearchParams(location.search).get("c")?.replace("-", "/") || "5/1";
+if (!SHEETS[current]) current = "5/1";
+
+function answer(sub, qid){ const a = sub.answers || {}; const v = a[qid]?.answer; return v == null ? "" : Array.isArray(v) ? v.join(" ") : String(v); }
+function parse(sub){
+  let d = {}; try { d = JSON.parse(answer(sub, "11") || "{}"); } catch(e){}
+  const unit = answer(sub, "4") || d.unit || "";
+  if (d.type !== "research" && !/^Research Question/.test(unit)) return null;
+  const sheetCls = d.sheetClass || unit.replace("Research Question", "").trim();
+  return {
+    id: sub.id, sheetCls,
+    name: answer(sub, "2") || d.studentName || "بدون اسم",
+    cls: answer(sub, "3") || d.cls || "",
+    answers: (d.answers || []).map(x => x.text || ""),
+    attempt: Number(answer(sub, "9") || d.attempt || 1),
+    date: sub.created_at || d.completedAt || ""
+  };
+}
+function configureLink(){
+  const v = prompt("ألصقي مفتاح ربط Jotform هنا. سيُحفظ على هذا الجهاز فقط.", ls.get(KEY_STORE));
+  if (v === null) return false;
+  ls.set(KEY_STORE, v.trim());
+  toast(v.trim() ? "تم حفظ الربط على هذا الجهاز" : "تم حذف إعداد الربط");
+  return !!v.trim();
+}
+async function load(){
+  let key = ls.get(KEY_STORE);
+  if (!key) { if (!configureLink()) { showEmpty("🔑", "أضيفي مفتاح ربط Jotform (نفس مفتاح لوحة مسار التميّز) لعرض النتائج."); return; } key = ls.get(KEY_STORE); }
+  const btn = $("#load"); btn.disabled = true; btn.textContent = "⏳ جاري التحميل…";
+  try {
+    let all = [];
+    for (let offset = 0, p = 0; p < 20; p++, offset += 1000) {
+      const url = `https://api.jotform.com/form/${FORM_ID}/submissions?apiKey=${encodeURIComponent(key)}&limit=1000&offset=${offset}&orderby=created_at`;
+      const res = await fetch(url); const data = await res.json();
+      if (!res.ok || data.responseCode !== 200) throw new Error(data.message || "error");
+      const part = Array.isArray(data.content) ? data.content : [];
+      all = all.concat(part); if (part.length < 1000) break;
+    }
+    rows = all.map(parse).filter(Boolean).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    render(); toast(`تم تحديث ${rows.length} إجابة`);
+  } catch(e) {
+    console.error(e); showEmpty("⚠️", "تعذّر التحميل — تأكدي من مفتاح الربط والإنترنت.");
+  } finally { btn.disabled = false; btn.textContent = "🔄 تحديث النتائج"; }
+}
+function tabs(){
+  $("#tabs").innerHTML = Object.keys(SHEETS).map(c => {
+    const n = new Set(rows.filter(r => r.sheetCls === c).map(r => norm(r.name))).size;
+    const on = c === current;
+    return `<button class="tab ${on ? "on" : ""}" data-c="${c}" style="${on ? `background:${SHEETS[c].accent}` : ""}">Grade ${c} · ${n}</button>`;
+  }).join("");
+  document.querySelectorAll(".tab").forEach(b => b.onclick = () => { current = b.dataset.c; history.replaceState(null, "", "?c=" + current.replace("/", "-")); render(); });
+}
+function visible(){
+  const q = norm($("#search").value);
+  let list = rows.filter(r => r.sheetCls === current && (!q || norm(r.name).includes(q)));
+  if (!$("#all").checked) {
+    const latest = new Map();
+    list.forEach(r => { const k = norm(r.name); const prev = latest.get(k); latest.set(k, { ...r, count: (prev?.count || 0) + 1 }); });
+    list = [...latest.values()];
+  }
+  return list.sort((a, b) => a.name.localeCompare(b.name, "ar"));
+}
+function fmt(v){ if (!v) return ""; const d = new Date(String(v).replace(" ", "T") + (String(v).includes("Z") ? "" : "Z")); return isNaN(d) ? v : d.toLocaleString("ar-OM", { dateStyle:"medium", timeStyle:"short" }); }
+function render(){
+  tabs();
+  const s = SHEETS[current];
+  document.documentElement.style.setProperty("--accent", s.accent);
+  const list = visible();
+  const all = rows.filter(r => r.sheetCls === current);
+  const students = new Set(all.map(r => norm(r.name))).size;
+  const complete = list.filter(r => r.answers.filter(Boolean).length === 6).length;
+  $("#main").innerHTML = `
+    <div class="q"><small>Main Research Question · Grade ${esc(current)}</small><div>${esc(s.main)}</div></div>
+    <div class="stats">
+      <div class="stat"><b>${students}</b><span>طالبة أرسلت</span></div>
+      <div class="stat"><b>${all.length}</b><span>إرسال (مع التعديلات)</span></div>
+      <div class="stat"><b>${complete}</b><span>أكملت المربعات الستة</span></div>
+    </div>
+    ${list.length ? `<div class="grid">${list.map(r => card(r, s)).join("")}</div>` : `<div class="empty-state"><i>📭</i>لا توجد إجابات بعد لهذا الصف.</div>`}`;
+}
+function card(r, s){
+  return `<div class="card">
+    <div class="h"><div><div class="n">${esc(r.name)}</div><div class="m">${esc(r.cls)} · ${esc(fmt(r.date))}</div></div>
+    <span class="pill">${r.answers.filter(Boolean).length}/6</span></div>
+    <div class="ans">${s.icons.map((ic, i) => {
+      const t = r.answers[i] || "";
+      return `<div class="a ${t ? "" : "empty"}" style="--c:${BOX_COLORS[i]}"><i>${ic}</i><span>${t ? esc(t) : "—"}</span></div>`;
+    }).join("")}</div>
+    ${r.count > 1 ? `<div class="hist">✏️ عدّلت وأرسلت ${r.count} مرات — المعروض آخر إرسال</div>` : ""}
+  </div>`;
+}
+function showEmpty(icon, msg){ tabs(); $("#main").innerHTML = `<div class="empty-state"><i>${icon}</i>${esc(msg)}</div>`; }
+function exportCsv(){
+  const s = SHEETS[current], list = visible();
+  const head = ["الاسم", "الصف", "التاريخ", ...s.icons.map((ic, i) => `مربع ${i + 1} ${ic}`)];
+  const lines = [head, ...list.map(r => [r.name, r.cls, fmt(r.date), ...s.icons.map((_, i) => r.answers[i] || "")])]
+    .map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
+  const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `research-question-${current.replace("/", "-")}.csv`; a.click(); URL.revokeObjectURL(a.href);
+}
+let tt; function toast(m){ const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 2600); }
+
+$("#load").onclick = load;
+$("#link").onclick = () => { if (configureLink()) load(); };
+$("#csv").onclick = exportCsv;
+$("#search").oninput = render;
+$("#all").onchange = render;
+tabs();
+load();
+</script>
+</body>
+</html>

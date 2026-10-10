@@ -198,9 +198,11 @@ function renderAdmin(){
  renderTable();
  qr();
 }
+function greetNow(){const h=Number(new Date().toLocaleString('en-US',{timeZone:'Asia/Muscat',hour:'numeric',hour12:false}));return h<12?'صباح الخير':'مساء الخير'}
+function buildWaText(r,note){const st=STATUS_META[r.status]||STATUS_META.pending;return encodeURIComponent(greetNow()+'،\n\nمدرسة ملتقى المعارف\n\nولي أمر '+r.student_name+' ('+r.class_name+')،\nبخصوص طلبكم «'+r.service_title+'» رقم '+r.tracking_code+':\nالحالة الآن: '+st[1]+'.'+(note?'\n\n'+note:'')+'\n\nشكرًا لتواصلكم.\n— مدرسة ملتقى المعارف')}
 function renderTable(){
  const rows=tblFilter==='all'?allRequests:allRequests.filter(x=>x.status===tblFilter);
- $('#tblBody').innerHTML=rows.map(r=>{const st=STATUS_META[r.status]||STATUS_META.pending;const phone=digits(r.guardian_phone),waText=encodeURIComponent('مدرسة ملتقى المعارف\n\nولي أمر '+r.student_name+' ('+r.class_name+')،\nبخصوص طلبكم «'+r.service_title+'» رقم '+r.tracking_code+':\nالحالة الآن: '+st[1]+'.\n\nشكرًا لتواصلكم.\n— مدرسة ملتقى المعارف'),wa=phone?`<a href="https://wa.me/968${esc(phone)}?text=${waText}" target="_blank" rel="noopener" class="adv-btn" style="display:inline-flex;text-decoration:none">📲 واتساب</a>`:'';
+ $('#tblBody').innerHTML=rows.map(r=>{const st=STATUS_META[r.status]||STATUS_META.pending;const phone=digits(r.guardian_phone),waText=buildWaText(r),wa=phone?`<a href="https://wa.me/968${esc(phone)}?text=${waText}" target="_blank" rel="noopener" class="adv-btn" style="display:inline-flex;text-decoration:none">📲 واتساب</a>`:'';
   const closed=r.status==='done'||r.status==='rejected';
   const next=r.status==='pending'?'processing':'done';
   const actions=closed?'أُغلق ✓':`<button class="adv-btn" data-adv="${esc(r.tracking_code)}" data-next="${next}">▶ تحديث الحالة</button> <button class="adv-btn" data-adv="${esc(r.tracking_code)}" data-next="rejected" style="background:#8c1f3b;color:#fff">✖ رفض</button>`;
@@ -208,7 +210,10 @@ function renderTable(){
  $$('[data-adv]').forEach(b=>b.onclick=async()=>{
   const r=allRequests.find(x=>x.tracking_code===b.dataset.adv),next=b.dataset.next;
   b.disabled=true;
-  try{await secureApi('update_request_status',{tracking_code:r.tracking_code,status:next});r.status=next;renderAdmin()}
+  try{
+   await secureApi('update_request_status',{tracking_code:r.tracking_code,status:next});r.status=next;renderAdmin();
+   if(next==='done'){const phone=digits(r.guardian_phone);if(phone){const note=prompt('تحبين تضيفين ملاحظة مع الرد؟ (اختياري، اتركيه فاضي للتخطي)')||'';window.open('https://wa.me/968'+phone+'?text='+buildWaText(r,note),'_blank')}}
+  }
   catch(x){toast('⚠️ '+apiErr(x));b.disabled=false}
  });
 }

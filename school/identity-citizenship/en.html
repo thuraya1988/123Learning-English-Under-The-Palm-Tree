@@ -167,7 +167,7 @@ footer{text-align:center;padding:20px;color:var(--muted);font-size:12px}
     <h4 id="postModalTitle">✍️ Add New Content</h4>
     <div class="field"><label>Title</label><input id="postTitle" maxlength="220"></div>
     <div class="field"><label>Content</label><textarea id="postBody" rows="5" maxlength="3000"></textarea></div>
-    <div class="field"><label>Attachment (image / video / PDF) — optional</label><input id="postMedia" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm,video/quicktime"><div class="media-state" id="postMediaState"></div></div>
+    <div class="field"><label>Attachment (image / video / PDF) — 25 MB max — optional</label><input id="postMedia" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm,video/quicktime"><div class="media-state" id="postMediaState"></div></div>
     <div class="modal-actions"><button class="btn" id="postCancel">Cancel</button><button class="btn" id="postSave" style="background:var(--green);color:#fff;border-color:transparent">Save</button></div>
   </div>
 </div>
@@ -232,9 +232,10 @@ footer{text-align:center;padding:20px;color:var(--muted);font-size:12px}
     document.getElementById('postOverlay').classList.add('show');
   }
   function closePostModal(){document.getElementById('postOverlay').classList.remove('show')}
+  const MAX_MEDIA_BYTES=25*1024*1024;
   document.getElementById('postMedia').addEventListener('change',e=>{
     const f=e.target.files?.[0],state=document.getElementById('postMediaState');if(!f){state.textContent='';return}
-    if(f.size>250*1024*1024){e.target.value='';state.textContent='❌ Attachment is larger than 250 MB';return}
+    if(f.size>MAX_MEDIA_BYTES){e.target.value='';state.textContent='❌ Attachment is larger than 25 MB — pick a smaller file (compress long videos first)';return}
     removeMedia=false;state.textContent='✅ '+f.name+' • '+Math.max(1,Math.round(f.size/1024))+' KB';
   });
   async function deletePost(id){
@@ -248,19 +249,25 @@ footer{text-align:center;padding:20px;color:var(--muted);font-size:12px}
   document.getElementById('postSave').onclick=async()=>{
     const title=document.getElementById('postTitle').value.trim(),body=document.getElementById('postBody').value.trim(),btn=document.getElementById('postSave'),file=document.getElementById('postMedia').files?.[0];
     if(title.length<2||body.length<2)return alert('Please fill in the title and content');
-    btn.disabled=true;
+    if(file&&file.size>MAX_MEDIA_BYTES)return alert('Attachment is larger than 25 MB — pick a smaller file');
+    btn.disabled=true;const originalText=btn.textContent;
     try{
       let media_url=removeMedia?null:currentMediaPath;
       if(file){
+        btn.textContent='⏳ Uploading attachment…';
         const u=await secureApi('prepare_identity_upload',{mime_type:file.type});
         const up=await fetch(u.signed_url,{method:'PUT',headers:{'Content-Type':file.type,'x-upsert':'false'},body:file});
-        if(!up.ok)throw Object.assign(new Error('upload_failed'),{code:'upload_failed'});
+        if(!up.ok){
+          const reason=up.status===413?'The file is too large for the server — try a smaller one.':'Could not upload the attachment, check your internet connection and try again.';
+          throw Object.assign(new Error('upload_failed'),{code:'upload_failed',customMsg:reason});
+        }
         media_url=u.path;
       }
+      btn.textContent='⏳ Saving…';
       await secureApi('save_identity_post',{id:editingId,title,body,lang:LANG,media_url});
       closePostModal();await loadPosts();
-    }catch(x){alert(POST_ERR[x&&x.code]||'Could not save right now')}
-    finally{btn.disabled=false}
+    }catch(x){alert(x&&x.customMsg||POST_ERR[x&&x.code]||'Could not save right now')}
+    finally{btn.disabled=false;btn.textContent=originalText}
   };
   loadPosts();
 })();

@@ -224,6 +224,11 @@ Deno.serve(async(req)=>{
   if(action==="active_emergency"){
     const {data,error}=await db.from("multaqa_emergency_alerts").select("id,title,body,severity,repeat_minutes,started_at").eq("active",true).order("started_at",{ascending:false}).limit(1).maybeSingle();if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,alert:data||null});
   }
+  if(action==="students_for_request"){
+    const {data,error}=await db.from("multaqa_students").select("school_id,name,class_name").order("class_name").order("name");
+    if(error)return json({ok:false,error:"server_error"},500);
+    return json({ok:true,students:data||[]});
+  }
   if(action==="verify_student"){
     const schoolId=digits(body.school_id),phone=digits(body.guardian_phone),studentName=clean(body.student_name,220);
     if(!idOk(schoolId))return json({ok:false,error:"invalid_input"},400);
@@ -343,18 +348,18 @@ Deno.serve(async(req)=>{
   }
   if(action==="submit_request"){
     const serviceId=clean(body.service_id,50),serviceTitle=clean(body.service_title,100),targetGroup=clean(body.target_group,50);
-    const schoolId=digits(body.school_id),phone=digits(body.guardian_phone),studentName=clean(body.student_name,220);
+    const schoolId=digits(body.school_id);
     const reason=clean(body.reason,240),details=clean(body.details,1500),category=clean(body.category,80)||null,teacherName=clean(body.teacher_name,220)||null,requestDate=clean(body.request_date,20)||null;
     if(!serviceId||!serviceTitle||!targetGroup||!idOk(schoolId)||reason.length<2||details.length<4)return json({ok:false,error:"invalid_input"},400);
     const {data:student,error:se}=await db.from("multaqa_students").select("school_id,name,class_name,guardian_phone").eq("school_id",schoolId).maybeSingle(); if(se)return json({ok:false,error:"server_error"},500); if(!student)return json({ok:false,error:"student_verification_failed"},403);
-    const saved=digits(student.guardian_phone); if(saved?(phone!==saved):(norm(studentName)!==norm(student.name)))return json({ok:false,error:"student_verification_failed"},403);
+    const saved=digits(student.guardian_phone);
     const targetMap:any={data:["أنيسه السيابيه","فاطمة البطاشيه"],resources:["أصيلة الوهيبيه"],social:["فخرية العامرية"],management:["بهيه الراشديه","سعاد الرواحيه","فتحية الهدابيه"],lab:["عبير المسلمية"],teacher:teacherName?[teacherName]:[]};
     const targets=targetMap[targetGroup]||targetMap.management;
     const trackingCode="DQ"+crypto.randomUUID().replace(/-/g,"").slice(0,8).toUpperCase();
-    const payload={tracking_code:trackingCode,service_id:serviceId,service_title:serviceTitle,target_group:targetGroup,target_names:targets,student_school_id:student.school_id,student_name:student.name,class_name:student.class_name,guardian_phone:phone||saved,reason,details,category,teacher_name:teacherName,request_date:requestDate||null,sensitive:["social","complaint"].includes(serviceId),status:"pending"};
+    const payload={tracking_code:trackingCode,service_id:serviceId,service_title:serviceTitle,target_group:targetGroup,target_names:targets,student_school_id:student.school_id,student_name:student.name,class_name:student.class_name,guardian_phone:saved||null,reason,details,category,teacher_name:teacherName,request_date:requestDate||null,sensitive:["social","complaint"].includes(serviceId),status:"pending"};
     const {error}=await db.from("multaqa_web_requests").insert(payload); if(error)return json({ok:false,error:"server_error"},500);
     await pushTo(db,targets,"طلب جديد من ولي أمر",`${serviceTitle} — ${student.name} — الصف ${student.class_name}`,"/school/","parent_request");
-    return json({ok:true,tracking_code:trackingCode,student_name:student.name,class_name:student.class_name,target_names:targets,status:"pending"});
+    return json({ok:true,tracking_code:trackingCode,student_name:student.name,class_name:student.class_name,target_names:targets,guardian_phone:saved||null,status:"pending"});
   }
   if(action==="track_request"){
     const code=clean(body.tracking_code,24).toUpperCase().replace(/[^A-Z0-9]/g,""),phone=digits(body.guardian_phone);

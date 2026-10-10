@@ -58,6 +58,25 @@ main{max-width:1080px;margin:0 auto;padding:22px 16px 50px}
 .pledge .ack.show{display:block}
 
 footer{text-align:center;padding:20px;color:var(--muted);font-size:12px}
+.loading{text-align:center;padding:30px;color:var(--muted);font-size:13px}
+
+.posts-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.posts-note{font-size:12.5px;color:var(--muted)}
+.post-card{background:var(--panel);border:1px solid var(--line);border-inline-start:5px solid var(--green);border-radius:14px;padding:15px 16px}
+.post-card h4{margin:0 0 6px;font-size:14.5px;color:var(--ink)}
+.post-card p{margin:0 0 8px;font-size:12.5px;color:var(--muted);line-height:1.75;white-space:pre-wrap}
+.post-meta{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.post-actions{margin-inline-start:auto;display:flex;gap:6px}
+.post-actions button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:3px 9px;font-size:11px;font-family:inherit;cursor:pointer}
+.post-actions button:hover{border-color:var(--green)}
+.modal-overlay{position:fixed;inset:0;background:rgba(30,20,10,.55);display:none;align-items:center;justify-content:center;z-index:90;padding:16px}
+.modal-overlay.show{display:flex}
+.modal-box{width:min(480px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:20px;padding:22px}
+.modal-box h4{margin:0 0 14px;color:var(--green);font-size:16px}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:12px;font-weight:800;color:var(--ink);margin-bottom:5px}
+.field input,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px;font-family:inherit;font-size:13.5px;resize:vertical}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end}
 @media(max-width:520px){.brand p{display:none}}
 </style>
 </head>
@@ -127,14 +146,96 @@ footer{text-align:center;padding:20px;color:var(--muted);font-size:12px}
     <label><input type="checkbox" id="pledgeCheck"> I have signed this pledge with pride</label>
     <div class="ack" id="pledgeAck">🎉 Welcome, little ambassador of Omani identity and citizenship!</div>
   </div>
+
+  <div class="section-h"><h3>📝 Staff Contributions</h3><span id="postsCount">Loading…</span></div>
+  <div class="posts-bar">
+    <button class="btn" id="btnAddPost" style="display:none">✍️ Add New Content</button>
+    <span class="posts-note" id="postsNote"></span>
+  </div>
+  <div class="days-grid" id="postsGrid"><div class="loading">⏳ Loading contributions…</div></div>
 </main>
 
 <footer>Multaqa Al Ma'arif Basic Education School (1-6) 🇴🇲 — Oman is my homeland forever</footer>
 
+<div class="modal-overlay" id="postOverlay">
+  <div class="modal-box">
+    <h4 id="postModalTitle">✍️ Add New Content</h4>
+    <div class="field"><label>Title</label><input id="postTitle" maxlength="220"></div>
+    <div class="field"><label>Content</label><textarea id="postBody" rows="5" maxlength="3000"></textarea></div>
+    <div class="modal-actions"><button class="btn" id="postCancel">Cancel</button><button class="btn" id="postSave" style="background:var(--green);color:#fff;border-color:transparent">Save</button></div>
+  </div>
+</div>
+
 <script>
 (function(){
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const chk=document.getElementById('pledgeCheck'),ack=document.getElementById('pledgeAck');
   chk.addEventListener('change',()=>ack.classList.toggle('show',chk.checked));
+
+  /* ---------- Staff contributions (add/edit/delete) ---------- */
+  const PUBLIC_API='https://dhhwcqczvcbwdwllfcun.supabase.co/functions/v1/multaqa-public';
+  const SECURE_API='https://dhhwcqczvcbwdwllfcun.supabase.co/functions/v1/multaqa-secure';
+  const LANG='en';
+  async function publicApi(action,p={}){
+    const r=await fetch(PUBLIC_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...p})});
+    let d={};try{d=await r.json()}catch(_){}
+    if(!r.ok||d.ok===false)throw Object.assign(new Error(d.error||'request_failed'),{code:d.error||'request_failed'});
+    return d;
+  }
+  async function secureApi(action,p={}){
+    const token=localStorage.getItem('multaqa_staff_session')||'';
+    const r=await fetch(SECURE_API,{method:'POST',headers:{'Content-Type':'application/json',...(token?{'x-staff-session':token}:{})},body:JSON.stringify({action,...p})});
+    let d={};try{d=await r.json()}catch(_){}
+    if(!r.ok||d.ok===false)throw Object.assign(new Error(d.error||'request_failed'),{code:d.error||'request_failed'});
+    return d;
+  }
+  const POST_ERR={invalid_input:'Please fill in the title and content correctly.',session_required:'Your session has expired — please log in again from the main page.',save_failed:'Could not save, please try again.',not_found:'This post no longer exists.'};
+  let posts=[],editingId=null;
+  const token=()=>localStorage.getItem('multaqa_staff_session')||'';
+  function renderPosts(){
+    const grid=document.getElementById('postsGrid'),countEl=document.getElementById('postsCount'),note=document.getElementById('postsNote'),addBtn=document.getElementById('btnAddPost');
+    countEl.textContent=posts.length?posts.length+' post(s)':'No posts yet';
+    const logged=!!token();
+    addBtn.style.display=logged?'inline-flex':'none';
+    note.textContent=logged?'':'🔒 Log in from the main page to add, edit or delete content.';
+    grid.innerHTML=posts.map(p=>`<div class="post-card"><h4>${esc(p.title)}</h4><p>${esc(p.body)}</p><div class="post-meta"><span>✍️ ${esc(p.day_name||'Staff member')}</span>${logged?`<span class="post-actions"><button data-edit="${p.id}">✏️ Edit</button><button data-del="${p.id}">🗑 Delete</button></span>`:''}</div></div>`).join('')||'<div class="loading">No posts yet — be the first to add content!</div>';
+    grid.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openPostModal(Number(b.dataset.edit)));
+    grid.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deletePost(Number(b.dataset.del)));
+  }
+  async function loadPosts(){
+    try{const d=await publicApi('content',{content_type:'identity_'+LANG});posts=(d.items||[]).slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))}
+    catch(_){posts=[]}
+    renderPosts();
+  }
+  function openPostModal(id){
+    editingId=id||null;
+    const p=id?posts.find(x=>x.id===id):null;
+    document.getElementById('postModalTitle').textContent=id?'✏️ Edit Post':'✍️ Add New Content';
+    document.getElementById('postTitle').value=p?p.title:'';
+    document.getElementById('postBody').value=p?p.body:'';
+    document.getElementById('postOverlay').classList.add('show');
+  }
+  function closePostModal(){document.getElementById('postOverlay').classList.remove('show')}
+  async function deletePost(id){
+    if(!confirm('Delete this post?'))return;
+    try{await secureApi('delete_identity_post',{id,lang:LANG});posts=posts.filter(x=>x.id!==id);renderPosts()}
+    catch(x){alert(POST_ERR[x&&x.code]||'Could not delete right now')}
+  }
+  document.getElementById('btnAddPost').onclick=()=>openPostModal(null);
+  document.getElementById('postCancel').onclick=closePostModal;
+  document.getElementById('postOverlay').addEventListener('click',e=>{if(e.target.id==='postOverlay')closePostModal()});
+  document.getElementById('postSave').onclick=async()=>{
+    const title=document.getElementById('postTitle').value.trim(),body=document.getElementById('postBody').value.trim(),btn=document.getElementById('postSave');
+    if(title.length<2||body.length<2)return alert('Please fill in the title and content');
+    btn.disabled=true;
+    try{
+      const d=await secureApi('save_identity_post',{id:editingId,title,body,lang:LANG});
+      if(editingId){const i=posts.findIndex(x=>x.id===editingId);if(i>-1)posts[i]=d.item}else posts.unshift(d.item);
+      closePostModal();renderPosts();
+    }catch(x){alert(POST_ERR[x&&x.code]||'Could not save right now')}
+    finally{btn.disabled=false}
+  };
+  loadPosts();
 })();
 </script>
 </body>

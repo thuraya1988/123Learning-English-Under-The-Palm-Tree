@@ -67,6 +67,9 @@ footer{text-align:center;padding:20px;color:var(--muted);font-size:12px}
 .post-card p{margin:0 0 8px;font-size:12.5px;color:var(--muted);line-height:1.75;white-space:pre-wrap}
 .post-media{width:100%;max-height:260px;object-fit:contain;background:#efe3cf;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:zoom-in;display:block}
 .post-media-link{display:inline-block;margin-bottom:8px;font-size:12px;font-weight:700;color:var(--green);text-decoration:none}
+.post-media-yt{position:relative;width:100%;padding-top:56.25%;margin-bottom:8px;border-radius:10px;overflow:hidden;background:#000}
+.post-media-yt iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.or-sep{text-align:center;font-size:11px;color:var(--muted);margin:4px 0}
 .media-state{font-size:11px;color:var(--muted);margin-top:6px;font-weight:700}
 .post-meta{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .post-actions{margin-inline-start:auto;display:flex;gap:6px}
@@ -168,6 +171,8 @@ footer{text-align:center;padding:20px;color:var(--muted);font-size:12px}
     <div class="field"><label>Title</label><input id="postTitle" maxlength="220"></div>
     <div class="field"><label>Content</label><textarea id="postBody" rows="5" maxlength="3000"></textarea></div>
     <div class="field"><label>Attachment (image / video / PDF) — 25 MB max — optional</label><input id="postMedia" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm,video/quicktime"><div class="media-state" id="postMediaState"></div></div>
+    <p class="or-sep">— or —</p>
+    <div class="field"><label>Video link (YouTube or any other link) — no size limit</label><input id="postVideoLink" type="url" placeholder="https://youtube.com/watch?v=..."></div>
     <div class="modal-actions"><button class="btn" id="postCancel">Cancel</button><button class="btn" id="postSave" style="background:var(--green);color:#fff;border-color:transparent">Save</button></div>
   </div>
 </div>
@@ -198,8 +203,10 @@ footer{text-align:center;padding:20px;color:var(--muted);font-size:12px}
   const POST_ERR={invalid_input:'Please fill in the title and content correctly.',session_required:'Your session has expired — please log in again from the main page.',save_failed:'Could not save, please try again.',upload_failed:'Could not upload the attachment, please try again.',not_found:'This post no longer exists.'};
   let posts=[],editingId=null,currentMediaPath=null,removeMedia=false;
   const token=()=>localStorage.getItem('multaqa_staff_session')||'';
-  function mediaMarkup(url,kind){
+  function mediaMarkup(url,kind,ytId){
     const safe=esc(url);
+    if(kind==='youtube'&&ytId)return `<div class="post-media-yt"><iframe src="https://www.youtube.com/embed/${esc(ytId)}" allowfullscreen loading="lazy"></iframe></div>`;
+    if(kind==='link')return `<a class="post-media-link" href="${safe}" target="_blank" rel="noopener">🎬 Watch video</a>`;
     if(kind==='pdf')return `<a class="post-media-link" href="${safe}" target="_blank" rel="noopener">📄 Open PDF</a>`;
     if(kind==='video')return `<video class="post-media" controls preload="metadata" src="${safe}"></video>`;
     return `<img class="post-media" src="${safe}" alt="" onclick="window.open('${safe}','_blank')">`;
@@ -210,7 +217,7 @@ footer{text-align:center;padding:20px;color:var(--muted);font-size:12px}
     const logged=!!token();
     addBtn.style.display=logged?'inline-flex':'none';
     note.textContent=logged?'':'🔒 Log in from the main page to add, edit or delete content.';
-    grid.innerHTML=posts.map(p=>`<div class="post-card">${p.media_url?mediaMarkup(p.media_url,p.media_kind):''}<h4>${esc(p.title)}</h4><p>${esc(p.body)}</p><div class="post-meta"><span>✍️ ${esc(p.day_name||'Staff member')}</span>${logged?`<span class="post-actions"><button data-edit="${p.id}">✏️ Edit</button><button data-del="${p.id}">🗑 Delete</button></span>`:''}</div></div>`).join('')||'<div class="loading">No posts yet — be the first to add content!</div>';
+    grid.innerHTML=posts.map(p=>`<div class="post-card">${p.media_url?mediaMarkup(p.media_url,p.media_kind,p.youtube_id):''}<h4>${esc(p.title)}</h4><p>${esc(p.body)}</p><div class="post-meta"><span>✍️ ${esc(p.day_name||'Staff member')}</span>${logged?`<span class="post-actions"><button data-edit="${p.id}">✏️ Edit</button><button data-del="${p.id}">🗑 Delete</button></span>`:''}</div></div>`).join('')||'<div class="loading">No posts yet — be the first to add content!</div>';
     grid.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openPostModal(Number(b.dataset.edit)));
     grid.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deletePost(Number(b.dataset.del)));
   }
@@ -222,11 +229,13 @@ footer{text-align:center;padding:20px;color:var(--muted);font-size:12px}
   function openPostModal(id){
     editingId=id||null;removeMedia=false;
     const p=id?posts.find(x=>x.id===id):null;
-    currentMediaPath=p?p.media_path||null:null;
+    const isLink=p&&/^https?:\/\//.test(p.media_path||'');
+    currentMediaPath=p&&!isLink?p.media_path||null:null;
     document.getElementById('postModalTitle').textContent=id?'✏️ Edit Post':'✍️ Add New Content';
     document.getElementById('postTitle').value=p?p.title:'';
     document.getElementById('postBody').value=p?p.body:'';
     document.getElementById('postMedia').value='';
+    document.getElementById('postVideoLink').value=isLink?p.media_path:'';
     document.getElementById('postMediaState').innerHTML=currentMediaPath?'✅ Has an attachment — <a href="#" id="postMediaRemove">remove it</a>':'';
     const rm=document.getElementById('postMediaRemove');if(rm)rm.onclick=ev=>{ev.preventDefault();removeMedia=true;currentMediaPath=null;document.getElementById('postMediaState').textContent='🗑 Attachment will be removed on save'};
     document.getElementById('postOverlay').classList.add('show');
@@ -247,13 +256,16 @@ footer{text-align:center;padding:20px;color:var(--muted);font-size:12px}
   document.getElementById('postCancel').onclick=closePostModal;
   document.getElementById('postOverlay').addEventListener('click',e=>{if(e.target.id==='postOverlay')closePostModal()});
   document.getElementById('postSave').onclick=async()=>{
-    const title=document.getElementById('postTitle').value.trim(),body=document.getElementById('postBody').value.trim(),btn=document.getElementById('postSave'),file=document.getElementById('postMedia').files?.[0];
+    const title=document.getElementById('postTitle').value.trim(),body=document.getElementById('postBody').value.trim(),btn=document.getElementById('postSave'),file=document.getElementById('postMedia').files?.[0],link=document.getElementById('postVideoLink').value.trim();
     if(title.length<2||body.length<2)return alert('Please fill in the title and content');
     if(file&&file.size>MAX_MEDIA_BYTES)return alert('Attachment is larger than 25 MB — pick a smaller file');
+    if(link&&!/^https?:\/\//.test(link))return alert('Invalid video link — make sure it starts with https://');
     btn.disabled=true;const originalText=btn.textContent;
     try{
       let media_url=removeMedia?null:currentMediaPath;
-      if(file){
+      if(link){
+        media_url=link;
+      }else if(file){
         btn.textContent='⏳ Uploading attachment…';
         const u=await secureApi('prepare_identity_upload',{mime_type:file.type});
         const up=await fetch(u.signed_url,{method:'PUT',headers:{'Content-Type':file.type,'x-upsert':'false'},body:file});

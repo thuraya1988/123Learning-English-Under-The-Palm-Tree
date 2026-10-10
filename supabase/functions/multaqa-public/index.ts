@@ -202,7 +202,12 @@ Deno.serve(async(req)=>{
         return {...x,media_url:u?.signedUrl||null};
       }
       if((x.content_type==="identity_ar"||x.content_type==="identity_en")&&x.media_url){
-        const path=String(x.media_url),ext=(path.split(".").pop()||"").toLowerCase(),media_kind=ext==="pdf"?"pdf":["mp4","webm","mov"].includes(ext)?"video":"image";
+        const path=String(x.media_url);
+        if(/^https?:\/\//.test(path)){
+          const yt=path.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([A-Za-z0-9_-]{6,})/);
+          return {...x,media_url:path,media_path:path,media_kind:yt?"youtube":"link",youtube_id:yt?yt[1]:null};
+        }
+        const ext=(path.split(".").pop()||"").toLowerCase(),media_kind=ext==="pdf"?"pdf":["mp4","webm","mov"].includes(ext)?"video":"image";
         const {data:u}=await db.storage.from("school-content-media").createSignedUrl(path,3600);
         return {...x,media_url:u?.signedUrl||null,media_path:path,media_kind};
       }

@@ -1316,7 +1316,7 @@ Deno.serve(async(req)=>{
     const lang=clean(body.lang,2)==="en"?"en":"ar",type="identity_"+lang;
     const title=clean(body.title,220),message=clean(body.body,3000),media=clean(body.media_url,1000)||null;
     if(title.length<2||message.length<2)return json({ok:false,error:"invalid_input"},400);
-    if(media&&!media.startsWith("identity/"))return json({ok:false,error:"invalid_input"},400);
+    if(media&&!media.startsWith("identity/")&&!/^https?:\/\//.test(media))return json({ok:false,error:"invalid_input"},400);
     const id=Number(body.id);
     if(id){
       const {data:row}=await db.from("multaqa_content").select("id").eq("id",id).eq("content_type",type).maybeSingle();if(!row)return json({ok:false,error:"not_found"},404);

@@ -1433,6 +1433,13 @@ Deno.serve(async(req)=>{
     if(className)q=q.eq("class_name",className);if(query)q=q.ilike("name",`%${query.replace(/[%_]/g,"")} %`.replace(" %","%"));
     const {data}=await q;return json({ok:true,students:data||[]});
   }
+  if(action==="student_phone_search"){
+    const query=clean(body.query,100);
+    if(query.length<2)return json({ok:false,error:"invalid_input"},400);
+    const {data,error}=await db.from("multaqa_students").select("school_id,name,class_name,guardian_phone").ilike("name",`%${query.replace(/[%_]/g,"")}%`).order("class_name").order("name").limit(15);
+    if(error)return json({ok:false,error:"server_error"},500);
+    return json({ok:true,students:data||[]});
+  }
   if(action==="excellence"){
     const date=clean(body.date,10)||muscatDate();const [{data:teachers},{data:classes}]=await Promise.all([
       db.from("multaqa_teacher_excellence").select("*").eq("award_date",date),

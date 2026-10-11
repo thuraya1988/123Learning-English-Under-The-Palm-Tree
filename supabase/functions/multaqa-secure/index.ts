@@ -1109,6 +1109,18 @@ Deno.serve(async(req)=>{
     const {data}=await db.from("multaqa_bus_arrivals").select("route_name,arrived_at").eq("arrival_date",muscatDate());
     return json({ok:true,items:data||[]});
   }
+  if(action==="mark_bus_departure"){
+    const routeName=clean(body.route_name,120);if(!routeName)return json({ok:false,error:"invalid_input"},400);
+    const today=muscatDate();
+    await db.from("multaqa_content").delete().eq("content_type","bus_departure").eq("title",routeName).gte("created_at",`${today}T00:00:00+04:00`);
+    const {error}=await db.from("multaqa_content").insert({id:Date.now(),content_type:"bus_departure",title:routeName,body:e.short_name||e.full_name||"",published:true,sort_order:Date.now(),updated_at:new Date().toISOString()});
+    if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true});
+  }
+  if(action==="bus_departures_today"){
+    const today=muscatDate();
+    const {data}=await db.from("multaqa_content").select("title,body,created_at").eq("content_type","bus_departure").gte("created_at",`${today}T00:00:00+04:00`);
+    return json({ok:true,items:(data||[]).map((x:any)=>({route_name:x.title,recorded_by:x.body,departed_at:x.created_at}))});
+  }
   if(action==="save_meeting_slots"){
     const slots=(Array.isArray(body.slots)?body.slots:[]).map((s:any)=>({employee_id:e.employee_id,slot_date:clean(s?.slot_date,10),slot_time:clean(s?.slot_time,10),status:"open"})).filter((s:any)=>s.slot_date&&s.slot_time).slice(0,40);
     if(!slots.length)return json({ok:false,error:"invalid_input"},400);
@@ -1665,6 +1677,20 @@ Deno.serve(async(req)=>{
     }
     const {data}=await db.from("multaqa_class_observations").insert({class_label:classLabel,period,status,note:clean(body.note,800)||null,reported_by_employee_id:e.employee_id,notified_employee_id:notifiedEmployeeId}).select().single();
     return json({ok:true,item:data,notified_teacher:notifiedTeacher,notified_employee_id:notifiedEmployeeId,whatsapp_phone:whatsappPhone,push_sent:sent});
+  }
+  if(action==="save_class_check"){
+    const classLabel=clean(body.class_label,100),tags=(Array.isArray(body.tags)?body.tags:[]).map((t:any)=>clean(t,60)).filter(Boolean).slice(0,10),note=clean(body.note,800);
+    if(!classLabel||!tags.length)return json({ok:false,error:"invalid_input"},400);
+    const row={id:Date.now(),content_type:"class_check",title:classLabel,subject:tags.join("،"),body:note||null,day_name:e.short_name||e.full_name||"",published:true,sort_order:Date.now(),updated_at:new Date().toISOString()};
+    const {data,error}=await db.from("multaqa_content").insert(row).select().single();if(error)return json({ok:false,error:"save_failed"},500);
+    return json({ok:true,item:{id:data.id,class_label:data.title,tags:(data.subject||"").split("،").filter(Boolean),note:data.body,teacher_name:data.day_name,created_at:data.created_at}});
+  }
+  if(action==="class_checks_recent"){
+    const classLabel=clean(body.class_name,100);
+    let q=db.from("multaqa_content").select("id,title,subject,body,day_name,created_at").eq("content_type","class_check").order("created_at",{ascending:false}).limit(100);
+    if(classLabel)q=q.eq("title",classLabel);
+    const {data,error}=await q;if(error)return json({ok:false,error:"read_failed"},500);
+    return json({ok:true,items:(data||[]).map((x:any)=>({id:x.id,class_label:x.title,tags:(x.subject||"").split("،").filter(Boolean),note:x.body,teacher_name:x.day_name,created_at:x.created_at}))});
   }
   if(action==="import_teacher_phones"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);

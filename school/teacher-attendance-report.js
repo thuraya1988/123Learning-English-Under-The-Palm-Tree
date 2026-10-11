@@ -1,7 +1,7 @@
 (function(){
  'use strict';
  var reportRows=[],requestNumber=0,summary=null,labels={absent:'غائبة',late:'متأخرة',partial_permission:'استئذان جزئي',full_exit:'انصراف كامل',official_task:'مهمة رسمية',leave:'إجازة'};
- var reasonLabels={health:'صحي',medical_appointment:'موعد طبي',family:'أسري',child:'طفل',government:'جهة حكومية',emergency:'طارئ',official_task:'مهمة رسمية',transport:'مواصلات',other:'أخرى'};
+ var reasonLabels={sick:'مرضي',maternity:'ولادة',emergency:'طارئة',workshop:'حضور مشغل / أداء مهمة عمل',institute:'معهد تخصصي',patient_companion:'مرافقة مريض',meeting:'حضور اجتماع',remote_work:'العمل عن بُعد',other:'أخرى'};
  function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat'}).format(new Date())}
  function monthStart(){var d=new Date();return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Muscat'}).format(new Date(d.getFullYear(),d.getMonth(),1))}
  function tabButton(){if(secureEmployee&&secureEmployee.kind==='supervisor')return;var tabs=document.querySelector('.staff-tabs');if(tabs&&!tabs.querySelector('[data-staff-tab="teacher_attendance_report"]'))tabs.insertAdjacentHTML('beforeend','<button data-staff-tab="teacher_attendance_report" onclick="staffTab(\'teacher_attendance_report\')">📋 غياب المعلمات</button>')}

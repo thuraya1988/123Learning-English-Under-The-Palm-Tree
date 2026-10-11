@@ -353,7 +353,7 @@ Deno.serve(async(req)=>{
     const {data:updated,error:ue}=await db.from("multaqa_meeting_slots").update({status:"booked",booked_student_school_id:student.school_id,booked_student_name:student.name,booked_guardian_phone:phone||saved}).eq("id",slotId).eq("status","open").select("id").maybeSingle();
     if(ue)return json({ok:false,error:"server_error"},500);if(!updated)return json({ok:false,error:"already_booked"},409);
     const {data:teacher}=await db.from("multaqa_employees").select("short_name,full_name").eq("employee_id",slot.employee_id).maybeSingle();
-    if(teacher)await pushTo(db,[teacher.short_name||teacher.full_name],"📅 حجز موعد اجتماع",`ولي أمر ${student.name} (${student.class_name}) حجز موعدًا يوم ${slot.slot_date} الساعة ${slot.slot_time}`,"/school/","meeting_booked");
+    if(teacher){try{await pushTo(db,[teacher.short_name||teacher.full_name],"📅 حجز موعد اجتماع",`ولي أمر ${student.name} (${student.class_name}) حجز موعدًا يوم ${slot.slot_date} الساعة ${slot.slot_time}`,"/school/","meeting_booked")}catch(_){}}
     return json({ok:true,slot_date:slot.slot_date,slot_time:slot.slot_time});
   }
   if(action==="submit_request"){
@@ -368,7 +368,7 @@ Deno.serve(async(req)=>{
     const trackingCode="DQ"+crypto.randomUUID().replace(/-/g,"").slice(0,8).toUpperCase();
     const payload={tracking_code:trackingCode,service_id:serviceId,service_title:serviceTitle,target_group:targetGroup,target_names:targets,student_school_id:student.school_id,student_name:student.name,class_name:student.class_name,guardian_phone:saved||null,reason,details,category,teacher_name:teacherName,request_date:requestDate||null,sensitive:["social","complaint"].includes(serviceId),status:"pending"};
     const {error}=await db.from("multaqa_web_requests").insert(payload); if(error)return json({ok:false,error:"server_error"},500);
-    await pushTo(db,targets,"طلب جديد من ولي أمر",`${serviceTitle} — ${student.name} — الصف ${student.class_name}`,"/school/","parent_request");
+    try{await pushTo(db,targets,"طلب جديد من ولي أمر",`${serviceTitle} — ${student.name} — الصف ${student.class_name}`,"/school/","parent_request")}catch(_){}
     return json({ok:true,tracking_code:trackingCode,student_name:student.name,class_name:student.class_name,target_names:targets,guardian_phone:saved||null,status:"pending"});
   }
   if(action==="track_request"){

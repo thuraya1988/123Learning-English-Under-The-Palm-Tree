@@ -1,4 +1,4 @@
-const EXT_API='https://dhhwcqczvcbwdwllfcun.supabase.co/functions/v1/multaqa-extensions';
+const EXT_API='https://dhhwcqczvcbwdwllfcun.supabase.co/functions/v1/multaqa-public';
 const CLASS_CODES=['1/1','1/2','1/3','2/1','2/2','2/3','2/4','2/5','3/1','3/2','3/3','3/4','4/1','4/2','4/3','4/4','4/5','5/1','5/2','5/3','5/4','5/5','5/6','5/7','6/1','6/2','6/3','6/4','6/5','6/6','6/7'];
 const DUTY_SLOTS=[
  {key:'morning',title:'المناوبة الصباحية',desc:'استقبال الطالبات — 3 معلمات',icon:'🌅',idx:[0,1,2]},
@@ -11,7 +11,7 @@ const DUTY_SLOTS=[
 ];
 let currentGroupsClass='5/1',groupCache=null,dutySnapshotCache={presence:[],coverage:[]};
 async function extApi(action,p={}){if(!employee)throw Object.assign(new Error('employee_not_found'),{code:'employee_not_found'});const r=await fetch(EXT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,employee_name:employee.short_name,...p})});let d={};try{d=await r.json()}catch{}if(!r.ok||d.ok===false){const e=new Error(d.error||'request_failed');e.code=d.error;throw e}return d}
-function extErr(e){return({employee_not_found:'عرّفي النظام باسمك أولًا.',forbidden:'هذه العملية متاحة للمعلمات أو الإدارة المخولة فقط.',invalid_input:'تحققي من البيانات.',duplicate_group:'اسم المجموعة مستخدم في هذا الصف.',student_not_found:'لم يتم العثور على الطالب.'}[e?.code]||'تعذر إتمام العملية الآن.')}
+function extErr(e){return({employee_not_found:'عرّفي النظام باسمك أولًا.',forbidden:'هذه العملية متاحة للمعلمات أو الإدارة المخولة فقط.',invalid_input:'تحققي من البيانات.',duplicate_group:'اسم المجموعة مستخدم في هذا الصف.',student_not_found:'لم يتم العثور على الطالب.',not_found:'تعذر التعرّف على اسمك — سجّلي اسمك من جديد.',server_error:'تعذر الاتصال بالخادم، حاولي بعد قليل.'}[e?.code]||'تعذر إتمام العملية الآن.')}
 function isThuraya(){return employee&&norm(employee.short_name)===norm('ثرياء الناعبية')}
 function isAdminUser(){return employee&&(employee.kind==='admin'||isThuraya())}
 function isTeacherUser(){return employee&&(employee.kind==='teacher'||isThuraya())}

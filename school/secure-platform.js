@@ -274,9 +274,11 @@ window.registerCoverageAbsence=async()=>{
 window.openCoverageEditor=async id=>{
  const box=S('coverageEdit'+id);if(!box)return;box.hidden=false;box.innerHTML='<small>جاري فحص الجداول والتعارضات…</small>';
  try{
-  const d=await staffApi('coverage_candidates',{id}),list=d.candidates||[];
-  if(!list.length){box.innerHTML='<div class="staff-empty">لا توجد معلمة متاحة لهذه الحصة دون تعارض.</div>';return}
-  box.innerHTML='<label>اختاري معلمة الاحتياط<select id="coverageSelect'+id+'">'+list.map(x=>'<option value="'+esc(x.employee_id)+'">'+(x.catchup_priority?'⭐ أولوية تعويض المنهج — ':'')+esc(x.short_name||x.full_name)+(x.phone?' — 📱 '+esc(x.phone):' — 📱 لا يوجد رقم محفوظ')+' — '+esc(x.reason||'متاحة')+'</option>').join('')+'</select></label><div class="coverage-editor-actions"><button class="staff-primary" onclick="saveCoverageAssignment('+id+')">حفظ التعديل</button><button class="staff-secondary" onclick="closeCoverageEditor('+id+')">إلغاء</button></div>';
+  const d=await staffApi('coverage_candidates',{id}),list=d.candidates||[],suggestedIds=new Set(list.map(x=>x.employee_id)),rest=(d.all_teachers||[]).filter(x=>!suggestedIds.has(x.employee_id));
+  if(!list.length&&!rest.length){box.innerHTML='<div class="staff-empty">لا توجد معلمات بالمنظومة لتعيينهن.</div>';return}
+  const suggestedOpts=list.map(x=>'<option value="'+esc(x.employee_id)+'">'+(x.catchup_priority?'⭐ أولوية تعويض المنهج — ':'')+esc(x.short_name||x.full_name)+(x.phone?' — 📱 '+esc(x.phone):' — 📱 لا يوجد رقم محفوظ')+' — '+esc(x.reason||'متاحة')+'</option>').join('');
+  const restOpts=rest.map(x=>'<option value="'+esc(x.employee_id)+'">'+esc(x.short_name||x.full_name)+(x.phone?' — 📱 '+esc(x.phone):' — 📱 لا يوجد رقم محفوظ')+'</option>').join('');
+  box.innerHTML='<label>اختاري معلمة الاحتياط<select id="coverageSelect'+id+'">'+(suggestedOpts?'<optgroup label="✅ مقترَحات دون تعارض">'+suggestedOpts+'</optgroup>':'')+(restOpts?'<optgroup label="👥 كل المعلمات (تعيين يدوي)">'+restOpts+'</optgroup>':'')+'</select></label><div class="coverage-editor-actions"><button class="staff-primary" onclick="saveCoverageAssignment('+id+')">حفظ التعديل</button><button class="staff-secondary" onclick="closeCoverageEditor('+id+')">إلغاء</button></div>';
  }catch(e){box.innerHTML='';box.hidden=true;toast(staffError(e))}
 };
 window.closeCoverageEditor=id=>{const box=S('coverageEdit'+id);if(box){box.hidden=true;box.innerHTML=''}};

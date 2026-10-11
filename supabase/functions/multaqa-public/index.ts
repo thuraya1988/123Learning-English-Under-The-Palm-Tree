@@ -16,6 +16,8 @@ const idOk=(v:string)=>/^\d{8,20}$/.test(v);
 const norm=(v:unknown)=>clean(v,220).replace(/^أ\.\s*/,"").replace(/[إأآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/ؤ/g,"و").replace(/ئ/g,"ي").replace(/ـ/g,"").replace(/[ًٌٍَُِّْ]/g,"").replace(/\s+/g," ").toLowerCase();
 const shortName=(v:string)=>{const t=clean(v,220).replace(/^أ\.\s*/,"").split(/\s+/).filter(Boolean);return t.length>1?`${t[0]} ${t[t.length-1]}`:(t[0]||v)};
 const omDays=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+const genId=()=>Date.now()*1000+Math.floor(Math.random()*1000);
+const canManageGroups=(emp:any)=>emp?.kind==="teacher"||norm(emp?.short_name)===norm("ثرياء الناعبية")||norm(emp?.full_name)===norm("ثرياء الناعبية");
 const teacherScheduleName=(e:any)=>e?.short_name||e?.full_name||"";
 const DUTY_SLOT_INFO:Record<string,{label:string,time:string,count:number,note:string}>={
  morning:{label:"المناوبة الصباحية — استقبال الطلبة",time:"10:45",count:3,note:"استقبال الطلبة"},
@@ -412,6 +414,107 @@ Deno.serve(async(req)=>{
     const row={duty_date:today,employee_name:emp.short_name,attendance_status:attendance,effectiveness,reason:reason||null,evaluation_source:"self",updated_at:new Date().toISOString()};
     const {data,error}=await db.from("multaqa_duty_evaluations").upsert(row,{onConflict:"duty_date,employee_name"}).select("attendance_status,effectiveness,reason,updated_at").single();
     if(error)return json({ok:false,error:"save_failed"},500);return json({ok:true,evaluation:data});
+  }
+  if(action==="class_overview"){
+    const emp=await resolveEmployee(db,clean(body.employee_name,220));if(!emp)return json({ok:false,error:"not_found"},404);
+    const className=clean(body.class_name,100);if(!className)return json({ok:false,error:"invalid_input"},400);
+    const [{data:students},{data:groupRows},{data:stateRows}]=await Promise.all([
+      db.from("multaqa_students").select("school_id,serial,name,class_name").eq("class_name",className).order("serial"),
+      db.from("multaqa_content").select("id,title").eq("content_type","sg_group").eq("subject",className),
+      db.from("multaqa_content").select("title,body").eq("content_type","sg_state")
+    ]);
+    const stateByStudent=new Map((stateRows||[]).map((x:any)=>{let st:any={};try{st=JSON.parse(x.body||"{}")}catch{}return [x.title,st]}));
+    const groups=(groupRows||[]).map((g:any)=>({id:g.id,group_name:g.title}));
+    const stuList=(students||[]).map((s:any)=>{const st=stateByStudent.get(s.school_id)||{};return {school_id:s.school_id,serial:s.serial,name:s.name,group_id:st.group_id||null,points:st.points||0,stars:st.stars||0}});
+    return json({ok:true,students:stuList,groups,can_edit:canManageGroups(emp)});
+  }
+  if(action==="create_group"){
+    const emp=await resolveEmployee(db,clean(body.employee_name,220));if(!emp)return json({ok:false,error:"not_found"},404);
+    if(!canManageGroups(emp))return json({ok:false,error:"forbidden"},403);
+    const className=clean(body.class_name,100),groupName=clean(body.group_name,120);
+    if(!className||!groupName)return json({ok:false,error:"invalid_input"},400);
+    const {data,error}=await db.from("multaqa_content").insert({id:genId(),content_type:"sg_group",title:groupName,subject:className,body:null,day_name:emp.short_name||emp.full_name||"",published:true,sort_order:Date.now(),updated_at:new Date().toISOString()}).select().single();
+    if(error)return json({ok:false,error:"server_error"},500);return json({ok:true,id:data.id});
+  }
+  if(action==="rename_group"){
+    const emp=await resolveEmployee(db,clean(body.employee_name,220));if(!emp)return json({ok:false,error:"not_found"},404);
+    if(!canManageGroups(emp))return json({ok:false,error:"forbidden"},403);
+    const id=Number(body.group_id),groupName=clean(body.group_name,120);if(!id||!groupName)return json({ok:false,error:"invalid_input"},400);
+    const {error}=await db.from("multaqa_content").update({title:groupName,updated_at:new Date().toISOString()}).eq("id",id).eq("content_type","sg_group");
+    if(error)return json({ok:false,error:"server_error"},500);return json({ok:true});
+  }
+  if(action==="delete_group"){
+    const emp=await resolveEmployee(db,clean(body.employee_name,220));if(!emp)return json({ok:false,error:"not_found"},404);
+    if(!canManageGroups(emp))return json({ok:false,error:"forbidden"},403);
+    const id=Number(body.group_id);if(!id)return json({ok:false,error:"invalid_input"},400);
+    await db.from("multaqa_content").delete().eq("id",id).eq("content_type","sg_group");
+    const {data:stateRows}=await db.from("multaqa_content").select("id,body").eq("content_type","sg_state");
+    for(const row of stateRows||[]){let st:any={};try{st=JSON.parse(row.body||"{}")}catch{}if(st.group_id===id){st.group_id=null;await db.from("multaqa_content").update({body:JSON.stringify(st),updated_at:new Date().toISOString()}).eq("id",row.id)}}
+    return json({ok:true});
+  }
+  if(action==="assign_group"){
+    const emp=await resolveEmployee(db,clean(body.employee_name,220));if(!emp)return json({ok:false,error:"not_found"},404);
+    if(!canManageGroups(emp))return json({ok:false,error:"forbidden"},403);
+    const sid=clean(body.student_school_id,30),gid=body.group_id?Number(body.group_id):null;
+    if(!sid)return json({ok:false,error:"invalid_input"},400);
+    const {data:row}=await db.from("multaqa_content").select("id,body").eq("content_type","sg_state").eq("title",sid).maybeSingle();
+    let st:any={};try{st=row?JSON.parse(row.body||"{}"):{}}catch{}
+    st.group_id=gid;
+    if(row){const {error}=await db.from("multaqa_content").update({body:JSON.stringify(st),updated_at:new Date().toISOString()}).eq("id",row.id);if(error)return json({ok:false,error:"server_error"},500)}
+    else{const {error}=await db.from("multaqa_content").insert({id:genId(),content_type:"sg_state",title:sid,body:JSON.stringify(st),published:true,sort_order:Date.now(),updated_at:new Date().toISOString()});if(error)return json({ok:false,error:"server_error"},500)}
+    return json({ok:true});
+  }
+  if(action==="award_student"){
+    const emp=await resolveEmployee(db,clean(body.employee_name,220));if(!emp)return json({ok:false,error:"not_found"},404);
+    if(!canManageGroups(emp))return json({ok:false,error:"forbidden"},403);
+    const sid=clean(body.student_school_id,30),pd=Number(body.points_delta)||0,sd=Number(body.stars_delta)||0,reason=clean(body.reason,300);
+    if(!sid||(!pd&&!sd))return json({ok:false,error:"invalid_input"},400);
+    const {data:row}=await db.from("multaqa_content").select("id,body").eq("content_type","sg_state").eq("title",sid).maybeSingle();
+    let st:any={};try{st=row?JSON.parse(row.body||"{}"):{}}catch{}
+    st.points=(st.points||0)+pd;st.stars=(st.stars||0)+sd;
+    if(row)await db.from("multaqa_content").update({body:JSON.stringify(st),updated_at:new Date().toISOString()}).eq("id",row.id);
+    else await db.from("multaqa_content").insert({id:genId(),content_type:"sg_state",title:sid,body:JSON.stringify(st),published:true,sort_order:Date.now(),updated_at:new Date().toISOString()});
+    const {error}=await db.from("multaqa_content").insert({id:genId(),content_type:"sg_history",title:sid,subject:JSON.stringify({points_delta:pd,stars_delta:sd,reason}),body:emp.short_name||emp.full_name||"",published:true,sort_order:Date.now(),updated_at:new Date().toISOString()});
+    if(error)return json({ok:false,error:"server_error"},500);
+    return json({ok:true,points:st.points,stars:st.stars});
+  }
+  if(action==="student_reward_history"){
+    const emp=await resolveEmployee(db,clean(body.employee_name,220));if(!emp)return json({ok:false,error:"not_found"},404);
+    const sid=clean(body.student_school_id,30);if(!sid)return json({ok:false,error:"invalid_input"},400);
+    const {data,error}=await db.from("multaqa_content").select("subject,body,created_at").eq("content_type","sg_history").eq("title",sid).order("created_at",{ascending:false}).limit(100);
+    if(error)return json({ok:false,error:"server_error"},500);
+    return json({ok:true,items:(data||[]).map((x:any)=>{let meta:any={};try{meta=JSON.parse(x.subject||"{}")}catch{}return {points_delta:meta.points_delta||0,stars_delta:meta.stars_delta||0,reason:meta.reason||"",teacher_name:x.body,created_at:x.created_at}})});
+  }
+  if(action==="duty_snapshot"){
+    const emp=await resolveEmployee(db,clean(body.employee_name,220));if(!emp)return json({ok:false,error:"not_found"},404);
+    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    const [{data:presRows},{data:covRows}]=await Promise.all([
+      db.from("multaqa_content").select("title,body").eq("content_type","duty_presence").like("title",today+"|%"),
+      db.from("multaqa_content").select("title,body").eq("content_type","class_coverage").like("title",today+"|%")
+    ]);
+    const presence=(presRows||[]).map((x:any)=>{const parts=String(x.title).split("|");return {slot_key:parts[1],employee_name:parts[2],status:x.body}});
+    const coverage=(covRows||[]).map((x:any)=>{const parts=String(x.title).split("|");return {class_name:parts[1],status:x.body}});
+    return json({ok:true,presence,coverage});
+  }
+  if(action==="set_duty_presence"){
+    const emp=await resolveEmployee(db,clean(body.employee_name,220));if(!emp)return json({ok:false,error:"not_found"},404);
+    const slotKey=clean(body.slot_key,30),targetEmployee=clean(body.target_employee,220),status=clean(body.status,20);
+    if(!slotKey||!targetEmployee||!["present","absent"].includes(status))return json({ok:false,error:"invalid_input"},400);
+    const isAdminEmp=emp.kind==="admin"||norm(emp.short_name)===norm("ثرياء الناعبية")||norm(emp.full_name)===norm("ثرياء الناعبية");
+    if(!(isAdminEmp||norm(emp.short_name)===norm(targetEmployee)||norm(emp.full_name)===norm(targetEmployee)))return json({ok:false,error:"forbidden"},403);
+    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),titleKey=today+"|"+slotKey+"|"+targetEmployee;
+    await db.from("multaqa_content").delete().eq("content_type","duty_presence").eq("title",titleKey);
+    const {error}=await db.from("multaqa_content").insert({id:genId(),content_type:"duty_presence",title:titleKey,body:status,day_name:emp.short_name||emp.full_name||"",published:true,sort_order:Date.now(),updated_at:new Date().toISOString()});
+    if(error)return json({ok:false,error:"server_error"},500);return json({ok:true});
+  }
+  if(action==="set_class_coverage"){
+    const emp=await resolveEmployee(db,clean(body.employee_name,220));if(!emp)return json({ok:false,error:"not_found"},404);
+    const className=clean(body.class_name,100),status=clean(body.status,20);
+    if(!className||!["empty","covered"].includes(status))return json({ok:false,error:"invalid_input"},400);
+    const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Muscat",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),titleKey=today+"|"+className;
+    await db.from("multaqa_content").delete().eq("content_type","class_coverage").eq("title",titleKey);
+    const {error}=await db.from("multaqa_content").insert({id:genId(),content_type:"class_coverage",title:titleKey,body:status,day_name:emp.short_name||emp.full_name||"",published:true,sort_order:Date.now(),updated_at:new Date().toISOString()});
+    if(error)return json({ok:false,error:"server_error"},500);return json({ok:true});
   }
   if(action==="scheduled_push"){
     const secret=clean(body.secret,100),cfg=await pushConfig(db); if(!cfg?.scheduler_secret||secret!==cfg.scheduler_secret)return json({ok:false,error:"forbidden"},403);

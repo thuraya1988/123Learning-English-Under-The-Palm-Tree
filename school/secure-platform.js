@@ -286,7 +286,7 @@ window.openCoverageEditor=async id=>{
  try{
   const d=await staffApi('coverage_candidates',{id}),list=d.candidates||[],candidateIds=new Set(list.map(x=>x.employee_id)),allOthers=(d.all_teachers||[]).filter(x=>!candidateIds.has(x.employee_id));
   if(!list.length&&!allOthers.length){box.innerHTML='<div class="staff-empty">لا توجد معلمة في المدرسة لتعيينها.</div>';return}
-  const optionFor=x=>'<option value="'+esc(x.employee_id)+'">'+(x.catchup_priority?'⭐ أولوية تعويض المنهج — ':'')+esc(x.short_name||x.full_name)+(x.phone?' — 📱 '+esc(x.phone):' — 📱 لا يوجد رقم محفوظ')+(x.reason?' — '+esc(x.reason):'')+'</option>';
+  const optionFor=x=>'<option value="'+esc(x.employee_id)+'">'+(x.catchup_priority?'⭐ أولوية تعويض المنهج — ':'')+esc(x.short_name||x.full_name)+' — حصصها اليوم: '+(x.daily_lessons??'؟')+(x.phone?' — 📱 '+esc(x.phone):' — 📱 لا يوجد رقم محفوظ')+(x.reason?' — '+esc(x.reason):'')+'</option>';
   const suggestedGroup=list.length?'<optgroup label="✅ مقترَحات دون تعارض">'+list.map(optionFor).join('')+'</optgroup>':'';
   const allGroup=allOthers.length?'<optgroup label="👥 كل المعلمات (تعيين يدوي)">'+allOthers.map(optionFor).join('')+'</optgroup>':'';
   box.innerHTML='<label>اختاري معلمة الاحتياط<select id="coverageSelect'+id+'">'+suggestedGroup+allGroup+'</select></label><p class="staff-help">القائمة الأولى معلمات دون تعارض بجدولهن، والثانية كل معلمات المدرسة لتعيين يدوي مباشر حتى لو ظهر تعارض محتمل.</p><div class="coverage-editor-actions"><button class="staff-primary" onclick="saveCoverageAssignment('+id+')">حفظ التعديل</button><button class="staff-secondary" onclick="closeCoverageEditor('+id+')">إلغاء</button></div>';

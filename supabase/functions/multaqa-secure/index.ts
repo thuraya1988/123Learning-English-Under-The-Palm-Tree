@@ -195,9 +195,21 @@ async function allocateAbsence(db:any,absent:any,date:string,sourceType:string,s
   const wanted=new Set(scheduleNames.map(norm)),row=(allRows||[]).find((x:any)=>wanted.has(norm(x.full_name)));
   const slots:any[]=row?.schedule?.[day]||[],lessonCount=slots.filter((x:any)=>clean(x,500)).length;
   if(scheduleError)return {items:[],schedule_found:false,lesson_count:0,save_errors:[{message:scheduleError.message||"schedule_read_failed"}]};
-  if(!row)return {items:[],schedule_found:false,lesson_count:0,save_errors:[]};
-  if(!lessonCount)return {items:[],schedule_found:true,lesson_count:0,save_errors:[]};
   const used=new Set<string>(),out:any[]=[],saveErrors:any[]=[];
+  // معلمة أصبحت غائبة بينما كانت مُسندة كبديلة لمعلمة أخرى اليوم (حصصها الأصلية صفر أو غير ذلك):
+  // يُلغى إسنادها تلقائيًا، ويُعاد البحث عن بديلة أخرى لتلك الحصص فورًا.
+  const {data:ownSubs}=await db.from("multaqa_substitute_assignments").select("*").eq("coverage_date",date).eq("replacement_employee_id",absent.employee_id).in("status",["assigned","accepted"]);
+  for(const sub of (ownSubs||[])){
+    const {data:origAbsent}=await db.from("multaqa_employees").select("employee_id,full_name,short_name").eq("employee_id",sub.absent_employee_id).maybeSingle();
+    const list:any[]=await candidatesFor(db,origAbsent||{employee_id:sub.absent_employee_id},date,sub.period,used,Number(sub.id)||0,sub.class_label),pick=list[0]||null;
+    if(pick)used.add(pick.employee_id);
+    const {data:updated,error:reassignError}=await db.from("multaqa_substitute_assignments").update({replacement_employee_id:pick?.employee_id||null,status:pick?"assigned":"proposed",fairness_score:pick?.score??null,reason_summary:pick?`أُعيد التوزيع تلقائيًا لأن ${absent.short_name||absent.full_name} (البديلة السابقة) أصبحت غائبة • ${pick.reason}`:`أُعيد التوزيع للمراجعة لأن البديلة السابقة (${absent.short_name||absent.full_name}) أصبحت غائبة، ولا توجد معلمة متاحة دون تعارض حاليًا`,assigned_by_employee_id:by,notified_at:null,reminder_sent_at:null,completed_at:null,achievement_recorded_at:null,updated_at:new Date().toISOString()}).eq("id",sub.id).select().single();
+    if(reassignError||!updated){saveErrors.push({period:sub.period,class_label:sub.class_label,message:reassignError?.message||"reassign_failed"});continue}
+    if(pick)await notifyCoverageAssignment(db,updated,pick.short_name||pick.full_name);
+    out.push({...updated,replacement_name:pick?.short_name||null});
+  }
+  if(!row)return {items:out,schedule_found:false,lesson_count:0,save_errors:saveErrors};
+  if(!lessonCount)return {items:out,schedule_found:true,lesson_count:0,save_errors:saveErrors};
   const {data:activityRows}=await db.from("multaqa_reserve_activity_bank").select("title,url,idea,encouragement").eq("active",true).order("id");
   const activityBank=(activityRows&&activityRows.length?activityRows:RESERVE_ACTIVITY_FALLBACK) as any[];
   for(let i=0;i<7;i++){
@@ -1445,17 +1457,20 @@ Deno.serve(async(req)=>{
     const {data:item}=await db.from("multaqa_substitute_assignments").select("*").eq("id",id).maybeSingle();if(!item)return json({ok:false,error:"not_found"},404);
     const {data:absent}=await db.from("multaqa_employees").select("employee_id,full_name").eq("employee_id",item.absent_employee_id).maybeSingle();if(!absent)return json({ok:false,error:"not_found"},404);
     const candidates:any[]=await candidatesFor(db,absent,item.coverage_date,item.period,new Set(),id,item.class_label),ids=candidates.map((x:any)=>x.employee_id);
-    const {data:profiles}=ids.length?await db.from("multaqa_employee_profiles").select("employee_id,contact_phone,phone").in("employee_id",ids):{data:[]};
+    const {data:allTeachers}=await db.from("multaqa_employees").select("employee_id,full_name,short_name").eq("kind","teacher").neq("employee_id",absent.employee_id);
+    const profileIds=[...new Set([...ids,...(allTeachers||[]).map((x:any)=>x.employee_id)])];
+    const {data:profiles}=profileIds.length?await db.from("multaqa_employee_profiles").select("employee_id,contact_phone,phone").in("employee_id",profileIds):{data:[]};
     const phoneById=new Map((profiles||[]).map((x:any)=>[x.employee_id,normPhone(x.contact_phone||x.phone)]));
-    return json({ok:true,item,candidates:candidates.map((x:any)=>({employee_id:x.employee_id,full_name:x.full_name,short_name:x.short_name,phone:phoneById.get(x.employee_id)||"",score:x.score,reason:x.reason,catchup_priority:!!x.catchup_priority}))});
+    return json({ok:true,item,candidates:candidates.map((x:any)=>({employee_id:x.employee_id,full_name:x.full_name,short_name:x.short_name,phone:phoneById.get(x.employee_id)||"",score:x.score,reason:x.reason,catchup_priority:!!x.catchup_priority})),all_teachers:(allTeachers||[]).map((x:any)=>({employee_id:x.employee_id,full_name:x.full_name,short_name:x.short_name,phone:phoneById.get(x.employee_id)||""})).sort((a:any,b:any)=>(a.short_name||a.full_name).localeCompare(b.short_name||b.full_name,"ar"))});
   }
   if(action==="save_coverage_assignment"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id),replacementId=clean(body.replacement_employee_id,30);if(!Number.isInteger(id)||id<1||!replacementId)return json({ok:false,error:"invalid_input"},400);
     const {data:item}=await db.from("multaqa_substitute_assignments").select("*").eq("id",id).maybeSingle();if(!item)return json({ok:false,error:"not_found"},404);
     const [{data:absent},{data:target}]=await Promise.all([db.from("multaqa_employees").select("employee_id,full_name").eq("employee_id",item.absent_employee_id).maybeSingle(),db.from("multaqa_employees").select("employee_id,full_name,short_name,kind").eq("employee_id",replacementId).maybeSingle()]);
     if(!absent||!target||target.kind!=="teacher")return json({ok:false,error:"not_found"},404);
-    const candidates:any[]=await candidatesFor(db,absent,item.coverage_date,item.period,new Set(),id,item.class_label),pick=candidates.find((x:any)=>x.employee_id===replacementId);if(!pick)return json({ok:false,error:"coverage_conflict"},409);
-    const {data,error}=await db.from("multaqa_substitute_assignments").update({replacement_employee_id:replacementId,status:"assigned",fairness_score:pick.score,reason_summary:`توزيع يدوي بواسطة ${e.short_name||e.full_name} • ${pick.reason}`,assigned_by_employee_id:e.employee_id,notified_at:null,reminder_sent_at:null,completed_at:null,achievement_recorded_at:null,updated_at:new Date().toISOString()}).eq("id",id).select().single();
+    if(replacementId===absent.employee_id)return json({ok:false,error:"coverage_conflict"},409);
+    const candidates:any[]=await candidatesFor(db,absent,item.coverage_date,item.period,new Set(),id,item.class_label),pick=candidates.find((x:any)=>x.employee_id===replacementId)||{score:null,reason:`تعيين يدوي مباشر بواسطة ${e.short_name||e.full_name} (تجاوز القائمة المقترحة)`};
+    const {data,error}=await db.from("multaqa_substitute_assignments").update({replacement_employee_id:replacementId,status:"assigned",fairness_score:pick.score,reason_summary:pick.score!=null?`توزيع يدوي بواسطة ${e.short_name||e.full_name} • ${pick.reason}`:pick.reason,assigned_by_employee_id:e.employee_id,notified_at:null,reminder_sent_at:null,completed_at:null,achievement_recorded_at:null,updated_at:new Date().toISOString()}).eq("id",id).select().single();
     if(error)return json({ok:false,error:"save_failed"},500);const sent=await notifyCoverageAssignment(db,data,target.short_name||target.full_name),{data:profile}=await db.from("multaqa_employee_profiles").select("contact_phone,phone").eq("employee_id",target.employee_id).maybeSingle();return json({ok:true,item:data,replacement_name:target.short_name||target.full_name,replacement_phone:normPhone(profile?.contact_phone||profile?.phone),push_sent:sent});
   }
   if(action==="auto_reassign_coverage"){

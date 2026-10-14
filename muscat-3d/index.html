@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<title>مسقط 3D — مصادر CC0 / ملك عام بدون مفاتيح API</title>
+<!--
+  ═══ الرخص الافتراضية (كلها CC0 أو ملك عام، بدون أي API key) ═══
+  • الصور الفضائية: NASA GIBS (MODIS / Landsat WELD) — ملك عام (ناسا)
+  • التضاريس والارتفاع: AWS Open Data Terrain Tiles — بيانات SRTM من ناسا/USGS = ملك عام (CC0)
+  • الأسماء والحدود: GIBS Reference Layers المبنية على Natural Earth = ملك عام
+  • البحث ونقاط الاهتمام: Wikidata = CC0
+  • المحرك: MapLibre GL JS = BSD-3-Clause (مفتوح المصدر)
+  • الخط: Cairo عبر fontsource = OFL
+  ═══ طبقات اختيارية غير CC0 (مطفأة افتراضياً وتُوسم بوضوح) ═══
+  • صور عالية الدقة: Esri World Imagery (مجانية بدون مفتاح لكنها © Esri)
+  • مبانٍ وشوارع: OpenFreeMap / OpenStreetMap (ODbL)
+-->
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/cairo@latest/index.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/cairo@latest/700.css"/>
+<style>
+:root{--sheet-h:250px;--accent:#a9c6fb;--teal:#0b5777;--txt:#f4f4f5;--ok:#2ea44f;--warn:#e8a13c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;font-family:'Cairo',system-ui,sans-serif;background:#000;overflow:hidden;color:var(--txt)}
+#map{position:fixed;inset:0}
+.hidden{display:none!important}
+.toprow{position:absolute;top:12px;right:14px;left:14px;display:flex;gap:10px;z-index:6;align-items:flex-start}
+.searchwrap{position:relative;flex:1;display:flex;align-items:center;gap:10px;background:#1b1b1cf2;border-radius:999px;padding:9px 14px;box-shadow:0 4px 18px #0007;backdrop-filter:blur(6px)}
+.s-icon{display:grid;place-items:center;color:var(--accent)}
+#q{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--txt);font:inherit;font-size:14.5px}
+#q::placeholder{color:#9a9aa0}
+.avatar{width:38px;height:38px;flex:none;border-radius:50%;background:linear-gradient(135deg,#f6a13c,#e8734a);display:grid;place-items:center;font-size:20px;box-shadow:inset 0 0 0 2px #ffffff35}
+.results{position:absolute;top:52px;right:0;left:0;background:#1b1b1cf7;border-radius:18px;overflow:hidden auto;max-height:320px;box-shadow:0 10px 30px #000a;z-index:9}
+.results button{display:block;width:100%;text-align:right;padding:11px 16px;background:none;border:0;border-bottom:1px solid #ffffff12;color:var(--txt);font:inherit;font-size:13.5px;cursor:pointer}
+.results button:last-child{border-bottom:0}
+.results button:hover{background:#ffffff14}
+.results .rn{font-weight:700;font-size:14px}
+.results .rd{color:#a6a6ad;font-size:11.5px;line-height:1.5}
+.minimap{width:96px;height:112px;flex:none;border-radius:14px;overflow:hidden;border:2px solid #0009;box-shadow:0 4px 14px #0008;position:relative;background:#0d1420;cursor:pointer}
+.minidot{position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#ff4d4f;border:2px solid #fff;z-index:2;pointer-events:none;box-shadow:0 0 6px #000a}
+#modeBadge{position:absolute;top:136px;right:14px;z-index:6;background:#000000b0;color:#fff;border:1px solid #ffffff2e;border-radius:999px;padding:6px 12px;font-size:11.5px;font-weight:700;display:flex;gap:7px;align-items:center;backdrop-filter:blur(4px)}
+#modeBadge .dot{width:9px;height:9px;border-radius:50%;background:var(--ok)}
+#modeBadge.mixed .dot{background:var(--warn)}
+.ctrls{position:absolute;right:14px;bottom:calc(var(--sheet-h) + 18px);display:flex;flex-direction:column;gap:12px;z-index:6}
+.cbtn{width:56px;height:56px;border-radius:50%;border:0;background:#141414e6;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 14px #0009;backdrop-filter:blur(4px);transition:transform .15s,box-shadow .2s}
+.cbtn:active{transform:scale(.92)}
+.cbtn.on{box-shadow:0 0 0 3px var(--accent),0 4px 14px #0009}
+#needleSvg{transition:transform .1s linear;transform-origin:50% 50%}
+.t3d{font-weight:700;font-size:17px;letter-spacing:.5px}
+.scalebar{position:absolute;left:16px;bottom:calc(var(--sheet-h) + 14px);z-index:5;color:#fff;font-size:13px;font-weight:700;text-shadow:0 1px 3px #000;display:flex;flex-direction:column;gap:3px;pointer-events:none}
+.scalebar .labelrow{display:flex;gap:6px;align-items:baseline}
+.scalebar .bar{height:7px;border:2px solid #fff;border-top:0;box-shadow:0 1px 3px #0008;transition:width .2s}
+#sheet{position:absolute;left:0;right:0;bottom:0;background:#141414f5;border-radius:26px 26px 0 0;z-index:7;box-shadow:0 -8px 30px #000a;backdrop-filter:blur(10px);padding:8px 16px 14px}
+.handle{width:46px;height:5px;border-radius:99px;background:#8a8a8e;margin:2px auto 6px}
+.sheet-head{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:4px 2px}
+.chev{display:grid;place-items:center;color:#e6e6ea;transition:transform .3s}
+#sheet.collapsed .chev{transform:rotate(180deg)}
+.head-txt{flex:1;text-align:right;min-width:0}
+#placeName{margin:0;font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#placeMeta{margin:0;font-size:11.5px;color:#c9c9ce;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill-btn{display:inline-flex;align-items:center;gap:8px;background:var(--teal);color:#fff;border:0;border-radius:999px;padding:10px 16px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;flex:none}
+.pill-btn:active{filter:brightness(1.2)}
+.sheet-body-wrap{display:grid;grid-template-rows:1fr;transition:grid-template-rows .35s ease}
+#sheet.collapsed .sheet-body-wrap{grid-template-rows:0fr}
+.sheet-body{overflow:hidden;min-height:0}
+.sheet-inner{display:flex;flex-direction:column;gap:12px;padding-top:10px;max-height:44vh;overflow-y:auto}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.chip{display:inline-flex;align-items:center;gap:8px;background:#26262a;border:1px solid #ffffff1f;border-radius:999px;padding:7px 12px;font-size:12.5px;cursor:pointer;white-space:nowrap;color:var(--txt)}
+.chip:hover{background:#323236}
+.chip .del{background:none;border:0;color:#ff6b6b;font-size:15px;line-height:1;cursor:pointer;padding:0 2px;font-family:inherit}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 22px}
+.switchrow{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13.5px;cursor:pointer}
+.switchrow input{display:none}
+.sw{width:44px;height:25px;flex:none;border-radius:999px;background:#3a3a3e;position:relative;transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;right:3px;width:19px;height:19px;border-radius:50%;background:#fff;transition:transform .2s}
+.switchrow input:checked + .sw{background:#2e7dd1}
+.switchrow input:checked + .sw::after{transform:translateX(-19px)}
+.sliderrow{display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.sliderrow b{color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.lic{display:inline-block;border-radius:8px;padding:1px 8px;font-size:10.5px;font-weight:700;margin-inline-start:6px;vertical-align:middle}
+.lic.cc0{background:#124d2a;color:#7ee2a8}
+.lic.non{background:#5c3a10;color:#ffd9a0}
+.lic.code{background:#26364d;color:#bcd7ff}
+details.src{font-size:12.5px;color:#d0d0d5;background:#1d1d20;border:1px solid #ffffff14;border-radius:14px;padding:8px 14px}
+details.src summary{cursor:pointer;font-weight:700;color:#fff;font-size:13px}
+details.src ul{margin:8px 0 4px;padding-inline-start:18px}
+details.src li{margin:5px 0;line-height:1.8}
+.pinwrap{display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 3px 4px #0008)}
+.pinlabel{background:#000000b8;color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;margin-bottom:4px;white-space:nowrap;max-width:230px;overflow:hidden;text-overflow:ellipsis;font-family:'Cairo',sans-serif}
+.maplibregl-ctrl-attrib{background:#000000a8!important;color:#ddd!important;font-size:10.5px;border-radius:8px;backdrop-filter:blur(4px)}
+.maplibregl-ctrl-attrib a{color:#bcd7ff!important}
+.maplibregl-ctrl-bottom-right{bottom:calc(var(--sheet-h) + 10px)!important}
+.toast{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--sheet-h) + 26px);background:#2ea44f;color:#fff;padding:10px 20px;border-radius:999px;font-weight:700;font-size:13.5px;box-shadow:0 6px 20px #0008;z-index:9;transition:opacity .3s;max-width:86vw;text-align:center}
+.toast.hidden{opacity:0;pointer-events:none}
+#loader{position:fixed;inset:0;background:#0a0a0a;display:grid;place-items:center;z-index:20;transition:opacity .5s;color:#fff;font-weight:700}
+#loader.hide{opacity:0;pointer-events:none}
+.loadbox{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:20px}
+.spin{width:46px;height:46px;border:4px solid #ffffff2b;border-top-color:var(--accent);border-radius:50%;animation:rot 1s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.loadnote{font-size:12px;color:#9a9aa0;font-weight:400;max-width:340px;line-height:1.8}
+@media (max-width:560px){.grid2{grid-template-columns:1fr}.minimap{width:80px;height:96px}#placeName{font-size:16px}#modeBadge{top:118px}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<header class="toprow">
+  <div class="searchwrap">
+    <span class="s-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span>
+    <input id="q" placeholder="بحث CC0 عبر Wikidata: جامع السلطان قابوس، مسقط…" autocomplete="off"/>
+    <span class="avatar" title="بيانات مفتوحة">🐫</span>
+    <div id="results" class="results hidden"></div>
+  </div>
+  <div id="minimap" class="minimap" title="نظرة عامة (ملك عام) — انقر للانتقال"><div class="minidot"></div></div>
+</header>
+<div id="modeBadge"><span class="dot"></span><span id="modeTxt">وضع CC0 / ملك عام ✓ — بدون مفاتيح API</span></div>
+
+<div class="ctrls">
+  <button id="compassBtn" class="cbtn" title="إعادة الشمال">
+    <svg id="needleSvg" width="30" height="30" viewBox="0 0 40 40"><polygon points="20,4 26,20 20,16 14,20" fill="#ff4b3e"/><polygon points="20,36 26,20 20,24 14,20" fill="#f5f5f5"/></svg>
+  </button>
+  <button id="tourBtn" class="cbtn" title="جولة دوران 360°">
+    <svg width="26" height="26" viewBox="0 0 40 40"><path d="M20 8a12 12 0 1 1-11.2 7.6" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/><polygon points="4,10 12,14 6,20" fill="#fff"/></svg>
+  </button>
+  <button id="tiltBtn" class="cbtn on" title="تبديل الميل ثلاثي الأبعاد"><span class="t3d">3D</span></button>
+  <button id="geoBtn" class="cbtn" title="موقعي الحالي">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="6"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="1.6" fill="#fff"/></svg>
+  </button>
+  <button id="fsBtn" class="cbtn" title="ملء الشاشة">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+  </button>
+</div>
+
+<div id="scaleBar" class="scalebar">
+  <span class="labelrow"><span id="scaleNum">500</span><span id="scaleUnit">م</span></span>
+  <i class="bar" id="scaleBarLine" style="width:110px"></i>
+</div>
+
+<div id="sheet">
+  <div class="handle"></div>
+  <button id="sheetHead" class="sheet-head" aria-expanded="true">
+    <span class="chev"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 14l6-6 6 6"/></svg></span>
+    <span class="head-txt">
+      <h2 id="placeName">جامع السلطان قابوس الأكبر</h2>
+      <p id="placeMeta">23.58389 ,58.38917 · مسقط، سلطنة عُمان</p>
+    </span>
+    <span id="saveBtn" class="pill-btn" role="button">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.5L6 21z"/></svg>
+      حفظ في المشروع
+    </span>
+  </button>
+  <div class="sheet-body-wrap"><div class="sheet-body"><div class="sheet-inner">
+    <div id="chips" class="chips"></div>
+    <div class="grid2">
+      <label class="switchrow" title="صور ناسا المركّبة سنوياً 30م — ملك عام"><span>صور لاندسات WELD 30م <span class="lic cc0">CC0/ملك عام</span></span><input type="checkbox" id="weldChk" checked><i class="sw"></i></label>
+      <label class="switchrow" title="صور ناسا اليومية MODIS — ملك عام"><span>صور MODIS اليومية <span class="lic cc0">ملك عام</span></span><input type="checkbox" id="modisChk"><i class="sw"></i></label>
+      <label class="switchrow"><span>أسماء Natural Earth <span class="lic cc0">ملك عام</span></span><input type="checkbox" id="lblChk" checked><i class="sw"></i></label>
+      <label class="switchrow"><span>تظليل التضاريس SRTM <span class="lic cc0">CC0</span></span><input type="checkbox" id="hillChk" checked><i class="sw"></i></label>
+      <label class="switchrow" title="اختيارية: مجانية بدون مفتاح لكنها ليست CC0"><span>صور عالية الدقة Esri <span class="lic non">ليست CC0</span></span><input type="checkbox" id="esriChk"><i class="sw"></i></label>
+      <label class="switchrow" title="اختيارية: مبانٍ ثلاثية الأبعاد من OpenStreetMap"><span>مبانٍ 3D من OSM <span class="lic non">ODbL</span></span><input type="checkbox" id="osmChk"><i class="sw"></i></label>
+      <div class="sliderrow"><span>تضخيم التضاريس: <b id="exVal">1.6×</b></span><input type="range" id="exRange" min="0" max="2.5" step="0.1" value="1.6"></div>
+      <div class="sliderrow"><span>ميل الكاميرا: <b id="pitchVal">60°</b></span><input type="range" id="pitchRange" min="0" max="74" step="1" value="60"></div>
+    </div>
+    <details class="src" open>
+      <summary>لوحة الرخص والمصادر — كلها بدون مفاتيح API</summary>
+      <ul>
+        <li><b>صور لاندسات WELD 30م وMODIS:</b> NASA GIBS — ملك عام (ناسا) <span class="lic cc0">CC0/PD</span></li>
+        <li><b>التضاريس والارتفاع:</b> AWS Open Data Terrain Tiles من SRTM (ناسا/USGS) — ملك عام <span class="lic cc0">CC0/PD</span></li>
+        <li><b>الأسماء والمعالم:</b> GIBS Reference Layers من Natural Earth — ملك عام <span class="lic cc0">PD</span></li>
+        <li><b>البحث ونقاط الاهتمام:</b> Wikidata SPARQL/API — <span class="lic cc0">CC0</span></li>
+        <li><b>المحرك:</b> MapLibre GL JS — <span class="lic code">BSD-3</span> · <b>الخط:</b> Cairo — <span class="lic code">OFL</span></li>
+        <li><b>اختياري (مطفأ افتراضياً):</b> Esri World Imagery <span class="lic non">© Esri</span> ومبانٍ OSM عبر OpenFreeMap <span class="lic non">ODbL</span></li>
+      </ul>
+    </details>
+  </div></div></div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<div id="loader"><div class="loadbox">
+  <div class="spin"></div>
+  <div>جارٍ بناء المشهد ثلاثي الأبعاد من مصادر CC0…</div>
+  <div class="loadnote">بدون أي مفاتيح API: صور NASA GIBS (ملك عام) · تضاريس SRTM (CC0) · أسماء Natural Earth (ملك عام) · بحث ونقاط Wikidata (CC0)</div>
+</div></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+"use strict";
+/* ═══════════ إعدادات وحالة ═══════════ */
+const MOSQUE = { name:"جامع السلطان قابوس الأكبر", lat:23.58389, lon:58.38917 };
+const LS_KEY = "om3d_cc0_saved_v2";
+const state = { tour:false, tourPaused:false, ex:1.6, pitch:60, weld:false, modis:false, esri:false, osm:false };
+let map, mini, selectMarker, savedMarkers = [], wdMarkers = [], savedPlaces = [], current = null, downPt = null;
+let G = { weld:null, modis:null, labels:null, features:null, bm:null }; // معلومات طبقات GIBS المكتشفة
+
+const $ = (id)=>document.getElementById(id);
+let toastTimer=null;
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.remove("hidden"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add("hidden"),2600); }
+function loadSaved(){ try{ const r=localStorage.getItem(LS_KEY); if(r){ const a=JSON.parse(r); if(Array.isArray(a)&&a.length) return a; } }catch(e){} return [{...MOSQUE}]; }
+function persistSaved(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(savedPlaces)); }catch(e){} }
+
+/* ═══════════ اكتشاف طبقات GIBS من capabilities (بدون مفتاح) ═══════════ */
+async function detectGibs(){
+  const url = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/1.0.0/WMTSCapabilities.xml";
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("caps");
+  const xml = new DOMParser().parseFromString(await res.text(), "text/xml");
+  const layers = Array.from(xml.getElementsByTagName("Layer"));
+  function parse(layer){
+    const idEl = layer.getElementsByTagName("Identifier")[0];
+    if(!idEl) return null;
+    const id = idEl.textContent.trim();
+    const ru = layer.getElementsByTagName("ResourceURL")[0];
+    if(!ru) return null;
+    let tpl = ru.getAttribute("template") || "";
+    const sets = Array.from(layer.getElementsByTagName("TileMatrixSet")).map(n=>n.textContent.trim())
+      .filter(s=>/^GoogleMapsCompatible_Level\d+$/.test(s));
+    if(!sets.length) return null;
+    sets.sort((a,b)=>parseInt(b.split("Level")[1],10)-parseInt(a.split("Level")[1],10));
+    const set = sets[0], maxz = parseInt(set.split("Level")[1],10);
+    let time = null;
+    const dim = layer.getElementsByTagName("Dimension")[0];
+    if(dim){
+      const dv = dim.getAttribute("default");
+      const vals = Array.from(dim.getElementsByTagName("Value")).map(v=>v.textContent.trim());
+      time = dv || (vals.length? vals[vals.length-1] : null);
+    }
+    tpl = tpl.replace("{Time}", time || "default").replace("{time}", time || "default")
+             .replace("{TileMatrixSet}", set).replace("{Style}","default").replace("{style}","default")
+             .replace("{TileMatrix}","{z}").replace("{TileRow}","{y}").replace("{TileCol}","{x}");
+    return { id, tpl, maxz };
+  }
+  const all = layers.map(parse).filter(Boolean);
+  // إصلاح: نفضّل نسخة WELD العالمية؛ النسخ الإقليمية (CONUS/Alaska) لا تغطي عُمان فتظهر الخريطة فارغة
+  const weld = all.find(l=>/Landsat_WELD/.test(l.id) && /TrueColor/.test(l.id) && /Global/.test(l.id)) || null;
+  const modis = all.find(l=>l.id==="MODIS_Terra_CorrectedReflectance_TrueColor");
+  const labels = all.find(l=>l.id==="Reference_Labels_15m");
+  const feats  = all.find(l=>l.id==="Reference_Features_15m");
+  const bm = all.find(l=>/BlueMarble_ShadedRelief_Bathymetry/.test(l.id)) || all.find(l=>/BlueMarble/.test(l.id));
+  const out = { weld: weld, labels: labels||null, features: feats||null };
+  if(modis) out.modis = modis;   // لا نستبدل البديل الاحتياطي بـ null
+  if(bm) out.bm = bm;
+  return out;
+}
+const FALLBACK = {
+  modis:{ id:"MODIS_Terra_CorrectedReflectance_TrueColor", tpl:"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/2023-09-18/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg", maxz:9 },
+  bm:{ id:"BlueMarble", tpl:"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png", maxz:8 }
+};
+
+/* ═══════════ بناء الستايل الأساسي (CC0 فقط) ═══════════ */
+const DEM_TILES = ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"];
+function buildStyle(){
+  const sources = {
+    // مصدر للتضاريس ثلاثية الأبعاد
+    dem:{ type:"raster-dem", tileSize:256, maxzoom:15, encoding:"terrarium", tiles:DEM_TILES,
+      attribution:"تضاريس: AWS Open Data / SRTM (ناسا — ملك عام CC0)" },
+    // مصدر منفصل للتظليل (توصية MapLibre: لا يُستخدم نفس المصدر للتضاريس والتظليل)
+    demhill:{ type:"raster-dem", tileSize:256, maxzoom:15, encoding:"terrarium", tiles:DEM_TILES },
+    bm:{ type:"raster", tileSize:256, maxzoom: G.bm? G.bm.maxz : FALLBACK.bm.maxz,
+      tiles:[ G.bm? G.bm.tpl : FALLBACK.bm.tpl ], attribution:"صور: NASA GIBS (ملك عام)" }
+  };
+  // إصلاح رئيسي: MapLibre لا يدعم طبقة من نوع "sky"؛ وجودها يُفشل تحميل الستايل كله فتبقى الخريطة سوداء.
+  // السماء تُعرَّف كخاصية في جذر الستايل.
+  const layers = [
+    { id:"base-bm", type:"raster", source:"bm" }
+  ];
+  if(G.weld){ sources.weld = { type:"raster", tileSize:256, maxzoom:G.weld.maxz, tiles:[G.weld.tpl], attribution:"Landsat WELD: NASA/USGS (ملك عام)" };
+    layers.push({ id:"img-weld", type:"raster", source:"weld" }); }
+  sources.modis = { type:"raster", tileSize:256, maxzoom:(G.modis||FALLBACK.modis).maxz, tiles:[(G.modis||FALLBACK.modis).tpl], attribution:"MODIS: NASA GIBS (ملك عام)" };
+  layers.push({ id:"img-modis", type:"raster", source:"modis", layout:{ visibility: G.weld? "none":"visible" } });
+  layers.push({ id:"hill", type:"hillshade", source:"demhill", paint:{ "hillshade-exaggeration":0.45,"hillshade-shadow-color":"#3a2c1a","hillshade-highlight-color":"#fff6dd" } });
+  if(G.features) { sources.feats = { type:"raster", tileSize:256, maxzoom:G.features.maxz, tiles:[G.features.tpl], attribution:"Natural Earth (ملك عام)" };
+    layers.push({ id:"ref-feat", type:"raster", source:"feats", paint:{ "raster-opacity":0.8 } }); }
+  if(G.labels){ sources.labels = { type:"raster", tileSize:256, maxzoom:G.labels.maxz, tiles:[G.labels.tpl], attribution:"أسماء: Natural Earth عبر NASA GIBS (ملك عام)" };
+    layers.push({ id:"ref-lab", type:"raster", source:"labels", paint:{ "raster-opacity":0.95 } }); }
+  return {
+    version:8,
+    sky:{ "sky-color":"#8fb7e0","horizon-color":"#e9d9b8","fog-color":"#d8c6a4","sky-horizon-blend":0.7,"horizon-fog-blend":0.6,"fog-ground-blend":0.5 },
+    sources, layers
+  };
+}
+
+/* ═══════════ دبابيس ═══════════ */
+function makePinEl(color, label){
+  const wrap = document.createElement("div"); wrap.className="pinwrap";
+  if(label){ const lb=document.createElement("span"); lb.className="pinlabel"; lb.textContent=label; wrap.appendChild(lb); }
+  wrap.insertAdjacentHTML("beforeend",
+   '<svg width="32" height="42" viewBox="0 0 34 44"><path d="M17 1C8.7 1 2 7.7 2 16c0 10.5 15 27 15 27s15-16.5 15-27C32 7.7 25.3 1 17 1z" fill="'+color+'" stroke="#fff" stroke-width="2"/><circle cx="17" cy="15.5" r="5" fill="'+(color==="#f5b301"?"#8a6100":"#7a1010")+'"/></svg>');
+  return wrap;
+}
+function renderSavedMarkers(){
+  savedMarkers.forEach(m=>m.remove()); savedMarkers=[];
+  savedPlaces.forEach(p=>{
+    const m = new maplibregl.Marker({ element: makePinEl("#f5b301", p.name), anchor:"bottom" }).setLngLat([p.lon,p.lat]).addTo(map);
+    m.getElement().addEventListener("click",(ev)=>{ ev.stopPropagation(); selectPlace(p,false); });
+    savedMarkers.push(m);
+  });
+}
+function renderWdMarkers(list){
+  wdMarkers.forEach(m=>m.remove()); wdMarkers=[];
+  list.forEach(p=>{
+    const m = new maplibregl.Marker({ element: makePinEl("#38bdf8", p.name), anchor:"bottom" }).setLngLat([p.lon,p.lat]).addTo(map);
+    m.getElement().addEventListener("click",(ev)=>{ ev.stopPropagation(); selectPlace(p,true); });
+    wdMarkers.push(m);
+  });
+}
+function renderChips(){
+  const box=$("chips"); box.innerHTML="";
+  savedPlaces.forEach((p,i)=>{
+    const c=document.createElement("span"); c.className="chip";
+    const t=document.createElement("span"); t.textContent=p.name;
+    const d=document.createElement("button"); d.className="del"; d.title="حذف"; d.textContent="✕";
+    d.addEventListener("click",(ev)=>{ ev.stopPropagation(); savedPlaces.splice(i,1); persistSaved(); renderChips(); renderSavedMarkers(); toast("تم الحذف من المشروع"); });
+    c.appendChild(t); c.appendChild(d);
+    c.addEventListener("click",()=>selectPlace(p,true));
+    box.appendChild(c);
+  });
+}
+
+/* ═══════════ Wikidata (CC0): نقاط اهتمام + بحث ═══════════ */
+function sparqlAround(lat, lon, radiusKm){
+  const q = `PREFIX geo: <http://www.opengis.net/ont/geospatial#>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+SELECT ?item ?label ?coord WHERE {
+  SERVICE wikibase:around { ?item wdt:P625 ?coord ;
+    bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral ;
+    bd:serviceParam wikibase:radius "${radiusKm}" . }
+  ?item rdfs:label ?label . FILTER(LANG(?label)="ar")
+} LIMIT 60`;
+  return fetch("https://query.wikidata.org/sparql?format=json&query="+encodeURIComponent(q))
+    .then(r=>r.ok? r.json() : Promise.reject())
+    .then(j=>(j.results.bindings||[]).map(b=>{
+      const m = /Point\(([-\d.]+) ([-\d.]+)\)/.exec(b.coord.value);
+      return m ? { qid:b.item.value.split("/").pop(), name:b.label.value, lon:parseFloat(m[1]), lat:parseFloat(m[2]) } : null;
+    }).filter(Boolean).filter((v,i,a)=>a.findIndex(x=>x.qid===v.qid)===i))
+    .catch(()=>[]);
+}
+async function searchWikidata(q){
+  const u = "https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&origin=*&language=ar&uselang=ar&limit=6&search="+encodeURIComponent(q);
+  const r = await fetch(u); const j = await r.json();
+  const ids = (j.search||[]).map(s=>s.id).join("|");
+  let coords = {};
+  if(ids){
+    const u2 = "https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=claims&ids="+ids;
+    const j2 = await (await fetch(u2)).json();
+    for(const id in (j2.entities||{})){
+      const c = j2.entities[id].claims?.P625?.[0]?.mainsnak?.datavalue?.value;
+      if(c) coords[id] = { lat:c.latitude, lon:c.longitude };
+    }
+  }
+  return (j.search||[]).map(s=>({ id:s.id, name:s.label||s.id, desc:s.description||"", coord:coords[s.id]||null }));
+}
+
+/* ═══════════ اختيار موقع ═══════════ */
+function fmtMeta(p, extra){ return p.lat.toFixed(5)+" ,"+p.lon.toFixed(5)+(extra? " · "+extra : ""); }
+function selectPlace(p, fly){
+  current = p;
+  $("placeName").textContent = p.name;
+  $("placeMeta").textContent = fmtMeta(p, p.meta||"");
+  if(!selectMarker) selectMarker = new maplibregl.Marker({ element: makePinEl("#e33b3b",""), anchor:"bottom" }).addTo(map);
+  selectMarker.setLngLat([p.lon,p.lat]);
+  if(fly){
+    const z = state.esri ? 16.6 : (state.weld && !state.modis ? 13.4 : 10.2);
+    map.flyTo({ center:[p.lon,p.lat], zoom:Math.max(map.getZoom(), z), pitch:state.pitch, bearing:0, duration:2600 });
+  }
+}
+
+/* ═══════════ شارة وضع الرخصة ═══════════ */
+function updateModeBadge(){
+  const mixed = state.esri || state.osm;
+  $("modeBadge").classList.toggle("mixed", mixed);
+  $("modeTxt").textContent = mixed ? "وضع مختلط: فعّلت طبقات غير CC0 (اختيارية)" : "وضع CC0 / ملك عام ✓ — بدون مفاتيح API";
+}
+
+/* ═══════════ مقياس الرسم ═══════════ */
+const NICE=[10,20,50,100,200,500,1000,2000,5000,10000,20000,50000,100000,200000];
+function updateScale(){
+  if(!map) return;
+  const lat=map.getCenter().lat;
+  const mPerPx=156543.03392*Math.cos(lat*Math.PI/180)/Math.pow(2,map.getZoom());
+  let chosen=NICE[NICE.length-1], px=chosen/mPerPx;
+  for(const n of NICE){ const w=n/mPerPx; if(w>=70&&w<=190){ chosen=n; px=w; break; } }
+  $("scaleBarLine").style.width=Math.round(px)+"px";
+  if(chosen>=1000){ $("scaleNum").textContent=chosen/1000; $("scaleUnit").textContent="كم"; }
+  else{ $("scaleNum").textContent=chosen; $("scaleUnit").textContent="م"; }
+}
+
+/* ═══════════ الإقلاع ═══════════ */
+(async function boot(){
+  function FALLBACK_BASE(){ return { weld:null, modis:FALLBACK.modis, labels:null, features:null, bm:FALLBACK.bm }; }
+  try{ G = Object.assign({}, FALLBACK_BASE(), await detectGibs()); }catch(e){ G = FALLBACK_BASE(); }
+  state.weld = !!G.weld;
+  $("weldChk").checked = state.weld;
+  $("weldChk").disabled = !G.weld;
+  $("modisChk").checked = !state.weld;
+
+  map = new maplibregl.Map({
+    container:"map", style: buildStyle(),
+    center:[MOSQUE.lon, MOSQUE.lat],
+    zoom: state.weld ? 12.6 : 9.6,
+    pitch: state.pitch, bearing:0, maxPitch:74, fadeDuration:0, attributionControl:false
+  });
+  map.addControl(new maplibregl.AttributionControl({ compact:true,
+    customAttribution:"NASA GIBS (PD) · SRTM/AWS (CC0) · Natural Earth (PD) · Wikidata (CC0) · MapLibre (BSD-3)" }), "bottom-right");
+
+  savedPlaces = loadSaved();
+
+  map.on("load", ()=>{
+    try{ map.setTerrain({ source:"dem", exaggeration: state.ex }); }catch(e){}
+    renderSavedMarkers(); renderChips();
+    selectPlace({...MOSQUE}, false);
+    sparqlAround(MOSQUE.lat, MOSQUE.lon, 3).then(list=>{ if(list.length) renderWdMarkers(list); });
+    setTimeout(()=>$("loader").classList.add("hide"), 500);
+    if(!state.weld) toast("وضع CC0: دقة صور ناسا ~250م/بكسل — فعّل Esri اختيارياً للتفاصيل");
+  });
+  setTimeout(()=>$("loader").classList.add("hide"), 8000);
+  // نُظهر أخطاء الستايل في الكونسول بدل ابتلاعها بصمت (أخطاء البلاطات الفردية طبيعية)
+  map.on("error", (e)=>{ if(e && e.error && !e.tile) console.warn("MapLibre:", e.error.message || e.error); });
+
+  /* خريطة مصغرة ملك عام */
+  mini = new maplibregl.Map({ container:"minimap",
+    style:{ version:8, sources:{ bm:{ type:"raster", tileSize:256, maxzoom:(G.bm||FALLBACK.bm).maxz, tiles:[(G.bm||FALLBACK.bm).tpl] } },
+      layers:[ { id:"bm", type:"raster", source:"bm" } ] },
+    center:[MOSQUE.lon, MOSQUE.lat], zoom:6.4, interactive:false, attributionControl:false });
+  map.on("move", ()=>{ if(mini.loaded()) mini.jumpTo({ center:map.getCenter(), zoom:6.4 }); updateScale(); });
+  $("minimap").addEventListener("click",(e)=>{
+    const r=e.currentTarget.getBoundingClientRect();
+    const ll=mini.unproject([e.clientX-r.left, e.clientY-r.top]);
+    map.flyTo({ center:[ll.lng,ll.lat], zoom:Math.max(map.getZoom(),12), duration:1800 });
+  });
+
+  /* النقر = دبوس + أقرب كيان Wikidata (CC0) */
+  map.on("mousedown",(e)=>{ downPt=[e.point.x,e.point.y]; });
+  map.on("click",(e)=>{
+    if(downPt && Math.hypot(e.point.x-downPt[0], e.point.y-downPt[1])>6) return;
+    const p={ name:"موقع محدد", lat:e.lngLat.lat, lon:e.lngLat.lng, meta:"" };
+    selectPlace(p,false);
+    sparqlAround(p.lat,p.lon,0.8).then(list=>{
+      if(list.length && current===p){ p.name=list[0].name; p.meta="أقرب كيان Wikidata (CC0)";
+        $("placeName").textContent=p.name; $("placeMeta").textContent=fmtMeta(p,p.meta); }
+    });
+  });
+
+  /* أدوات */
+  map.on("rotate", ()=>{ $("needleSvg").style.transform="rotate("+(-map.getBearing())+"deg)"; });
+  $("compassBtn").addEventListener("click", ()=>map.easeTo({ bearing:0, pitch:state.pitch, duration:700 }));
+  function tick(){ if(state.tour && !state.tourPaused) map.setBearing(map.getBearing()+0.14); requestAnimationFrame(tick); }
+  requestAnimationFrame(tick);
+  map.on("mousedown",()=>{state.tourPaused=true;}); map.on("touchstart",()=>{state.tourPaused=true;});
+  window.addEventListener("mouseup",()=>{state.tourPaused=false;}); window.addEventListener("touchend",()=>{state.tourPaused=false;});
+  $("tourBtn").addEventListener("click",()=>{ state.tour=!state.tour; $("tourBtn").classList.toggle("on",state.tour); toast(state.tour?"بدأت الجولة الدورانية 360°":"تم إيقاف الجولة"); });
+  $("tiltBtn").addEventListener("click",()=>{
+    if(map.getPitch()>5){ map.easeTo({pitch:0,duration:800}); $("tiltBtn").classList.remove("on"); }
+    else{ map.easeTo({pitch:state.pitch,duration:800}); $("tiltBtn").classList.add("on"); }
+  });
+  $("geoBtn").addEventListener("click",()=>{
+    if(!navigator.geolocation){ toast("المتصفح لا يدعم تحديد الموقع"); return; }
+    navigator.geolocation.getCurrentPosition(pos=>{ map.flyTo({center:[pos.coords.longitude,pos.coords.latitude],zoom:state.weld?13:10,pitch:state.pitch,duration:2600}); toast("تم الانتقال إلى موقعك"); }, ()=>toast("تعذر الحصول على الموقع"), {timeout:8000});
+  });
+  $("fsBtn").addEventListener("click",()=>{ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); });
+
+  /* اللوحة السفلية */
+  const sheet=$("sheet");
+  new ResizeObserver(()=>document.documentElement.style.setProperty("--sheet-h", sheet.offsetHeight+"px")).observe(sheet);
+  $("sheetHead").addEventListener("click",(e)=>{ if(e.target.closest("#saveBtn"))return; sheet.classList.toggle("collapsed"); });
+  sheet.classList.add("collapsed");
+  $("saveBtn").addEventListener("click",(e)=>{
+    e.stopPropagation();
+    if(!current){ toast("لا يوجد موقع محدد"); return; }
+    const key=current.lat.toFixed(4)+","+current.lon.toFixed(4);
+    if(savedPlaces.some(p=>p.lat.toFixed(4)+","+p.lon.toFixed(4)===key)){ toast("الموقع محفوظ مسبقاً"); return; }
+    savedPlaces.push({name:current.name,lat:current.lat,lon:current.lon});
+    persistSaved(); renderChips(); renderSavedMarkers(); toast("تم الحفظ في المشروع ✓");
+  });
+
+  /* مفاتيح الطبقات */
+  function vis(id,on){ try{ map.setLayoutProperty(id,"visibility",on?"visible":"none"); }catch(e){} }
+  $("weldChk").addEventListener("change",e=>{ state.weld=e.target.checked; vis("img-weld",state.weld); if(state.weld) $("modisChk").checked=false; state.modis=false; vis("img-modis",!state.weld); updateModeBadge(); });
+  $("modisChk").addEventListener("change",e=>{ state.modis=e.target.checked; if(state.modis){ $("weldChk").checked=false; state.weld=false; vis("img-weld",false);} vis("img-modis",state.modis || !state.weld); updateModeBadge(); });
+  $("lblChk").addEventListener("change",e=>{ vis("ref-lab",e.target.checked); vis("ref-feat",e.target.checked); });
+  $("hillChk").addEventListener("change",e=>vis("hill",e.target.checked));
+  $("esriChk").addEventListener("change",e=>{
+    state.esri=e.target.checked;
+    if(state.esri && !map.getSource("esri")){
+      map.addSource("esri",{ type:"raster", tileSize:256, maxzoom:19,
+        tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+        attribution:"© Esri World Imagery (مجاني بدون API — ليس CC0)" });
+      map.addLayer({ id:"img-esri", type:"raster", source:"esri" }, "hill");
+    }
+    if(map.getLayer("img-esri")) vis("img-esri", state.esri);
+    updateModeBadge(); if(state.esri) toast("طبقة غير CC0 مفعّلة: © Esri");
+  });
+  $("osmChk").addEventListener("change",e=>{
+    state.osm=e.target.checked;
+    if(state.osm && !map.getSource("ofm")){
+      map.addSource("ofm",{ type:"vector", maxzoom:14, tiles:["https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf"], attribution:"© OpenFreeMap © OpenMapTiles © OpenStreetMap (ODbL)" });
+      map.addLayer({ id:"bld", type:"fill-extrusion", source:"ofm", "source-layer":"building", minzoom:12,
+        paint:{ "fill-extrusion-color":"#e7d9bd","fill-extrusion-height":["coalesce",["get","render_height"],6],"fill-extrusion-base":["coalesce",["get","render_min_height"],0],"fill-extrusion-opacity":0.92 } });
+    }
+    if(map.getLayer("bld")) vis("bld", state.osm);
+    updateModeBadge(); if(state.osm) toast("طبقة غير CC0 مفعّلة: مبانٍ ODbL");
+  });
+  $("exRange").addEventListener("input",e=>{ state.ex=parseFloat(e.target.value); $("exVal").textContent=state.ex.toFixed(1)+"×";
+    try{ state.ex<=0 ? map.setTerrain(null) : map.setTerrain({source:"dem",exaggeration:state.ex}); }catch(err){} });
+  $("pitchRange").addEventListener("input",e=>{ state.pitch=parseInt(e.target.value,10); $("pitchVal").textContent=state.pitch+"°"; map.easeTo({pitch:state.pitch,duration:250}); $("tiltBtn").classList.toggle("on",state.pitch>5); });
+
+  /* بحث Wikidata (CC0) */
+  let sTimer=null; const qEl=$("q"), resEl=$("results");
+  qEl.addEventListener("input",()=>{ clearTimeout(sTimer); const v=qEl.value.trim(); if(v.length<2){ resEl.classList.add("hidden"); return; } sTimer=setTimeout(()=>doSearch(v),420); });
+  qEl.addEventListener("keydown",e=>{ if(e.key==="Enter"){ const b=resEl.querySelector("button"); if(b)b.click(); } if(e.key==="Escape")resEl.classList.add("hidden"); });
+  document.addEventListener("click",e=>{ if(!e.target.closest(".searchwrap")) resEl.classList.add("hidden"); });
+  async function doSearch(v){
+    try{
+      const arr=await searchWikidata(v);
+      resEl.innerHTML="";
+      if(!arr.length){ resEl.classList.add("hidden"); return; }
+      arr.forEach(it=>{
+        const b=document.createElement("button");
+        const rn=document.createElement("div"); rn.className="rn"; rn.textContent=it.name+" (CC0)";
+        const rd=document.createElement("div"); rd.className="rd"; rd.textContent=it.desc||it.id;
+        b.appendChild(rn); b.appendChild(rd);
+        b.addEventListener("click",()=>{
+          resEl.classList.add("hidden"); qEl.value=it.name;
+          if(it.coord) selectPlace({name:it.name,lat:it.coord.lat,lon:it.coord.lon,meta:"Wikidata · CC0"},true);
+          else toast("لا إحداثيات لهذا الكيان في Wikidata");
+        });
+        resEl.appendChild(b);
+      });
+      resEl.classList.remove("hidden");
+    }catch(e){ toast("تعذر الاتصال بـ Wikidata"); }
+  }
+  updateModeBadge(); updateScale();
+})();
+</script>
+</body>
+</html>

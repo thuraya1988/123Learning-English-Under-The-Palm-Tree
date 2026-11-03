@@ -1457,11 +1457,18 @@ Deno.serve(async(req)=>{
     const {data:item}=await db.from("multaqa_substitute_assignments").select("*").eq("id",id).maybeSingle();if(!item)return json({ok:false,error:"not_found"},404);
     const {data:absent}=await db.from("multaqa_employees").select("employee_id,full_name").eq("employee_id",item.absent_employee_id).maybeSingle();if(!absent)return json({ok:false,error:"not_found"},404);
     const candidates:any[]=await candidatesFor(db,absent,item.coverage_date,item.period,new Set(),id,item.class_label),ids=candidates.map((x:any)=>x.employee_id);
-    const {data:allTeachers}=await db.from("multaqa_employees").select("employee_id,full_name,short_name").eq("kind","teacher").neq("employee_id",absent.employee_id);
+    const day=dayFor(item.coverage_date);
+    const [{data:allTeachers},{data:schedules},{data:activeToday}]=await Promise.all([
+      db.from("multaqa_employees").select("employee_id,full_name,short_name").eq("kind","teacher").neq("employee_id",absent.employee_id),
+      db.from("multaqa_teacher_schedules").select("full_name,schedule"),
+      db.from("multaqa_substitute_assignments").select("replacement_employee_id").eq("coverage_date",item.coverage_date).neq("id",id).in("status",["assigned","accepted"])
+    ]);
+    const byDayName=new Map((schedules||[]).map((x:any)=>[norm(x.full_name),x.schedule||{}]));
+    const dailyLessons=(emp:any)=>{const s:any=byDayName.get(norm(teacherScheduleName(emp)))||byDayName.get(norm(emp.short_name))||byDayName.get(norm(emp.full_name))||{},slots:any[]=s[day]||[];return slots.filter((x:any)=>clean(x)).length+(activeToday||[]).filter((x:any)=>x.replacement_employee_id===emp.employee_id).length};
     const profileIds=[...new Set([...ids,...(allTeachers||[]).map((x:any)=>x.employee_id)])];
     const {data:profiles}=profileIds.length?await db.from("multaqa_employee_profiles").select("employee_id,contact_phone,phone").in("employee_id",profileIds):{data:[]};
     const phoneById=new Map((profiles||[]).map((x:any)=>[x.employee_id,normPhone(x.contact_phone||x.phone)]));
-    return json({ok:true,item,candidates:candidates.map((x:any)=>({employee_id:x.employee_id,full_name:x.full_name,short_name:x.short_name,phone:phoneById.get(x.employee_id)||"",score:x.score,reason:x.reason,catchup_priority:!!x.catchup_priority})),all_teachers:(allTeachers||[]).map((x:any)=>({employee_id:x.employee_id,full_name:x.full_name,short_name:x.short_name,phone:phoneById.get(x.employee_id)||""})).sort((a:any,b:any)=>(a.short_name||a.full_name).localeCompare(b.short_name||b.full_name,"ar"))});
+    return json({ok:true,item,candidates:candidates.map((x:any)=>({employee_id:x.employee_id,full_name:x.full_name,short_name:x.short_name,phone:phoneById.get(x.employee_id)||"",score:x.score,reason:x.reason,catchup_priority:!!x.catchup_priority,daily_lessons:dailyLessons(x)})),all_teachers:(allTeachers||[]).map((x:any)=>({employee_id:x.employee_id,full_name:x.full_name,short_name:x.short_name,phone:phoneById.get(x.employee_id)||"",daily_lessons:dailyLessons(x)})).sort((a:any,b:any)=>(a.short_name||a.full_name).localeCompare(b.short_name||b.full_name,"ar"))});
   }
   if(action==="save_coverage_assignment"){
     if(!elevated(e))return json({ok:false,error:"forbidden"},403);const id=Number(body.id),replacementId=clean(body.replacement_employee_id,30);if(!Number.isInteger(id)||id<1||!replacementId)return json({ok:false,error:"invalid_input"},400);

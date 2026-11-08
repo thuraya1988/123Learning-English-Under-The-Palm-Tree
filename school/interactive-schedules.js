@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 
-const SCHEDULE_SOURCE='schedule-import-2026.json?v=20261004-verified-october';
+const SCHEDULE_SOURCE='schedule-import-2026.json?v=20261108-24oct-pdf-65';
 const SCHOOL_DAYS=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
 const PERIOD_LABELS=[
  ['١','12:20 م – 12:55 م',740,775],['٢','12:55 م – 1:30 م',775,810],
@@ -188,9 +188,9 @@ if(typeof window.renderSecureSchedule==='function'){
   const chosen=secureAdmin()?S('adminScheduleTeacher')?.value||'':'';
   const d=await staffApi('teacher_schedule',chosen?{employee_name:chosen}:{}),row=d.schedule||{},schedule=row.schedule||{},coverage=d.coverage||[];
   const picker=secureAdmin()?'<label class="schedule-picker">عرض جدول معلمة<select id="adminScheduleTeacher" onchange="renderSecureSchedule()"><option value="">جدولي</option>'+secureDirectory.employees.filter(x=>x.kind==='teacher').map(x=>'<option '+(chosen===x.full_name?'selected':'')+'>'+esc(x.full_name)+'</option>').join('')+'</select></label>':'';
-  const importCard=secureAdmin()?'<section class="staff-card schedule-import-card"><h3>📥 استيراد جدول العام الدراسي الجديد</h3><p class="staff-help">يستورد جدول جميع الصفوف والمعلمات من الملف الرسمي (٣١ صفًا و٦٤ جدول معلمة)، ويستبدل الجدول الحالي لأي صف أو معلمة موجودة في الملف.</p><button class="staff-primary" onclick="importOfficialSchedule()">استيراد الجدول الآن</button><div id="scheduleImportResult"></div></section>':'';
+  const importCard=secureAdmin()?'<section class="staff-card schedule-import-card"><h3>📥 استيراد جدول العام الدراسي الجديد</h3><p class="staff-help">يستورد جدول جميع الصفوف والمعلمات من الملف الرسمي (٣١ صفًا و٦٥ جدول معلمة)، ويستبدل الجدول الحالي لأي صف أو معلمة موجودة في الملف.</p><button class="staff-primary" onclick="importOfficialSchedule()">استيراد الجدول الآن</button><div id="scheduleImportResult"></div></section>':'';
   const coverageCard=coverage.length?'<section class="staff-card coverage-schedule-summary"><h3>🔄 حصص الاحتياط القادمة</h3><p class="staff-help">حصص الاحتياط ظاهرة داخل الجدول مع تاريخها.</p><div class="coverage-upcoming-list">'+coverage.map(x=>'<span><b>'+esc(x.day_name)+' '+esc(x.coverage_date)+'</b> • الحصة '+x.period+' • '+esc(x.class_label)+(x.subject?' • '+esc(x.subject):'')+'</span>').join('')+'</div></section>':'';
-  const pane=S('staffPane');pane.innerHTML='<div class="today-title"><div><small>جدول أكتوبر ٢٠٢٦'+(row.page?' • صفحة '+row.page:'')+'</small><h2>📚 جدول '+esc(d.employee.short_name||d.employee.full_name)+'</h2></div>'+picker+'</div>'+coverageCard+'<div id="secureInteractiveSchedule" class="secure-interactive-schedule"></div>'+importCard;
+  const pane=S('staffPane');pane.innerHTML='<div class="today-title"><div><small>جدول ٢٤ أكتوبر ٢٠٢٦'+(row.page?' • صفحة '+row.page:'')+'</small><h2>📚 جدول '+esc(d.employee.short_name||d.employee.full_name)+'</h2></div>'+picker+'</div>'+coverageCard+'<div id="secureInteractiveSchedule" class="secure-interactive-schedule"></div>'+importCard;
   const root=S('secureInteractiveSchedule');root.innerHTML=weeklyMarkup(schedule,d.employee.short_name||d.employee.full_name);bindLessonClicks(root,schedule);
   coverage.forEach(item=>{
    const day=SCHOOL_DAYS.indexOf(item.day_name),period=Number(item.period)-1;

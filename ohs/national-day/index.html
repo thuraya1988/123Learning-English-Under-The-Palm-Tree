@@ -157,7 +157,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);font-fam
   </figure>
 </main>
 
-<p class="hint" id="hint">المسوا الشاشة لإطلاق الألعاب النارية</p>
+<p class="hint" id="hint">المسوا الشاشة لتنطلق قلاع ونخيل وسفن من الألعاب النارية</p>
 <p class="foot" id="foot">الجمعية التاريخية العُمانية · لجنة تقنية المعلومات</p>
 <button class="replay" id="replay" type="button">إعادة العرض ↻</button>
 
@@ -214,12 +214,80 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);font-fam
     ["#22c55e","#b7f7c9"],             // green
     ["#ff2a2f","#ff8a8a"]              // red
   ];
-  function launch(x, ty){
+  /* ---------- shaped fireworks: fort, palm tree, dhow ---------- */
+  function shapePoints(draw){
+    var c = document.createElement("canvas"); c.width = c.height = 200;
+    var g = c.getContext("2d", {willReadFrequently:true});
+    g.lineCap = "round"; g.lineJoin = "round"; draw(g);
+    var d = g.getImageData(0,0,200,200).data, pts = [];
+    for (var y=0;y<200;y+=5) for (var x=0;x<200;x+=5){
+      var i = (y*200+x)*4;
+      if (d[i+3] > 120) pts.push({x:(x-100)/100, y:(y-100)/100, c:"rgb("+d[i]+","+d[i+1]+","+d[i+2]+")"});
+    }
+    return pts;
+  }
+  function merlons(g, x0, x1, y, w, h){ // Omani crenellations
+    g.moveTo(x0, y);
+    for (var x=x0; x<x1-1; x+=w*2){ g.lineTo(x, y-h); g.lineTo(x+w, y-h); g.lineTo(x+w, y); g.lineTo(Math.min(x+w*2, x1), y); }
+  }
+  var SHAPES = {
+    fort: shapePoints(function(g){
+      g.lineWidth = 5; g.strokeStyle = "#fff3df";
+      g.beginPath();
+      g.moveTo(28,170); g.lineTo(34,72); merlons(g,34,70,72,6,10); g.lineTo(66,72); g.lineTo(72,170);            // left tower
+      g.moveTo(128,170); g.lineTo(134,72); merlons(g,134,170,72,6,10); g.lineTo(166,72); g.lineTo(172,170);      // right tower
+      g.moveTo(70,110); merlons(g,70,132,110,7,10); g.lineTo(132,110);                                          // wall
+      g.moveTo(20,170); g.lineTo(180,170);
+      g.stroke();
+      g.strokeStyle = "#ffb347"; g.beginPath(); g.moveTo(88,170); g.lineTo(88,140); g.quadraticCurveTo(100,124,112,140); g.lineTo(112,170); g.stroke(); // door
+      g.beginPath(); g.moveTo(50,95); g.lineTo(50,110); g.moveTo(150,95); g.lineTo(150,110); g.stroke();            // windows
+      g.strokeStyle = "#fff3df"; g.beginPath(); g.moveTo(52,62); g.lineTo(52,20); g.stroke();                    // flag pole
+      g.fillStyle = "#ff2a2f"; g.fillRect(52,20,12,26); g.fillRect(64,29,30,8);                                // Omani flag colours
+      g.fillStyle = "#ffffff"; g.fillRect(64,20,30,9);
+      g.fillStyle = "#22c55e"; g.fillRect(64,37,30,9);
+    }),
+    palm: shapePoints(function(g){
+      g.lineWidth = 7; g.strokeStyle = "#e3a24f";
+      g.beginPath(); g.moveTo(104,182); g.quadraticCurveTo(120,128,98,78); g.stroke();
+      g.lineWidth = 5; g.strokeStyle = "#3ddc6e";
+      [[26,104,56,44],[174,104,144,44],[40,140,48,74],[160,140,150,74],[50,36,74,40],[150,34,124,40],[98,14,94,44]].forEach(function(f){
+        g.beginPath(); g.moveTo(98,78); g.quadraticCurveTo(f[2],f[3],f[0],f[1]); g.stroke();
+      });
+      g.fillStyle = "#ff9a3c";
+      [[88,92],[96,96],[104,92],[92,100],[100,102]].forEach(function(p){ g.beginPath(); g.arc(p[0],p[1],4,0,6.29); g.fill(); });
+    }),
+    dhow: shapePoints(function(g){
+      g.lineWidth = 5; g.strokeStyle = "#ffc65c";
+      g.beginPath(); g.moveTo(14,118); g.lineTo(42,150); g.quadraticCurveTo(100,164,160,150); g.lineTo(188,114); g.lineTo(14,118); g.stroke(); // hull
+      g.strokeStyle = "#ffffff";
+      g.beginPath(); g.moveTo(98,148); g.lineTo(94,28); g.stroke();                                    // mast
+      g.beginPath(); g.moveTo(34,96); g.lineTo(170,20); g.lineTo(104,112); g.closePath(); g.stroke();   // lateen sail
+      g.strokeStyle = "#8fd3ff"; g.lineWidth = 4;
+      g.beginPath(); g.moveTo(10,178); for (var x=10;x<=190;x+=20) g.quadraticCurveTo(x+5,170,x+10,178), g.quadraticCurveTo(x+15,186,x+20,178); g.stroke(); // waves
+    })
+  };
+  var SHAPE_ORDER = ["fort","palm","dhow"], shapeIdx = 0;
+  function nextShape(){ var s = SHAPE_ORDER[shapeIdx % SHAPE_ORDER.length]; shapeIdx++; return s; }
+  function shapeSize(){ return Math.min(W, H)*.2; }
+
+  function launch(x, ty, shape){
     x = x == null ? W*(.12 + Math.random()*.76) : x;
     ty = ty == null ? H*(.12 + Math.random()*.32) : ty;
+    if (shape){ var S = shapeSize(); ty = Math.max(S*1.15 + 10, Math.min(ty, H*.62 - S*.3)); x = Math.max(S*1.05, Math.min(x, W - S*1.05)); }
     var pal = PALETTES[Math.random()*PALETTES.length|0];
     var vy = -Math.sqrt(2*0.11*(H - ty)) ;
-    rockets.push({x:x, y:H+4, vx:(Math.random()-.5)*.8, vy:vy, ty:ty, pal:pal});
+    rockets.push({x:x, y:H+4, vx:shape ? 0 : (Math.random()-.5)*.8, vy:vy, ty:ty, pal:pal, shape:shape});
+  }
+  function shapeBurst(r){
+    var pts = SHAPES[r.shape], S = shapeSize();
+    for (var i=0;i<pts.length;i++){
+      var q = pts[i];
+      parts.push({x:r.x, y:r.y, sx:r.x, sy:r.y, dx:q.x*S, dy:q.y*S, vx:0, vy:0, life:0, hold:30+Math.random()*8,
+        max:150+Math.random()*30, c:q.c, s:1.7+Math.random()*.9, shape:true, tw:Math.random() < .15});
+    }
+    for (var j=0;j<20;j++){ var b = Math.PI*2*j/20;
+      parts.push({x:r.x,y:r.y,vx:Math.cos(b)*3.2,vy:Math.sin(b)*3.2,life:0,max:40,c:"#ffffff",s:1.3,tw:false}); }
+    flash = Math.min(.25, flash + .16);
   }
   function burst(r){
     var kind = Math.random(), n = 70 + (Math.random()*60|0), sp = 2.4 + Math.random()*2.2;
@@ -252,13 +320,21 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);font-fam
       r.x += r.vx*dt; r.y += r.vy*dt; r.vy += .11*dt;
       cx.fillStyle = "rgba(255,220,180,.9)"; cx.beginPath(); cx.arc(r.x, r.y, 1.8, 0, 6.29); cx.fill();
       cx.fillStyle = "rgba(255,160,80,.35)"; cx.beginPath(); cx.arc(r.x, r.y+5, 1.4, 0, 6.29); cx.fill();
-      if (r.vy >= -0.4 || r.y <= r.ty){ burst(r); rockets.splice(i,1); }
+      if (r.vy >= -0.4 || r.y <= r.ty){ if (r.shape) shapeBurst(r); else burst(r); rockets.splice(i,1); }
     }
     for (i=parts.length-1;i>=0;i--){
       var p = parts[i];
-      p.life += dt; p.vx *= Math.pow(.985,dt); p.vy = p.vy*Math.pow(.985,dt) + .035*dt;
-      p.x += p.vx*dt; p.y += p.vy*dt;
-      var k = 1 - p.life/p.max;
+      p.life += dt;
+      var k;
+      if (p.shape){
+        if (p.life < p.hold){ var e = 1 - Math.pow(1 - p.life/p.hold, 3); p.x = p.sx + p.dx*e; p.y = p.sy + p.dy*e; }
+        else { p.vy += .010*dt; p.y += p.vy*dt; }
+        k = p.life < p.hold + 45 ? 1 : 1 - (p.life - p.hold - 45)/(p.max - p.hold - 45);
+      } else {
+        p.vx *= Math.pow(.985,dt); p.vy = p.vy*Math.pow(.985,dt) + .035*dt;
+        p.x += p.vx*dt; p.y += p.vy*dt;
+        k = 1 - p.life/p.max;
+      }
       if (k <= 0){ parts.splice(i,1); continue; }
       cx.globalAlpha = p.tw ? k*(Math.random()>.5?1:.2) : k;
       cx.fillStyle = p.c; cx.beginPath(); cx.arc(p.x, p.y, p.s*(.6+.4*k), 0, 6.29); cx.fill();
@@ -294,21 +370,24 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);font-fam
     at(3500, function(){ logo.classList.add("moving"); logo.style.transform = "none"; });
     at(4100, function(){ msg.classList.add("on"); foot.classList.add("on"); });
     at(4600, function(){ volley(5, 180); });
+    at(5200, function(){ launch(W*.25, H*.3, "fort"); });
+    at(5700, function(){ launch(W*.75, H*.3, "palm"); });
     at(6500, function(){ hint.classList.add("on"); });
-    at(10500,function(){ hint.classList.remove("on"); });
+    at(13500,function(){ hint.classList.remove("on"); });
     at(5600, function(){
       var tick = 0;
       auto = setInterval(function(){
         if (document.hidden) return;
         tick++;
-        launch(); if (Math.random() < .45) launch();
+        if (tick % 3 === 0) launch(null, H*(.3 + Math.random()*.1), nextShape());
+        else { launch(); if (Math.random() < .45) launch(); }
         if (tick % 14 === 0) volley(6, 150);
       }, 1100);
     });
   }
   addEventListener("pointerdown", function(e){
     if (e.target.closest(".replay")) return;
-    launch(e.clientX, Math.min(e.clientY, H*.7));
+    launch(e.clientX, e.clientY, nextShape());
   });
   document.getElementById("replay").addEventListener("click", show);
   addEventListener("resize", function(){ if (!logo.classList.contains("moving") && logo.classList.contains("lit") === false) centerLogo(); });
